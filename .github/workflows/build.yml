@@ -26,6 +26,13 @@ jobs:
         sudo swapon /swapfile
         free -h
 
+    - name: Configure Global Java & Gradle Memory Limits
+      run: |
+        mkdir -p ~/.gradle
+        echo "org.gradle.jvmargs=-Xmx1024m -XX:MaxMetaspaceSize=256m" > ~/.gradle/gradle.properties
+        echo "org.gradle.workers.max=1" >> ~/.gradle/gradle.properties
+        echo "org.gradle.parallel=false" >> ~/.gradle/gradle.properties
+
     - name: Install system dependencies
       run: |
         sudo apt-get update -y || true
@@ -36,10 +43,10 @@ jobs:
         python -m pip install --upgrade pip setuptools
         pip install buildozer cython
 
-    - name: Build APK with Limited Memory
+    - name: Build APK
       env:
-        GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m"
-        JAVA_OPTS: "-Xmx2048m"
+        _JAVA_OPTIONS: "-Xmx1024m -Xms512m"
+        GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx1024m -Dorg.gradle.workers.max=1"
       run: |
         buildozer -v android debug
 
