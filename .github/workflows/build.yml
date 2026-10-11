@@ -16,20 +16,20 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Free Disk Space & Set Swap
+    - name: Free Disk Space & Set 8GB Swap
       run: |
         sudo swapoff -a || true
         sudo rm -f /swapfile
-        sudo fallocate -l 4G /swapfile
+        sudo fallocate -l 8G /swapfile
         sudo chmod 600 /swapfile
         sudo mkswap /swapfile
         sudo swapon /swapfile
         free -h
 
-    - name: Configure Global Java & Gradle Memory Limits
+    - name: Configure Gradle Memory Limits
       run: |
         mkdir -p ~/.gradle
-        echo "org.gradle.jvmargs=-Xmx1024m -XX:MaxMetaspaceSize=256m" > ~/.gradle/gradle.properties
+        echo "org.gradle.jvmargs=-Xmx1536m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8" > ~/.gradle/gradle.properties
         echo "org.gradle.workers.max=1" >> ~/.gradle/gradle.properties
         echo "org.gradle.parallel=false" >> ~/.gradle/gradle.properties
 
@@ -45,8 +45,8 @@ jobs:
 
     - name: Build APK
       env:
-        _JAVA_OPTIONS: "-Xmx1024m -Xms512m"
-        GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx1024m -Dorg.gradle.workers.max=1"
+        _JAVA_OPTIONS: "-Xmx1536m"
+        GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx1536m -Dorg.gradle.workers.max=1"
       run: |
         buildozer -v android debug
 
