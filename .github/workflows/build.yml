@@ -44,12 +44,19 @@ jobs:
         python -m pip install --upgrade pip setuptools
         pip install buildozer cython
 
+    - name: Accept Android SDK Licenses
+      run: |
+        mkdir -p ~/.android/licenses
+        echo "24333f8a43b682ff23c513812d627b0d00fca30e" > ~/.android/licenses/android-sdk-license
+        echo "d56f5187479451eabf01fb78af6dfcb131a648fa" >> ~/.android/licenses/android-sdk-license
+        echo "84831b8409046aae66b43604f32a76f2f9f10922" >> ~/.android/licenses/android-sdk-license
+
     - name: Build APK
       env:
         _JAVA_OPTIONS: "-Xmx1536m"
         GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx1536m -Dorg.gradle.workers.max=1"
       run: |
-        yes | buildozer -v android debug || (echo "=== BUILD FAILED. ERROR LOG: ===" && find .buildozer/logs -name "*.txt" -exec tail -n 100 {} \; && exit 1)
+        buildozer -v android debug
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
