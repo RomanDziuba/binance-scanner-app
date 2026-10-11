@@ -34,56 +34,33 @@ jobs:
         echo "org.gradle.parallel=false" >> ~/.gradle/gradle.properties
         echo "org.gradle.daemon=false" >> ~/.gradle/gradle.properties
 
-    - name: Install system dependencies
+    - name: Install system dependencies & expect
       run: |
         sudo apt-get update -y || true
-        sudo apt-get install -y --no-install-recommends git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev build-essential libltdl-dev
+        sudo apt-get install -y --no-install-recommends git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev build-essential libltdl-dev expect
 
     - name: Install Buildozer and Cython
       run: |
         python -m pip install --upgrade pip setuptools
         pip install buildozer cython
 
-    - name: Build APK with Auto-Accept Wrapper
+    - name: Build APK with Expect Auto-Responder
       env:
         _JAVA_OPTIONS: "-Xmx1536m"
         GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx1536m -Dorg.gradle.workers.max=1"
       run: |
-        python3 - << 'EOF'
-        import subprocess
-        import sys
-        import time
-        import threading
-
-        # Запускаем buildozer как подпроцесс с перенаправлением ввода-вывода
-        process = subprocess.Popen(
-            ["buildozer", "-v", "android", "debug"],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1
-        )
-
-        # Поток, который каждые 0.5 секунды отправляет "y" в процессе сборки
-        def feed_stdin():
-            while process.poll() is None:
-                try:
-                    process.stdin.write("y\n")
-                    process.stdin.flush()
-                except Exception:
-                    break
-                time.sleep(0.5)
-
-        t = threading.Thread(target=feed_stdin, daemon=True)
-        t.start()
-
-        # Выводим логи сборки в реальном времени
-        for line in process.stdout:
-            print(line, end="")
-
-        sys.exit(process.wait())
-        EOF
+        expect -c '
+          set timeout -1
+          spawn buildozer -v android debug
+          expect {
+            "Accept? (y/N):" { send "y\r"; exp_continue }
+            "y/N" { send "y\r"; exp_continue }
+            "Y/n" { send "y\r"; exp_continue }
+            eof
+          }
+          catch wait result
+          exit [lindex $result 3]
+        '
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
