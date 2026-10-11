@@ -2,7 +2,7 @@ import threading
 import time
 import os
 import requests
-import pandas as pd
+import math
 from datetime import datetime
 
 from kivy.app import App
@@ -41,13 +41,12 @@ CONFIG = {
     "TIMEFRAME_MAIN": "15m",
     "TIMEFRAME_CONF": "30m",
     "SCAN_TIMEFRAME": "5m",
-    "SIGNAL_MODE": "Простой", # "Простой" или "Расширенный"
+    "SIGNAL_MODE": "Простой", 
     "ENABLE_TELEGRAM": True,
     "BOT_TOKEN": "8740928704:AAGBdKD81m8K9dqbwH4OviaizzCzT-BkVrI",
     "CHAT_ID": "1434233986"
 }
 
-# Глобальные переменные управления потоком
 is_scanner_running = False
 scanner_thread = None
 lock = threading.Lock()
@@ -64,6 +63,46 @@ def get_price_fmt(price):
     elif price >= 1: return "{:.4f}"
     elif price >= 0.001: return "{:.6f}"
     else: return "{:.8f}"
+
+
+# =====================================================================
+# МАТЕМАТИЧЕСКИЕ АНАЛОГИ PANDAS / NUMPY НА ЧИСТОМ PYTHON
+# =====================================================================
+def calculate_ema(values, span):
+    if not values:
+        return []
+    k = 2 / (span + 1)
+    ema_list = [values[0]]
+    for val in values[1:]:
+        ema_list.append(val * k + ema_list[-1] * (1 - k))
+    return ema_list
+
+
+def calculate_rolling_mean(values, window):
+    res = []
+    for i in range(len(values)):
+        start = max(0, i - window + 1)
+        chunk = values[start:i+1]
+        res.append(sum(chunk) / len(chunk))
+    return res
+
+
+def calculate_rolling_max(values, window):
+    res = []
+    for i in range(len(values)):
+        start = max(0, i - window + 1)
+        chunk = values[start:i+1]
+        res.append(max(chunk))
+    return res
+
+
+def calculate_rolling_min(values, window):
+    res = []
+    for i in range(len(values)):
+        start = max(0, i - window + 1)
+        chunk = values[start:i+1]
+        res.append(min(chunk))
+    return res
 
 
 class ScannerAppUI(TabbedPanel):
@@ -90,7 +129,7 @@ class ScannerAppUI(TabbedPanel):
         control_layout.add_widget(Label(text='Логи и сигналы в реальном времени:', size_hint_y=None, height=30))
         
         self.log_scroll = ScrollView()
-        self.log_label = Label(text='Приложение готово к работе.\n', size_hint_y=None, halign='left', valign='top')
+        self.log_label = Label(text='Приложение готово к работе (Pure Python режим).\n', size_hint_y=None, halign='left', valign='top')
         self.log_label.bind(texture_size=lambda s, w: setattr(s, 'height', w[1]))
         self.log_label.bind(size=lambda s, w: setattr(s, 'text_size', (w[0], None)))
         self.log_scroll.add_widget(self.log_label)
@@ -105,12 +144,10 @@ class ScannerAppUI(TabbedPanel):
         settings_layout = GridLayout(cols=1, spacing=10, size_hint_y=None, padding=10)
         settings_layout.bind(minimum_height=settings_layout.setter('height'))
         
-        # Режим выдачи сигналов
         settings_layout.add_widget(Label(text='Режим выдачи сигналов:', size_hint_y=None, height=30))
         self.signal_mode_spinner = Spinner(text=CONFIG["SIGNAL_MODE"], values=('Простой', 'Расширенный'), size_hint_y=None, height=40)
         settings_layout.add_widget(self.signal_mode_spinner)
 
-        # Поля ввода числовых настроек
         self.inputs = {}
         fields = [
             ("MIN_VOLUME_USDT", "Мин. объем пары (USDT):"),
@@ -207,7 +244,7 @@ class ScannerAppUI(TabbedPanel):
 
 
 # =====================================================================
-# ТОРГОВЫЙ СКАНЕР И ЛОГИКА
+# ТОРГОВЫЙ СКАНЕР И ЛОГИКА (БЕЗ PANDAS)
 # =====================================================================
 
 def send_telegram_alert(symbol, msg, logger_func):
@@ -254,23 +291,31 @@ def fetch_klines(symbol, timeframe="15m", limit=200):
     try:
         res = requests.get(url, params=params, timeout=5)
         res.raise_for_status()
-        df = pd.DataFrame(res.json(), columns=[
-            "timestamp", "open", "high", "low", "close", "volume",
-            "close_time", "quote_av", "trades", "tb_base_av", "tb_quote_av", "ignore"
-        ])
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-        for col in ["open", "high", "low", "close", "volume", "tb_base_av", "tb_quote_av"]:
-            df[col] = df[col].astype(float)
-        return df
+        raw = res.json()
+        candles = []
+        for row in raw:
+            dt = datetime.fromtimestamp(int(row[0]) / 1000.0)
+            candles.append({
+                "timestamp": dt,
+                "open": float(row[1]),
+                "high": float(row[2]),
+                "low": float(row[3]),
+                "close": float(row[4]),
+                "volume": float(row[5]),
+                "tb_base_av": float(row[9])
+            })
+        return candles
     except Exception:
         return None
 
 
 def update_market_context(logger_func):
-    df_btc = fetch_klines("BTCUSDT", CONFIG["TIMEFRAME_CONF"], limit=50)
-    if df_btc is not None and not df_btc.empty:
-        ema_btc = df_btc['close'].ewm(span=64, adjust=False).mean().iloc[-2]
-        curr_btc = df_btc['close'].iloc[-2]
+    candles_btc = fetch_klines("BTCUSDT", CONFIG["TIMEFRAME_CONF"], limit=100)
+    if candles_btc and len(candles_btc) > 64:
+        closes = [c["close"] for c in candles_btc]
+        emas = calculate_ema(closes, 64)
+        ema_btc = emas[-2]
+        curr_btc = closes[-2]
         with btc_trend_lock:
             BTC_TREND_CACHE["is_bullish"] = curr_btc > ema_btc
             BTC_TREND_CACHE["is_bearish"] = curr_btc < ema_btc
@@ -289,43 +334,53 @@ def update_market_context(logger_func):
             pass
 
 
-def calc_murrey_math(df, base_lookback=64):
-    high_low = df['high'] - df['low']
-    high_close = (df['high'] - df['close'].shift(1)).abs()
-    low_close = (df['low'] - df['close'].shift(1)).abs()
-    tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
-    df['atr'] = tr.rolling(window=14).mean()
-    
-    atr = df['atr'].iloc[-1]
-    if pd.isna(atr) or atr == 0:
-        atr = (df['high'].iloc[-1] - df['low'].iloc[-1])
-    
-    volatility_ratio = tr.iloc[-1] / (atr + 1e-8)
+def calc_murrey_math(candles, base_lookback=64):
+    highs = [c["high"] for c in candles]
+    lows = [c["low"] for c in candles]
+    closes = [c["close"] for c in candles]
+    opens = [c["open"] for c in candles]
+
+    tr_list = []
+    for i in range(len(candles)):
+        hl = highs[i] - lows[i]
+        hc = abs(highs[i] - closes[i-1]) if i > 0 else hl
+        lc = abs(lows[i] - closes[i-1]) if i > 0 else 0
+        tr_list.append(max(hl, hc, lc))
+
+    atr_list = calculate_rolling_mean(tr_list, 14)
+    atr = atr_list[-1] if atr_list else (highs[-1] - lows[-1])
+    if atr == 0 or atr is None:
+        atr = highs[-1] - lows[-1]
+
+    volatility_ratio = tr_list[-1] / (atr + 1e-8) if (atr + 1e-8) > 0 else 1.0
     adaptive_lookback = int(base_lookback * 0.75) if volatility_ratio > 1.5 else base_lookback
-    
-    smoothed_high = (df['high'] + df[['open', 'close']].max(axis=1)) / 2
-    smoothed_low = (df['low'] + df[['open', 'close']].min(axis=1)) / 2
-    
-    hh = smoothed_high.rolling(window=adaptive_lookback).max().iloc[-1]
-    ll = smoothed_low.rolling(window=adaptive_lookback).min().iloc[-1]
-    
+
+    smoothed_high = [(highs[i] + max(opens[i], closes[i])) / 2 for i in range(len(candles))]
+    smoothed_low = [(lows[i] + min(opens[i], closes[i])) / 2 for i in range(len(candles))]
+
+    hh_list = calculate_rolling_max(smoothed_high, adaptive_lookback)
+    ll_list = calculate_rolling_min(smoothed_low, adaptive_lookback)
+
+    hh = hh_list[-1]
+    ll = ll_list[-1]
+
     range_val = hh - ll
     step = range_val / 8 if range_val > 0 else 1.0
-    
+
     m_vals = {
         "+2/8": hh + 2 * step, "+1/8": hh + step, "8/8": hh, "7/8": hh - step,
         "6/8": hh - 2 * step, "5/8": hh - 3 * step, "4/8": hh - 4 * step,
         "3/8": hh - 5 * step, "2/8": hh - 6 * step, "1/8": hh - 7 * step,
         "0/8": ll, "-1/8": ll - step, "-2/8": ll - 2 * step
     }
-    return m_vals, step, atr
+    return m_vals, step, atr, atr_list, tr_list
 
 
 def check_sweep(c_low, c_high, c_close, c_open, level, is_bullish, atr):
     if not CONFIG["FILTER_LIQUIDITY_SWEEP"]:
         return (c_close > level and c_open <= level) if is_bullish else (c_close < level and c_open >= level)
-            
-    if pd.isna(atr) or atr == 0:
+        
+    if atr is None or atr == 0:
         atr = (c_high - c_low) if (c_high - c_low) > 0 else level * 0.001
 
     if is_bullish:
@@ -345,27 +400,35 @@ def check_sweep(c_low, c_high, c_close, c_open, level, is_bullish, atr):
     return False
 
 
-def analyze_and_format_signal(symbol, df15, m15, step15, atr15, df30, m30, step30, atr30):
-    fmt = get_price_fmt(df15['close'].iloc[-1])
+def analyze_and_format_signal(symbol, df15, m15, step15, atr15, atr_list15, tr_list15, df30, m30, step30, atr30, atr_list30):
+    curr_price = df15[-1]['close']
+    fmt = get_price_fmt(curr_price)
     f = lambda v: fmt.format(v)
-    curr_price = df15['close'].iloc[-1]
-    c15 = df15.iloc[-2]
-    c30 = df30.iloc[-2]
     
-    avg_vol15 = df15['volume'].rolling(20).mean().iloc[-2]
+    c15 = df15[-2]
+    c30 = df30[-2]
+    
+    volumes15 = [c['volume'] for c in df15]
+    vol_mean15 = calculate_rolling_mean(volumes15, 20)
+    avg_vol15 = vol_mean15[-2] if len(vol_mean15) >= 2 else volumes15[-2]
     is_high_vol15 = c15['volume'] > (avg_vol15 * CONFIG["VOLUME_SPIKE_MULTIPLIER"])
     
     if CONFIG["FILTER_ATR_SPIKE"]:
-        atr_rolling_mean = df15['atr'].rolling(20).mean().iloc[-2]
-        curr_candle_atr = df15['atr'].iloc[-2]
-        if not pd.isna(atr_rolling_mean) and atr_rolling_mean > 0:
-            if (curr_candle_atr / atr_rolling_mean) > CONFIG["MAX_ATR_MULTIPLIER"]:
-                return None
-                
+        atr_rolling_mean_list = calculate_rolling_mean(atr_list15, 20)
+        if len(atr_rolling_mean_list) >= 2:
+            atr_rolling_mean = atr_rolling_mean_list[-2]
+            curr_candle_atr = atr_list15[-2]
+            if atr_rolling_mean > 0:
+                if (curr_candle_atr / atr_rolling_mean) > CONFIG["MAX_ATR_MULTIPLIER"]:
+                    return None
+                    
     taker_buy_vol = c15['tb_base_av']
     total_vol = c15['volume']
     taker_buy_ratio = (taker_buy_vol / total_vol) if total_vol > 0 else 0.5
-    ema30_val = df30['close'].ewm(span=64, adjust=False).mean().iloc[-2]
+    
+    closes30 = [c['close'] for c in df30]
+    ema30_list = calculate_ema(closes30, 64)
+    ema30_val = ema30_list[-2] if len(ema30_list) >= 2 else closes30[-2]
     
     tp_zone = None
     sl_level = None
@@ -429,7 +492,6 @@ def analyze_and_format_signal(symbol, df15, m15, step15, atr15, df30, m30, step3
     date_time_str = datetime.now().strftime('%Y-%m-%d / %H:%M:%S')
     dir_str = "📈 ЛОНГ" if signal_direction == "bullish" else "📉 ШОРТ"
 
-    # Проверка режима выдачи сигналов
     if CONFIG["SIGNAL_MODE"] == "Расширенный":
         msg = (
             f"🔔{date_time_str}🔔\n"
@@ -443,7 +505,6 @@ def analyze_and_format_signal(symbol, df15, m15, step15, atr15, df30, m30, step3
             f"📊 Объем: OK | Taker Buy: {taker_buy_ratio*100:.1f}%"
         )
     else:
-        # Простой формат
         msg = (
             f"🔔{date_time_str}🔔\n"
             f"{symbol}****{dir_str}\n"
@@ -460,15 +521,18 @@ def analyze_and_format_signal(symbol, df15, m15, step15, atr15, df30, m30, step3
 def process_pair(symbol, logger_func):
     df15 = fetch_klines(symbol, CONFIG["TIMEFRAME_MAIN"])
     df30 = fetch_klines(symbol, CONFIG["TIMEFRAME_CONF"])
-    if df15 is None or df15.empty or df30 is None or df30.empty: return
+    if not df15 or len(df15) < 30 or not df30 or len(df30) < 30: 
+        return
 
-    df30['EMA'] = df30['close'].ewm(span=64, adjust=False).mean()
-    m15, step15, atr15 = calc_murrey_math(df15, 64)
-    m30, step30, atr30 = calc_murrey_math(df30, 64)
+    m15, step15, atr15, atr_list15, tr_list15 = calc_murrey_math(df15, 64)
+    m30, step30, atr30, atr_list30, tr_list30 = calc_murrey_math(df30, 64)
     
-    signal_msg = analyze_and_format_signal(symbol, df15, m15, step15, atr15, df30, m30, step30, atr30)
+    signal_msg = analyze_and_format_signal(
+        symbol, df15, m15, step15, atr15, atr_list15, tr_list15, 
+        df30, m30, step30, atr30, atr_list30
+    )
     if signal_msg:
-        closed_candle_time = df15['timestamp'].iloc[-2]
+        closed_candle_time = df15[-2]['timestamp']
         with lock:
             if LAST_ALERT_TIME.get(symbol) != closed_candle_time:
                 logger_func(f"\n{signal_msg}\n" + "-"*30)
@@ -477,7 +541,7 @@ def process_pair(symbol, logger_func):
 
 
 def scanner_main_loop(logger_func):
-    logger_func("🔄 Цикл сканирования запущен...")
+    logger_func("🔄 Цикл сканирования запущен (Pure Python)...")
     while is_scanner_running:
         try:
             update_market_context(logger_func)
@@ -494,7 +558,6 @@ def scanner_main_loop(logger_func):
                     if not is_scanner_running: break
                     executor.submit(process_pair, p, logger_func)
             
-            # Ожидание перед следующим сканом (5 минут таймфрейм)
             for _ in range(300):
                 if not is_scanner_running: break
                 time.sleep(1)
