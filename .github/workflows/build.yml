@@ -16,9 +16,9 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Allocate Swap Space
+    - name: Free Disk Space & Set Swap
       run: |
-        sudo swapoff /swapfile || true
+        sudo swapoff -a || true
         sudo rm -f /swapfile
         sudo fallocate -l 4G /swapfile
         sudo chmod 600 /swapfile
@@ -36,7 +36,10 @@ jobs:
         python -m pip install --upgrade pip setuptools
         pip install buildozer cython
 
-    - name: Build APK with Buildozer
+    - name: Build APK with Limited Memory
+      env:
+        GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m"
+        JAVA_OPTS: "-Xmx2048m"
       run: |
         buildozer -v android debug
 
