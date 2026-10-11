@@ -44,40 +44,46 @@ jobs:
         python -m pip install --upgrade pip setuptools
         pip install buildozer cython
 
-    - name: Build APK with Dynamic License Injector
+    - name: Build APK with Auto-Accept Wrapper
       env:
         _JAVA_OPTIONS: "-Xmx1536m"
         GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx1536m -Dorg.gradle.workers.max=1"
       run: |
-        # Запускаем фоновый процесс, который будет мгновенно внедрять лицензии, как только появится папка SDK
-        (
-          while true; do
-            if [ -d ".buildozer/android/platform/android-sdk" ]; then
-              mkdir -p .buildozer/android/platform/android-sdk/licenses
-              echo "24333f8a43b682ff23c513812d627b0d00fca30e" > .buildozer/android/platform/android-sdk/licenses/android-sdk-license
-              echo "d56f5187479451eabf01fb78af6dfcb131a648fa" >> .buildozer/android/platform/android-sdk/licenses/android-sdk-license
-              echo "84831b8409046aae66b43604f32a76f2f9f10922" >> .buildozer/android/platform/android-sdk/licenses/android-sdk-license
-            fi
-            sleep 1
-          done
-        ) &
-        INJECTOR_PID=$!
+        python3 - << 'EOF'
+        import subprocess
+        import sys
+        import time
+        import threading
 
-        # Запускаем сборку Buildozer
-        set +e
-        buildozer -v android debug
-        BUILD_STATUS=$?
-        set -e
+        # Запускаем buildozer как подпроцесс с перенаправлением ввода-вывода
+        process = subprocess.Popen(
+            ["buildozer", "-v", "android", "debug"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
+        )
 
-        # Останавливаем фоновый инжектор
-        kill $INJECTOR_PID || true
+        # Поток, который каждые 0.5 секунды отправляет "y" в процессе сборки
+        def feed_stdin():
+            while process.poll() is None:
+                try:
+                    process.stdin.write("y\n")
+                    process.stdin.flush()
+                except Exception:
+                    break
+                time.sleep(0.5)
 
-        # Если сборка упала, выводим реальную ошибку из логов
-        if [ $BUILD_STATUS -ne 0 ]; then
-          echo "=== BUILD FAILED. ERROR LOG: ==="
-          cat .buildozer/logs/buildozer.log || find .buildozer/logs -name "*.txt" -exec tail -n 150 {} \;
-          exit 1
-        fi
+        t = threading.Thread(target=feed_stdin, daemon=True)
+        t.start()
+
+        # Выводим логи сборки в реальном времени
+        for line in process.stdout:
+            print(line, end="")
+
+        sys.exit(process.wait())
+        EOF
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
