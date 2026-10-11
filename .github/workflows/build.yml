@@ -11,6 +11,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
     - name: Free Disk Space & Set 8GB Swap
       run: |
         sudo swapoff -a || true
@@ -29,14 +34,29 @@ jobs:
         echo "org.gradle.parallel=false" >> ~/.gradle/gradle.properties
         echo "org.gradle.daemon=false" >> ~/.gradle/gradle.properties
 
-    - name: Build with Buildozer Action
-      uses: kivy/buildozer-action@v1
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update -y || true
+        sudo apt-get install -y --no-install-recommends git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev build-essential libltdl-dev
+
+    - name: Install Buildozer and Cython
+      run: |
+        python -m pip install --upgrade pip setuptools
+        pip install buildozer cython
+
+    - name: Pre-create Android SDK Licenses
+      run: |
+        mkdir -p .buildozer/android/platform/android-sdk/licenses
+        echo "24333f8a43b682ff23c513812d627b0d00fca30e" > .buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        echo "d56f5187479451eabf01fb78af6dfcb131a648fa" >> .buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        echo "84831b8409046aae66b43604f32a76f2f9f10922" >> .buildozer/android/platform/android-sdk/licenses/android-sdk-license
+
+    - name: Build APK
       env:
         _JAVA_OPTIONS: "-Xmx1536m"
         GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx1536m -Dorg.gradle.workers.max=1"
-      with:
-        filename: buildozer.spec
-        command: buildozer -v android debug
+      run: |
+        buildozer -v android debug || (echo "=== BUILD FAILED. ERROR LOG: ===" && cat .buildozer/logs/buildozer.log || find .buildozer/logs -name "*.txt" -exec tail -n 150 {} \; && exit 1)
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
