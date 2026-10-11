@@ -44,19 +44,40 @@ jobs:
         python -m pip install --upgrade pip setuptools
         pip install buildozer cython
 
-    - name: Pre-create Android SDK Licenses
-      run: |
-        mkdir -p .buildozer/android/platform/android-sdk/licenses
-        echo "24333f8a43b682ff23c513812d627b0d00fca30e" > .buildozer/android/platform/android-sdk/licenses/android-sdk-license
-        echo "d56f5187479451eabf01fb78af6dfcb131a648fa" >> .buildozer/android/platform/android-sdk/licenses/android-sdk-license
-        echo "84831b8409046aae66b43604f32a76f2f9f10922" >> .buildozer/android/platform/android-sdk/licenses/android-sdk-license
-
-    - name: Build APK
+    - name: Build APK with Dynamic License Injector
       env:
         _JAVA_OPTIONS: "-Xmx1536m"
         GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx1536m -Dorg.gradle.workers.max=1"
       run: |
-        buildozer -v android debug || (echo "=== BUILD FAILED. ERROR LOG: ===" && cat .buildozer/logs/buildozer.log || find .buildozer/logs -name "*.txt" -exec tail -n 150 {} \; && exit 1)
+        # Запускаем фоновый процесс, который будет мгновенно внедрять лицензии, как только появится папка SDK
+        (
+          while true; do
+            if [ -d ".buildozer/android/platform/android-sdk" ]; then
+              mkdir -p .buildozer/android/platform/android-sdk/licenses
+              echo "24333f8a43b682ff23c513812d627b0d00fca30e" > .buildozer/android/platform/android-sdk/licenses/android-sdk-license
+              echo "d56f5187479451eabf01fb78af6dfcb131a648fa" >> .buildozer/android/platform/android-sdk/licenses/android-sdk-license
+              echo "84831b8409046aae66b43604f32a76f2f9f10922" >> .buildozer/android/platform/android-sdk/licenses/android-sdk-license
+            fi
+            sleep 1
+          done
+        ) &
+        INJECTOR_PID=$!
+
+        # Запускаем сборку Buildozer
+        set +e
+        buildozer -v android debug
+        BUILD_STATUS=$?
+        set -e
+
+        # Останавливаем фоновый инжектор
+        kill $INJECTOR_PID || true
+
+        # Если сборка упала, выводим реальную ошибку из логов
+        if [ $BUILD_STATUS -ne 0 ]; then
+          echo "=== BUILD FAILED. ERROR LOG: ==="
+          cat .buildozer/logs/buildozer.log || find .buildozer/logs -name "*.txt" -exec tail -n 150 {} \;
+          exit 1
+        fi
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
