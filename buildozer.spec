@@ -1,5 +1,8 @@
 [app]
-title = Binance Scanner
+title = title = DRV
+package.name = drv
+package.domain = org.drv
+requirements = python3,kivy,pyjnius,requests,certifi,urllib3,idna,charset-normalizer
 package.name = binancescanner
 package.domain = org.scanner
 source.dir = .
