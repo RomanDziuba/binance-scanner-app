@@ -52,7 +52,7 @@ CONFIG = {
     "PAUSE_AFTER_SCAN_SEC": 60,
     "INTERVAL_BETWEEN_SCANS_SEC": 300,
     "SIGNAL_MODE": "Простой",
-    "SEND_DETAILED_INFO": True,       # Полный отчет по всем фильтрам в Telegram
+    "SEND_DETAILED_INFO": True,
     "ENABLE_TELEGRAM": True,
     "BOT_TOKEN": "8740928704:AAGBdKD81m8K9dqbwH4OviaizzCzT-BkVrI",
     "CHAT_ID": "1434233986"
@@ -77,7 +77,7 @@ def get_price_fmt(price):
     else: return "{:.8f}"
 
 # =====================================================================
-# ЧИСТЫЕ ПИТОНОВСКИЕ АНАЛОГИ PANDAS / NUMPY ДЛЯ АНДРОИДА
+# АНАЛОГИ PANDAS / NUMPY НА ЧИСТОМ PYTHON
 # =====================================================================
 def calculate_ema(values, span):
     if not values: return []
@@ -112,7 +112,7 @@ def calculate_rolling_min(values, window):
     return res
 
 # =====================================================================
-# СОВРЕМЕННЫЙ КИБЕРПАНК ИНТЕРФЕЙС
+# СТИЛЬНЫЙ ИНТЕРФЕЙС КИБЕРПАНК С КРУПНЫМИ ШРИФТАМИ
 # =====================================================================
 class StyledButton(Button):
     def __init__(self, bg_color=(0, 0.9, 0.9, 1), **kwargs):
@@ -122,7 +122,7 @@ class StyledButton(Button):
         self.custom_bg = bg_color
         self.color = (1, 1, 1, 1)
         self.bold = True
-        self.font_size = 16
+        self.font_size = 18
         self.bind(pos=self.update_canvas, size=self.update_canvas)
 
     def update_canvas(self, *args):
@@ -132,7 +132,7 @@ class StyledButton(Button):
             RoundedRectangle(pos=self.pos, size=self.size, radius=[12])
 
 class CircularNeonTimer(Widget):
-    """Яркий круговой анимированный таймер с крупными цифрами"""
+    """Большой круговой неоновый таймер"""
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.progress = 1.0
@@ -149,15 +149,15 @@ class CircularNeonTimer(Widget):
         self.canvas.before.clear()
         with self.canvas.before:
             Color(0.12, 0.16, 0.22, 1)
-            Line(ellipse=(self.x + 10, self.y + 10, self.width - 20, self.height - 20), width=8)
+            Line(ellipse=(self.x + 12, self.y + 12, self.width - 24, self.height - 24), width=10)
             
             Color(0, 0.9, 1, 1)
             cx = self.center_x
             cy = self.center_y
-            r = min(self.width, self.height) / 2 - 10
+            r = min(self.width, self.height) / 2 - 12
             if r > 0:
                 angle = 360 * self.progress
-                Line(circle=(cx, cy, r, 0, angle), width=8)
+                Line(circle=(cx, cy, r, 0, angle), width=10)
 
 class ScannerAppUI(TabbedPanel):
     def __init__(self, **kwargs):
@@ -165,29 +165,29 @@ class ScannerAppUI(TabbedPanel):
         self.do_default_tab = False
         self.background_color = (0.05, 0.07, 0.09, 1)
 
-        # Таб 1: Сканер
-        tab_control = TabbedPanelItem(text='⚡ СКАНЕР')
-        control_layout = BoxLayout(orientation='vertical', padding=12, spacing=10)
+        # --- Таб 1: СКАНЕР ---
+        tab_control = TabbedPanelItem(text='СКАНЕР')
+        control_layout = BoxLayout(orientation='vertical', padding=15, spacing=12)
         
         # Информационная карточка статуса
-        status_card = BoxLayout(orientation='vertical', size_hint_y=None, height=75, padding=8, spacing=4)
+        status_card = BoxLayout(orientation='vertical', size_hint_y=None, height=85, padding=10, spacing=6)
         with status_card.canvas.before:
             Color(0.09, 0.13, 0.18, 1)
-            RoundedRectangle(pos=status_card.pos, size=status_card.size, radius=[10])
+            RoundedRectangle(pos=status_card.pos, size=status_card.size, radius=[12])
         status_card.bind(pos=self._update_rect, size=self._update_rect)
 
-        self.status_label = Label(text='СТАТУС: ГОТОВ К РАБОТЕ ⚡', font_size=16, bold=True, color=(0, 0.9, 1, 1))
-        self.info_sub_label = Label(text='Ожидание запуска системы...', font_size=13, color=(0.7, 0.8, 0.9, 1))
+        self.status_label = Label(text='СТАТУС: ГОТОВ К РАБОТЕ', font_size=18, bold=True, color=(0, 0.9, 1, 1))
+        self.info_sub_label = Label(text='Ожидание запуска системы...', font_size=14, color=(0.7, 0.8, 0.9, 1))
         status_card.add_widget(self.status_label)
         status_card.add_widget(self.info_sub_label)
         control_layout.add_widget(status_card)
 
-        # Круговой таймер с крупными цифрами посередине
-        timer_container = BoxLayout(orientation='horizontal', size_hint_y=None, height=130)
+        # Большой круговой таймер с крупными цифрами посередине (180x180)
+        timer_container = BoxLayout(orientation='horizontal', size_hint_y=None, height=190)
         timer_container.add_widget(Widget())
         
-        self.circular_timer = CircularNeonTimer(size_hint=(None, None), size=(120, 120))
-        self.timer_big_label = Label(text="05:00", font_size=26, bold=True, color=(0, 1, 0.8, 1), size_hint=(None, None), size=(120, 120))
+        self.circular_timer = CircularNeonTimer(size_hint=(None, None), size=(180, 180))
+        self.timer_big_label = Label(text="05:00", font_size=36, bold=True, color=(0, 1, 0.8, 1), size_hint=(None, None), size=(180, 180))
         
         timer_stack = RelativeTimerLayout()
         timer_stack.add_widget(self.circular_timer)
@@ -198,14 +198,14 @@ class ScannerAppUI(TabbedPanel):
         control_layout.add_widget(timer_container)
 
         # Прогресс-бар сканирования
-        self.progress_bar = ProgressBar(max=100, value=0, size_hint_y=None, height=14)
+        self.progress_bar = ProgressBar(max=100, value=0, size_hint_y=None, height=18)
         control_layout.add_widget(self.progress_bar)
 
-        # Кнопки управления (ровные и современные)
-        btn_layout = BoxLayout(size_hint_y=None, height=52, spacing=15)
-        self.start_btn = StyledButton(text='▶ ЗАПУСК', bg_color=(0, 0.8, 0.4, 1))
+        # Кнопки управления (крупные, симметричные, без битых иконок)
+        btn_layout = BoxLayout(size_hint_y=None, height=56, spacing=15)
+        self.start_btn = StyledButton(text='ЗАПУСК', bg_color=(0, 0.8, 0.4, 1))
         self.start_btn.bind(on_press=self.start_scanner)
-        self.stop_btn = StyledButton(text='⏹ СТОП', bg_color=(0.9, 0.2, 0.3, 1))
+        self.stop_btn = StyledButton(text='СТОП', bg_color=(0.9, 0.2, 0.3, 1))
         self.stop_btn.disabled = True
         self.stop_btn.bind(on_press=self.stop_scanner)
         
@@ -214,10 +214,10 @@ class ScannerAppUI(TabbedPanel):
         control_layout.add_widget(btn_layout)
 
         # Терминал логов
-        control_layout.add_widget(Label(text='📊 ТЕРМИНАЛ СИГНАЛОВ', size_hint_y=None, height=22, bold=True, color=(0.5, 0.7, 0.9, 1)))
+        control_layout.add_widget(Label(text='ТЕРМИНАЛ СИГНАЛОВ', size_hint_y=None, height=25, bold=True, color=(0.5, 0.7, 0.9, 1), font_size=16))
         
         self.log_scroll = ScrollView()
-        self.log_label = Label(text='Система DRV инициализирована.\n', size_hint_y=None, halign='left', valign='top', color=(0, 1, 0.8, 1), font_name='Roboto')
+        self.log_label = Label(text='Система DRV инициализирована.\n', size_hint_y=None, halign='left', valign='top', color=(0, 1, 0.8, 1), font_name='Roboto', font_size=15)
         self.log_label.bind(texture_size=lambda s, w: setattr(s, 'height', w[1]))
         self.log_label.bind(size=lambda s, w: setattr(s, 'text_size', (w[0], None)))
         self.log_scroll.add_widget(self.log_label)
@@ -226,14 +226,15 @@ class ScannerAppUI(TabbedPanel):
         tab_control.add_widget(control_layout)
         self.add_widget(tab_control)
 
-        # Таб 2: Настройки
-        tab_settings = TabbedPanelItem(text='⚙ НАСТРОЙКИ')
+        # --- Таб 2: НАСТРОЙКИ ---
+        tab_settings = TabbedPanelItem(text='НАСТРОЙКИ')
         settings_scroll = ScrollView()
-        settings_layout = GridLayout(cols=1, spacing=10, size_hint_y=None, padding=12)
+        settings_layout = GridLayout(cols=1, spacing=14, size_hint_y=None, padding=15)
         settings_layout.bind(minimum_height=settings_layout.setter('height'))
 
-        settings_layout.add_widget(Label(text='Режим выдачи сигналов:', size_hint_y=None, height=22, color=(0, 0.9, 1, 1), bold=True))
-        self.signal_mode_spinner = Spinner(text=CONFIG["SIGNAL_MODE"], values=('Простой', 'Расширенный'), size_hint_y=None, height=45)
+        settings_layout.add_widget(Label(text='Режим выдачи сигналов:', size_hint_y=None, height=25, color=(0, 0.9, 1, 1), bold=True, font_size=16))
+        self.signal_mode_spinner = Spinner(text=CONFIG["SIGNAL_MODE"], values=('Простой', 'Расширенный'), size_hint_y=None, height=48)
+        self.signal_mode_spinner.font_size = 16
         settings_layout.add_widget(self.signal_mode_spinner)
 
         self.inputs = {}
@@ -253,12 +254,13 @@ class ScannerAppUI(TabbedPanel):
         ]
         
         for key, label_text in fields:
-            settings_layout.add_widget(Label(text=label_text, size_hint_y=None, height=20, color=(0.8, 0.9, 1, 1)))
-            ti = TextInput(text=str(CONFIG[key]), multiline=False, size_hint_y=None, height=42, background_color=(0.12, 0.16, 0.22, 1), foreground_color=(1, 1, 1, 1))
+            settings_layout.add_widget(Label(text=label_text, size_hint_y=None, height=24, color=(0.8, 0.9, 1, 1), font_size=15))
+            # Увеличенная высота и размер шрифта для полей ввода, чтобы цифры были идеально видны
+            ti = TextInput(text=str(CONFIG[key]), multiline=False, size_hint_y=None, height=48, background_color=(0.12, 0.16, 0.22, 1), foreground_color=(1, 1, 1, 1), font_size=16)
             self.inputs[key] = ti
             settings_layout.add_widget(ti)
             
-        save_btn = StyledButton(text='💾 СОХРАНИТЬ НАСТРОЙКИ', bg_color=(0, 0.6, 0.9, 1), size_hint_y=None, height=50)
+        save_btn = StyledButton(text='СОХРАНИТЬ НАСТРОЙКИ', bg_color=(0, 0.6, 0.9, 1), size_hint_y=None, height=54)
         save_btn.bind(on_press=self.save_settings)
         settings_layout.add_widget(save_btn)
         
@@ -266,28 +268,28 @@ class ScannerAppUI(TabbedPanel):
         tab_settings.add_widget(settings_scroll)
         self.add_widget(tab_settings)
 
-        # Таб 3: Telegram
-        tab_tg = TabbedPanelItem(text='📱 TELEGRAM')
-        tg_layout = GridLayout(cols=1, spacing=15, padding=20, size_hint_y=None)
+        # --- Таб 3: TELEGRAM ---
+        tab_tg = TabbedPanelItem(text='TELEGRAM')
+        tg_layout = GridLayout(cols=1, spacing=16, padding=20, size_hint_y=None)
         tg_layout.bind(minimum_height=tg_layout.setter('height'))
         
-        tg_layout.add_widget(Label(text='Отправка уведомлений:', size_hint_y=None, height=25, color=(0, 0.9, 1, 1), bold=True))
-        self.tg_switch = Switch(active=CONFIG["ENABLE_TELEGRAM"], size_hint_y=None, height=40)
+        tg_layout.add_widget(Label(text='Отправка уведомлений:', size_hint_y=None, height=25, color=(0, 0.9, 1, 1), bold=True, font_size=16))
+        self.tg_switch = Switch(active=CONFIG["ENABLE_TELEGRAM"], size_hint_y=None, height=44)
         tg_layout.add_widget(self.tg_switch)
 
-        tg_layout.add_widget(Label(text='Полный отчет в Telegram (все фильтры):', size_hint_y=None, height=25, color=(0, 0.9, 1, 1), bold=True))
-        self.full_report_switch = Switch(active=CONFIG["SEND_DETAILED_INFO"], size_hint_y=None, height=40)
+        tg_layout.add_widget(Label(text='Полный отчет в Telegram (все фильтры):', size_hint_y=None, height=25, color=(0, 0.9, 1, 1), bold=True, font_size=16))
+        self.full_report_switch = Switch(active=CONFIG["SEND_DETAILED_INFO"], size_hint_y=None, height=44)
         tg_layout.add_widget(self.full_report_switch)
         
-        tg_layout.add_widget(Label(text='Bot Token:', size_hint_y=None, height=22, color=(0.8, 0.9, 1, 1)))
-        self.bot_token_input = TextInput(text=CONFIG["BOT_TOKEN"], multiline=False, size_hint_y=None, height=42, background_color=(0.12, 0.16, 0.22, 1), foreground_color=(1, 1, 1, 1))
+        tg_layout.add_widget(Label(text='Bot Token:', size_hint_y=None, height=24, color=(0.8, 0.9, 1, 1), font_size=15))
+        self.bot_token_input = TextInput(text=CONFIG["BOT_TOKEN"], multiline=False, size_hint_y=None, height=48, background_color=(0.12, 0.16, 0.22, 1), foreground_color=(1, 1, 1, 1), font_size=15)
         tg_layout.add_widget(self.bot_token_input)
         
-        tg_layout.add_widget(Label(text='Chat ID:', size_hint_y=None, height=22, color=(0.8, 0.9, 1, 1)))
-        self.chat_id_input = TextInput(text=CONFIG["CHAT_ID"], multiline=False, size_hint_y=None, height=42, background_color=(0.12, 0.16, 0.22, 1), foreground_color=(1, 1, 1, 1))
+        tg_layout.add_widget(Label(text='Chat ID:', size_hint_y=None, height=24, color=(0.8, 0.9, 1, 1), font_size=15))
+        self.chat_id_input = TextInput(text=CONFIG["CHAT_ID"], multiline=False, size_hint_y=None, height=48, background_color=(0.12, 0.16, 0.22, 1), foreground_color=(1, 1, 1, 1), font_size=15)
         tg_layout.add_widget(self.chat_id_input)
         
-        save_tg_btn = StyledButton(text='💾 СОХРАНИТЬ TELEGRAM', bg_color=(0, 0.6, 0.9, 1), size_hint_y=None, height=50)
+        save_tg_btn = StyledButton(text='СОХРАНИТЬ TELEGRAM', bg_color=(0, 0.6, 0.9, 1), size_hint_y=None, height=54)
         save_tg_btn.bind(on_press=self.save_telegram_settings)
         tg_layout.add_widget(save_tg_btn)
         
@@ -298,7 +300,7 @@ class ScannerAppUI(TabbedPanel):
         instance.canvas.before.clear()
         with instance.canvas.before:
             Color(0.09, 0.13, 0.18, 1)
-            RoundedRectangle(pos=instance.pos, size=instance.size, radius=[10])
+            RoundedRectangle(pos=instance.pos, size=instance.size, radius=[12])
 
     def log(self, message):
         timestamp = datetime.now().strftime('[%H:%M:%S] ')
@@ -337,46 +339,46 @@ class ScannerAppUI(TabbedPanel):
             for key, ti in self.inputs.items():
                 CONFIG[key] = float(ti.text) if '.' in ti.text else int(ti.text)
             CONFIG["SIGNAL_MODE"] = self.signal_mode_spinner.text
-            self.log("✅ Настройки успешно сохранены!")
+            self.log("Настройки успешно сохранены!")
         except ValueError:
-            self.log("❌ Ошибка: проверьте числовые поля!")
+            self.log("Ошибка: проверьте числовые поля!")
 
     def save_telegram_settings(self, instance):
         CONFIG["ENABLE_TELEGRAM"] = self.tg_switch.active
         CONFIG["SEND_DETAILED_INFO"] = self.full_report_switch.active
         CONFIG["BOT_TOKEN"] = self.bot_token_input.text.strip()
         CONFIG["CHAT_ID"] = self.chat_id_input.text.strip()
-        self.log("✅ Настройки Telegram сохранены!")
+        self.log("Настройки Telegram сохранены!")
 
     def start_scanner(self, instance):
         global is_scanner_running, scanner_thread
         if is_scanner_running: return
         is_scanner_running = True
-        self.status_label.text = 'СТАТУС: СКАНИРОВАНИЕ 🚀'
+        self.status_label.text = 'СТАТУС: СКАНИРОВАНИЕ'
         self.start_btn.disabled = True
         self.stop_btn.disabled = False
         
         scanner_thread = threading.Thread(target=scanner_main_loop, args=(self,), daemon=True)
         scanner_thread.start()
-        self.log("🚀 Сканер DRV запущен в фоновом режиме.")
+        self.log("Сканер DRV запущен в фоновом режиме.")
 
     def stop_scanner(self, instance):
         global is_scanner_running
         is_scanner_running = False
-        self.status_label.text = 'СТАТУС: ОСТАНОВЛЕН 🛑'
+        self.status_label.text = 'СТАТУС: ОСТАНОВЛЕН'
         self.info_sub_label.text = 'Ожидание запуска...'
         self.start_btn.disabled = False
         self.stop_btn.disabled = True
         self.update_progress(0, 100)
         self.circular_timer.set_progress(0, 1)
         self.timer_big_label.text = "00:00"
-        self.log("🛑 Сканер остановлен.")
+        self.log("Сканер остановлен.")
 
 class RelativeTimerLayout(Widget):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.size_hint = (None, None)
-        self.size = (120, 120)
+        self.size = (180, 180)
 
     def add_widget(self, widget):
         widget.pos = self.pos
@@ -387,7 +389,7 @@ class RelativeTimerLayout(Widget):
             child.pos = self.pos
 
 # =====================================================================
-# ТОРГОВАЯ ЛОГИКА И ФИЛЬТРЫ
+# ТОРГОВАЯ ЛОГИКА И АНАЛИТИКА (10 ФИЛЬТРОВ)
 # =====================================================================
 def send_telegram_alert(symbol, msg, ui_app):
     if not CONFIG["ENABLE_TELEGRAM"]:
@@ -399,9 +401,9 @@ def send_telegram_alert(symbol, msg, ui_app):
         try:
             res = requests.post(url, json=payload, timeout=5)
             res.raise_for_status()
-            ui_app.log(f"✅ Сигнал {symbol} отправлен в Telegram!")
+            ui_app.log(f"Сигнал {symbol} отправлен в Telegram!")
         except Exception as e:
-            ui_app.log(f"❌ Ошибка Telegram ({symbol}): {e}")
+            ui_app.log(f"Ошибка Telegram ({symbol}): {e}")
     threading.Thread(target=_send, daemon=True).start()
 
 def check_internet_connection():
@@ -551,31 +553,31 @@ def analyze_and_format_signal(symbol, df15, m15, step15, atr15, atr_list15, df30
     closes30 = [c['close'] for c in df30]
     ema30_val = calculate_ema(closes30, 64)[-2]
     
-    tp_zone, sl_level, is_active_signal, signal_direction, title, tf_tag = None, None, False, None, "", "15m"
+    tp_zone, sl_level, is_active_signal, signal_direction, title = None, None, False, None, ""
 
     if m15["3/8"] <= curr_price <= m15["5/8"]:
         if check_sweep(c15['low'], c15['high'], c15['close'], c15['open'], m15["5/8"], True, atr15) and is_high_vol15:
             is_active_signal, signal_direction = True, "bullish"
             tp_zone = (m30["7/8"], m30["8/8"]) if (c30['close'] > ema30_val) else (m15["7/8"], m15["8/8"])
             sl_level = m30["-2/8"]
-            title = "🚀 ЗАКРЕПЛЕНИЕ ВЫШЕ 5/8 (ЛОНГ)"
+            title = "ЗАКРЕПЛЕНИЕ ВЫШЕ 5/8 (ЛОНГ)"
         elif check_sweep(c15['low'], c15['high'], c15['close'], c15['open'], m15["3/8"], False, atr15) and is_high_vol15:
             is_active_signal, signal_direction = True, "bearish"
             tp_zone = (m30["0/8"], m30["1/8"]) if (c30['close'] < ema30_val) else (m15["0/8"], m15["1/8"])
             sl_level = m30["+2/8"]
-            title = "📉 ЗАКРЕПЛЕНИЕ НИЖЕ 3/8 (ШОРТ)"
+            title = "ЗАКРЕПЛЕНИЕ НИЖЕ 3/8 (ШОРТ)"
     elif curr_price >= m15["8/8"]:
         if check_sweep(c15['low'], c15['high'], c15['close'], c15['open'], m15["8/8"], False, atr15):
             is_active_signal, signal_direction = True, "bearish"
             tp_zone = (m30["4/8"], m30["6/8"])
             sl_level = m30["+2/8"]
-            title = "📉 РАЗВОРОТ ОТ 8/8 (ШОРТ)"
+            title = "РАЗВОРОТ ОТ 8/8 (ШОРТ)"
     elif curr_price <= m15["0/8"]:
         if check_sweep(c15['low'], c15['high'], c15['close'], c15['open'], m15["0/8"], True, atr15):
             is_active_signal, signal_direction = True, "bullish"
             tp_zone = (m30["2/8"], m30["4/8"])
             sl_level = m30["-2/8"]
-            title = "📈 ОТСКОК ОТ 0/8 (ЛОНГ)"
+            title = "ОТСКОК ОТ 0/8 (ЛОНГ)"
 
     if not is_active_signal: return None
     if CONFIG["FILTER_LOW_VOLUME"] and not is_high_vol15: return None
@@ -607,7 +609,7 @@ def analyze_and_format_signal(symbol, df15, m15, step15, atr15, atr_list15, df30
     if CONFIG["FILTER_KAMA_EFFICIENCY"] and current_er < CONFIG["MIN_EFFICIENCY_RATIO"]: return None
 
     date_time_str = datetime.now().strftime('%Y-%m-%d / %H:%M:%S')
-    dir_str = "📈 ЛОНГ" if signal_direction == "bullish" else "📉 ШОРТ"
+    dir_str = "ЛОНГ" if signal_direction == "bullish" else "ШОРТ"
 
     if CONFIG["SEND_DETAILED_INFO"]:
         current_fr = FUNDING_RATE_CACHE.get(symbol, 0.0)
@@ -656,20 +658,20 @@ def process_pair(symbol, ui_app):
                 LAST_ALERT_TIME[symbol] = closed_candle_time
 
 def scanner_main_loop(ui_app):
-    ui_app.log("⚡ Инициализация ядра DRV Scanner...")
+    ui_app.log("Инициализация ядра DRV Scanner...")
     
     while is_scanner_running:
         try:
             if not check_internet_connection():
-                ui_app.status_label.text = 'СТАТУС: НЕТ ИНТЕРНЕТА ⚠️'
+                ui_app.status_label.text = 'СТАТУС: НЕТ ИНТЕРНЕТА'
                 ui_app.info_sub_label.text = 'Ожидание восстановления сети...'
-                ui_app.log("⚠️ Нет подключения к интернету. Ожидание сети...")
+                ui_app.log("Нет подключения к интернету. Ожидание сети...")
                 while not check_internet_connection():
                     if not is_scanner_running: break
                     time.sleep(3)
                 if not is_scanner_running: break
-                ui_app.status_label.text = 'СТАТУС: СКАНИРОВАНИЕ 🚀'
-                ui_app.log("✅ Сеть восстановлена!")
+                ui_app.status_label.text = 'СТАТУС: СКАНИРОВАНИЕ'
+                ui_app.log("Сеть восстановлена!")
 
             update_market_context()
             pairs = get_active_futures_pairs()
@@ -678,7 +680,7 @@ def scanner_main_loop(ui_app):
                 continue
                 
             total_pairs = len(pairs)
-            ui_app.log(f"🔎 Сканирование {total_pairs} активных пар...")
+            ui_app.log(f"Сканирование {total_pairs} активных пар...")
             
             from concurrent.futures import ThreadPoolExecutor
             completed = 0
@@ -692,12 +694,12 @@ def scanner_main_loop(ui_app):
             
             if not is_scanner_running: break
 
-            # Пауза после полного скана (1 минута по умолчанию)
+            # Пауза после полного скана
             pause_sec = int(CONFIG.get("PAUSE_AFTER_SCAN_SEC", 60))
-            ui_app.status_label.text = 'СТАТУС: ПАУЗА ПОСЛЕ СКАНА ⏸'
+            ui_app.status_label.text = 'СТАТУС: ПАУЗА ПОСЛЕ СКАНА'
             for sec in range(pause_sec, 0, -1):
                 if not is_scanner_running: break
-                ui_app.update_timer_display(sec, pause_sec, "⏸ Очистка экрана через...")
+                ui_app.update_timer_display(sec, pause_sec, "Очистка экрана через...")
                 time.sleep(1)
 
             if not is_scanner_running: break
@@ -705,21 +707,21 @@ def scanner_main_loop(ui_app):
             # Очистка экрана
             ui_app.clear_logs()
             ui_app.update_progress(0, 100)
-            ui_app.log("🧹 Экран очищен. Подготовка к новому циклу...")
+            ui_app.log("Экран очищен. Подготовка к новому циклу...")
 
-            # Обратный отсчет до следующего сканирования (5 минут по умолчанию)
+            # Обратный отсчет до следующего сканирования
             interval_sec = int(CONFIG.get("INTERVAL_BETWEEN_SCANS_SEC", 300))
-            ui_app.status_label.text = 'СТАТУС: ОЖИДАНИЕ ЦИКЛА ⏳'
+            ui_app.status_label.text = 'СТАТУС: ОЖИДАНИЕ ЦИКЛА'
             for sec in range(interval_sec, 0, -1):
                 if not is_scanner_running: break
-                ui_app.update_timer_display(sec, interval_sec, "⏳ До нового сканирования рынка")
+                ui_app.update_timer_display(sec, interval_sec, "До нового сканирования рынка")
                 time.sleep(1)
 
-            ui_app.status_label.text = 'СТАТУС: СКАНИРОВАНИЕ 🚀'
-            ui_app.info_sub_label.text = '🚀 Запуск процесса...'
+            ui_app.status_label.text = 'СТАТУС: СКАНИРОВАНИЕ'
+            ui_app.info_sub_label.text = 'Запуск процесса...'
 
         except Exception as e:
-            ui_app.log(f"❌ Ошибка в цикле: {e}")
+            ui_app.log(f"Ошибка в цикле: {e}")
             time.sleep(5)
 
 class DRVScannerApp(App):
