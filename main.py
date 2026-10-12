@@ -4,7 +4,6 @@ import os
 import requests
 import math
 from datetime import datetime
-
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
