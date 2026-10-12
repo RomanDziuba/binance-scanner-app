@@ -14,11 +14,10 @@ from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.switch import Switch
 from kivy.uix.spinner import Spinner
-from kivy.uix.progressbar import ProgressBar
+from kivy.uix.widget import Widget
 from kivy.uix.tabbedpanel import TabbedPanel, TabbedPanelItem
 from kivy.clock import Clock
-from kivy.graphics import Color, Rectangle, RoundedRectangle
-from kivy.core.audio import SoundLoader
+from kivy.graphics import Color, Rectangle, RoundedRectangle, Line
 
 # =====================================================================
 # CONFIGURATION
@@ -44,10 +43,11 @@ CONFIG = {
     "TIMEFRAME_MAIN": "15m",
     "TIMEFRAME_CONF": "30m",
     "SCAN_TIMEFRAME": "5m",
-    "PAUSE_AFTER_SCAN_SEC": 60,       # 1 минута паузы после полного скана
-    "INTERVAL_BETWEEN_SCANS_SEC": 300, # 5 минут между сканами
+    "PAUSE_AFTER_SCAN_SEC": 60,
+    "INTERVAL_BETWEEN_SCANS_SEC": 300,
     "SIGNAL_MODE": "Простой", 
     "ENABLE_TELEGRAM": True,
+    "FULL_REPORT_TELEGRAM": True, # Полный отчет со всеми фильтрами
     "BOT_TOKEN": "8740928704:AAGBdKD81m8K9dqbwH4OviaizzCzT-BkVrI",
     "CHAT_ID": "1434233986"
 }
@@ -101,7 +101,7 @@ def calculate_rolling_min(values, window):
     return res
 
 # =====================================================================
-# UI COMPONENTS & DESIGN
+# CUSTOM CYBERPUNK UI COMPONENTS
 # =====================================================================
 class StyledButton(Button):
     def __init__(self, bg_color=(0, 0.9, 0.9, 1), **kwargs):
@@ -111,47 +111,96 @@ class StyledButton(Button):
         self.custom_bg = bg_color
         self.color = (1, 1, 1, 1)
         self.bold = True
+        self.font_size = 16
         self.bind(pos=self.update_canvas, size=self.update_canvas)
 
     def update_canvas(self, *args):
         self.canvas.before.clear()
         with self.canvas.before:
             Color(*self.custom_bg)
-            RoundedRectangle(pos=self.pos, size=self.size, radius=[12])
+            RoundedRectangle(pos=self.pos, size=self.size, radius=[14])
+
+class CircularTimerWidget(Widget):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.progress = 1.0 # от 1.0 до 0.0
+        self.time_text = "05:00"
+        self.status_text = "ГОТОВ К ЗАПУСКУ"
+        self.bind(pos=self.draw, size=self.draw)
+
+    def update_timer(self, progress, time_text, status_text):
+        self.progress = max(0.0, min(1.0, progress))
+        self.time_text = time_text
+        self.status_text = status_text
+        self.draw()
+
+    def draw(self, *args):
+        self.canvas.clear()
+        with self.canvas:
+            # Каркас панели
+            Color(0.08, 0.12, 0.16, 1)
+            RoundedRectangle(pos=self.pos, size=self.size, radius=[16])
+            
+            # Неоновая рамка
+            Color(0, 0.9, 1, 0.4)
+            Line(rounded_rectangle=(self.x, self.y, self.width, self.height, 16), width=1.5)
+
+        # Рисуем круговой прогресс в центре
+        center_x = self.center_x
+        center_y = self.center_y - 10
+        radius = min(self.width, self.height) * 0.32
+
+        with self.canvas:
+            # Фоновое кольцо
+            Color(0.15, 0.22, 0.3, 1)
+            Line(circle=(center_x, center_y, radius), width=6)
+
+            # Активное неоновое кольцо таймера
+            Color(0, 0.9, 1, 1)
+            angle_end = 360 * self.progress
+            if angle_end > 0:
+                Line(circle=(center_x, center_y, radius, 0, angle_end), width=6)
+
+        # Текстовые метки поверх
+        if not hasattr(self, 'lbl_status'):
+            self.lbl_status = Label(text=self.status_text, font_size=15, bold=True, color=(0, 0.95, 1, 1), halign='center')
+            self.add_widget(self.lbl_status)
+        if not hasattr(self, 'lbl_time'):
+            self.lbl_time = Label(text=self.time_text, font_size=32, bold=True, color=(1, 1, 1, 1), halign='center')
+            self.add_widget(self.lbl_time)
+
+        # Позиционирование текста внутри виджета
+        self.lbl_status.size = (self.width, 30)
+        self.lbl_status.center_x = self.center_x
+        self.lbl_status.center_y = self.center_y + 35
+
+        self.lbl_time.size = (self.width, 45)
+        self.lbl_time.center_x = self.center_x
+        self.lbl_time.center_y = self.center_y - 15
+
+        self.lbl_status.text = self.status_text
+        self.lbl_time.text = self.time_text
+
 
 class ScannerAppUI(TabbedPanel):
     def __init__(self, **kwargs):
         super(ScannerAppUI, self).__init__(**kwargs)
         self.do_default_tab = False
-        self.background_color = (0.05, 0.07, 0.09, 1)
+        self.background_color = (0.04, 0.06, 0.09, 1)
 
         # Tab 1: Scanner Dashboard
-        tab_control = TabbedPanelItem(text='⚡ DRV SCANNER')
-        control_layout = BoxLayout(orientation='vertical', padding=15, spacing=12)
+        tab_control = TabbedPanelItem(text='⚡ СКАНЕР')
+        control_layout = BoxLayout(orientation='vertical', padding=12, spacing=12)
         
-        # Header / Status Card
-        status_card = BoxLayout(orientation='vertical', size_hint_y=None, height=110, padding=10, spacing=5)
-        with status_card.canvas.before:
-            Color(0.1, 0.14, 0.18, 1)
-            RoundedRectangle(pos=status_card.pos, size=status_card.size, radius=[10])
-        status_card.bind(pos=self._update_rect, size=self._update_rect)
+        # Большой круговой таймер / статус панель
+        self.circular_timer = CircularTimerWidget(size_hint_y=None, height=200)
+        control_layout.add_widget(self.circular_timer)
 
-        self.status_label = Label(text='СТАТУС: ГОТОВ ⚡', font_size=18, bold=True, color=(0, 0.9, 1, 1))
-        self.timer_label = Label(text='⏳ Ожидание запуска...', font_size=14, color=(0.7, 0.8, 0.9, 1))
-        
-        status_card.add_widget(self.status_label)
-        status_card.add_widget(self.timer_label)
-        control_layout.add_widget(status_card)
-
-        # Progress Bar
-        self.progress_bar = ProgressBar(max=100, value=0, size_hint_y=None, height=18)
-        control_layout.add_widget(self.progress_bar)
-
-        # Action Buttons
-        btn_layout = BoxLayout(size_hint_y=None, height=50, spacing=15)
-        self.start_btn = StyledButton(text='▶ ЗАПУСК', bg_color=(0, 0.8, 0.4, 1))
+        # Кнопки управления (Ровные, современные, крупные)
+        btn_layout = BoxLayout(size_hint_y=None, height=55, spacing=15)
+        self.start_btn = StyledButton(text='▶ ЗАПУСК СКАНЕРА', bg_color=(0, 0.85, 0.5, 1))
         self.start_btn.bind(on_press=self.start_scanner)
-        self.stop_btn = StyledButton(text='⏹ СТОП', bg_color=(0.9, 0.2, 0.3, 1))
+        self.stop_btn = StyledButton(text='⏹ ОСТАНОВИТЬ', bg_color=(0.95, 0.2, 0.35, 1))
         self.stop_btn.disabled = True
         self.stop_btn.bind(on_press=self.stop_scanner)
         
@@ -159,11 +208,11 @@ class ScannerAppUI(TabbedPanel):
         btn_layout.add_widget(self.stop_btn)
         control_layout.add_widget(btn_layout)
 
-        # Console Logs Container
-        control_layout.add_widget(Label(text='📊 ТЕРМИНАЛ СИГНАЛОВ И ЛОГОВ', size_hint_y=None, height=25, bold=True, color=(0.5, 0.7, 0.9, 1)))
+        # Терминал логов
+        control_layout.add_widget(Label(text='📊 ТЕРМИНАЛ СИГНАЛОВ', size_hint_y=None, height=25, bold=True, color=(0.4, 0.8, 1, 1)))
         
         self.log_scroll = ScrollView()
-        self.log_label = Label(text='Система инициализирована. Готово к сканированию.\n', size_hint_y=None, halign='left', valign='top', color=(0, 1, 0.8, 1), font_name='Roboto')
+        self.log_label = Label(text='Система DRV готова к работе.\n', size_hint_y=None, halign='left', valign='top', color=(0, 1, 0.8, 1), font_size=13)
         self.log_label.bind(texture_size=lambda s, w: setattr(s, 'height', w[1]))
         self.log_label.bind(size=lambda s, w: setattr(s, 'text_size', (w[0], None)))
         self.log_scroll.add_widget(self.log_label)
@@ -175,11 +224,11 @@ class ScannerAppUI(TabbedPanel):
         # Tab 2: Settings
         tab_settings = TabbedPanelItem(text='⚙ НАСТРОЙКИ')
         settings_scroll = ScrollView()
-        settings_layout = GridLayout(cols=1, spacing=12, size_hint_y=None, padding=15)
+        settings_layout = GridLayout(cols=1, spacing=14, size_hint_y=None, padding=15)
         settings_layout.bind(minimum_height=settings_layout.setter('height'))
 
-        settings_layout.add_widget(Label(text='Режим сигналов:', size_hint_y=None, height=25, color=(0, 0.9, 1, 1)))
-        self.signal_mode_spinner = Spinner(text=CONFIG["SIGNAL_MODE"], values=('Простой', 'Расширенный'), size_hint_y=None, height=40)
+        settings_layout.add_widget(Label(text='Режим выдачи сигналов:', size_hint_y=None, height=25, color=(0, 0.9, 1, 1), bold=True))
+        self.signal_mode_spinner = Spinner(text=CONFIG["SIGNAL_MODE"], values=('Простой', 'Расширенный'), size_hint_y=None, height=45)
         settings_layout.add_widget(self.signal_mode_spinner)
 
         self.inputs = {}
@@ -193,17 +242,17 @@ class ScannerAppUI(TabbedPanel):
             ("MIN_TAKER_BUY_RATIO", "Мин. доля Taker Buy (0.6 = 60%):"),
             ("MAX_ATR_MULTIPLIER", "Макс. множитель ATR Spike:"),
             ("MAX_ABSOLUTE_FUNDING_RATE", "Макс. фандинг (0.0005 = 0.05%):"),
-            ("PAUSE_AFTER_SCAN_SEC", "Пауза после сканирования (сек):"),
+            ("PAUSE_AFTER_SCAN_SEC", "Пауза после скана (сек):"),
             ("INTERVAL_BETWEEN_SCANS_SEC", "Интервал между сканами (сек):")
         ]
         
         for key, label_text in fields:
-            settings_layout.add_widget(Label(text=label_text, size_hint_y=None, height=20, color=(0.8, 0.9, 1, 1)))
-            ti = TextInput(text=str(CONFIG[key]), multiline=False, size_hint_y=None, height=40, background_color=(0.15, 0.2, 0.25, 1), foreground_color=(1, 1, 1, 1))
+            settings_layout.add_widget(Label(text=label_text, size_hint_y=None, height=22, color=(0.8, 0.9, 1, 1)))
+            ti = TextInput(text=str(CONFIG[key]), multiline=False, size_hint_y=None, height=45, background_color=(0.12, 0.17, 0.23, 1), foreground_color=(1, 1, 1, 1))
             self.inputs[key] = ti
             settings_layout.add_widget(ti)
             
-        save_btn = StyledButton(text='💾 СОХРАНИТЬ НАСТРОЙКИ', bg_color=(0, 0.6, 0.9, 1), size_hint_y=None, height=50)
+        save_btn = StyledButton(text='💾 СОХРАНИТЬ НАСТРОЙКИ', bg_color=(0, 0.6, 0.9, 1), size_hint_y=None, height=55)
         save_btn.bind(on_press=self.save_settings)
         settings_layout.add_widget(save_btn)
         
@@ -213,23 +262,227 @@ class ScannerAppUI(TabbedPanel):
 
         # Tab 3: Telegram
         tab_tg = TabbedPanelItem(text='📱 TELEGRAM')
-        tg_layout = GridLayout(cols=1, spacing=15, padding=20, size_hint_y=None)
+        tg_layout = GridLayout(cols=1, spacing=16, padding=20, size_hint_y=None)
         tg_layout.bind(minimum_height=tg_layout.setter('height'))
         
-        tg_layout.add_widget(Label(text='Отправка уведомлений:', size_hint_y=None, height=30, color=(0, 0.9, 1, 1)))
-        self.tg_switch = Switch(active=CONFIG["ENABLE_TELEGRAM"], size_hint_y=None, height=40)
+        tg_layout.add_widget(Label(text='Отправка уведомлений в Telegram:', size_hint_y=None, height=25, color=(0, 0.9, 1, 1), bold=True))
+        self.tg_switch = Switch(active=CONFIG["ENABLE_TELEGRAM"], size_hint_y=None, height=45)
         tg_layout.add_widget(self.tg_switch)
+
+        tg_layout.add_widget(Label(text='Полный отчет (все фильтры и параметры):', size_hint_y=None, height=25, color=(0, 0.9, 1, 1), bold=True))
+        self.full_report_switch = Switch(active=CONFIG["FULL_REPORT_TELEGRAM"], size_hint_y=None, height=45)
+        tg_layout.add_widget(self.full_report_switch)
         
-        tg_layout.add_widget(Label(text='Bot Token:', size_hint_y=None, height=25, color=(0.8, 0.9, 1, 1)))
-        self.bot_token_input = TextInput(text=CONFIG["BOT_TOKEN"], multiline=False, size_hint_y=None, height=40, background_color=(0.15, 0.2, 0.25, 1), foreground_color=(1, 1, 1, 1))
+        tg_layout.add_widget(Label(text='Bot Token:', size_hint_y=None, height=22, color=(0.8, 0.9, 1, 1)))
+        self.bot_token_input = TextInput(text=CONFIG["BOT_TOKEN"], multiline=False, size_hint_y=None, height=45, background_color=(0.12, 0.17, 0.23, 1), foreground_color=(1, 1, 1, 1))
         tg_layout.add_widget(self.bot_token_input)
         
-        tg_layout.add_widget(Label(text='Chat ID:', size_hint_y=None, height=25, color=(0.8, 0.9, 1, 1)))
-        self.chat_id_input = TextInput(text=CONFIG["CHAT_ID"], multiline=False, size_hint_y=None, height=40, background_color=(0.15, 0.2, 0.25, 1), foreground_color=(1, 1, 1, 1))
+        tg_layout.add_widget(Label(text='Chat ID:', size_hint_y=None, height=22, color=(0.8, 0.9, 1, 1)))
+        self.chat_id_input = TextInput(text=CONFIG["CHAT_ID"], multiline=False, size_hint_y=None, height=45, background_color=(0.12, 0.17, 0.23, 1), foreground_color=(1, 1, 1, 1))
         tg_layout.add_widget(self.chat_id_input)
         
-        save_tg_btn = StyledButton(text='💾 СОХРАНИТЬ TELEGRAM', bg_color=(0, 0.6, 0.9, 1), size_hint_y=None, height=50)
+        save_tg_btn = StyledButton(text='💾 СОХРАНИТЬ TELEGRAM НАСТРОЙКИ', bg_color=(0, 0.6, 0.9, 1), size_hint_y=None, height=55)
         save_tg_btn.bind(on_press=self.save_telegram_settings)
+        tg_layout.add_widget(save_tg_btn)
+        
+        tab_tg.add_widget(tg_layout)
+        self.add_widget(tab_tg)
+
+    def log(self, message):
+        timestamp = datetime.now().strftime('[%H:%M:%S] ')
+        Clock.schedule_once(lambda dt: self._update_logs(timestamp + message + '\n'))
+
+    def clear_logs(self):
+        Clock.schedule_once(lambda dt: setattr(self.log_label, 'text', ''))
+
+    def update_timer(self, progress, time_text, status_text):
+        Clock.schedule_once(lambda dt: self.circular_timer.update_timer(progress, time_text, status_text))
+
+    def play_alert_sound(self):
+        try:
+            print('\a')
+        except Exception:
+            pass
+
+    def _update_logs(self, text):
+        self.log_label.text += text
+
+    def save_settings(self, instance):
+        try:
+            for key, ti in self.inputs.items():
+                CONFIG[key] = float(ti.text) if '.' in ti.text else int(ti.text)
+            CONFIG["SIGNAL_MODE"] = self.signal_mode_spinner.text
+            self.log("✅ Настройки успешно сохранены!")
+        except ValueError:
+            self.log("❌ Ошибка ввода числовых значений!")
+
+    def save_telegram_settings(self, instance):
+        CONFIG["ENABLE_TELEGRAM"] = self.tg_switch.active
+        CONFIG["FULL_REPORT_TELEGRAM"] = self.full_report_switch.active
+        CONFIG["BOT_TOKEN"] = self.bot_token_input.text.strip()
+        CONFIG["CHAT_ID"] = self.chat_id_input.text.strip()
+        self.log("✅ Настройки Telegram сохранены!")
+
+    def start_scanner(self, instance):
+        global is_scanner_running, scanner_thread
+        if is_scanner_running: return
+        is_scanner_running = True
+        self.start_btn.disabled = True
+        self.stop_btn.disabled = False
+        
+        scanner_thread = threading.Thread(target=scanner_main_loop, args=(self,), daemon=True)
+        scanner_thread.start()
+        self.log("🚀 Сканер DRV запущен.")
+
+    def stop_scanner(self, instance):
+        global is_scanner_running
+        is_scanner_running = False
+        self.start_btn.disabled = False
+        self.stop_btn.disabled = True
+        self.update_timer(1.0, "00:00", "ОСТАНОВЛЕН")
+        self.log("🛑 Сканер остановлен.")
+
+# =====================================================================
+# CORE LOGIC
+# =====================================================================
+def send_telegram_alert(symbol, msg, ui_app):
+    if not CONFIG["ENABLE_TELEGRAM"]:
+        ui_app.play_alert_sound()
+        return
+    def _send():
+        url = f"https://api.telegram.org/bot{CONFIG['BOT_TOKEN']}/sendMessage"
+        payload = {"chat_id": CONFIG["CHAT_ID"], "text": msg, "parse_mode": "HTML", "disable_web_page_preview": True}
+        try:
+            res = requests.post(url, json=payload, timeout=5)
+            res.raise_for_status()
+            ui_app.log(f"✅ Сигнал {symbol} отправлен в Telegram!")
+        except Exception as e:
+            ui_app.log(f"❌ Ошибка Telegram ({symbol}): {e}")
+    threading.Thread(target=_send, daemon=True).start()
+
+def check_internet_connection():
+    try:
+        requests.get("https://fapi.binance.com/fapi/v1/ping", timeout=3)
+        return True
+    except Exception:
+        return False
+
+def get_active_futures_pairs(ui_app):
+    url = "https://fapi.binance.com/fapi/v1/ticker/24hr"
+    try:
+        res = requests.get(url, timeout=10)
+        res.raise_for_status()
+        data = res.json()
+        valid_pairs = []
+        for item in data:
+            if item['symbol'].endswith('USDT'):
+                if float(item['quoteVolume']) >= CONFIG["MIN_VOLUME_USDT"]:
+                    valid_pairs.append(item['symbol'])
+        return valid_pairs
+    except Exception:
+        return []
+
+def fetch_klines(symbol, timeframe="15m", limit=200):
+    url = "https://fapi.binance.com/fapi/v1/klines"
+    params = {"symbol": symbol, "interval": timeframe, "limit": limit}
+    try:
+        res = requests.get(url, params=params, timeout=5)
+        res.raise_for_status()
+        raw = res.json()
+        candles = []
+        for row in raw:
+            candles.append({
+                "timestamp": datetime.fromtimestamp(int(row[0]) / 1000.0),
+                "open": float(row[1]),
+                "high": float(row[2]),
+                "low": float(row[3]),
+                "close": float(row[4]),
+                "volume": float(row[5]),
+                "tb_base_av": float(row[9])
+            })
+        return candles
+    except Exception:
+        return None
+
+def update_market_context(ui_app):
+    candles_btc = fetch_klines("BTCUSDT", CONFIG["TIMEFRAME_CONF"], limit=100)
+    if candles_btc and len(candles_btc) > 64:
+        closes = [c["close"] for c in candles_btc]
+        emas = calculate_ema(closes, 64)
+        with btc_trend_lock:
+            BTC_TREND_CACHE["is_bullish"] = closes[-2] > emas[-2]
+            BTC_TREND_CACHE["is_bearish"] = closes[-2] < emas[-2]
+
+    if CONFIG["FILTER_FUNDING_RATE"]:
+        try:
+            res = requests.get("https://fapi.binance.com/fapi/v1/premiumIndex", timeout=5)
+            res.raise_for_status()
+            new_rates = {item['symbol']: float(item.get('lastFundingRate', 0.0)) for item in res.json()}
+            with funding_rate_lock:
+                global FUNDING_RATE_CACHE
+                FUNDING_RATE_CACHE = new_rates
+        except Exception:
+            pass
+
+def calc_murrey_math(candles, base_lookback=64):
+    highs = [c["high"] for c in candles]
+    lows = [c["low"] for c in candles]
+    closes = [c["close"] for c in candles]
+    opens = [c["open"] for c in candles]
+
+    tr_list = []
+    for i in range(len(candles)):
+        hl = highs[i] - lows[i]
+        hc = abs(highs[i] - closes[i-1]) if i > 0 else hl
+        lc = abs(lows[i] - closes[i-1]) if i > 0 else 0
+        tr_list.append(max(hl, hc, lc))
+
+    atr_list = calculate_rolling_mean(tr_list, 14)
+    atr = atr_list[-1] if atr_list else (highs[-1] - lows[-1])
+    if atr == 0 or atr is None: atr = highs[-1] - lows[-1]
+
+    volatility_ratio = tr_list[-1] / (atr + 1e-8) if (atr + 1e-8) > 0 else 1.0
+    adaptive_lookback = int(base_lookback * 0.75) if volatility_ratio > 1.5 else base_lookback
+
+    smoothed_high = [(highs[i] + max(opens[i], closes[i])) / 2 for i in range(len(candles))]
+    smoothed_low = [(lows[i] + min(opens[i], closes[i])) / 2 for i in range(len(candles))]
+
+    hh = calculate_rolling_max(smoothed_high, adaptive_lookback)[-1]
+    ll = calculate_rolling_min(smoothed_low, adaptive_lookback)[-1]
+
+    range_val = hh - ll
+    step = range_val / 8 if range_val > 0 else 1.0
+
+    m_vals = {
+        "+2/8": hh + 2 * step, "+1/8": hh + step, "8/8": hh, "7/8": hh - step,
+        "6/8": hh - 2 * step, "5/8": hh - 3 * step, "4/8": hh - 4 * step,
+        "3/8": hh - 5 * step, "2/8": hh - 6 * step, "1/8": hh - 7 * step,
+        "0/8": ll, "-1/8": ll - step, "-2/8": ll - 2 * step
+    }
+    return m_vals, step, atr, atr_list
+
+def check_sweep(c_low, c_high, c_close, c_open, level, is_bullish, atr):
+    if not CONFIG["FILTER_LIQUIDITY_SWEEP"]:
+        return (c_close > level and c_open <= level) if is_bullish else (c_close < level and c_open >= level)
+        
+    if atr is None or atr == 0: atr = (c_high - c_low) if (c_high - c_low) > 0 else level * 0.001
+
+    if is_bullish:
+        if c_low < level and c_close > level:
+            penetration_ratio = (level - c_low) / atr
+            if CONFIG["SWEEP_MIN_ATR_RATIO"] <= penetration_ratio <= CONFIG["SWEEP_MAX_ATR_RATIO"]: return True
+        if c_close > level and c_open <= level: return True
+    else:
+        if c_high > level and c_close < level:
+            penetration_ratio = (c_high - level) / atr
+            if CONFIG["SWEEP_MIN_ATR_RATIO"] <= penetration_ratio <= CONFIG["SWEEP_MAX_ATR_RATIO"]: return True
+        if c_close < level and c_open >= level: return True
+    return False
+
+def analyze_signal(symbol, df15, m15, atr15, atr_list15, df30, m30, atr30):
+    curr_price = df15[-1]['close']
+    fmt = get_price_fmt(curr_price)
+    f = lambda v: fmt.form_btn.bind(on_press=self.save_telegram_settings)
         tg_layout.add_widget(save_tg_btn)
         
         tab_tg.add_widget(tg_layout)
