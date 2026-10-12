@@ -12,7 +12,7 @@ requirements = python3,kivy,pyjnius,requests,certifi,urllib3,idna,charset-normal
 orientation = portrait
 fullscreen = 0
 
-android.permissions = INTERNET,ACCESS_NETWORK_STATE
+android.permissions = INTERNET,ACCESS_NETWORK_STATE,WAKE_LOCK,FOREGROUND_SERVICE
 android.api = 33
 android.minapi = 21
 android.accept_sdk_license = True
