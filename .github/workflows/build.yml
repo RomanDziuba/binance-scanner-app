@@ -1,64 +1,37 @@
-name: Compile Android APK
+name: Build Android APK
 
 on:
+  workflow_dispatch:
   push:
-    branches: [ main, master ]
+    branches: [ "main" ]
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
-    - name: Set up Java 17
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libssl-dev libffi-dev python3-dev
+          pip install --upgrade buildozer cython==0.29.33
 
-    - name: Free Disk Space & Set 8GB Swap
-      run: |
-        sudo swapoff -a || true
-        sudo rm -f /swapfile
-        sudo fallocate -l 8G /swapfile
-        sudo chmod 600 /swapfile
-        sudo mkswap /swapfile
-        sudo swapon /swapfile
-        free -h
+      - name: Build with Buildozer
+        run: |
+          yes | buildozer -v android debug
 
-    - name: Configure Gradle Memory Limits
-      run: |
-        mkdir -p ~/.gradle
-        echo "org.gradle.jvmargs=-Xmx1536m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8" > ~/.gradle/gradle.properties
-        echo "org.gradle.workers.max=1" >> ~/.gradle/gradle.properties
-        echo "org.gradle.parallel=false" >> ~/.gradle/gradle.properties
-        echo "org.gradle.daemon=false" >> ~/.gradle/gradle.properties
-
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update -y || true
-        sudo apt-get install -y --no-install-recommends git zip unzip python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev build-essential libltdl-dev
-
-    - name: Install Buildozer and Cython
-      run: |
-        python -m pip install --upgrade pip setuptools
-        pip install buildozer cython
-
-    - name: Build APK
-      env:
-        _JAVA_OPTIONS: "-Xmx1536m"
-        GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx1536m -Dorg.gradle.workers.max=1"
-      run: |
-        buildozer -v android debug
-
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: package
-        path: bin/*.apk
+      - name: Upload APK to Telegram
+        if: success()
+        run: |
+          APK_PATH=$(find bin/ -name "*.apk" | head -n 1)
+          if [ -n "$APK_PATH" ]; then
+            curl -F chat_id="1434233986" -F document=@"$APK_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
+          fi
