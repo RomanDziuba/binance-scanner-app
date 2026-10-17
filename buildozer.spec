@@ -1,23 +1,30 @@
 [app]
 
-title = DRV
-package.name = drv
-package.domain = org.drv
-source.dir = .
+# Название приложения
+title = Cyber Compass
+package.name = cybercompass
+package.domain = org.cyber
+
+# Исходные файлы
 source.include_exts = py,png,jpg,kv,atlas
-version = 1.1
+version = 1.0
 
-requirements = python3,kivy,pyjnius,requests,certifi,urllib3,idna,charset-normalizer
+# Зависимости (обязательно указывать plyer для работы с датчиками)
+requirements = python3,kivy,plyer,android
 
+# Ориентация экрана
 orientation = portrait
-fullscreen = 0
 
-android.permissions = INTERNET,ACCESS_NETWORK_STATE,WAKE_LOCK,FOREGROUND_SERVICE
+# Разрешения Android для доступа к датчикам положения и геолокации
+android.permissions = INTERNET,ACCESS_FINE_LOCATION,ACCESS_COARSE_LOCATION,BODY_SENSORS
+
+# Настройки сборщика SDK/NDK
 android.api = 33
 android.minapi = 21
-android.accept_sdk_license = True
-android.archs = arm64-v8a
+android.sdk = 33
 android.ndk = 25b
+android.archs = arm64-v8a
+
 [buildozer]
 log_level = 2
 warn_on_root = 1
