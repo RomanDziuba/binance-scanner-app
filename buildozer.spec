@@ -5,11 +5,14 @@ title = Cyber Compass
 package.name = cybercompass
 package.domain = org.cyber
 
+# Указываем путь к исходным файлам (текущая папка)
+source.dir = .
+
 # Исходные файлы
 source.include_exts = py,png,jpg,kv,atlas
 version = 1.0
 
-# Зависимости (обязательно указывать plyer для работы с датчиками)
+# Зависимости
 requirements = python3,kivy,plyer,android
 
 # Ориентация экрана
