@@ -75,6 +75,8 @@ jobs:
           pip cache purge || true
 
       - name: Build with Buildozer
+        env:
+          PIP_CONSTRAINT: ${ github.workspace }/constraints.txt
         run: |
           yes | buildozer -v android debug
 
