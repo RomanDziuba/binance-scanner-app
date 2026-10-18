@@ -13,17 +13,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Export Templates & System Dependencies
+      - name: Configure Godot Android SDK & Editor Settings
         run: |
-          apt-get update && apt-get install -y python3 curl unzip
-          mkdir -p ~/.local/share/godot/export_templates/4.3.stable
-          mkdir -p ~/.config/godot/
+          python3 -c "
+          import os
+          sdk_path = os.environ.get('ANDROID_HOME', os.environ.get('ANDROID_SDK_ROOT', '/root/android-sdk'))
+          config_dir = os.path.expanduser('~/.config/godot')
+          os.makedirs(config_dir, exist_ok=True)
+          settings_file = os.path.join(config_dir, 'editor_settings-4.tres')
           
-          echo "📥 Скачивание официальных шаблонов экспорта Godot 4.3..."
-          curl -L -o export_templates.tpz https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
-          unzip -q export_templates.tpz
-          mv templates/* ~/.local/share/godot/export_templates/4.3.stable/
-          echo "✅ Шаблоны успешно установлены!"
+          content = '''[resource]
+
+export/android/android_sdk_path = \"%s\"
+''' % sdk_path
+          
+          with open(settings_file, 'w') as f:
+              f.write(content)
+          print(f'✅ Android SDK path configured: {sdk_path}')
+          "
 
       - name: Generate Import Cache
         run: |
