@@ -13,14 +13,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Wget, Unzip and OpenJDK 17
+      - name: Install Wget/Unzip & Download Export Templates
         run: |
-          apt-get update && apt-get install -y wget unzip openjdk-17-jdk curl
-          echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
-          echo "/usr/lib/jvm/java-17-openjdk-amd64/bin" >> $GITHUB_PATH
-
-      - name: Download Export Templates
-        run: |
+          apt-get update && apt-get install -y wget unzip
+          
           TARGET_DIR="$HOME/.local/share/godot/export_templates/4.3.stable"
           mkdir -p "$TARGET_DIR"
           
@@ -32,94 +28,66 @@ jobs:
               cp -r templates/* "$TARGET_DIR/"
             fi
             echo "✅ Шаблоны успешно установлены!"
-          else
-            echo "✅ Шаблоны уже установлены."
           fi
 
-      - name: Install Android SDK and Build Tools
-        env:
-          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
-        run: |
-          # Создаем директорию для Android SDK
-          ANDROID_SDK_ROOT="/opt/android-sdk"
-          mkdir -p "$ANDROID_SDK_ROOT"
-          cd "$ANDROID_SDK_ROOT"
-          
-          # Скачиваем command line tools
-          echo "📥 Скачивание Android SDK Command Line Tools..."
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
-          unzip -q cmdline-tools.zip
-          mkdir -p cmdline-tools/latest
-          mv cmdline-tools/bin cmdline-tools/lib cmdline-tools/source.properties cmdline-tools/NOTICE.txt cmdline-tools/latest/ 2>/dev/null || true
-          
-          # Устанавливаем переменные окружения
-          export ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT"
-          export ANDROID_HOME="$ANDROID_SDK_ROOT"
-          export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
-          
-          # Принимаем лицензии (вывод текста MIPS и других лицензий в лог - это нормально)
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          
-          # Устанавливаем необходимые компоненты SDK
-          echo "📥 Установка Android SDK компонентов (platform-34, build-tools-34.0.0)..."
-          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-          
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          
-          echo "✅ Android SDK успешно установлен!"
-
       - name: Configure Godot Editor Settings for Android & Java SDK
-        env:
-          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
-          ANDROID_HOME: /opt/android-sdk
-          ANDROID_SDK_ROOT: /opt/android-sdk
         run: |
           mkdir -p ~/.config/godot/
           mkdir -p /root/.local/share/godot/
           
-          # Пути к Java SDK и Android SDK
-          JAVA_SDK_DIR="${JAVA_HOME:-/usr/lib/jvm/java-17-openjdk-amd64}"
-          ANDROID_SDK_DIR="${ANDROID_HOME:-/opt/android-sdk}"
+          JAVA_SDK_DIR="${JAVA_HOME:-/usr/lib/jvm/default-java}"
+          if [ ! -d "$JAVA_SDK_DIR/bin" ]; then
+            JAVA_BIN=$(command -v java || echo "")
+            if [ -n "$JAVA_BIN" ]; then
+              JAVA_REAL=$(readlink -f "$JAVA_BIN")
+              JAVA_SDK_DIR=$(dirname "$(dirname "$JAVA_REAL")")
+            fi
+          fi
+          
+          ANDROID_SDK_DIR="${ANDROID_HOME:-/root/android-sdk}"
+          if [ ! -d "$ANDROID_SDK_DIR" ]; then
+            if [ -d "/opt/android-sdk" ]; then
+              ANDROID_SDK_DIR="/opt/android-sdk"
+            else
+              FOUND_SDK=$(find / -name "android-sdk" -type d 2>/dev/null | head -n 1)
+              [ -n "$FOUND_SDK" ] && ANDROID_SDK_DIR="$FOUND_SDK"
+            fi
+          fi
           
           echo "Java SDK path: $JAVA_SDK_DIR"
           echo "Android SDK path: $ANDROID_SDK_DIR"
           
-          # Генерация debug.keystore по абсолютному пути
+          SDKMANAGER_PATH=$(find "$ANDROID_SDK_DIR" -name "sdkmanager" -type f 2>/dev/null | head -n 1)
+          if [ -n "$SDKMANAGER_PATH" ]; then
+            echo "📦 Найден sdkmanager: $SDKMANAGER_PATH"
+            yes | "$SDKMANAGER_PATH" --licenses || true
+            "$SDKMANAGER_PATH" "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
+          fi
+
           KEYSTORE_PATH="/root/.local/share/godot/debug.keystore"
           keytool -genkey -v -keystore "$KEYSTORE_PATH" -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -deststoretype pkcs12 -passin pass:android -passout pass:android -dname "CN=Android Debug,O=Android,C=US" || true
           
-          # Создаем конфигурационный файл редактора Godot с абсолютными путями
           cat << EOF > ~/.config/godot/editor_settings-4.3.tres
-[gd_resource type="EditorSettings" load_steps=1 format=3]
+          [gd_resource type="EditorSettings" load_format=3]
 
-[resource]
-export/android/android_sdk_path = "$ANDROID_SDK_DIR"
-export/android/java_sdk_path = "$JAVA_SDK_DIR"
-export/android/debug_keystore = "$KEYSTORE_PATH"
-export/android/debug_keystore_user = "androiddebugkey"
-export/android/debug_keystore_pass = "android"
-EOF
+          [resource]
+          export/android/android_sdk_path = "$ANDROID_SDK_DIR"
+          export/android/java_sdk_path = "$JAVA_SDK_DIR"
+          export/android/debug_keystore = "$KEYSTORE_PATH"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOF
 
           echo "✅ Конфигурация EditorSettings успешно создана."
 
       - name: Generate Import Cache & Validate
-        env:
-          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
-          ANDROID_HOME: /opt/android-sdk
-          ANDROID_SDK_ROOT: /opt/android-sdk
         run: |
-          godot --headless --import || true
-          godot --headless --quit || true
+          godot --verbose --headless --editor --quit || true
 
       - name: Compile Android APK
-        env:
-          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
-          ANDROID_HOME: /opt/android-sdk
-          ANDROID_SDK_ROOT: /opt/android-sdk
         run: |
           mkdir -p build/android
-          godot --headless --verbose --export-debug "Android" build/android/game.apk
+          godot --verbose --headless --export-debug "Android" build/android/game.apk
 
       - name: Upload APK to Telegram
         if: success()
