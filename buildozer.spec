@@ -1,7 +1,7 @@
 [app]
 
-title = Cyber Ultimate Master App
-package.name = drvapp
+title = Roma
+package.name = roma
 package.domain = org.drv
 source.dir = .
 source.include_exts = py,png,jpg,jpeg,gif,kv,atlas,json,txt,csv,sqlite,db,ttf,otf,ini,cfg,yaml,pem,crt
