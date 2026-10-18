@@ -13,11 +13,39 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure Android SDK Environment & Templates
+      - name: Download & Setup Export Templates via Python
+        run: |
+          python3 -c "
+          import urllib.request, zipfile, os, shutil
+          target_dir = os.path.expanduser('~/.local/share/godot/export_templates/4.3.stable')
+          if os.path.exists(os.path.join(target_dir, 'android_debug.apk')):
+              print('✅ Шаблоны экспорта уже установлены.')
+          else:
+              print('📥 Скачивание шаблонов экспорта Godot 4.3...')
+              url = 'https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz'
+              urllib.request.urlretrieve(url, 'export_templates.tpz')
+              
+              print('📦 Распаковка архива шаблонов...')
+              with zipfile.ZipFile('export_templates.tpz', 'r') as zip_ref:
+                  zip_ref.extractall('templates_extracted')
+                  
+              os.makedirs(target_dir, exist_ok=True)
+              src_dir = 'templates_extracted/templates'
+              if os.path.exists(src_dir):
+                  for item in os.listdir(src_dir):
+                      s = os.path.join(src_dir, item)
+                      d = os.path.join(target_dir, item)
+                      if os.path.isdir(s):
+                          if os.path.exists(d): shutil.rmtree(d)
+                          shutil.copytree(s, d)
+                      else:
+                          shutil.copy2(s, d)
+              print('✅ Шаблоны успешно установлены!')
+          "
+
+      - name: Configure Android SDK Environment & Keystore
         run: |
           mkdir -p ~/.config/godot/
-          mkdir -p ~/.local/share/godot/export_templates/4.3.stable/
-          
           echo "ANDROID_HOME=/root/android-sdk" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=/root/android-sdk" >> $GITHUB_ENV
           
