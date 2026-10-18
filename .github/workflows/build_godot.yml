@@ -36,7 +36,6 @@ jobs:
           mkdir -p /root/.local/share/godot/
           
           # Автоматический поиск и проверка путей к Java SDK и Android SDK
-          # Использован чистый bash-синтаксис подстановки переменных
           JAVA_SDK_DIR="${JAVA_HOME:-/usr/lib/jvm/default-java}"
           if [ ! -d "$JAVA_SDK_DIR/bin" ]; then
             JAVA_BIN=$(command -v java || echo "")
@@ -59,6 +58,16 @@ jobs:
           echo "Java SDK path: $JAVA_SDK_DIR"
           echo "Android SDK path: $ANDROID_SDK_DIR"
           
+          # Установка необходимых build-tools 33.0.2 и platforms android-33, требуемых Godot
+          SDKMANAGER_PATH=$(find "$ANDROID_SDK_DIR" -name "sdkmanager" -type f 2>/dev/null | head -n 1)
+          if [ -n "$SDKMANAGER_PATH" ]; then
+            echo "📦 Найден sdkmanager: $SDKMANAGER_PATH"
+            yes | "$SDKMANAGER_PATH" --licenses || true
+            "$SDKMANAGER_PATH" "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
+          else
+            echo "⚠️ sdkmanager не найден по стандартному пути, пропускаем автоустановку инструментов."
+          fi
+
           # Генерация debug.keystore по абсолютному пути
           KEYSTORE_PATH="/root/.local/share/godot/debug.keystore"
           keytool -genkey -v -keystore "$KEYSTORE_PATH" -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -deststoretype pkcs12 -passin pass:android -passout pass:android -dname "CN=Android Debug,O=Android,C=US" || true
