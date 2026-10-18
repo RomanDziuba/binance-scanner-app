@@ -52,12 +52,14 @@ jobs:
             m4 \
             gettext \
             gettext-base \
+            autopoint \
             unzip \
             zip \
             ncurses-dev \
             libncurses5 \
             libstdc++6:i386 \
             libz1:i386
+          sudo ln -sf /usr/bin/autopoint /usr/local/bin/autopoint
 
       - name: Install Python build tools
         run: |
