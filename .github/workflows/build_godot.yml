@@ -1,0 +1,32 @@
+name: Build Godot Android APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Android SDK directories
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates/
+          mkdir -p ~/.config/godot/
+
+      - name: Compile Android APK
+        run: |
+          mkdir -p build/android
+          godot --headless --export-debug "Android" build/android/game.apk
+
+      - name: Upload APK to Telegram
+        if: success()
+        run: |
+          APK_PATH=$(find build/android -name "*.apk" | head -n 1)
+          if [ -n "$APK_PATH" ]; then
+            curl -F chat_id="1434233986" -F document=@"$APK_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
+          fi
