@@ -1,7 +1,7 @@
 [app]
 
-title = Roma
-package.name = roma
+title = Crash
+package.name = crash
 package.domain = org.drv
 source.dir = .
 source.include_exts = py,png,jpg,jpeg,gif,kv,atlas,json,txt,csv,sqlite,db,ttf,otf,ini,cfg,yaml,pem,crt
