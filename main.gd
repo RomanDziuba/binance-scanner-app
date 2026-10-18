@@ -4,44 +4,79 @@ const CELL_SIZE = 36
 const BOARD_WIDTH = 10
 const BOARD_HEIGHT = 20
 const BOARD_OFFSET_X = 40
-const BOARD_OFFSET_Y = 140
+const BOARD_OFFSET_Y = 160
 
 var board = []
 var current_piece = []
 var current_pos = Vector2i(0, 0)
 var current_color = Color.WHITE
 var score = 0
+var lines_total = 0
+var level = 1
 var game_over = false
 var drop_timer = 0.0
 var drop_interval = 0.5
 
+# Аудио плееры для звуков
+var sfx_move: AudioStreamPlayer
+var sfx_rotate: AudioStreamPlayer
+var sfx_drop: AudioStreamPlayer
+var sfx_clear: AudioStreamPlayer
+
 const SHAPES = [
     [],
-    [[0,0],[1,0],[2,0],[3,0]], # I
-    [[0,0],[0,1],[1,1],[2,1]], # J
-    [[2,0],[0,1],[1,1],[2,1]], # L
-    [[1,0],[2,0],[1,1],[2,1]], # O
-    [[1,0],[2,0],[0,1],[1,1]], # S
-    [[1,0],[0,1],[1,1],[2,1]], # T
-    [[0,0],[1,0],[1,1],[2,1]]  # Z
+    [[0,0],[1,0],[2,0],[3,0]], # I (Голубой)
+    [[0,0],[0,1],[1,1],[2,1]], # J (Синий)
+    [[2,0],[0,1],[1,1],[2,1]], # L (Оранжевый)
+    [[1,0],[2,0],[1,1],[2,1]], # O (Желтый)
+    [[1,0],[2,0],[0,1],[1,1]], # S (Зеленый)
+    [[1,0],[0,1],[1,1],[2,1]], # T (Фиолетовый)
+    [[0,0],[1,0],[1,1],[2,1]]  # Z (Красный)
 ]
 
 const COLORS = [
     Color.TRANSPARENT,
     Color.CYAN,
-    Color.BLUE,
+    Color.DODGER_BLUE,
     Color.ORANGE,
     Color.YELLOW,
-    Color.GREEN,
-    Color.PURPLE,
-    Color.RED
+    Color.GREEN_YELLOW,
+    Color.VIOLET,
+    Color.CRIMSON
 ]
 
 func _ready():
+    setup_audio()
     init_board()
     spawn_piece()
     set_process(true)
     set_process_input(true)
+
+func setup_audio():
+    # Создаем аудиоплееры программно для звуковых эффектов
+    sfx_move = AudioStreamPlayer.new()
+    sfx_rotate = AudioStreamPlayer.new()
+    sfx_drop = AudioStreamPlayer.new()
+    sfx_clear = AudioStreamPlayer.new()
+    
+    add_child(sfx_move)
+    add_child(sfx_rotate)
+    add_child(sfx_drop)
+    add_child(sfx_clear)
+    
+    # Безопасная загрузка звуков (если файлы добавлены в проект)
+    if ResourceLoader.exists("res://move.wav"):
+        sfx_move.stream = load("res://move.wav")
+    if ResourceLoader.exists("res://rotate.wav"):
+        sfx_rotate.stream = load("res://rotate.wav")
+    if ResourceLoader.exists("res://drop.wav"):
+        sfx_drop.stream = load("res://drop.wav")
+    if ResourceLoader.exists("res://clear.wav"):
+        sfx_clear.stream = load("res://clear.wav")
+
+func play_sound(player: AudioStreamPlayer):
+    if player and player.stream:
+        player.play()
 
 func init_board():
     board = []
@@ -79,6 +114,7 @@ func merge_piece():
                 if COLORS[i] == current_color:
                     board[py][px] = i
                     break
+    play_sound(sfx_drop)
 
 func clear_lines():
     var lines_cleared = 0
@@ -98,93 +134,10 @@ func clear_lines():
             lines_cleared += 1
         else:
             y -= 1
+            
     if lines_cleared > 0:
-        score += lines_cleared * 100 * lines_cleared
-
-func rotate_piece():
-    var rotated = []
-    for block in current_piece:
-        var rx = -block[1] + 1
-        var ry = block[0]
-        rotated.append([rx, ry])
-    if not check_collision(current_pos, rotated):
-        current_piece = rotated
-
-func _process(delta):
-    if game_over:
-        return
-    drop_timer += delta
-    if drop_timer >= drop_interval:
-        drop_timer = 0.0
-        move_down()
-    queue_redraw()
-
-func move_down():
-    current_pos.y += 1
-    if check_collision(current_pos, current_piece):
-        current_pos.y -= 1
-        merge_piece()
-        clear_lines()
-        spawn_piece()
-
-func _input(event):
-    if game_over:
-        if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
-            init_board()
-            score = 0
-            game_over = false
-            spawn_piece()
-        return
-
-    if event is InputEventScreenTouch and event.pressed:
-        var pos = event.position
-        if pos.x < 240:
-            current_pos.x -= 1
-            if check_collision(current_pos, current_piece):
-                current_pos.x += 1
-        elif pos.x > 480:
-            current_pos.x += 1
-            if check_collision(current_pos, current_piece):
-                current_pos.x -= 1
-        else:
-            rotate_piece()
-    elif event is InputEventKey and event.pressed:
-        if event.keycode == KEY_LEFT:
-            current_pos.x -= 1
-            if check_collision(current_pos, current_piece):
-                current_pos.x += 1
-        elif event.keycode == KEY_RIGHT:
-            current_pos.x += 1
-            if check_collision(current_pos, current_piece):
-                current_pos.x -= 1
-        elif event.keycode == KEY_DOWN:
-            move_down()
-        elif event.keycode == KEY_UP:
-            rotate_piece()
-
-func _draw():
-    draw_rect(Rect2(0, 0, 720, 1280), Color(0.08, 0.08, 0.12))
-    
-    draw_rect(Rect2(BOARD_OFFSET_X - 4, BOARD_OFFSET_Y - 4, BOARD_WIDTH * CELL_SIZE + 8, BOARD_HEIGHT * CELL_SIZE + 8), Color(0.2, 0.2, 0.3), false, 4.0)
-    
-    for y in range(BOARD_HEIGHT):
-        for x in range(BOARD_WIDTH):
-            var color_idx = board[y][x]
-            if color_idx > 0:
-                var rect = Rect2(BOARD_OFFSET_X + x * CELL_SIZE, BOARD_OFFSET_Y + y * CELL_SIZE, CELL_SIZE - 2, CELL_SIZE - 2)
-                draw_rect(rect, COLORS[color_idx])
-
-    if not game_over:
-        for block in current_piece:
-            var px = current_pos.x + block[0]
-            var py = current_pos.y + block[1]
-            if py >= 0:
-                var rect = Rect2(BOARD_OFFSET_X + px * CELL_SIZE, BOARD_OFFSET_Y + py * CELL_SIZE, CELL_SIZE - 2, CELL_SIZE - 2)
-                draw_rect(rect, current_color)
-
-    draw_string(ThemeDB.fallback_font, Vector2(40, 90), "СЧЕТ: " + str(score), HORIZONTAL_ALIGNMENT_LEFT, -1, 32, Color.WHITE)
-    
-    if game_over:
-        draw_rect(Rect2(60, 450, 600, 250), Color(0.1, 0.1, 0.1, 0.9))
-        draw_string(ThemeDB.fallback_font, Vector2(120, 540), "ИГРА ОКОНЧЕНА", HORIZONTAL_ALIGNMENT_CENTER, -1, 48, Color.RED)
-        draw_string(ThemeDB.fallback_font, Vector2(140, 610), "Тапните для сброса", HORIZONTAL_ALIGNMENT_CENTER, -1, 28, Color.YELLOW)
+        lines_total += lines_cleared
+        score += lines_cleared * 100 * level
+        level = 1 + lines_total / 10
+        drop_interval = max(0.1, 0.5 - (level - 1) * 0.05)
+        play_sound(sfx_clear)
