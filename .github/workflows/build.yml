@@ -76,7 +76,7 @@ jobs:
 
       - name: Build with Buildozer
         env:
-          PIP_CONSTRAINT: ${ github.workspace }/constraints.txt
+          PIP_CONSTRAINT: constraints.txt
         run: |
           yes | buildozer -v android debug
 
