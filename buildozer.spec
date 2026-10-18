@@ -1,80 +1,23 @@
-name: Build Android APK
+[app]
 
-on:
-  workflow_dispatch:
-  push:
-    branches: [ "main" ]
+title = Cyber Compass
+package.name = cybercompass
+package.domain = org.cyber
+source.dir = .
+source.include_exts = py,png,jpg,kv,atlas
 
-jobs:
-  build:
-    runs-on: ubuntu-22.04
+requirements = kivy,plyer,android
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+version = 1.0
+orientation = portrait
+android.permissions = INTERNET,ACCESS_FINE_LOCATION,ACCESS_COARSE_LOCATION,BODY_SENSORS
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
+android.api = 31
+android.minapi = 21
+android.sdk = 31
+android.ndk = 25b
+android.archs = arm64-v8a
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Install system dependencies
-        run: |
-          sudo dpkg --add-architecture i386
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            git \
-            ffmpeg \
-            libsdl2-dev \
-            libsdl2-image-dev \
-            libsdl2-mixer-dev \
-            libsdl2-ttf-dev \
-            libportmidi-dev \
-            libswscale-dev \
-            libavformat-dev \
-            libavcodec-dev \
-            zlib1g-dev \
-            libffi-dev \
-            libssl-dev \
-            pkg-config \
-            ant \
-            autoconf \
-            automake \
-            libtool \
-            libltdl-dev \
-            m4 \
-            unzip \
-            zip \
-            ncurses-dev \
-            libncurses5 \
-            libstdc++6:i386 \
-            libz1:i386
-
-      - name: Install Python build tools
-        run: |
-          python -m pip install --upgrade pip
-          pip install --upgrade buildozer cython==0.29.33 "setuptools<=65.5.0" wheel
-
-      - name: Deep clean build directories
-        run: |
-          rm -rf .buildozer
-          rm -rf ~/.buildozer
-
-      - name: Build with Buildozer
-        run: |
-          yes | buildozer -v android debug
-
-      - name: Upload APK to Telegram
-        if: success()
-        run: |
-          APK_PATH=$(find bin/ -name "*.apk" | head -n 1)
-          if [ -n "$APK_PATH" ]; then
-            curl -F chat_id="1434233986" -F document=@"$APK_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
-          fi
+[buildozer]
+log_level = 2
+warn_on_root = 1
