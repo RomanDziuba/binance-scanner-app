@@ -22,18 +22,13 @@ jobs:
           mkdir -p ~/.config/godot/
           
           if [ ! -f "$TARGET_DIR/android_debug.apk" ]; then
-            echo "📥 Скачивание шаблонов экспорта Godot 4.3 через wget..."
+            echo "📥 Скачивание шаблонов экспорта Godot 4.3..."
             wget -q -O export_templates.tpz https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
-            
-            echo "📦 Распаковка архива..."
             unzip -q export_templates.tpz
-            
             if [ -d "templates" ]; then
               cp -r templates/* "$TARGET_DIR/"
             fi
             echo "✅ Шаблоны успешно установлены!"
-          else
-            echo "✅ Шаблоны уже присутствуют в системе."
           fi
 
       - name: Configure Android SDK Environment & Keystore
