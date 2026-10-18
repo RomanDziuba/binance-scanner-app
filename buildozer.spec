@@ -1,7 +1,7 @@
 [app]
 
-title = Рома
-package.name = roma
+title = Cyber Ultimate Master App
+package.name = drvapp
 package.domain = org.drv
 source.dir = .
 source.include_exts = py,png,jpg,jpeg,gif,kv,atlas,json,txt,csv,sqlite,db,ttf,otf,ini,cfg,yaml,pem,crt
@@ -10,7 +10,7 @@ source.exclude_patterns = spec/*,tests/*,.git/*,.github/*,venv/*,__pycache__/*
 
 requirements = python3,kivy,sqlite3
 
-version = 2
+version = 1.0
 version.code = 1
 orientation = portrait
 fullscreen = 0
@@ -28,7 +28,7 @@ android.ndk = 25b
 android.archs = arm64-v8a
 android.androidx = True
 
-icon.filename = icon.png
+icon.filename = 
 presplash.filename = 
 android.presplash_color = #141414
 android.manifest.application_attributes = android:usesCleartextTraffic="true"
