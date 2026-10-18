@@ -10,7 +10,7 @@ source.exclude_patterns = spec/*,tests/*,.git/*,.github/*,venv/*,__pycache__/*
 
 requirements = python3,kivy,sqlite3
 
-version = 1.0
+version = 1.2
 version.code = 1
 orientation = portrait
 fullscreen = 0
