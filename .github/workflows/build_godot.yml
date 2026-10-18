@@ -15,12 +15,12 @@ jobs:
 
       - name: Generate Import Cache
         run: |
-          godot --headless --editor --quit || true
+          godot --verbose --headless --editor --quit || true
 
       - name: Compile Android APK
         run: |
           mkdir -p build/android
-          godot --headless --export-debug "Android" build/android/game.apk
+          godot --verbose --headless --export-debug "Android" build/android/game.apk
 
       - name: Upload APK to Telegram
         if: success()
