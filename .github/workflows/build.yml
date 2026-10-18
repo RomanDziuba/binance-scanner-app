@@ -50,6 +50,7 @@ jobs:
             libtool \
             libltdl-dev \
             m4 \
+            gettext \
             unzip \
             zip \
             ncurses-dev \
