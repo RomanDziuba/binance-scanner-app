@@ -8,7 +8,7 @@ source.include_exts = py,png,jpg,jpeg,gif,kv,atlas,json,txt,csv,sqlite,db,ttf,ot
 source.exclude_exts = spec,pyc,pyo,bak,tmp,log
 source.exclude_patterns = spec/*,tests/*,.git/*,.github/*,venv/*,__pycache__/*
 
-requirements = python3,kivy,plyer,pyjnius,requests,urllib3,certifi,idna,charset-normalizer,cryptography,pyopenssl,numpy,pandas,matplotlib,plotly,jinja2,sqlite3
+requirements = python3,kivy,plyer,pyjnius,requests,urllib3,certifi,idna,charset-normalizer,cryptography,pyopenssl,numpy,pandas,matplotlib,plotly,jinja2,pydantic==1.10.13,sqlite3
 
 version = 1.0
 version.code = 1
@@ -70,7 +70,7 @@ android.api = 34
 android.minapi = 24
 android.sdk = 34
 android.ndk = 25b
-android.archs = arm64-v8a, armeabi-v7a
+android.archs = arm64-v8a
 android.androidx = True
 
 icon.filename = 
