@@ -1,7 +1,7 @@
 [app]
 
-title = Crash
-package.name = crash
+title = Roma
+package.name = roma
 package.domain = org.drv
 source.dir = .
 source.include_exts = py,png,jpg,jpeg,gif,kv,atlas,json,txt,csv,sqlite,db,ttf,otf,ini,cfg,yaml,pem,crt
@@ -25,7 +25,7 @@ android.api = 31
 android.minapi = 21
 android.sdk = 31
 android.ndk = 25b
-android.archs = arm64-v8a
+android.archs = arm64-v8a, armeabi-v7a
 android.androidx = True
 
 icon.filename = 
