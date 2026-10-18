@@ -1,119 +1,121 @@
-import sys
-import time
-import requests
-from dataclasses import dataclass, field
-from typing import List, Optional
-
+import random
 from kivy.app import App
+from kivy.uix.widget import Widget
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
-from kivy.uix.label import Label
 from kivy.uix.button import Button
-from kivy.uix.scrollview import ScrollView
-from kivy.uix.widget import Widget
-from kivy.graphics import Color, Rectangle, Line
+from kivy.uix.label import Label
+from kivy.graphics import Color, Rectangle
 from kivy.clock import Clock
+from kivy.core.window import Window
 
+# Размеры игрового поля
+ROWS = 18
+COLS = 10
 
-# ==================== МОДЕЛИ ДАННЫХ (ЧИСТЫЙ PYTHON) ====================
-@dataclass
-class TickerData:
-    symbol: str
-    price: float
-    volume_24h: float
-    price_change_percent: float
+# Формы фигур (Тетрамино)
+SHAPES = [
+    [[1, 1, 1, 1]],  # I
+    [[1, 1], [1, 1]],  # O
+    [[0, 1, 0], [1, 1, 1]],  # T
+    [[1, 0, 0], [1, 1, 1]],  # L
+    [[0, 0, 1], [1, 1, 1]],  # J
+    [[0, 1, 1], [1, 1, 0]],  # S
+    [[1, 1, 0], [0, 1, 1]]   # Z
+]
 
-    @classmethod
-    def from_dict(cls, data: dict) -> "TickerData":
-        return cls(
-            symbol=data.get("symbol", "UNKNOWN"),
-            price=float(data.get("lastPrice", 0.0)),
-            volume_24h=float(data.get("quoteVolume", 0.0)),
-            price_change_percent=float(data.get("priceChangePercent", 0.0))
-        )
+# Цвета для фигур (RGB)
+COLORS = [
+    (0, 0.8, 0.8),  # Бирюзовый
+    (0.9, 0.9, 0),  # Желтый
+    (0.6, 0, 0.8),  # Фиолетовый
+    (0.9, 0.5, 0),  # Оранжевый
+    (0, 0, 0.9),    # Синий
+    (0, 0.8, 0),    # Зеленый
+    (0.9, 0, 0)     # Красный
+]
 
-
-# ==================== МОДУЛЬ ОТРИСОВКИ ГРАФИКА (KIVY CANVAS) ====================
-class MiniCandleChart(Widget):
-    """
-    Легковесный модуль графиков на Kivy Canvas без использования matplotlib/plotly
-    """
+class TetrisGame(Widget):
     def init(self, **kwargs):
         super().init(**kwargs)
-        self.prices: List[float] = [100.0, 102.5, 101.0, 105.0, 104.0, 108.0, 107.5, 112.0]
-        self.bind(pos=self.update_chart, size=self.update_chart)
+        self.grid = [[None for _ in range(COLS)] for _ in range(ROWS)]
+        self.score = 0
+        self.game_over = False
+        
+        self.current_shape = None
+        self.current_color = None
+        self.current_x = 0
+        self.current_y = 0
+        
+        self.spawn_shape()
+        Clock.schedule_interval(self.update, 0.5)
 
-    def set_prices(self, price_list: List[float]):
-        if price_list:
-            self.prices = price_list
-            self.update_chart()
+    def spawn_shape(self):
+        idx = random.randint(0, len(SHAPES) - 1)
+        self.current_shape = SHAPES[idx]
+        self.current_color = COLORS[idx]
+        self.current_x = COLS // 2 - len(self.current_shape[0]) // 2
+        self.current_y = 0
+        
+        if self.check_collision(self.current_shape, self.current_x, self.current_y):
+            self.game_over = True
 
-    def update_chart(self, *args):
-        self.canvas.clear()
-        if not self.prices or len(self.prices) < 2:
+    def check_collision(self, shape, offset_x, offset_y):
+        for r, row in enumerate(shape):
+            for c, val in enumerate(row):
+                if val:
+                    new_x = offset_x + c
+                    new_y = offset_y + r
+                    if new_x < 0 or new_x >= COLS or new_y >= ROWS:
+                        return True
+                    if new_y >= 0 and self.grid[new_y][new_x] is not None:
+                        return True
+        return False
+
+    def merge_shape(self):
+        for r, row in enumerate(self.current_shape):
+            for c, val in enumerate(row):
+                if val:
+                    self.grid[self.current_y + r][self.current_x + c] = self.current_color
+        self.clear_lines()
+        self.spawn_shape()
+
+    def clear_lines(self):
+        lines_to_clear = []
+        for r, row in enumerate(self.grid):
+            if all(cell is not None for cell in row):
+                lines_to_clear.append(r)
+                
+        for r in lines_to_clear:
+            del self.grid[r]
+            self.grid.insert(0, [None for _ in range(COLS)])
+            self.score += 100
+
+    def rotate_shape(self):
+        rotated = list(zip(*self.current_shape[::-1]))
+        if not self.check_collision(rotated, self.current_x, self.current_y):
+            self.current_shape = rotated
+            self.draw()
+
+    def move(self, dx):
+        if not self.game_over and not self.check_collision(self.current_shape, self.current_x + dx, self.current_y):
+            self.current_x += dx
+            self.draw()
+
+    def drop(self):
+        if not self.game_over:
+            while not self.check_collision(self.current_shape, self.current_x, self.current_y + 1):
+                self.current_y += 1
+            self.merge_shape()
+            self.draw()
+
+    def update(self, dt):
+        if self.game_over:
             return
-
-        with self.canvas:
-            # Фон графика
-            Color(0.1, 0.1, 0.12, 1)
-            Rectangle(pos=self.pos, size=self.size)
-
-            min_p = min(self.prices)
-            max_p = max(self.prices)
-            p_range = max_p - min_p if max_p != min_p else 1.0
-
-            padding = 10
-            width = self.width - (padding * 2)
-            height = self.height - (padding * 2)
-
-            points = []
-            step = width / (len(self.prices) - 1)
-
-            for idx, price in enumerate(self.prices):
-                x = self.x + padding + (idx * step)
-                y = self.y + padding + ((price - min_p) / p_range * height)
-                points.extend([x, y])
-
-            # Отрисовка линии тренда
-            if self.prices[-1] >= self.prices[0]:
-                Color(0.15, 0.8, 0.4, 1)  # Зеленая свеча/тренд
-            else:
-                Color(0.9, 0.25, 0.25, 1) # Красная свеча/тренд
-
-            Line(points=points, width=2)
-
-
-# ==================== ГЛАВНЫЙ ИНТЕРФЕЙС ПРИЛОЖЕНИЯ ====================
-class MainScreen(BoxLayout):
-    def init(self, **kwargs):
-        super().init(**kwargs)
-        self.orientation = "vertical"
-        self.padding = 12
-        self.spacing = 10
-
-        # 1. Заголовок
-        header = Label(
-            text="Cyber Ultimate Master — Binance Scanner",
-            font_size="20sp",
-            bold=True,
-            size_hint_y=None,
-            height=40
-        )
-        self.add_widget(header)
-
-        # 2. График цен (Canvas)
-        self.chart = MiniCandleChart(size_hint_y=0.35)
-        self.add_widget(self.chart)
-
-        # 3. Панель кнопок управления
-        btn_layout = BoxLayout(size_hint_y=None, height=48, spacing=8)
-        
-        self.btn_refresh = Button(text="🔄 Обновить Binance", background_color=(0.2, 0.6, 1.0, 1))
-        self.btn_refresh.bind(on_press=self.fetch_binance_data)
-        
-        self.btn_clear = Button(text="🧹 Очистить", background_color=(0.8, 0.3, 0.3, 1))
-        self.btn_clear.bind(on_press=self.clear_list)
-
-        btn_layout.add_widget(self.btn_refresh)
-        btn_layout.add_widget(self.btn_clear)
-        self.add_widget(btn_layout)
+            
+        if not self.check_collision(self.current_shape, self.current_x, self.current_y + 1):
+            self.current_y += 1
+        else:
+            self.merge_shape()
+            
+        self.draw()
