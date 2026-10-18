@@ -1,49 +1,38 @@
 import os
 import traceback
 from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
-from kivy.uix.scrollview import ScrollView
+from kivy.uix.textinput import TextInput
 
-class FileLoggerApp(App):
+class LogWriterApp(App):
     def build(self):
+        layout = BoxLayout(orientation='vertical', padding=20, spacing=10)
+        
+        # Определяем путь для сохранения лога в папку данных приложения
+        # Обычно это: /data/user/0/roma/files/error_log.txt или аналогичная
         try:
-            # Пробуем записать тестовый файл в общую папку Download на телефоне
-            download_dir = "/sdcard/Download"
-            os.makedirs(download_dir, exist_ok=True)
+            log_dir = self.user_data_dir
+            os.makedirs(log_dir, exist_ok=True)
+            log_path = os.path.join(log_dir, "error_log.txt")
             
-            log_file_path = os.path.join(download_dir, "roma_crash_log.txt")
-            
-            with open(log_file_path, "w", encoding="utf-8") as f:
-                f.write("Приложение успешно инициализировано и запущено!\n")
-            
-            return Label(
-                text="✅ Успешный запуск!\nФайл лога создан в папке Download:\nroma_crash_log.txt", 
-                font_size='16sp', 
-                halign='center',
-                valign='middle'
-            )
-            
+            # Пишем тестовый лог
+            log_content = "Приложение успешно инициализировано и запустилось!\n"
+            with open(log_path, "w", encoding="utf-8") as f:
+                f.write(log_content)
+                
+            status_text = f"ЛОГ УСПЕШНО ЗАПИСАН!\nПуть к файлу:\n{log_path}"
         except Exception as e:
-            # Если произошел срыв, перехватываем ошибку и пишем её в файл в Download
-            err_text = traceback.format_exc()
-            try:
-                os.makedirs("/sdcard/Download", exist_ok=True)
-                with open("/sdcard/Download/roma_crash_error.txt", "w", encoding="utf-8") as f:
-                    f.write(err_text)
-            except Exception:
-                pass
-            
-            # А также показываем текст ошибки на экране внутри прокручиваемой области
-            root = ScrollView()
-            lbl = Label(
-                text=f"❌ ОШИБКА КРАША:\n\n{err_text}", 
-                font_size='12sp', 
-                size_hint_y=None,
-                color=(1, 0, 0, 1)
-            )
-            lbl.bind(texture_size=lambda instance, value: setattr(instance, 'height', value[1]))
-            root.add_widget(lbl)
-            return root
+            status_text = f"Ошибка записи лога:\n{str(e)}\n\n{traceback.format_exc()}"
+        
+        # Выводим информацию на экран
+        lbl = Label(text="Статус диагностики запуска:", font_size='18sp', size_hint_y=0.2)
+        layout.add_widget(lbl)
+        
+        txt_input = TextInput(text=status_text, readonly=True, font_size='14sp')
+        layout.add_widget(txt_input)
+        
+        return layout
 
 if name == 'main':
-    FileLoggerApp().run()
+    LogWriterApp().run()
