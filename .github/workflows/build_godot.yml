@@ -35,22 +35,42 @@ jobs:
           mkdir -p ~/.config/godot/
           mkdir -p /root/.local/share/godot/
           
-          # Создаем конфигурационный файл редактора Godot с явными путями к SDK, JDK и настройками debug_keystore внутри контейнера
-          cat << 'EOF' > ~/.config/godot/editor_settings-4.3.tres
+          # Автоматический поиск и проверка путей к Java SDK и Android SDK
+          JAVA_SDK_DIR="${JAVA_HOME:-/usr/lib/jvm/default-java}"
+          if [ ! -d "$JAVA_SDK_DIR/bin" ]; then
+            JAVA_SDK_DIR=$(dirname$(dirname $(readlink -f$(which java))))
+          fi
+          
+          ANDROID_SDK_DIR="${ANDROID_HOME:-/root/android-sdk}"
+          if [ ! -d "$ANDROID_SDK_DIR" ]; then
+            if [ -d "/opt/android-sdk" ]; then
+              ANDROID_SDK_DIR="/opt/android-sdk"
+            else
+              FOUND_SDK=$(find / -name "android-sdk" -type d 2>/dev/null | head -n 1)
+              [ -n "$FOUND_SDK" ] && ANDROID_SDK_DIR="$FOUND_SDK"
+            fi
+          fi
+          
+          echo "Java SDK path: $JAVA_SDK_DIR"
+          echo "Android SDK path: $ANDROID_SDK_DIR"
+          
+          # Генерация debug.keystore по абсолютному пути
+          KEYSTORE_PATH="/root/.local/share/godot/debug.keystore"
+          keytool -genkey -v -keystore "$KEYSTORE_PATH" -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -deststoretype pkcs12 -passin pass:android -passout pass:android -dname "CN=Android Debug,O=Android,C=US" || true
+          
+          # Создаем конфигурационный файл редактора Godot с абсолютными путями
+          cat << EOF > ~/.config/godot/editor_settings-4.3.tres
           [gd_resource type="EditorSettings" load_format=3]
 
           [resource]
-          export/android/android_sdk_path = "/root/android-sdk"
-          export/android/java_sdk_path = "/usr/lib/jvm/default-java"
-          export/android/debug_keystore = "/root/.local/share/godot/debug.keystore"
+          export/android/android_sdk_path = "$ANDROID_SDK_DIR"
+          export/android/java_sdk_path = "$JAVA_SDK_DIR"
+          export/android/debug_keystore = "$KEYSTORE_PATH"
           export/android/debug_keystore_user = "androiddebugkey"
           export/android/debug_keystore_pass = "android"
           EOF
 
-          echo "✅ Конфигурация EditorSettings создана."
-          
-          # Генерация debug.keystore в целевую директорию
-          keytool -genkey -v -keystore /root/.local/share/godot/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -deststoretype pkcs12 -passin pass:android -passout pass:android -dname "CN=Android Debug,O=Android,C=US" || true
+          echo "✅ Конфигурация EditorSettings успешно создана."
 
       - name: Generate Import Cache & Validate
         run: |
