@@ -29,7 +29,7 @@ android.archs = arm64-v8a
 android.androidx = True
 
 icon.filename = icon.png
-presplash.filename = 
+presplash.filename = presplash.png
 android.presplash_color = #141414
 android.manifest.application_attributes = android:usesCleartextTraffic="true"
 
