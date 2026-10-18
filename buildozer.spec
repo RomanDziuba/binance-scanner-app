@@ -1,7 +1,7 @@
 [app]
 
-title = Crash
-package.name = crash
+title = Roma
+package.name = roma
 package.domain = org.drv
 source.dir = .
 source.include_exts = py,png,jpg,jpeg,gif,kv,atlas,json,txt,csv,sqlite,db,ttf,otf,ini,cfg,yaml,pem,crt
@@ -14,6 +14,9 @@ version = 1.0
 version.code = 1
 orientation = portrait
 fullscreen = 0
+
+# Используем ветку develop для обхода ошибки импорта BuildDependencyInstallError в pip
+p4a.branch = develop
 
 android.permissions = \
     INTERNET, \
