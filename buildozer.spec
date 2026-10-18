@@ -13,7 +13,7 @@ requirements = python3,kivy,sqlite3,requests,urllib3,certifi,idna,charset-normal
 version = 1.0
 version.code = 1
 orientation = portrait
-fullscreen = 0
+fullscreen = 1
 
 android.permissions = \
     INTERNET, \
