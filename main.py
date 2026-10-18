@@ -1,4 +1,5 @@
 import random
+import traceback
 from kivy.app import App
 from kivy.uix.widget import Widget
 from kivy.uix.boxlayout import BoxLayout
@@ -22,16 +23,16 @@ SHAPES = [
 ]
 
 COLORS = [
-    (0, 0.8, 0.8, 1),
-    (0.9, 0.9, 0, 1),
-    (0.6, 0, 0.8, 1),
-    (0.9, 0.5, 0, 1),
-    (0, 0, 0.9, 1),
-    (0, 0.8, 0, 1),
-    (0.9, 0, 0, 1)
+    (0, 0.8, 0.8),
+    (0.9, 0.9, 0),
+    (0.6, 0, 0.8),
+    (0.9, 0.5, 0),
+    (0, 0, 0.9),
+    (0, 0.8, 0),
+    (0.9, 0, 0)
 ]
 
-class TetrisGame(Widget):
+class SafeTetrisGame(Widget):
     def init(self, **kwargs):
         super().init(**kwargs)
         self.grid = [[None for _ in range(COLS)] for _ in range(ROWS)]
@@ -45,7 +46,6 @@ class TetrisGame(Widget):
         
         self.spawn_shape()
         Clock.schedule_interval(self.update, 0.5)
-        self.bind(pos=self.draw, size=self.draw)
 
     def spawn_shape(self):
         idx = random.randint(0, len(SHAPES) - 1)
@@ -78,11 +78,7 @@ class TetrisGame(Widget):
         self.spawn_shape()
 
     def clear_lines(self):
-        lines_to_clear = []
-        for r, row in enumerate(self.grid):
-            if all(cell is not None for cell in row):
-                lines_to_clear.append(r)
-                
+        lines_to_clear = [r for r, row in enumerate(self.grid) if all(cell is not None for cell in row)]
         for r in lines_to_clear:
             del self.grid[r]
             self.grid.insert(0, [None for _ in range(COLS)])
@@ -91,18 +87,18 @@ class TetrisGame(Widget):
     def rotate_shape(self):
         if self.game_over or not self.current_shape:
             return
-        rotated = [list(row) for row in zip(*self.current_shape[::-1])]
+        rotated = list(zip(*self.current_shape[::-1]))
         if not self.check_collision(rotated, self.current_x, self.current_y):
             self.current_shape = rotated
             self.draw()
 
     def move(self, dx):
-        if not self.game_over and not self.check_collision(self.current_shape, self.current_x + dx, self.current_y):
+        if not self.game_over and self.current_shape and not self.check_collision(self.current_shape, self.current_x + dx, self.current_y):
             self.current_x += dx
             self.draw()
 
     def drop(self):
-        if not self.game_over:
+        if not self.game_over and self.current_shape:
             while not self.check_collision(self.current_shape, self.current_x, self.current_y + 1):
                 self.current_y += 1
             self.merge_shape()
@@ -111,13 +107,16 @@ class TetrisGame(Widget):
     def update(self, dt):
         if self.game_over:
             return
-            
         if not self.check_collision(self.current_shape, self.current_x, self.current_y + 1):
             self.current_y += 1
         else:
             self.merge_shape()
-            
         self.draw()
 
-    def draw(self, *args):
-        self.canvas.before.clear()
+    def draw(self):
+        if self.width <= 0 or self.height <= 0:
+            return
+            
+        self.canvas.clear()
+        cell_w = self.width / COLS
+        cell_h = self.height / ROWS
