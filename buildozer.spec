@@ -1,7 +1,7 @@
 [app]
 
-title = Drv
-package.name = drv
+title = Cyber Ultimate Master App
+package.name = drvapp
 package.domain = org.drv
 source.dir = .
 source.include_exts = py,png,jpg,jpeg,gif,kv,atlas,json,txt,csv,sqlite,db,ttf,otf,ini,cfg,yaml,pem,crt
@@ -28,8 +28,8 @@ android.ndk = 25b
 android.archs = arm64-v8a
 android.androidx = True
 
-icon.filename = icon.png
-presplash.filename = presplash.png
+icon.filename = 
+presplash.filename = 
 android.presplash_color = #141414
 android.manifest.application_attributes = android:usesCleartextTraffic="true"
 
