@@ -1,117 +1,115 @@
-import math
 from kivy.app import App
-from kivy.clock import Clock
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.button import Button
-from kivy.graphics import Color, Rectangle
-from kivy.utils import get_color_from_hex
+from kivy.clock import Clock
+from kivy.utils import platform
 
-# Проверка платформы для подключения датчиков через plyer
+# Безопасный импорт датчика компаса из plyer
 try:
     from plyer import compass
-    PLATFORM_ANDROID = True
+    COMPASS_AVAILABLE = True
 except ImportError:
-    PLATFORM_ANDROID = False
+    COMPASS_AVAILABLE = False
 
-# Запрос разрешений на Android для доступа к датчикам/геолокации
-def request_android_permissions():
-    if PLATFORM_ANDROID:
-        try:
-            from android.permissions import request_permissions, Permission
-            request_permissions([
-                Permission.ACCESS_FINE_LOCATION,
-                Permission.ACCESS_COARSE_LOCATION
-            ])
-        except Exception as e:
-            print(f"Ошибка запроса разрешений: {e}")
 
-class CyberCompassWidget(BoxLayout):
+class CompassRoot(BoxLayout):
     def init(self, **kwargs):
-        super().init(**kwargs)
+        super(CompassRoot, self).init(**kwargs)
         self.orientation = 'vertical'
         self.padding = 30
         self.spacing = 20
-
-        # Темный киберпанк-фон
-        with self.canvas.before:
-            Color(*get_color_from_hex('#0b0e14'))
-            self.bg = Rectangle(pos=self.pos, size=self.size)
-        self.bind(pos=self.update_bg, size=self.update_bg)
 
         # Заголовок
         self.title_label = Label(
             text="[b]CYBER COMPASS[/b]",
             markup=True,
-            font_size=28,
-            size_hint=(1, 0.15),
-            color=get_color_from_hex('#00ffcc') # Неоновый циан
+            font_size='28sp',
+            size_hint_y=None,
+            height='60dp',
+            halign='center'
         )
         self.add_widget(self.title_label)
 
-        # Инфо-лейбл для градусов
+        # Индикатор градусов и направления
         self.info_label = Label(
-            text="Нажмите кнопку для старта",
-            font_size=22,
-            size_hint=(1, 0.15),
-            color=get_color_from_hex('#ffffff')
+            text="Инициализация компаса...",
+            font_size='22sp',
+            halign='center',
+            valign='middle'
         )
         self.add_widget(self.info_label)
 
-        # Главный индикатор направления
-        self.compass_display = Label(
-            text="—",
-            font_size=65,
-            bold=True,
-            size_hint=(1, 0.5),
-            color=get_color_from_hex('#ff0055') # Неоновый розовый
-        )
-        self.add_widget(self.compass_display)
-
         # Кнопка управления датчиком
         self.toggle_btn = Button(
-            text="АКТИВИРОВАТЬ ДАТЧИК",
-            size_hint=(1, 0.2),
-            background_color=get_color_from_hex('#00ffcc'),
-            color=(0, 0, 0, 1)
+            text="Включить датчик",
+            font_size='18sp',
+            size_hint_y=None,
+            height='50dp'
         )
-        self.toggle_btn.bind(on_press=self.toggle_compass)
+        self.toggle_btn.bind(on_press=self.toggle_sensor)
         self.add_widget(self.toggle_btn)
 
-        self.is_active = False
-        self.azimuth = 0.0
+        self.sensor_active = False
 
-    def update_bg(self, *args):
-        self.bg.pos = self.pos
-        self.bg.size = self.size
+    def toggle_sensor(self, instance):
+        if not COMPASS_AVAILABLE:
+            self.info_label.text = "Ошибка: модуль plyer.compass недоступен."
+            return
 
-    def toggle_compass(self, instance):
-        if not self.is_active:
-            # Запрашиваем разрешения при активации
-            request_android_permissions()
-            
-            if PLATFORM_ANDROID:
-                try:
-                    compass.enable()
-                    self.is_active = True
-                    self.toggle_btn.text = "ОСТАНОВИТЬ КОМПАС"
-                    Clock.schedule_interval(self.update_sensor, 0.2)
-                except Exception as e:
-                    self.info_label.text = "Ошибка датчика компаса!"
-            else:
-                # Режим симуляции для отладки на ПК
-                self.is_active = True
-                self.toggle_btn.text = "ОСТАНОВИТЬ (Симуляция ПК)"
-                self.sim_angle = 0
-                Clock.schedule_interval(self.simulate_sensor, 0.1)
+        if not self.sensor_active:
+            try:
+                if platform == 'android':
+                    # Запрос разрешений и включение датчика на Android
+                    from android.permissions import request_permissions, Permission
+                    request_permissions([Permission.ACCESS_FINE_LOCATION, Permission.ACCESS_COARSE_LOCATION])
+                
+                compass.enable()
+                Clock.schedule_interval(self.update_compass, 0.2)
+                self.sensor_active = True
+                self.toggle_btn.text = "Выключить датчик"
+                self.info_label.text = "Ожидание данных датчика..."
+            except Exception as e:
+                self.info_label.text = f"Ошибка запуска: {str(e)}"
         else:
-            if PLATFORM_ANDROID:
-                try:
-                    compass.disable()
-                except:
-                    pass
-            Clock.unschedule(self.update_sensor)
-            Clock.unschedule(self.simulate_sensor)
-            self.is_active = False
-            self.toggle_btn.text = "АКТИВИРОВАТЬ ДАТЧИК"
-            self.info_label.text = "Компас отключен"
+            try:
+                compass.disable()
+                Clock.unschedule(self.update_compass)
+                self.sensor_active = False
+                self.toggle_btn.text = "Включить датчик"
+                self.info_label.text = "Датчик выключен."
+            except Exception as e:
+                self.info_label.text = f"Ошибка остановки: {str(e)}"
+
+    def update_compass(self, dt):
+        try:
+            heading = compass.get_orientation()
+            if heading and isinstance(heading, (list, tuple)) and heading[0] is not None:
+                azimuth = heading[0]
+                direction = self.get_cardinal_direction(azimuth)
+                self.info_label.text = f"Азимут: {azimuth:.1f}°\nНаправление: {direction}"
+            else:
+                self.info_label.text = "Калибровка датчика...\nПовращайте устройство."
+        except Exception as e:
+            self.info_label.text = f"Ошибка чтения: {str(e)}"
+
+    def get_cardinal_direction(self, azimuth):
+        dirs = ["С", "СВ", "В", "ЮВ", "Ю", "ЮЗ", "З", "СЗ"]
+        index = int((azimuth + 22.5) / 45) % 8
+        return dirs[index]
+
+
+class CyberCompassApp(App):
+    def build(self):
+        return CompassRoot()
+
+    def on_stop(self):
+        if COMPASS_AVAILABLE and self.root.sensor_active:
+            try:
+                compass.disable()
+            except:
+                pass
+
+
+if name == 'main':
+    CyberCompassApp().run()
