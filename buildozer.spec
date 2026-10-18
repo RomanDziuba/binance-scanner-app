@@ -6,18 +6,17 @@ package.domain = org.cyber
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 
-# Убрали python3 из списка, оставили только рабочие модули
 requirements = kivy,plyer,android
 
 version = 1.0
 orientation = portrait
 android.permissions = INTERNET,ACCESS_FINE_LOCATION,ACCESS_COARSE_LOCATION,BODY_SENSORS
 
-# Переходим на стабильную связку API 31 и NDK r23b
 android.api = 31
 android.minapi = 21
 android.sdk = 31
-android.ndk = r23b
+# Убираем лишнюю букву r, чтобы ссылка сформировалась корректно (android-ndk-r25b)
+android.ndk = 25b
 android.archs = arm64-v8a
 
 [buildozer]
