@@ -19,7 +19,6 @@ jobs:
           
           TARGET_DIR="$HOME/.local/share/godot/export_templates/4.3.stable"
           mkdir -p "$TARGET_DIR"
-          mkdir -p ~/.config/godot/
           
           if [ ! -f "$TARGET_DIR/android_debug.apk" ]; then
             echo "📥 Скачивание шаблонов экспорта Godot 4.3..."
@@ -31,11 +30,22 @@ jobs:
             echo "✅ Шаблоны успешно установлены!"
           fi
 
-      - name: Configure Android SDK Environment & Keystore
+      - name: Configure Godot Editor Settings for Android & Java SDK
         run: |
-          echo "ANDROID_HOME=/root/android-sdk" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=/root/android-sdk" >> $GITHUB_ENV
+          mkdir -p ~/.config/godot/
           
+          # Создаем конфигурационный файл редактора Godot с явными путями к SDK и JDK внутри контейнера
+          cat << 'EOF' > ~/.config/godot/editor_settings-4.3.tres
+          [gd_resource type="EditorSettings" load_format=3]
+
+          [resource]
+          export/android/android_sdk_path = "/root/android-sdk"
+          export/android/java_sdk_path = "/usr/lib/jvm/default-java"
+          EOF
+
+          echo "✅ Конфигурация EditorSettings создана."
+          
+          # Генерация debug.keystore
           keytool -genkey -v -keystore ~/.local/share/godot/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -deststoretype pkcs12 -passin pass:android -passout pass:android -dname "CN=Android Debug,O=Android,C=US" || true
 
       - name: Generate Import Cache & Validate
