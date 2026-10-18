@@ -15,7 +15,6 @@ var game_over = false
 var drop_timer = 0.0
 var drop_interval = 0.5
 
-# Описания классических фигур Тетриса (тетрамино)
 const SHAPES = [
     [],
     [[0,0],[1,0],[2,0],[3,0]], # I
@@ -130,12 +129,7 @@ func move_down():
 
 func _input(event):
     if game_over:
-        if event is InputEventMouseButton and event.pressed:
-            init_board()
-            score = 0
-            game_over = false
-            spawn_piece()
-        elif event is InputEventScreenTouch and event.pressed:
+        if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
             init_board()
             score = 0
             game_over = false
@@ -146,5 +140,51 @@ func _input(event):
         var pos = event.position
         if pos.x < 240:
             current_pos.x -= 1
-            if check_collision(current_pos, current_piece): current_pos.x += 1
+            if check_collision(current_pos, current_piece):
+                current_pos.x += 1
         elif pos.x > 480:
+            current_pos.x += 1
+            if check_collision(current_pos, current_piece):
+                current_pos.x -= 1
+        else:
+            rotate_piece()
+    elif event is InputEventKey and event.pressed:
+        if event.keycode == KEY_LEFT:
+            current_pos.x -= 1
+            if check_collision(current_pos, current_piece):
+                current_pos.x += 1
+        elif event.keycode == KEY_RIGHT:
+            current_pos.x += 1
+            if check_collision(current_pos, current_piece):
+                current_pos.x -= 1
+        elif event.keycode == KEY_DOWN:
+            move_down()
+        elif event.keycode == KEY_UP:
+            rotate_piece()
+
+func _draw():
+    draw_rect(Rect2(0, 0, 720, 1280), Color(0.08, 0.08, 0.12))
+    
+    draw_rect(Rect2(BOARD_OFFSET_X - 4, BOARD_OFFSET_Y - 4, BOARD_WIDTH * CELL_SIZE + 8, BOARD_HEIGHT * CELL_SIZE + 8), Color(0.2, 0.2, 0.3), false, 4.0)
+    
+    for y in range(BOARD_HEIGHT):
+        for x in range(BOARD_WIDTH):
+            var color_idx = board[y][x]
+            if color_idx > 0:
+                var rect = Rect2(BOARD_OFFSET_X + x * CELL_SIZE, BOARD_OFFSET_Y + y * CELL_SIZE, CELL_SIZE - 2, CELL_SIZE - 2)
+                draw_rect(rect, COLORS[color_idx])
+
+    if not game_over:
+        for block in current_piece:
+            var px = current_pos.x + block[0]
+            var py = current_pos.y + block[1]
+            if py >= 0:
+                var rect = Rect2(BOARD_OFFSET_X + px * CELL_SIZE, BOARD_OFFSET_Y + py * CELL_SIZE, CELL_SIZE - 2, CELL_SIZE - 2)
+                draw_rect(rect, current_color)
+
+    draw_string(ThemeDB.fallback_font, Vector2(40, 90), "СЧЕТ: " + str(score), HORIZONTAL_ALIGNMENT_LEFT, -1, 32, Color.WHITE)
+    
+    if game_over:
+        draw_rect(Rect2(60, 450, 600, 250), Color(0.1, 0.1, 0.1, 0.9))
+        draw_string(ThemeDB.fallback_font, Vector2(120, 540), "ИГРА ОКОНЧЕНА", HORIZONTAL_ALIGNMENT_CENTER, -1, 48, Color.RED)
+        draw_string(ThemeDB.fallback_font, Vector2(140, 610), "Тапните для сброса", HORIZONTAL_ALIGNMENT_CENTER, -1, 28, Color.YELLOW)
