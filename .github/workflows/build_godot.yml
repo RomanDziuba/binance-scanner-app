@@ -13,6 +13,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Configure Android SDK for Godot
+        run: |
+          python3 -c '
+          import os
+          sdk = os.environ.get("ANDROID_HOME", "/opt/android-sdk")
+          config_dir = os.path.expanduser("~/.config/godot")
+          os.makedirs(config_dir, exist_ok=True)
+          settings_path = os.path.join(config_dir, "editor_settings-4.tres")
+          content = f"""[gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "{sdk}"
+          """
+          with open(settings_path, "w") as f:
+              f.write(content)
+          print(f"✅ Android SDK успешно привязан по пути: {sdk}")
+          '
+
       - name: Generate Import Cache
         run: |
           godot --verbose --headless --editor --quit || true
