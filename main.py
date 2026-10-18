@@ -7,32 +7,28 @@ from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.graphics import Color, Rectangle
 from kivy.clock import Clock
-from kivy.core.window import Window
 
-# Размеры игрового поля
 ROWS = 18
 COLS = 10
 
-# Формы фигур (Тетрамино)
 SHAPES = [
-    [[1, 1, 1, 1]],  # I
-    [[1, 1], [1, 1]],  # O
-    [[0, 1, 0], [1, 1, 1]],  # T
-    [[1, 0, 0], [1, 1, 1]],  # L
-    [[0, 0, 1], [1, 1, 1]],  # J
-    [[0, 1, 1], [1, 1, 0]],  # S
-    [[1, 1, 0], [0, 1, 1]]   # Z
+    [[1, 1, 1, 1]],
+    [[1, 1], [1, 1]],
+    [[0, 1, 0], [1, 1, 1]],
+    [[1, 0, 0], [1, 1, 1]],
+    [[0, 0, 1], [1, 1, 1]],
+    [[0, 1, 1], [1, 1, 0]],
+    [[1, 1, 0], [0, 1, 1]]
 ]
 
-# Цвета для фигур (RGB)
 COLORS = [
-    (0, 0.8, 0.8),  # Бирюзовый
-    (0.9, 0.9, 0),  # Желтый
-    (0.6, 0, 0.8),  # Фиолетовый
-    (0.9, 0.5, 0),  # Оранжевый
-    (0, 0, 0.9),    # Синий
-    (0, 0.8, 0),    # Зеленый
-    (0.9, 0, 0)     # Красный
+    (0, 0.8, 0.8, 1),
+    (0.9, 0.9, 0, 1),
+    (0.6, 0, 0.8, 1),
+    (0.9, 0.5, 0, 1),
+    (0, 0, 0.9, 1),
+    (0, 0.8, 0, 1),
+    (0.9, 0, 0, 1)
 ]
 
 class TetrisGame(Widget):
@@ -49,6 +45,7 @@ class TetrisGame(Widget):
         
         self.spawn_shape()
         Clock.schedule_interval(self.update, 0.5)
+        self.bind(pos=self.draw, size=self.draw)
 
     def spawn_shape(self):
         idx = random.randint(0, len(SHAPES) - 1)
@@ -92,7 +89,9 @@ class TetrisGame(Widget):
             self.score += 100
 
     def rotate_shape(self):
-        rotated = list(zip(*self.current_shape[::-1]))
+        if self.game_over or not self.current_shape:
+            return
+        rotated = [list(row) for row in zip(*self.current_shape[::-1])]
         if not self.check_collision(rotated, self.current_x, self.current_y):
             self.current_shape = rotated
             self.draw()
@@ -119,3 +118,6 @@ class TetrisGame(Widget):
             self.merge_shape()
             
         self.draw()
+
+    def draw(self, *args):
+        self.canvas.before.clear()
