@@ -51,6 +51,7 @@ jobs:
             libltdl-dev \
             m4 \
             gettext \
+            gettext-base \
             unzip \
             zip \
             ncurses-dev \
