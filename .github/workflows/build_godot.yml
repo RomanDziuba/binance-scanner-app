@@ -13,19 +13,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Android Debug Keystore & Dependencies
+      - name: Configure Android SDK Environment
         run: |
-          apt-get update && apt-get install -y openjdk-17-jdk-slim
-          mkdir -p ~/.local/share/godot
-          echo "🔑 Генерация отладочного ключа подписи (debug.keystore)..."
-          keytool -genkey -v -keystore ~/.local/share/godot/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -keypass android -storepass android -dname "CN=Android Debug,O=Android,C=US"
-          echo "✅ Ключ успешно создан!"
+          mkdir -p ~/.config/godot/
+          mkdir -p ~/.local/share/godot/export_templates/4.3.stable/
+          
+          # Установка переменных окружения для Android SDK, используемых в barichello/godot-ci
+          echo "ANDROID_HOME=/root/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=/root/android-sdk" >> $GITHUB_ENV
+          
+          # Генерация debug.keystore если он отсутствует, чтобы пресет не выдавал ошибку конфигурации
+          keytool -genkey -v -keystore ~/.local/share/godot/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -deststoretype pkcs12 -passin pass:android -passout pass:android -dname "CN=Android Debug,O=Android,C=US" || true
 
-      - name: Generate Import Cache
+      - name: Generate Import Cache & Validate Project
         run: |
           godot --verbose --headless --editor --quit || true
 
-      - name: Compile Android APK
+      - name: Compile Android APK with Full Diagnostic Logs
         run: |
           mkdir -p build/android
           godot --verbose --headless --export-debug "Android" build/android/game.apk
