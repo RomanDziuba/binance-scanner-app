@@ -35,12 +35,17 @@ jobs:
           mkdir -p ~/.config/godot/
           mkdir -p /root/.local/share/godot/
           
-          # Автоматический поиск и проверка путей к Java SDK и Android SDK
+          # Автоматический поиск и проверка путей к Java SDK
           JAVA_SDK_DIR="${JAVA_HOME:-/usr/lib/jvm/default-java}"
           if [ ! -d "$JAVA_SDK_DIR/bin" ]; then
-            JAVA_SDK_DIR=$(dirname$(dirname $(readlink -f$(which java))))
+            JAVA_BIN=$(command -v java || echo "")
+            if [ -n "$JAVA_BIN" ]; then
+              JAVA_REAL=$(readlink -f "$JAVA_BIN")
+              JAVA_SDK_DIR=$(dirname "$(dirname "$JAVA_REAL")")
+            fi
           fi
           
+          # Автоматический поиск и проверка путей к Android SDK
           ANDROID_SDK_DIR="${ANDROID_HOME:-/root/android-sdk}"
           if [ ! -d "$ANDROID_SDK_DIR" ]; then
             if [ -d "/opt/android-sdk" ]; then
@@ -60,15 +65,15 @@ jobs:
           
           # Создаем конфигурационный файл редактора Godot с абсолютными путями
           cat << EOF > ~/.config/godot/editor_settings-4.3.tres
-          [gd_resource type="EditorSettings" load_format=3]
+[gd_resource type="EditorSettings" load_format=3]
 
-          [resource]
-          export/android/android_sdk_path = "$ANDROID_SDK_DIR"
-          export/android/java_sdk_path = "$JAVA_SDK_DIR"
-          export/android/debug_keystore = "$KEYSTORE_PATH"
-          export/android/debug_keystore_user = "androiddebugkey"
-          export/android/debug_keystore_pass = "android"
-          EOF
+[resource]
+export/android/android_sdk_path = "$ANDROID_SDK_DIR"
+export/android/java_sdk_path = "$JAVA_SDK_DIR"
+export/android/debug_keystore = "$KEYSTORE_PATH"
+export/android/debug_keystore_user = "androiddebugkey"
+export/android/debug_keystore_pass = "android"
+EOF
 
           echo "✅ Конфигурация EditorSettings успешно создана."
 
