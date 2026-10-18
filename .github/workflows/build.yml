@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout repository
@@ -24,15 +24,21 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
+          sudo dpkg --add-architecture i386
           sudo apt-get update
-          sudo apt-get install -y build-essential libssl-dev libffi-dev python3-dev
-          pip install --upgrade buildozer cython==0.29.33 "setuptools<=65.5.0"
+          sudo apt-get install -y             build-essential             git             ffmpeg             libsdl2-dev             libsdl2-image-dev             libsdl2-mixer-dev             libsdl2-ttf-dev             libportmidi-dev             libswscale-dev             libavformat-dev             libavcodec-dev             zlib1g-dev             libffi-dev             libssl-dev             pkg-config             ant             autoconf             automake             libtool             libltdl-dev             m4             unzip             zip             ncurses-dev             libncurses5             libstdc++6:i386             libz1:i386
 
-      - name: Clean previous build cache
+      - name: Install Python build tools
         run: |
-          rm -rf .buildozer/android/platform/build-*
+          python -m pip install --upgrade pip
+          pip install --upgrade buildozer cython==0.29.33 "setuptools<=65.5.0" wheel
+
+      - name: Deep clean build directories
+        run: |
+          rm -rf .buildozer
+          rm -rf ~/.buildozer
 
       - name: Build with Buildozer
         run: |
