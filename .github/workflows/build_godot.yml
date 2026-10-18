@@ -13,6 +13,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install system dependencies
+        run: |
+          apt-get update && apt-get install -y curl unzip
+
       - name: Setup Export Templates & Android SDK directories
         run: |
           mkdir -p ~/.local/share/godot/export_templates/4.3.stable
