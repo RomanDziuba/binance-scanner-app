@@ -35,7 +35,7 @@ jobs:
           mkdir -p ~/.config/godot/
           mkdir -p /root/.local/share/godot/
           
-          # Создаем конфигурационный файл редактора Godot с явными путями к SDK, JDK и debug.keystore
+          # Создаем конфигурационный файл редактора Godot с явными путями к SDK, JDK и настройками debug_keystore внутри контейнера
           cat << 'EOF' > ~/.config/godot/editor_settings-4.3.tres
           [gd_resource type="EditorSettings" load_format=3]
 
@@ -49,7 +49,7 @@ jobs:
 
           echo "✅ Конфигурация EditorSettings создана."
           
-          # Генерация debug.keystore в системную директорию
+          # Генерация debug.keystore в целевую директорию
           keytool -genkey -v -keystore /root/.local/share/godot/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -deststoretype pkcs12 -passin pass:android -passout pass:android -dname "CN=Android Debug,O=Android,C=US" || true
 
       - name: Generate Import Cache & Validate
