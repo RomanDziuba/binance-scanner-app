@@ -13,24 +13,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure Godot Android SDK & Editor Settings
+      - name: Setup Android Debug Keystore & Dependencies
         run: |
-          python3 -c "
-          import os
-          sdk_path = os.environ.get('ANDROID_HOME', os.environ.get('ANDROID_SDK_ROOT', '/root/android-sdk'))
-          config_dir = os.path.expanduser('~/.config/godot')
-          os.makedirs(config_dir, exist_ok=True)
-          settings_file = os.path.join(config_dir, 'editor_settings-4.tres')
-          
-          content = '''[resource]
-
-export/android/android_sdk_path = \"%s\"
-''' % sdk_path
-          
-          with open(settings_file, 'w') as f:
-              f.write(content)
-          print(f'✅ Android SDK path configured: {sdk_path}')
-          "
+          apt-get update && apt-get install -y openjdk-17-jdk-slim
+          mkdir -p ~/.local/share/godot
+          echo "🔑 Генерация отладочного ключа подписи (debug.keystore)..."
+          keytool -genkey -v -keystore ~/.local/share/godot/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -keypass android -storepass android -dname "CN=Android Debug,O=Android,C=US"
+          echo "✅ Ключ успешно создан!"
 
       - name: Generate Import Cache
         run: |
