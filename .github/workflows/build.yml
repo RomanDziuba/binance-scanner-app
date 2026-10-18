@@ -75,9 +75,8 @@ jobs:
           pip cache purge || true
 
       - name: Build with Buildozer
-        env:
-          PIP_CONSTRAINT: constraints.txt
         run: |
+          export PIP_CONSTRAINT="$PWD/constraints.txt"
           yes | buildozer -v android debug
 
       - name: Upload APK to Telegram
