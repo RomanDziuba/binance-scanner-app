@@ -10,7 +10,7 @@ source.exclude_patterns = spec/*,tests/*,.git/*,.github/*,venv/*,__pycache__/*
 
 requirements = python3,kivy,sqlite3
 
-version = 1.2
+version = 1.0
 version.code = 1
 orientation = portrait
 fullscreen = 0
@@ -21,15 +21,15 @@ android.permissions = \
     WRITE_EXTERNAL_STORAGE, \
     READ_EXTERNAL_STORAGE
 
-android.api = 33
+android.api = 31
 android.minapi = 21
-android.sdk = 33
+android.sdk = 31
 android.ndk = 25b
 android.archs = arm64-v8a
 android.androidx = True
 
-icon.filename = icon.png
-presplash.filename = presplash.png
+icon.filename = 
+presplash.filename = 
 android.presplash_color = #141414
 android.manifest.application_attributes = android:usesCleartextTraffic="true"
 
