@@ -12,7 +12,7 @@ requirements = python3,kivy,sqlite3
 
 version = 1.0
 version.code = 1
-orientation = landscape
+orientation = portrait
 fullscreen = 0
 
 android.permissions = \
