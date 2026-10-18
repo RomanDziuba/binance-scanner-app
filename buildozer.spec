@@ -1,78 +1,45 @@
-name: Build Android APK
+[app]
 
-on:
-  workflow_dispatch:
-  push:
-    branches: [ "main" ]
+# (str) Название вашего приложения
+title = Cyber Compass
 
-jobs:
-  build:
-    runs-on: ubuntu-22.04
+# (str) Имя пакета (без пробелов и спецсимволов)
+package.name = cybercompass
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+# (str) Домен пакета
+package.domain = org.cyber
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
+# (str) Путь к исходным файлам приложения (текущая директория)
+source.dir = .
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
+# (list) Расширения файлов, которые будут упакованы в APK
+source.include_exts = py,png,jpg,kv,atlas
 
-      - name: Install system dependencies
-        run: |
-          sudo dpkg --add-architecture i386
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            git \
-            ffmpeg \
-            libsdl2-dev \
-            libsdl2-image-dev \
-            libsdl2-mixer-dev \
-            libsdl2-ttf-dev \
-            libportmidi-dev \
-            libswscale-dev \
-            libavformat-dev \
-            libavcodec-dev \
-            zlib1g-dev \
-            libffi-dev \
-            libssl-dev \
-            pkg-config \
-            ant \
-            autoconf \
-            automake \
-            libtool \
-            libltdl-dev \
-            unzip \
-            zip \
-            ncurses-dev \
-            libncurses5 \
-            libstdc++6:i386 \
-            libz1:i386
+# (list) Зависимости приложения (только поддерживаемые модули python-for-android)
+requirements = kivy,plyer,android
 
-      - name: Install Python build tools
-        run: |
-          python -m pip install --upgrade pip
-          pip install --upgrade buildozer cython==0.29.33 "setuptools<=65.5.0" wheel
+# (str) Версия приложения
+version = 1.0
 
-      - name: Clean previous build cache
-        run: |
-          rm -rf .buildozer/android/platform/build-*
+# (str) Ориентация экрана
+orientation = portrait
 
-      - name: Build with Buildozer
-        run: |
-          yes | buildozer -v android debug
+# (list) Разрешения Android для работы с датчиками и сетью
+android.permissions = INTERNET,ACCESS_FINE_LOCATION,ACCESS_COARSE_LOCATION,BODY_SENSORS
 
-      - name: Upload APK to Telegram
-        if: success()
-        run: |
-          APK_PATH=$(find bin/ -name "*.apk" | head -n 1)
-          if [ -n "$APK_PATH" ]; then
-            curl -F chat_id="1434233986" -F document=@"$APK_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
-          fi
+# (int) Версии API, SDK и NDK (проверенная стабильная связка)
+android.api = 31
+android.minapi = 21
+android.sdk = 31
+android.ndk = 25b
+
+# (list) Целевая архитектура процессора мобильного устройства
+android.archs = arm64-v8a
+
+[buildozer]
+
+# (int) Уровень логирования (2 — максимальная детализация для отслеживания сборки)
+log_level = 2
+
+# (int) Разрешить сборку под учетной записью root (нужно для контейнеров GitHub Actions)
+warn_on_root = 1
