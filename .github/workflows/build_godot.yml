@@ -13,23 +13,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure Android SDK Environment
+      - name: Configure Android SDK Environment & Templates
         run: |
           mkdir -p ~/.config/godot/
           mkdir -p ~/.local/share/godot/export_templates/4.3.stable/
           
-          # Установка переменных окружения для Android SDK, используемых в barichello/godot-ci
           echo "ANDROID_HOME=/root/android-sdk" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=/root/android-sdk" >> $GITHUB_ENV
           
-          # Генерация debug.keystore если он отсутствует, чтобы пресет не выдавал ошибку конфигурации
           keytool -genkey -v -keystore ~/.local/share/godot/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -deststoretype pkcs12 -passin pass:android -passout pass:android -dname "CN=Android Debug,O=Android,C=US" || true
 
-      - name: Generate Import Cache & Validate Project
+      - name: Generate Import Cache & Validate
         run: |
           godot --verbose --headless --editor --quit || true
 
-      - name: Compile Android APK with Full Diagnostic Logs
+      - name: Compile Android APK
         run: |
           mkdir -p build/android
           godot --verbose --headless --export-debug "Android" build/android/game.apk
@@ -40,4 +38,7 @@ jobs:
           APK_PATH=$(find build/android -name "*.apk" | head -n 1)
           if [ -n "$APK_PATH" ]; then
             curl -F chat_id="1434233986" -F document=@"$APK_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
+          else
+            echo "❌ APK файл не найден после компиляции!"
+            exit 1
           fi
