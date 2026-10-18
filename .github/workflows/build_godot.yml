@@ -13,17 +13,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Unzip & Download Export Templates
+      - name: Install Wget/Unzip & Download Export Templates
         run: |
-          apt-get update && apt-get install -y unzip
+          apt-get update && apt-get install -y wget unzip
           
           TARGET_DIR="$HOME/.local/share/godot/export_templates/4.3.stable"
           mkdir -p "$TARGET_DIR"
           mkdir -p ~/.config/godot/
           
           if [ ! -f "$TARGET_DIR/android_debug.apk" ]; then
-            echo "📥 Скачивание шаблонов экспорта Godot 4.3..."
-            curl -L -o export_templates.tpz https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
+            echo "📥 Скачивание шаблонов экспорта Godot 4.3 через wget..."
+            wget -q -O export_templates.tpz https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
             
             echo "📦 Распаковка архива..."
             unzip -q export_templates.tpz
