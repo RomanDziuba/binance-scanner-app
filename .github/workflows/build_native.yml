@@ -18,11 +18,12 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK manually
+      - name: Setup Android SDK & Gradle manually
         run: |
           export ANDROID_HOME=$HOME/android-sdk
           mkdir -p $ANDROID_HOME
           
+          # Установка Android SDK Command-line Tools
           CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
           wget -q -O cmdline-tools.zip $CMDLINE_TOOLS_URL
           mkdir -p $ANDROID_HOME/cmdline-tools/latest
@@ -35,14 +36,16 @@ jobs:
           yes | sdkmanager --licenses || true
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew || true
+          # Автоматическая установка Gradle 8.5
+          wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip
+          unzip -q gradle-8.5-bin.zip -d $HOME
+          echo "$HOME/gradle-8.5/bin" >> $GITHUB_PATH
 
       - name: Build Debug APK with Gradle
         run: |
           export ANDROID_HOME=$HOME/android-sdk
           export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
-          ./gradlew assembleDebug --stacktrace
+          gradle assembleDebug --stacktrace
 
       - name: Upload APK to Telegram Bot
         if: success()
@@ -54,5 +57,3 @@ jobs:
             echo "❌ Ошибка: APK файл не найден!"
             exit 1
           fi
-
-# Triggered at 2026-10-19T20:17:00.281594
