@@ -13,16 +13,41 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure Godot Editor Settings for Android
+      - name: Install Wget/Unzip & Download Export Templates
+        run: |
+          apt-get update && apt-get install -y wget unzip
+          
+          TARGET_DIR="/github/home/.local/share/godot/export_templates/4.3.stable"
+          mkdir -p "$TARGET_DIR"
+          
+          if [ ! -f "$TARGET_DIR/android_debug.apk" ]; then
+            echo "📥 Загрузка шаблонов экспорта Godot 4.3..."
+            wget -q -O export_templates.tpz https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
+            unzip -q -o export_templates.tpz
+            if [ -d "templates" ]; then
+              cp -r templates/* "$TARGET_DIR/"
+              rm -rf templates
+            fi
+            rm -f export_templates.tpz
+            echo "✅ Шаблоны успешно установлены в каталог $TARGET_DIR!"
+          fi
+
+      - name: Configure Android SDK Build-Tools & Editor Settings
         run: |
           mkdir -p ~/.config/godot/
-          mkdir -p /root/.local/share/godot/
           
-          # Пути к SDK и Java, предустановленные в контейнере barichello/godot-ci:4.3
           ANDROID_SDK_DIR="/opt/android-sdk"
           JAVA_SDK_DIR="/usr/lib/jvm/default-java"
           
-          KEYSTORE_PATH="/root/.local/share/godot/debug.keystore"
+          SDKMANAGER_PATH=$(find "$ANDROID_SDK_DIR" -name "sdkmanager" -type f 2>/dev/null | head -n 1)
+          if [ -n "$SDKMANAGER_PATH" ]; then
+            echo "📦 Обнаружен sdkmanager: $SDKMANAGER_PATH"
+            yes | "$SDKMANAGER_PATH" --licenses || true
+            "$SDKMANAGER_PATH" "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
+          fi
+
+          KEYSTORE_PATH="/github/home/.local/share/godot/debug.keystore"
+          mkdir -p "$(dirname "$KEYSTORE_PATH")"
           if [ ! -f "$KEYSTORE_PATH" ]; then
             keytool -genkey -v -keystore "$KEYSTORE_PATH" -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -deststoretype pkcs12 -passin pass:android -passout pass:android -dname "CN=Android Debug,O=Android,C=US" || true
           fi
@@ -38,7 +63,11 @@ jobs:
           export/android/debug_keystore_pass = "android"
           EOF
 
-          echo "✅ Конфигурация EditorSettings успешно создана."
+          echo "✅ Файл конфигурации EditorSettings успешно сгенерирован."
+
+      - name: Validate Project Imports
+        run: |
+          godot --verbose --headless --editor --quit || true
 
       - name: Compile Android APK
         run: |
