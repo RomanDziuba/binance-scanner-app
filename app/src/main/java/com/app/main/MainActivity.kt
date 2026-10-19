@@ -18,9 +18,9 @@ class MainActivity : Activity() {
         }
 
         val textView = TextView(this).apply {
-            text = "🚀 Тест успешной сборки!"
+            text = "✅ Тест сборки успешен!"
             setTextColor(Color.GREEN)
-            textSize = 22f
+            textSize = 24f
             gravity = Gravity.CENTER
         }
 
