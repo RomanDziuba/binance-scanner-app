@@ -3,8 +3,7 @@ name: Build Godot Android APK
 on:
   workflow_dispatch:
   push:
-    paths:
-      - '.github/workflows/build_godot.yml'
+    branches: [ main, master ]
 
 jobs:
   build:
@@ -16,7 +15,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Wget/Unzip & Download Export Templates
+      - name: Setup Godot Export Templates
         run: |
           apt-get update && apt-get install -y wget unzip
           TARGET_DIR="/github/home/.local/share/godot/export_templates/4.3.stable"
@@ -33,56 +32,24 @@ jobs:
             echo "✅ Шаблоны успешно установлены!"
           fi
 
-      - name: Configure Android SDK, Java SDK & Keystore
+      - name: Configure Editor Settings & Keystore
         run: |
-          mkdir -p ~/.config/godot/
-          mkdir -p /github/home/.local/share/godot/
+          mkdir -p ~/.config/godot
+          mkdir -p /github/home/.local/share/godot
           
-          JAVA_SDK_DIR="${JAVA_HOME:-}"
-          if [ -z "$JAVA_SDK_DIR" ] ert{}ert{} [ ! -d "$JAVA_SDK_DIR/bin" ]; then
-            JAVAC_BIN="$(command -v javac || true)"
-            if [ -n "$JAVAC_BIN" ]; then
-              REAL_PATH="$(readlink -f "$JAVAC_BIN" ert{}ert{} echo "$JAVAC_BIN")"
-              if [ -n "$REAL_PATH" ]; then
-                JAVA_SDK_DIR="$(dirname "$(dirname "$REAL_PATH")")"
-              fi
-            fi
-          fi
-          
-          if [ -z "$JAVA_SDK_DIR" ] ert{}ert{} [ ! -d "$JAVA_SDK_DIR/bin" ]; then
-            if [ -d "/usr/lib/jvm/default-java" ]; then
-              JAVA_SDK_DIR="/usr/lib/jvm/default-java"
-            elif [ -d "/usr/lib/jvm/java-17-openjdk-amd64" ]; then
-              JAVA_SDK_DIR="/usr/lib/jvm/java-17-openjdk-amd64"
-            else
-              JAVA_SDK_DIR="/usr/lib/jvm/java-11-openjdk-amd64"
-            fi
-          fi
-          
-          echo "Resolved Java SDK path: $JAVA_SDK_DIR"
-          ANDROID_SDK_DIR="/opt/android-sdk"
-          
-          SDKMANAGER_PATH=$(find "$ANDROID_SDK_DIR" -name "sdkmanager" -type f 2>/dev/null | head -n 1)
-          if [ -n "$SDKMANAGER_PATH" ]; then
-            yes | "$SDKMANAGER_PATH" --licenses || true
-            "$SDKMANAGER_PATH" "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
-          fi
-
           KEYSTORE_PATH="/github/home/.local/share/godot/debug.keystore"
           if [ ! -f "$KEYSTORE_PATH" ]; then
             keytool -genkey -v -keystore "$KEYSTORE_PATH" -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -deststoretype pkcs12 -passin pass:android -passout pass:android -dname "CN=Android Debug,O=Android,C=US" || true
           fi
           
-          cat << 'EOF' > ~/.config/godot/editor_settings-4.3.tres
-[gd_resource type="EditorSettings" load_format=3]
-
-[resource]
-export/android/android_sdk_path = "/opt/android-sdk"
-export/android/java_sdk_path = "/usr/lib/jvm/default-java"
-export/android/debug_keystore = "/github/home/.local/share/godot/debug.keystore"
-export/android/debug_keystore_user = "androiddebugkey"
-export/android/debug_keystore_pass = "android"
-EOF
+          echo '[gd_resource type="EditorSettings" load_format=3]' > ~/.config/godot/editor_settings-4.3.tres
+          echo '' >> ~/.config/godot/editor_settings-4.3.tres
+          echo '[resource]' >> ~/.config/godot/editor_settings-4.3.tres
+          echo 'export/android/android_sdk_path = "/opt/android-sdk"' >> ~/.config/godot/editor_settings-4.3.tres
+          echo 'export/android/java_sdk_path = "/usr/lib/jvm/default-java"' >> ~/.config/godot/editor_settings-4.3.tres
+          echo 'export/android/debug_keystore = "'$KEYSTORE_PATH'"' >> ~/.config/godot/editor_settings-4.3.tres
+          echo 'export/android/debug_keystore_user = "androiddebugkey"' >> ~/.config/godot/editor_settings-4.3.tres
+          echo 'export/android/debug_keystore_pass = "android"' >> ~/.config/godot/editor_settings-4.3.tres
 
       - name: Compile Android APK
         run: |
