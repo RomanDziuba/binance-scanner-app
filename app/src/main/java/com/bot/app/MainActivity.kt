@@ -1,40 +1,30 @@
-﻿package com.roma.nativeapp
+package com.bot.app
 
 import android.app.Activity
-import android.graphics.Color
 import android.os.Bundle
-import android.view.Gravity
-import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.LinearLayout
+import android.view.Gravity
+import android.graphics.Color
+import android.graphics.Typeface
 
 class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setBackgroundColor(Color.parseColor("#030712"))
+            setBackgroundColor(Color.parseColor("#090D16"))
             setPadding(40, 40, 40, 40)
         }
-
-        val titleView = TextView(this).apply {
-            text = "✨ Dziuba Roman — Binance Scanner ✨"
-            setTextColor(Color.parseColor("#38BDF8"))
-            textSize = 22f
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 20)
-        }
-
-        val statusView = TextView(this).apply {
-            text = "🚀 Система готова к работе!"
-            setTextColor(Color.parseColor("#34D399"))
-            textSize = 16f
+        val tv = TextView(this).apply {
+            text = "✦ Dziuba Roman — Пользовательский код ✦"
+            setTextColor(Color.WHITE)
+            textSize = 20f
+            typeface = Typeface.create("serif", Typeface.ITALIC)
             gravity = Gravity.CENTER
         }
-
-        layout.addView(titleView)
-        layout.addView(statusView)
+        layout.addView(tv)
         setContentView(layout)
     }
 }
