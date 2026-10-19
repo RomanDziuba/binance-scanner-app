@@ -18,7 +18,7 @@ jobs:
       - name: Setup Godot Export Templates
         run: |
           apt-get update && apt-get install -y wget unzip
-          TARGET_DIR="/github/home/.local/share/godot/export_templates/4.3.stable"
+          TARGET_DIR="/root/.local/share/godot/export_templates/4.3.stable"
           mkdir -p "$TARGET_DIR"
           if [ ! -f "$TARGET_DIR/android_debug.apk" ]; then
             echo "📥 Загрузка шаблонов экспорта Godot 4.3..."
@@ -34,10 +34,10 @@ jobs:
 
       - name: Configure Android SDK, Java & Keystore
         run: |
-          mkdir -p ~/.config/godot
-          mkdir -p /github/home/.local/share/godot
+          mkdir -p /root/.config/godot
+          mkdir -p /root/.local/share/godot
           
-          # Автоматический поиск точного пути к Java SDK с папкой bin
+          # Автоматический поиск точного пути к Java SDK
           JAVA_PATH="$(readlink -f$(which javac) || true)"
           if [ -n "$JAVA_PATH" ]; then
             JAVA_SDK_DIR="$(dirname $(dirname "$JAVA_PATH"))"
@@ -46,20 +46,28 @@ jobs:
           fi
           echo "Resolved Java SDK path: $JAVA_SDK_DIR"
 
-          # Установка обязательных компонентов Android SDK (build-tools, platforms)
-          ANDROID_SDK_DIR="/opt/android-sdk"
+          # Корректный поиск Android SDK в образе barichello/godot-ci
+          ANDROID_SDK_DIR="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/root/android-sdk}}"
+          if [ ! -d "$ANDROID_SDK_DIR" ]; then
+            if [ -d "/opt/android-sdk" ]; then
+              ANDROID_SDK_DIR="/opt/android-sdk"
+            fi
+          fi
+          echo "Resolved Android SDK path: $ANDROID_SDK_DIR"
+
+          # Установка обязательных компонентов Android SDK
           SDKMANAGER_PATH=$(find "$ANDROID_SDK_DIR" -name "sdkmanager" -type f 2>/dev/null | head -n 1)
           if [ -n "$SDKMANAGER_PATH" ]; then
             yes | "$SDKMANAGER_PATH" --licenses || true
             "$SDKMANAGER_PATH" "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
           fi
 
-          KEYSTORE_PATH="/github/home/.local/share/godot/debug.keystore"
+          KEYSTORE_PATH="/root/.local/share/godot/debug.keystore"
           if [ ! -f "$KEYSTORE_PATH" ]; then
             keytool -genkey -v -keystore "$KEYSTORE_PATH" -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -deststoretype pkcs12 -passin pass:android -passout pass:android -dname "CN=Android Debug,O=Android,C=US" || true
           fi
           
-          cat << EOF > ~/.config/godot/editor_settings-4.3.tres
+          cat << EOF > /root/.config/godot/editor_settings-4.3.tres
 [gd_resource type="EditorSettings" load_format=3]
 
 [resource]
