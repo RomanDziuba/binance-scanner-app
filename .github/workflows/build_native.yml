@@ -3,6 +3,7 @@ name: Build Native Android APK
 on:
   push:
     branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -18,34 +19,23 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK & Gradle manually
-        run: |
-          export ANDROID_HOME=$HOME/android-sdk
-          mkdir -p $ANDROID_HOME
-          
-          # Установка Android SDK Command-line Tools
-          CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
-          wget -q -O cmdline-tools.zip $CMDLINE_TOOLS_URL
-          mkdir -p $ANDROID_HOME/cmdline-tools/latest
-          unzip -q cmdline-tools.zip -d $ANDROID_HOME/temp_tools
-          mv $ANDROID_HOME/temp_tools/cmdline-tools/*$ANDROID_HOME/cmdline-tools/latest/
-          rm -rf cmdline-tools.zip $ANDROID_HOME/temp_tools
-          
-          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
-          
-          yes | sdkmanager --licenses || true
-          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+      - name: Setup Android SDK and Build Tools via Android SDK Manager
+        uses: android-actions/setup-android@v3
+        with:
+          version-code: 34
+          version-string: '14.0'
+          api-levels: '34'
+          build-tools: '34.0.0'
+          ndk-version: ''
+          cmake-version: ''
 
-          # Автоматическая установка Gradle 8.5
-          wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip
-          unzip -q gradle-8.5-bin.zip -d $HOME
-          echo "$HOME/gradle-8.5/bin" >> $GITHUB_PATH
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew || true
 
       - name: Build Debug APK with Gradle
         run: |
-          export ANDROID_HOME=$HOME/android-sdk
-          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
-          gradle assembleDebug --stacktrace
+          export JAVA_HOME=$JAVA_HOME
+          ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Upload APK to Telegram Bot
         if: success()
