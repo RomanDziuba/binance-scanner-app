@@ -19,7 +19,7 @@ jobs:
           java-version: '17'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: actions/setup-android@v3
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew || true
@@ -37,5 +37,3 @@ jobs:
             echo "❌ Ошибка: APK файл не найден!"
             exit 1
           fi
-
-# Triggered at 2026-10-19T19:46:57.868767
