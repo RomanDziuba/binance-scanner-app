@@ -18,9 +18,9 @@ class MainActivity : Activity() {
         }
 
         val textView = TextView(this).apply {
-            text = "🚀 Нативное Kotlin приложение запущено!"
-            setTextColor(Color.WHITE)
-            textSize = 20f
+            text = "✅ Тест сборки успешен!"
+            setTextColor(Color.GREEN)
+            textSize = 24f
             gravity = Gravity.CENTER
         }
 
