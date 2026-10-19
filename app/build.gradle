@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'com.app.main'
+    namespace 'com.roma.nativeapp'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.app.main"
+        applicationId "com.roma.nativeapp"
         minSdk 24
         targetSdk 34
         versionCode 1
