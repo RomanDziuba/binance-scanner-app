@@ -19,6 +19,12 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Install Gradle & Generate Wrapper
+        run: |
+          sudo apt-get update && sudo apt-get install -y gradle
+          gradle wrapper --gradle-version 8.2
+          chmod +x gradlew
+
       - name: Setup Android SDK & Accept Licenses
         run: |
           export ANDROID_HOME=/usr/local/lib/android/sdk
@@ -26,9 +32,6 @@ jobs:
           
           yes | sdkmanager --licenses || true
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew || true
 
       - name: Build Debug APK with Gradle
         run: |
