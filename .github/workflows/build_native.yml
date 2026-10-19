@@ -18,8 +18,24 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Android SDK manually
+        run: |
+          echo "📥 Загрузка Android Command-line Tools..."
+          ANDROID_SDK_ROOT="$HOME/android-sdk"
+          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+          
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip -d temp_tools
+          mv temp_tools/cmdline-tools "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+          rm -rf cmdline-tools.zip temp_tools
+          
+          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_PATH
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          
+          echo "🔑 Принятие лицензий и установка платформы..."
+          yes | sdkmanager --licenses || true
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew || true
@@ -37,5 +53,3 @@ jobs:
             echo "❌ Ошибка: APK файл не найден!"
             exit 1
           fi
-
-# Triggered at 2026-10-19T20:01:58.853950
