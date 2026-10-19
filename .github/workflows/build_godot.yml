@@ -69,6 +69,7 @@ jobs:
           KEYSTORE_PATH="/root/.local/share/godot/debug.keystore"
           keytool -genkey -v -keystore "$KEYSTORE_PATH" -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -deststoretype pkcs12 -passin pass:android -passout pass:android -dname "CN=Android Debug,O=Android,C=US" || true
           
+          # Создаем конфигурационный файл редактора Godot со строгими двойными кавычками для путей
           cat << EOF > ~/.config/godot/editor_settings-4.3.tres
           [gd_resource type="EditorSettings" load_format=3]
 
