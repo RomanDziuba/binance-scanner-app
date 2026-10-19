@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'com.roma.nativeapp'
+    namespace 'com.binancebot.app'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.roma.nativeapp"
+        applicationId "com.binancebot.app"
         minSdk 24
         targetSdk 34
         versionCode 1
