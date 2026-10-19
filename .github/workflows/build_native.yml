@@ -19,26 +19,12 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK manually
+      - name: Setup Android SDK & Accept Licenses
         run: |
-          export ANDROID_HOME=$HOME/android-sdk
-          mkdir -p $ANDROID_HOME
-          
-          CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
-          wget -q -O cmdline-tools.zip $CMDLINE_TOOLS_URL
-          
-          mkdir -p $ANDROID_HOME/cmdline-tools/latest
-          unzip -q cmdline-tools.zip -d $ANDROID_HOME/temp_tools
-          mv $ANDROID_HOME/temp_tools/cmdline-tools/*$ANDROID_HOME/cmdline-tools/latest/
-          rm -rf cmdline-tools.zip $ANDROID_HOME/temp_tools
-          
-          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
-          
+          export ANDROID_HOME=/usr/local/lib/android/sdk
           export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
           
           yes | sdkmanager --licenses || true
-          sdkmanager --update || true
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Grant execute permission for gradlew
@@ -46,7 +32,8 @@ jobs:
 
       - name: Build Debug APK with Gradle
         run: |
-          export ANDROID_HOME=$HOME/android-sdk
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
           ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Upload APK to Telegram Bot
@@ -59,5 +46,3 @@ jobs:
             echo "❌ Ошибка: APK файл не найден!"
             exit 1
           fi
-
-# Triggered at 2026-10-19T20:49:26.370398
