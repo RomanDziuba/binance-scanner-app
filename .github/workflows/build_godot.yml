@@ -1,7 +1,6 @@
 name: Build Godot Android APK
 
 on:
-  workflow_dispatch:
   push:
     branches: [ main, master ]
 
@@ -37,7 +36,6 @@ jobs:
           mkdir -p /root/.config/godot
           mkdir -p /root/.local/share/godot
           
-          # Автоматический поиск точного пути к Java SDK
           JAVA_PATH="$(readlink -f$(which javac) || true)"
           if [ -n "$JAVA_PATH" ]; then
             JAVA_SDK_DIR="$(dirname $(dirname "$JAVA_PATH"))"
@@ -46,7 +44,6 @@ jobs:
           fi
           echo "Resolved Java SDK path: $JAVA_SDK_DIR"
 
-          # Корректный поиск Android SDK в образе barichello/godot-ci
           ANDROID_SDK_DIR="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/root/android-sdk}}"
           if [ ! -d "$ANDROID_SDK_DIR" ]; then
             if [ -d "/opt/android-sdk" ]; then
@@ -55,7 +52,6 @@ jobs:
           fi
           echo "Resolved Android SDK path: $ANDROID_SDK_DIR"
 
-          # Установка обязательных компонентов Android SDK
           SDKMANAGER_PATH=$(find "$ANDROID_SDK_DIR" -name "sdkmanager" -type f 2>/dev/null | head -n 1)
           if [ -n "$SDKMANAGER_PATH" ]; then
             yes | "$SDKMANAGER_PATH" --licenses || true
