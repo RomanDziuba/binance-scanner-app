@@ -23,7 +23,6 @@ jobs:
           export ANDROID_HOME=$HOME/android-sdk
           mkdir -p $ANDROID_HOME
           
-          # Устанавливаем базовые инструменты командной строки Android SDK
           CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
           wget -q -O cmdline-tools.zip $CMDLINE_TOOLS_URL
           mkdir -p $ANDROID_HOME/cmdline-tools/latest
