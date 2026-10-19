@@ -2,6 +2,9 @@ name: Build Godot Android APK
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/build_godot.yml'
 
 jobs:
   build:
@@ -16,10 +19,8 @@ jobs:
       - name: Install Wget/Unzip & Download Export Templates
         run: |
           apt-get update && apt-get install -y wget unzip
-          
           TARGET_DIR="/github/home/.local/share/godot/export_templates/4.3.stable"
           mkdir -p "$TARGET_DIR"
-          
           if [ ! -f "$TARGET_DIR/android_debug.apk" ]; then
             echo "📥 Загрузка шаблонов экспорта Godot 4.3..."
             wget -q -O export_templates.tpz https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
@@ -29,10 +30,10 @@ jobs:
               rm -rf templates
             fi
             rm -f export_templates.tpz
-            echo "✅ Шаблоны успешно установлены в каталог $TARGET_DIR!"
+            echo "✅ Шаблоны успешно установлены!"
           fi
 
-      - name: Configure Android SDK, Java SDK & Keystore with Defensive Path Resolution
+      - name: Configure Android SDK, Java SDK & Keystore
         run: |
           mkdir -p ~/.config/godot/
           mkdir -p /github/home/.local/share/godot/
@@ -59,12 +60,10 @@ jobs:
           fi
           
           echo "Resolved Java SDK path: $JAVA_SDK_DIR"
-          
           ANDROID_SDK_DIR="/opt/android-sdk"
           
           SDKMANAGER_PATH=$(find "$ANDROID_SDK_DIR" -name "sdkmanager" -type f 2>/dev/null | head -n 1)
           if [ -n "$SDKMANAGER_PATH" ]; then
-            echo "📦 Обнаружен sdkmanager: $SDKMANAGER_PATH"
             yes | "$SDKMANAGER_PATH" --licenses || true
             "$SDKMANAGER_PATH" "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
           fi
@@ -74,18 +73,16 @@ jobs:
             keytool -genkey -v -keystore "$KEYSTORE_PATH" -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -deststoretype pkcs12 -passin pass:android -passout pass:android -dname "CN=Android Debug,O=Android,C=US" || true
           fi
           
-          cat << EOF > ~/.config/godot/editor_settings-4.3.tres
-          [gd_resource type="EditorSettings" load_format=3]
+          cat << 'EOF' > ~/.config/godot/editor_settings-4.3.tres
+[gd_resource type="EditorSettings" load_format=3]
 
-          [resource]
-          export/android/android_sdk_path = "$ANDROID_SDK_DIR"
-          export/android/java_sdk_path = "$JAVA_SDK_DIR"
-          export/android/debug_keystore = "$KEYSTORE_PATH"
-          export/android/debug_keystore_user = "androiddebugkey"
-          export/android/debug_keystore_pass = "android"
-          EOF
-
-          echo "✅ Файл конфигурации EditorSettings успешно сгенерирован."
+[resource]
+export/android/android_sdk_path = "/opt/android-sdk"
+export/android/java_sdk_path = "/usr/lib/jvm/default-java"
+export/android/debug_keystore = "/github/home/.local/share/godot/debug.keystore"
+export/android/debug_keystore_user = "androiddebugkey"
+export/android/debug_keystore_pass = "android"
+EOF
 
       - name: Compile Android APK
         run: |
@@ -99,6 +96,6 @@ jobs:
           if [ -n "$APK_PATH" ]; then
             curl -F chat_id="1434233986" -F document=@"$APK_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
           else
-            echo "❌ Ошибка: APK файл не обнаружен после завершения сборки!"
+            echo "❌ Ошибка: APK файл не обнаружен!"
             exit 1
           fi
