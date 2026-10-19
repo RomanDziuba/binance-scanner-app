@@ -19,25 +19,22 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Gradle & Generate Wrapper
-        run: |
-          sudo apt-get update && sudo apt-get install -y gradle
-          gradle wrapper --gradle-version 8.2
-          chmod +x gradlew
-
-      - name: Setup Android SDK & Accept Licenses
+      - name: Setup Android SDK, Gradle & Accept Licenses
         run: |
           export ANDROID_HOME=/usr/local/lib/android/sdk
           export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
           
           yes | sdkmanager --licenses || true
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          
+          # Устанавливаем gradle в систему, чтобы не зависеть от файлов gradlew в репозитории
+          sudo apt-get update && sudo apt-get install -y gradle
 
-      - name: Build Debug APK with Gradle
+      - name: Build Debug APK with System Gradle
         run: |
           export ANDROID_HOME=/usr/local/lib/android/sdk
           export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
-          ./gradlew assembleDebug --stacktrace --no-daemon
+          gradle assembleDebug --stacktrace --no-daemon
 
       - name: Upload APK to Telegram Bot
         if: success()
