@@ -21,12 +21,12 @@ class MainActivity : Activity() {
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setBackgroundColor(Color.parseColor("#0F172A"))
+            setBackgroundColor(Color.parseColor("#090D16"))
             setPadding(40, 40, 40, 40)
         }
 
         val title = TextView(this).apply {
-            text = "⚡ Универсальные Часы & Подсистемы"
+            text = "⚡ Универсальный Шаблон + Часы"
             setTextColor(Color.parseColor("#38BDF8"))
             textSize = 22f
             gravity = Gravity.CENTER
@@ -41,29 +41,28 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
         }
 
-        val dateView = TextView(this).apply {
-            val sdf = SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault())
-            text = sdf.format(Date())
+        val statusView = TextView(this).apply {
+            text = "🌐 Сеть, датчики, уведомления и субсистемы активны"
             setTextColor(Color.parseColor("#94A3B8"))
-            textSize = 16f
+            textSize = 14f
             gravity = Gravity.CENTER
             setPadding(0, 20, 0, 40)
         }
 
         val toneGen = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
         val btnSound = Button(this).apply {
-            text = "🔊 Проверить звук и подсистемы"
+            text = "🔊 Тест Звука"
             setBackgroundColor(Color.parseColor("#2563EB"))
             setTextColor(Color.WHITE)
             setOnClickListener {
                 toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 200)
-                Toast.makeText(this@MainActivity, "Интернет, Датчики, Сеть, Google Pay и Аудио активны!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@MainActivity, "Звуковой сигнал воспроизведен!", Toast.LENGTH_SHORT).show()
             }
         }
 
         layout.addView(title)
         layout.addView(clock)
-        layout.addView(dateView)
+        layout.addView(statusView)
         layout.addView(btnSound)
         setContentView(layout)
     }
