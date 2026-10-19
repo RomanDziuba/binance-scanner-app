@@ -21,11 +21,15 @@ jobs:
           mkdir -p "$TARGET_DIR"
           
           if [ ! -f "$TARGET_DIR/android_debug.apk" ]; then
-            echo "📥 Скачивание и распаковка шаблонов экспорта Godot 4.3..."
+            echo "📥 Скачивание шаблонов экспорта Godot 4.3..."
             wget -q -O export_templates.tpz https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
-            unzip -q -o export_templates.tpz -d "$TARGET_DIR"
-            rm export_templates.tpz
-            echo "✅ Шаблоны успешно установлены!"
+            unzip -q -o export_templates.tpz
+            if [ -d "templates" ]; then
+              cp -r templates/* "$TARGET_DIR/"
+              rm -rf templates
+            fi
+            rm -f export_templates.tpz
+            echo "✅ Шаблоны успешно установлены в $TARGET_DIR!"
           fi
 
       - name: Configure Godot Editor Settings for Android & Java SDK
@@ -59,7 +63,7 @@ jobs:
           if [ -n "$SDKMANAGER_PATH" ]; then
             echo "📦 Найден sdkmanager: $SDKMANAGER_PATH"
             yes | "$SDKMANAGER_PATH" --licenses || true
-            "$SDKMANAGER_PATH" "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
+            "$SDKMANAGER_PATH" "platform-tools" "platforms;android-33" "build-tools;33.0.2" "platforms;android-34" "build-tools;34.0.0" || true
           fi
 
           KEYSTORE_PATH="/root/.local/share/godot/debug.keystore"
