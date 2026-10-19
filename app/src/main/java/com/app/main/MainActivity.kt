@@ -10,7 +10,6 @@ import android.graphics.Color
 
 class MainActivity : Activity() {
     private var score = 0
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -18,37 +17,37 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             setBackgroundColor(Color.parseColor("#121212"))
-            setPadding(32, 32, 32, 32)
+            setPadding(40, 40, 40, 40)
         }
 
-        val title = TextView(this).apply {
-            text = "🎮 Мини-Игра Кликер"
-            setTextColor(Color.WHITE)
-            textSize = 24f
+        val titleView = TextView(this).apply {
+            text = "🎮 Мини-Кликкер на Kotlin"
+            setTextColor(Color.CYAN)
+            textSize = 22f
             gravity = Gravity.CENTER
         }
 
         val scoreView = TextView(this).apply {
-            text = "Счет: 0"
-            setTextColor(Color.GREEN)
-            textSize = 20f
+            text = "Очки: 0"
+            setTextColor(Color.WHITE)
+            textSize = 28f
             gravity = Gravity.CENTER
-            setPadding(0, 32, 0, 32)
+            setPadding(0, 40, 0, 40)
         }
 
-        val button = Button(this).apply {
-            text = "Нажми меня!"
-            setBackgroundColor(Color.parseColor("#3F51B5"))
+        val btn = Button(this).apply {
+            text = "Кликни меня!"
+            setBackgroundColor(Color.parseColor("#FF6200EE"))
             setTextColor(Color.WHITE)
             setOnClickListener {
                 score++
-                scoreView.text = "Счет: $score"
+                scoreView.text = "Очки: $score"
             }
         }
 
-        layout.addView(title)
+        layout.addView(titleView)
         layout.addView(scoreView)
-        layout.addView(button)
+        layout.addView(btn)
         setContentView(layout)
     }
 }
