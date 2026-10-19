@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'com.roma.nativeapp'
+    namespace 'com.botikbinance.app'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.roma.nativeapp"
+        applicationId "com.botikbinance.app"
         minSdk 24
         targetSdk 34
         versionCode 1
