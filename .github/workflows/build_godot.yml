@@ -32,13 +32,24 @@ jobs:
             echo "✅ Шаблоны успешно установлены в каталог $TARGET_DIR!"
           fi
 
-      - name: Configure Android SDK Build-Tools & Editor Settings
+      - name: Configure Android SDK, Java SDK & Keystore
         run: |
           mkdir -p ~/.config/godot/
+          mkdir -p /github/home/.local/share/godot/
+          
+          # Точное определение пути к Java SDK, содержащему папку bin
+          JAVA_SDK_DIR=""
+          if command -v javac &> /dev/null; then
+            JAVA_SDK_DIR=$(dirname$(dirname $(readlink -f$(which javac))))
+          fi
+          if [ ! -d "$JAVA_SDK_DIR/bin" ]; then
+            JAVA_SDK_DIR="/usr/lib/jvm/default-java"
+          fi
+          echo "Resolved Java SDK path: $JAVA_SDK_DIR"
           
           ANDROID_SDK_DIR="/opt/android-sdk"
-          JAVA_SDK_DIR="/usr/lib/jvm/default-java"
           
+          # Установка необходимых build-tools и platform через sdkmanager
           SDKMANAGER_PATH=$(find "$ANDROID_SDK_DIR" -name "sdkmanager" -type f 2>/dev/null | head -n 1)
           if [ -n "$SDKMANAGER_PATH" ]; then
             echo "📦 Обнаружен sdkmanager: $SDKMANAGER_PATH"
@@ -47,11 +58,11 @@ jobs:
           fi
 
           KEYSTORE_PATH="/github/home/.local/share/godot/debug.keystore"
-          mkdir -p "$(dirname "$KEYSTORE_PATH")"
           if [ ! -f "$KEYSTORE_PATH" ]; then
             keytool -genkey -v -keystore "$KEYSTORE_PATH" -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -deststoretype pkcs12 -passin pass:android -passout pass:android -dname "CN=Android Debug,O=Android,C=US" || true
           fi
           
+          # Генерация глобальных настроек редактора Godot
           cat << EOF > ~/.config/godot/editor_settings-4.3.tres
           [gd_resource type="EditorSettings" load_format=3]
 
@@ -63,11 +74,7 @@ jobs:
           export/android/debug_keystore_pass = "android"
           EOF
 
-          echo "✅ Файл конфигурации EditorSettings успешно сгенерирован."
-
-      - name: Validate Project Imports
-        run: |
-          godot --verbose --headless --editor --quit || true
+          echo "✅ Конфигурация EditorSettings успешно создана."
 
       - name: Compile Android APK
         run: |
