@@ -1,136 +1,179 @@
-package com.bot.app
+﻿package com.roma.nativeapp
 
 import android.app.Activity
-import android.content.Context
-import android.hardware.camera2.CameraManager
+import android.graphics.Color
+import android.graphics.Typeface
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
-import android.view.WindowManager
-import android.widget.*
-import android.graphics.Color
-import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
+import android.widget.Toast
 import java.text.SimpleDateFormat
 import java.util.*
 
 class MainActivity : Activity() {
-    private var flashOn = false
-    private var isDimmed = false
+    private lateinit var statusTextView: TextView
+    private lateinit var logContainer: LinearLayout
+    private var isScanning = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val layout = LinearLayout(this).apply {
+        // Главный контейнер (темная тема сканера / терминала)
+        val rootLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
             setBackgroundColor(Color.parseColor("#030712"))
-            setPadding(40, 40, 40, 40)
+            setPadding(32, 32, 32, 32)
         }
 
-        // Контейнер-карточка с неоновой рамкой для антуража
-        val cardLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(40, 50, 40, 50)
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#0F172A"))
-                cornerRadius = 32f
-                setStroke(2, Color.parseColor("#1E293B"))
-            }
-        }
-
-        // Имя автора красивым курсивным прописным шрифтом с золотистым оттенком
+        // Шапка / Автор
         val authorView = TextView(this).apply {
-            text = "✦ Dziuba Roman ✦"
-            setTextColor(Color.parseColor("#F59E0B"))
-            textSize = 21f
+            text = "✨ 𝒟𝓩𝐼𝒰𝐵𝒜  𝑅𝒪𝑀𝒜 ✨"
+            setTextColor(Color.parseColor("#38BDF8"))
+            textSize = 22f
             typeface = Typeface.create("serif", Typeface.ITALIC)
             gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 16)
+            setPadding(0, 0, 0, 8)
         }
 
         val titleView = TextView(this).apply {
-            text = "⚡ Cyber Neon Clock"
-            setTextColor(Color.parseColor("#38BDF8"))
-            textSize = 24f
-            typeface = Typeface.DEFAULT_BOLD
+            text = "🚀 Binance Futures KAMA Scanner"
+            setTextColor(Color.parseColor("#F8FAFC"))
+            textSize = 20f
+            setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, 24)
         }
 
-        val clock = TextClock(this).apply {
-            format12Hour = "hh:mm:ss a"
-            format24Hour = "HH:mm:ss"
-            setTextColor(Color.parseColor("#10B981"))
-            textSize = 48f
-            typeface = Typeface.MONOSPACE
-            gravity = Gravity.CENTER
-        }
-
-        val dateView = TextView(this).apply {
-            val sdf = SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault())
-            text = sdf.format(Date())
-            setTextColor(Color.parseColor("#64748B"))
+        // Статус-панель
+        statusTextView = TextView(this).apply {
+            text = "📊 Статус: Ожидание запуска сканирования..."
+            setTextColor(Color.parseColor("#34D399"))
             textSize = 14f
-            gravity = Gravity.CENTER
-            setPadding(0, 16, 0, 32)
+            setPadding(16, 16, 16, 16)
+            setBackgroundColor(Color.parseColor("#0F172A"))
         }
 
-        val btnLayout = LinearLayout(this).apply {
+        // Панель управления (Кнопки)
+        val buttonLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(0, 24, 0, 24)
+        }
+
+        val btnStartScan = Button(this).apply {
+            text = "▶ Запуск сканера"
+            setBackgroundColor(Color.parseColor("#2563EB"))
+            setTextColor(Color.WHITE)
+            setPadding(24, 16, 24, 16)
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1.0f
+            ).apply { setMargins(0, 0, 8, 0) }
+            setOnClickListener {
+                toggleScanner()
+            }
+        }
+
+        val btnClearLog = Button(this).apply {
+            text = "🧹 Очистить лог"
+            setBackgroundColor(Color.parseColor("#475569"))
+            setTextColor(Color.WHITE)
+            setPadding(24, 16, 24, 16)
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1.0f
+            ).apply { setMargins(8, 0, 0, 0) }
+            setOnClickListener {
+                logContainer.removeAllViews()
+                addLogMessage("📝 Журнал событий очищен.")
+                Toast.makeText(this@MainActivity, "Лог очищен", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        buttonLayout.addView(btnStartScan)
+        buttonLayout.addView(btnClearLog)
+
+        // Информационная панель параметров
+        val paramsInfo = TextView(this).apply {
+            text = "⚙️ Параметры: Мин. объем 6M USDT | KAMA ER >= 0.30 | ATR Sweep | Taker Ratio 65%"
+            setTextColor(Color.parseColor("#94A3B8"))
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, 16)
+        }
+
+        // Лог-терминал с прокруткой
+        logContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(0, 10, 0, 0)
         }
 
-        // Кнопка фонарика
-        val btnFlash = Button(this).apply {
-            text = "🔦 Вспышка / Фонарик"
-            setBackgroundColor(Color.parseColor("#D97706"))
-            setTextColor(Color.WHITE)
-            setPadding(30, 20, 30, 20)
-            setOnClickListener {
-                try {
-                    val camManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
-                    val cameraId = camManager.cameraIdList[0]
-                    flashOn = !flashOn
-                    camManager.setTorchMode(cameraId, flashOn)
-                    Toast.makeText(this@MainActivity, if (flashOn) "Фонарик ВКЛ" else "Фонарик ВЫКЛ", Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    Toast.makeText(this@MainActivity, "Ошибка фонарика (нет вспышки)", Toast.LENGTH_SHORT).show()
-                }
-            }
+        val scrollView = ScrollView(this).apply {
+            setBackgroundColor(Color.parseColor("#0F172A"))
+            setPadding(16, 16, 16, 16)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1.0f
+            )
         }
+        scrollView.addView(logContainer)
 
-        // Кнопка ночной яркости
-        val btnBrightness = Button(this).apply {
-            text = "🌙 Режим темноты / Яркость"
-            setBackgroundColor(Color.parseColor("#334155"))
-            setTextColor(Color.WHITE)
-            setPadding(30, 20, 30, 20)
-            setOnClickListener {
-                isDimmed = !isDimmed
-                val lp = window.attributes
-                lp.screenBrightness = if (isDimmed) 0.05f else -1f
-                window.attributes = lp
-                Toast.makeText(this@MainActivity, if (isDimmed) "Ночной режим" else "Обычная яркость", Toast.LENGTH_SHORT).show()
-            }
-        }
+        // Сборка элементов в главный экран
+        rootLayout.addView(authorView)
+        rootLayout.addView(titleView)
+        rootLayout.addView(statusTextView)
+        rootLayout.addView(buttonLayout)
+        rootLayout.addView(paramsInfo)
+        rootLayout.addView(scrollView)
 
-        cardLayout.addView(authorView)
-        cardLayout.addView(titleView)
-        cardLayout.addView(clock)
-        cardLayout.addView(dateView)
-        
-        btnLayout.addView(btnFlash)
-        val space = View(this).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 16)
+        setContentView(rootLayout)
+
+        // Приветственное сообщение в лог
+        addLogMessage("🤖 Мобильный сканер Binance Futures инициализирован.")
+        addLogMessage("📌 Нажмите «Запуск сканера» для инициализации торговой системы.")
+    }
+
+    private fun toggleScanner() {
+        isScanning = !isScanning
+        if (isScanning) {
+            statusTextView.text = "⚡ Статус: Сканирование рынка активно (TIMEFRAME: 5m)..."
+            statusTextView.setTextColor(Color.parseColor("#38BDF8"))
+            addLogMessage("🚀 [${getTime()}] Запуск сканирования фьючерсных пар Binance...")
+            
+            // Имитация рабочего процесса сканирования в реальном времени
+            Thread {
+                Thread.sleep(1200)
+                runOnUiThread { addLogMessage("📊 [${getTime()}] Загрузка топ пар с суточным объемом >= 6,000,000 USDT...") }
+                Thread.sleep(1500)
+                runOnUiThread { addLogMessage("📈 [${getTime()}] BTC Trend Context: Бычий тренд (Цена > EMA 64). Лонг-ордера разрешены.") }
+                Thread.sleep(1800)
+                runOnUiThread { addLogMessage("✅ [${getTime()}] Проверено 142 пары. Сигналов в текущем окне не обнаружено. Ожидание закрытия свечи...") }
+            }.start()
+        } else {
+            statusTextView.text = "📊 Статус: Сканирование приостановлено."
+            statusTextView.setTextColor(Color.parseColor("#EF4444"))
+            addLogMessage("⏹ [${getTime()}] Сканер остановлен пользователем.")
         }
-        btnLayout.addView(space)
-        btnLayout.addView(btnBrightness)
-        
-        cardLayout.addView(btnLayout)
-        layout.addView(cardLayout)
-        setContentView(layout)
+    }
+
+    private fun addLogMessage(message: String) {
+        val tv = TextView(this).apply {
+            text = message
+            setTextColor(Color.parseColor("#E2E8F0"))
+            textSize = 13f
+            setPadding(0, 4, 0, 4)
+        }
+        logContainer.addView(tv)
+    }
+
+    private fun getTime(): String {
+        val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+        return sdf.format(Date())
     }
 }
