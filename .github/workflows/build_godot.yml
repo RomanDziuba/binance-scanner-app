@@ -73,16 +73,15 @@ jobs:
             keytool -genkey -v -keystore "$KEYSTORE_PATH" -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -deststoretype pkcs12 -passin pass:android -passout pass:android -dname "CN=Android Debug,O=Android,C=US" || true
           fi
           
-          cat << 'EOF' > ~/.config/godot/editor_settings-4.3.tres
-[gd_resource type="EditorSettings" load_format=3]
-
-[resource]
-export/android/android_sdk_path = "/opt/android-sdk"
-export/android/java_sdk_path = "/usr/lib/jvm/default-java"
-export/android/debug_keystore = "/github/home/.local/share/godot/debug.keystore"
-export/android/debug_keystore_user = "androiddebugkey"
-export/android/debug_keystore_pass = "android"
-EOF
+          # Безопасная генерация editor_settings через echo
+          echo '[gd_resource type="EditorSettings" load_format=3]' > ~/.config/godot/editor_settings-4.3.tres
+          echo '' >> ~/.config/godot/editor_settings-4.3.tres
+          echo '[resource]' >> ~/.config/godot/editor_settings-4.3.tres
+          echo 'export/android/android_sdk_path = "/opt/android-sdk"' >> ~/.config/godot/editor_settings-4.3.tres
+          echo 'export/android/java_sdk_path = "/usr/lib/jvm/default-java"' >> ~/.config/godot/editor_settings-4.3.tres
+          echo 'export/android/debug_keystore = "/github/home/.local/share/godot/debug.keystore"' >> ~/.config/godot/editor_settings-4.3.tres
+          echo 'export/android/debug_keystore_user = "androiddebugkey"' >> ~/.config/godot/editor_settings-4.3.tres
+          echo 'export/android/debug_keystore_pass = "android"' >> ~/.config/godot/editor_settings-4.3.tres
 
       - name: Compile Android APK
         run: |
