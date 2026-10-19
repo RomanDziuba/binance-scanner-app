@@ -1,13 +1,7 @@
 name: Build Native Android APK
 
 on:
-  push:
-    branches: [ main, master ]
   workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   build:
