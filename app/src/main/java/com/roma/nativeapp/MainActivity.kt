@@ -3,13 +3,14 @@ package com.roma.nativeapp
 import android.app.Activity
 import android.content.Context
 import android.hardware.camera2.CameraManager
-import android.media.ToneGenerator
-import android.media.AudioManager
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
 import android.view.WindowManager
 import android.widget.*
 import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -23,61 +24,71 @@ class MainActivity : Activity() {
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setBackgroundColor(Color.parseColor("#050811"))
+            setBackgroundColor(Color.parseColor("#030712"))
             setPadding(40, 40, 40, 40)
         }
 
-        val authorView = TextView(this).apply {
-            text = "✨ Roma Dziuba ✨"
-            setTextColor(Color.parseColor("#38BDF8"))
-            textSize = 22f
+        // Контейнер-карточка с неоновой рамкой для антуража
+        val cardLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 10)
+            setPadding(40, 50, 40, 50)
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#0F172A"))
+                cornerRadius = 32f
+                setStroke(2, Color.parseColor("#1E293B"))
+            }
+        }
+
+        // Имя автора красивым курсивным прописным шрифтом с золотистым оттенком
+        val authorView = TextView(this).apply {
+            text = "✦ Dziuba Roman ✦"
+            setTextColor(Color.parseColor("#F59E0B"))
+            textSize = 21f
+            typeface = Typeface.create("serif", Typeface.ITALIC)
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, 16)
         }
 
         val titleView = TextView(this).apply {
-            text = "🕒 Smart Multi-Clock"
-            setTextColor(Color.WHITE)
-            textSize = 26f
+            text = "⚡ Cyber Neon Clock"
+            setTextColor(Color.parseColor("#38BDF8"))
+            textSize = 24f
+            typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 20)
+            setPadding(0, 0, 0, 24)
         }
 
         val clock = TextClock(this).apply {
             format12Hour = "hh:mm:ss a"
             format24Hour = "HH:mm:ss"
-            setTextColor(Color.parseColor("#4ADE80"))
-            textSize = 52f
+            setTextColor(Color.parseColor("#10B981"))
+            textSize = 48f
+            typeface = Typeface.MONOSPACE
             gravity = Gravity.CENTER
         }
 
         val dateView = TextView(this).apply {
             val sdf = SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault())
             text = sdf.format(Date())
-            setTextColor(Color.parseColor("#94A3B8"))
-            textSize = 16f
+            setTextColor(Color.parseColor("#64748B"))
+            textSize = 14f
             gravity = Gravity.CENTER
-            setPadding(0, 20, 0, 40)
+            setPadding(0, 16, 0, 32)
         }
 
-        val toneGen = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
-
-        // Кнопка будильника
-        val btnAlarm = Button(this).apply {
-            text = "⏰ Установить будильник (+1 мин)"
-            setBackgroundColor(Color.parseColor("#2563EB"))
-            setTextColor(Color.WHITE)
-            setOnClickListener {
-                toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 200)
-                Toast.makeText(this@MainActivity, "Будильник заведен на 1 минуту!", Toast.LENGTH_LONG).show()
-            }
+        val btnLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(0, 10, 0, 0)
         }
 
         // Кнопка фонарика
         val btnFlash = Button(this).apply {
-            text = "🔦 Фонарик / Вспышка"
+            text = "🔦 Вспышка / Фонарик"
             setBackgroundColor(Color.parseColor("#D97706"))
             setTextColor(Color.WHITE)
+            setPadding(30, 20, 30, 20)
             setOnClickListener {
                 try {
                     val camManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
@@ -94,8 +105,9 @@ class MainActivity : Activity() {
         // Кнопка ночной яркости
         val btnBrightness = Button(this).apply {
             text = "🌙 Режим темноты / Яркость"
-            setBackgroundColor(Color.parseColor("#475569"))
+            setBackgroundColor(Color.parseColor("#334155"))
             setTextColor(Color.WHITE)
+            setPadding(30, 20, 30, 20)
             setOnClickListener {
                 isDimmed = !isDimmed
                 val lp = window.attributes
@@ -105,13 +117,20 @@ class MainActivity : Activity() {
             }
         }
 
-        layout.addView(authorView)
-        layout.addView(titleView)
-        layout.addView(clock)
-        layout.addView(dateView)
-        layout.addView(btnAlarm)
-        layout.addView(btnFlash)
-        layout.addView(btnBrightness)
+        cardLayout.addView(authorView)
+        cardLayout.addView(titleView)
+        cardLayout.addView(clock)
+        cardLayout.addView(dateView)
+        
+        btnLayout.addView(btnFlash)
+        val space = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 16)
+        }
+        btnLayout.addView(space)
+        btnLayout.addView(btnBrightness)
+        
+        cardLayout.addView(btnLayout)
+        layout.addView(cardLayout)
         setContentView(layout)
     }
 }
