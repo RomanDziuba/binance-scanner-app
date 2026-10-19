@@ -19,18 +19,20 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK, Gradle & Accept Licenses
+      - name: Setup Gradle 8.5
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.5'
+
+      - name: Setup Android SDK & Accept Licenses
         run: |
           export ANDROID_HOME=/usr/local/lib/android/sdk
           export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
           
           yes | sdkmanager --licenses || true
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-          
-          # Устанавливаем gradle в систему, чтобы не зависеть от файлов gradlew в репозитории
-          sudo apt-get update && sudo apt-get install -y gradle
 
-      - name: Build Debug APK with System Gradle
+      - name: Build Debug APK with Gradle 8.5
         run: |
           export ANDROID_HOME=/usr/local/lib/android/sdk
           export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
