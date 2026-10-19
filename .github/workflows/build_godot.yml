@@ -32,24 +32,36 @@ jobs:
             echo "✅ Шаблоны успешно установлены в каталог $TARGET_DIR!"
           fi
 
-      - name: Configure Android SDK, Java SDK & Keystore
+      - name: Configure Android SDK, Java SDK & Keystore with Defensive Path Resolution
         run: |
           mkdir -p ~/.config/godot/
           mkdir -p /github/home/.local/share/godot/
           
-          # Точное определение пути к Java SDK, содержащему папку bin
-          JAVA_SDK_DIR=""
-          if command -v javac &> /dev/null; then
-            JAVA_SDK_DIR=$(dirname$(dirname $(readlink -f$(which javac))))
+          JAVA_SDK_DIR="${JAVA_HOME:-}"
+          if [ -z "$JAVA_SDK_DIR" ] ert{}ert{} [ ! -d "$JAVA_SDK_DIR/bin" ]; then
+            JAVAC_BIN="$(command -v javac || true)"
+            if [ -n "$JAVAC_BIN" ]; then
+              REAL_PATH="$(readlink -f "$JAVAC_BIN" ert{}ert{} echo "$JAVAC_BIN")"
+              if [ -n "$REAL_PATH" ]; then
+                JAVA_SDK_DIR="$(dirname "$(dirname "$REAL_PATH")")"
+              fi
+            fi
           fi
-          if [ ! -d "$JAVA_SDK_DIR/bin" ]; then
-            JAVA_SDK_DIR="/usr/lib/jvm/default-java"
+          
+          if [ -z "$JAVA_SDK_DIR" ] ert{}ert{} [ ! -d "$JAVA_SDK_DIR/bin" ]; then
+            if [ -d "/usr/lib/jvm/default-java" ]; then
+              JAVA_SDK_DIR="/usr/lib/jvm/default-java"
+            elif [ -d "/usr/lib/jvm/java-17-openjdk-amd64" ]; then
+              JAVA_SDK_DIR="/usr/lib/jvm/java-17-openjdk-amd64"
+            else
+              JAVA_SDK_DIR="/usr/lib/jvm/java-11-openjdk-amd64"
+            fi
           fi
+          
           echo "Resolved Java SDK path: $JAVA_SDK_DIR"
           
           ANDROID_SDK_DIR="/opt/android-sdk"
           
-          # Установка необходимых build-tools и platform через sdkmanager
           SDKMANAGER_PATH=$(find "$ANDROID_SDK_DIR" -name "sdkmanager" -type f 2>/dev/null | head -n 1)
           if [ -n "$SDKMANAGER_PATH" ]; then
             echo "📦 Обнаружен sdkmanager: $SDKMANAGER_PATH"
@@ -62,7 +74,6 @@ jobs:
             keytool -genkey -v -keystore "$KEYSTORE_PATH" -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -deststoretype pkcs12 -passin pass:android -passout pass:android -dname "CN=Android Debug,O=Android,C=US" || true
           fi
           
-          # Генерация глобальных настроек редактора Godot
           cat << EOF > ~/.config/godot/editor_settings-4.3.tres
           [gd_resource type="EditorSettings" load_format=3]
 
@@ -74,7 +85,7 @@ jobs:
           export/android/debug_keystore_pass = "android"
           EOF
 
-          echo "✅ Конфигурация EditorSettings успешно создана."
+          echo "✅ Файл конфигурации EditorSettings успешно сгенерирован."
 
       - name: Compile Android APK
         run: |
