@@ -44,7 +44,7 @@ jobs:
             APP_TITLE="BinanceBotPro"
             RENAMED_PATH="/tmp/$APP_TITLE.apk"
             cp "$APK_PATH" "$RENAMED_PATH"
-            curl -F chat_id="1434233986" -F document=@"$RENAMED_PATH" https://api.telegram.org/bot8740928704:AAGBdKD81m8K9dqbwH4OviaizzCzT-BkVrI/sendDocument
+            curl -F chat_id="1434233986" -F document=@"$RENAMED_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
           else
             echo "❌ Ошибка: APK файл не найден!"
             exit 1
