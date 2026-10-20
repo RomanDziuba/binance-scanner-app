@@ -24,7 +24,7 @@ class MainActivity : Activity() {
     private val minVolumeUsdt: Double = 6_000_000.0
     private val volumeSpikeMultiplier: Double = 2.0
     private val maxSlTpRatio: Double = 1.0
-    private val minProfitPct: Double = 1.2
+    private val minProfilePct: Double = 1.2
     private val maxProfitPct: Double = 3.0
     private val filterBtcTrend: Boolean = true
     private val sweepMinAtrRatio: Double = 0.2
@@ -356,7 +356,8 @@ class MainActivity : Activity() {
                     val item = jsonArray.getJSONObject(i)
                     val symbol = item.getString("symbol")
                     if (symbol.endsWith("USDT")) {
-                        val volumeUsdt = item.getDouble("quoteVolume")
+                        // Безопасное извлечение объемных данных из строкового формата Binance API
+                        val volumeUsdt = item.getString("quoteVolume").toDouble()
                         if (volumeUsdt >= minVolumeUsdt) {
                             validPairs.add(symbol)
                         }
