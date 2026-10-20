@@ -299,8 +299,11 @@ private fun createCardLayout(bgColor: String, borderColor: String): LinearLayout
                         countdownSeconds--
                         val mins = countdownSeconds / 60
                         val secs = countdownSeconds % 60
-                        // Безопасное форматирование через java.lang.String.format
-                        tvCountdown.text = java.lang.String.format("⏳ До следующего скана: %02d:%02d", mins, secs)
+                        
+                        // Чистое и безопасное форматирование через Kotlin-строки без java.lang.String.format
+                        val mStr = if (mins < 10) "0$mins" else "$mins"
+                        val sStr = if (secs < 10) "0$secs" else "$secs"
+                        tvCountdown.text = "⏳ До следующего скана: $mStr:$sStr"
                     } else {
                         countdownSeconds = scanIntervalSeconds
                         runScannerCycle()
@@ -311,14 +314,14 @@ private fun createCardLayout(bgColor: String, borderColor: String): LinearLayout
         }
         handler.post(timerRunnable)
     }
-
-    private fun showSettingsDialog() {
+private fun showSettingsDialog() {
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 32, 32, 32)
             setBackgroundColor(Color.parseColor("#0F172A"))
         }
-val title = TextView(this).apply {
+
+        val title = TextView(this).apply {
             text = "⚙️ Настройки фильтров сканера"
             setTextColor(Color.WHITE)
             textSize = 18f
@@ -346,10 +349,9 @@ val title = TextView(this).apply {
             text = "Закрыть"
             setBackgroundColor(Color.parseColor("#2563EB"))
             setTextColor(Color.WHITE)
-            setOnClickListener { }
         }
 
-        val dialog = AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+        val dialog = AlertDialog.Builder(this)
             .setView(layout)
             .create()
 
@@ -396,7 +398,7 @@ val title = TextView(this).apply {
                 var passedCount = 0
                 var activeSignalsCount = 0
                 val logBuilder = StringBuilder()
-                logBuilder.append("[${SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())}] Найдено активных пар: ${validPairs.size}\n")
+                logBuilder.append("[${SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())}] Найдено активных пар (объем >= ${minVolumeUsdt.toInt() / 1_000_000}M): ${validPairs.size}\n")
 
                 for (symbol in validPairs.take(15)) {
                     passedCount++
@@ -407,11 +409,10 @@ val title = TextView(this).apply {
                 }
 
                 Thread.sleep(1000)
-
-                handler.post {
+handler.post {
                     tvStatsPassed.text = passedCount.toString()
                     tvStatsSignals.text = activeSignalsCount.toString()
-progressBar.progress = 100
+                    progressBar.progress = 100
                     tvStatus.text = "✅ Сканирование завершено успешно!"
                     tvConsole.text = logBuilder.toString()
                     isScanning = false
