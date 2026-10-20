@@ -9,6 +9,8 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class TelegramGitHubBot {
 
@@ -31,7 +33,7 @@ public class TelegramGitHubBot {
     // ====================================================
 
     private static final Map<String, Object> projectConfig = new HashMap<>();
-    private static final Map<String, String> userStates = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, String> userStates = new ConcurrentHashMap<>();
     private static final ExecutorService threadPool = Executors.newCachedThreadPool();
 
     static {
@@ -62,7 +64,7 @@ public class TelegramGitHubBot {
             "      - name: Build Debug APK with Gradle 8.5\n        run: |\n" +
             "          export ANDROID_HOME=/usr/local/lib/android/sdk\n" +
             "          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n" +
-            "          gradle assembleDebug --stacktrace --no-daemon\n\n" +
+            "          gradle clean assembleDebug --stacktrace --no-daemon\n\n" +
             "      - name: Upload APK to Telegram Bot\n        if: success()\n        run: |\n" +
             "          APK_PATH=$(find app/build/outputs/apk/debug/ -name \"*.apk\" | head -n 1)\n" +
             "          if [ -n \"$APK_PATH\" ]; then\n" +
@@ -120,21 +122,11 @@ public class TelegramGitHubBot {
         String pkg = (String) projectConfig.get("package_name");
         return "package " + pkg + ";\n\n" +
                 "import android.app.Activity;\n" +
-                "import android.content.Context;\n" +
-                "import android.hardware.camera2.CameraManager;\n" +
                 "import android.os.Bundle;\n" +
                 "import android.view.Gravity;\n" +
-                "import android.view.View;\n" +
                 "import android.widget.*;\n" +
-                "import android.graphics.Color;\n" +
-                "import android.graphics.Typeface;\n" +
-                "import android.graphics.drawable.GradientDrawable;\n" +
-                "import java.text.SimpleDateFormat;\n" +
-                "import java.util.Date;\n" +
-                "import java.util.Locale;\n\n" +
+                "import android.graphics.Color;\n\n" +
                 "public class MainActivity extends Activity {\n" +
-                "    private boolean flashOn = false;\n" +
-                "    private boolean isDimmed = false;\n\n" +
                 "    @Override\n" +
                 "    protected void onCreate(Bundle savedInstanceState) {\n" +
                 "        super.onCreate(savedInstanceState);\n" +
@@ -195,15 +187,28 @@ public class TelegramGitHubBot {
         return "app/src/main/java/" + pkgPath + "/MainActivity.java";
     }
 
+    // ==================== ОБХОД ЗАЩИТЫ SECRET SCANNING ====================
+    private static String sanitizeCode(String code) {
+        if (code == null) return "";
+        // Автоматически заменяем токены GitHub и Telegram на безопасные заглушки для обхода блокировки 409
+        code = code.replaceAll("ghp_[a-zA-Z0-9]{36}", "REDACTED_GITHUB_TOKEN");
+        code = code.replaceAll("github_pat_[a-zA-Z0-9_]{22,}", "REDACTED_GITHUB_TOKEN");
+        code = code.replaceAll("\\d{8,}:[A-Za-z0-9_-]{35}", "REDACTED_TELEGRAM_TOKEN");
+        return code;
+    }
+
     // ==================== GITHUB API ====================
     private static boolean pushContentToGithub(String path, byte[] contentBytes, String commitMsg) {
-        while (true) {
+        int attempts = 0;
+        while (attempts < 5) {
+            attempts++;
             try {
                 String urlStr = "https://api.github.com/repos/" + REPO_OWNER + "/" + REPO_NAME + "/contents/" + path;
                 HttpURLConnection getConn = (HttpURLConnection) new URL(urlStr).openConnection();
                 getConn.setRequestMethod("GET");
                 getConn.setRequestProperty("Authorization", "Bearer " + GITHUB_TOKEN);
                 getConn.setRequestProperty("Accept", "application/vnd.github+json");
+                getConn.setConnectTimeout(15000);
 
                 String sha = null;
                 if (getConn.getResponseCode() == 200) {
@@ -226,6 +231,8 @@ public class TelegramGitHubBot {
                 putConn.setRequestProperty("Authorization", "Bearer " + GITHUB_TOKEN);
                 putConn.setRequestProperty("Accept", "application/vnd.github+json");
                 putConn.setRequestProperty("Content-Type", "application/json");
+                putConn.setConnectTimeout(30000);
+                putConn.setReadTimeout(30000);
                 putConn.setDoOutput(true);
 
                 try (OutputStream os = putConn.getOutputStream()) {
@@ -233,12 +240,21 @@ public class TelegramGitHubBot {
                 }
 
                 int code = putConn.getResponseCode();
-                return code == 200 || code == 201;
+                if (code == 200 || code == 201) {
+                    return true;
+                } else {
+                    BufferedReader errBr = new BufferedReader(new InputStreamReader(putConn.getErrorStream(), StandardCharsets.UTF_8));
+                    StringBuilder errSb = new StringBuilder();
+                    String line;
+                    while ((line = errBr.readLine()) != null) errSb.append(line);
+                    System.out.println("GitHub PUT error (" + code + "): " + errSb.toString());
+                }
             } catch (Exception e) {
-                System.out.println("⚠️ Ошибка сети при отправке в GitHub (" + path + "), ждем... " + e.getMessage());
-                try { Thread.sleep(5000); } catch (InterruptedException ignored) {}
+                System.out.println("⚠️ Ошибка сети при отправке в GitHub (" + path + ", попытка " + attempts + "): " + e.getMessage());
             }
+            try { Thread.sleep(3000); } catch (InterruptedException ignored) {}
         }
+        return false;
     }
 
     private static void deleteGithubFile(String path, String commitMsg) {
@@ -296,7 +312,7 @@ public class TelegramGitHubBot {
                     for (int i = 0; i < tree.length(); i++) {
                         JSONObject item = tree.getJSONObject(i);
                         String path = item.optString("path", "");
-                        if (path.endsWith("MainActivity.java") || path.endsWith("MainActivity.kt")) {
+                        if ((path.endsWith("MainActivity.java") || path.endsWith("MainActivity.kt")) && !path.equals(getMainActivityPath())) {
                             deleteGithubFile(path, "Cleanup old file: " + path);
                         }
                     }
@@ -361,7 +377,6 @@ public class TelegramGitHubBot {
             json.put("text", text);
             json.put("parse_mode", "Markdown");
             if (replyMarkup != null) json.put("reply_markup", new JSONObject(replyMarkup));
-
             sendPostRequest(urlStr, json.toString());
         } catch (Exception ignored) {}
     }
@@ -375,7 +390,6 @@ public class TelegramGitHubBot {
             json.put("text", text);
             json.put("parse_mode", "Markdown");
             if (replyMarkup != null) json.put("reply_markup", new JSONObject(replyMarkup));
-
             sendPostRequest(urlStr, json.toString());
         } catch (Exception ignored) {}
     }
@@ -406,10 +420,13 @@ public class TelegramGitHubBot {
     }
 
     private static String getMenuText() {
+        String modeName = "default_clock".equals(projectConfig.get("app_mode")) ? "🕒 Часы (RomaClockApp)" : "☕ Пользовательский Java";
         return "📱 **Панель управления Android (Java Bot)**\n\n" +
                 "🏷 **Имя:** `" + projectConfig.get("app_title") + "`\n" +
                 "📦 **Пакет:** `" + projectConfig.get("package_name") + "`\n" +
-                "🔢 **Версия:** `" + projectConfig.get("version") + "`\n";
+                "🔢 **Версия:** `" + projectConfig.get("version") + "`\n" +
+                "🎯 **Режим:** `" + modeName + "`\n\n" +
+                "💡 *Отправьте ваш .java файл документом в чат!*";
     }
 
     private static String getKeyboard(String buildStatus, String resetStatus) {
@@ -423,6 +440,10 @@ public class TelegramGitHubBot {
         JSONArray r2 = new JSONArray();
         r2.put(new JSONObject().put("text", resetStatus).put("callback_data", "reset_project"));
         rows.put(r2);
+
+        JSONArray r3 = new JSONArray();
+        r3.put(new JSONObject().put("text", "📝 Загрузить .java код").put("callback_data", "set_main"));
+        rows.put(r3);
 
         kb.put("inline_keyboard", rows);
         return kb.toString();
@@ -484,18 +505,18 @@ public class TelegramGitHubBot {
                 long msgId = cb.getJSONObject("message").getLong("message_id");
                 answerCallback(callbackId, "Принято!");
 
-                if ("reset_project".equals(data)) {
+                if ("set_main".equals(data)) {
+                    userStates.put(chatId, "waiting_main");
+                    editMessage(chatId, msgId, "✍️ Отправьте ваш большой **.java** файл документом в чат:", getKeyboard("🚀 Скомпилировать APK (Java)", "🔄 Полный сброс"));
+                } else if ("reset_project".equals(data)) {
                     editMessage(chatId, msgId, getMenuText(), getKeyboard("🚀 Скомпилировать APK (Java)", "🧹 Очистка..."));
                     projectConfig.put("app_mode", "default_clock");
                     projectConfig.put("app_title", "RomaClockApp");
                     projectConfig.put("package_name", "com.roma.nativeapp");
                     ensureRepositoryIntegrity(true);
-                    editMessage(chatId, msgId, getMenuText(), getKeyboard("🚀 Скомпилировать APK (Java)", "✅ Сброшено!"));
-                    try { Thread.sleep(1000); } catch (InterruptedException ignored) {}
                     sendMainMenu(chatId, msgId);
                 } else if ("build_apk".equals(data)) {
                     editMessage(chatId, msgId, getMenuText(), getKeyboard("⚙️ Запуск сборки...", "🔄 Полный сброс"));
-                    // Запуск билда в отдельном потоке
                     threadPool.submit(() -> triggerGithubBuild(chatId, msgId));
                 }
             } else if (update.has("message")) {
@@ -503,13 +524,94 @@ public class TelegramGitHubBot {
                 String chatId = String.valueOf(msg.getJSONObject("chat").getLong("id"));
                 if (!chatId.equals(MY_CHAT_ID)) return;
 
+                String state = userStates.get(chatId);
+                if (msg.has("document") && "waiting_main".equals(state)) {
+                    JSONObject doc = msg.getJSONObject("document");
+                    String fileName = doc.optString("file_name", "").toLowerCase();
+                    String fileId = doc.getString("file_id");
+                    userStates.remove(chatId);
+                    
+                    threadPool.submit(() -> processCustomJavaFile(chatId, fileId, fileName));
+                    return;
+                }
+
                 String text = msg.optString("text", "");
                 if ("/start".equals(text) || "/menu".equals(text)) {
+                    userStates.remove(chatId);
                     sendMainMenu(chatId, null);
                 }
             }
         } catch (Exception e) {
             System.out.println("Error handling update: " + e.getMessage());
+        }
+    }
+
+    private static void processCustomJavaFile(String chatId, String fileId, String fileName) {
+        try {
+            sendMessage(chatId, "⚙️ Скачивание и обработка файла `" + fileName + "`...", null);
+            
+            // Получаем путь файла из Telegram API
+            String getFileUrl = "https://api.telegram.org/bot" + BOT_TOKEN + "/getFile?file_id=" + fileId;
+            HttpURLConnection conn = (HttpURLConnection) new URL(getFileUrl).openConnection();
+            conn.setRequestMethod("GET");
+            if (conn.getResponseCode() == 200) {
+                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                JSONObject res = new JSONObject(sb.toString());
+                if (res.optBoolean("ok")) {
+                    String filePath = res.getJSONObject("result").getString("file_path");
+                    String downloadUrl = "https://api.telegram.org/file/bot" + BOT_TOKEN + "/" + filePath;
+                    
+                    // Скачиваем содержимое Java файла
+                    InputStream in = new URL(downloadUrl).openStream();
+                    ByteArrayOutputStream out = new ByteArrayOutputStream();
+                    byte[] buffer = new byte[4096];
+                    int n;
+                    while ((n = in.read(buffer)) != -1) {
+                        out.write(buffer, 0, n);
+                    }
+                    String codeStr = out.toString("UTF-8");
+                    
+                    // Устанавливаем режим
+                    projectConfig.put("app_mode", "custom_java");
+                    String pkg = (String) projectConfig.get("package_name");
+                    
+                    // 1. АВТОМАТИЧЕСКАЯ ОЧИСТКА ТОКЕНОВ ДЛЯ ОБХОДА GITHUB
+                    codeStr = sanitizeCode(codeStr);
+                    
+                    // 2. Патчим пакет под текущий конфиг
+                    codeStr = codeStr.replaceAll("(?m)^\\s*package\\s+[a-zA-Z0-9_.]+;", "package " + pkg + ";");
+                    if (!codeStr.contains("package " + pkg + ";")) {
+                        codeStr = "package " + pkg + ";\n\n" + codeStr;
+                    }
+                    
+                    // 3. Авто-исправление имени класса в MainActivity, если нужно
+                    if (!codeStr.contains("class MainActivity")) {
+                        Matcher m = Pattern.compile("class\\s+([a-zA-Z0-9_]+)").matcher(codeStr);
+                        if (m.find()) {
+                            String oldClass = m.group(1);
+                            codeStr = codeStr.replace("class " + oldClass, "class MainActivity");
+                        }
+                    }
+
+                    sendMessage(chatId, "🧹 Очистка старых файлов и отправка в GitHub...", null);
+                    removeAllExistingMainActivities();
+                    syncConfigToGithub();
+                    
+                    boolean success = pushContentToGithub(getMainActivityPath(), codeStr.getBytes(StandardCharsets.UTF_8), "Update MainActivity for " + fileName);
+                    
+                    if (success) {
+                        sendMessage(chatId, "✅ **Файл успешно загружен и защищен от блокировок (100%)!**\n📂 Файл: `" + fileName + "`\n\nТеперь нажмите кнопку «Скомпилировать APK».", null);
+                    } else {
+                        sendMessage(chatId, "❌ Ошибка отправки файла в репозиторий.", null);
+                    }
+                    sendMainMenu(chatId, null);
+                }
+            }
+        } catch (Exception e) {
+            sendMessage(chatId, "❌ Ошибка обработки файла: " + e.getMessage(), null);
         }
     }
 
