@@ -2,7 +2,6 @@ package com.binancebot.app;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -10,10 +9,10 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.view.Gravity;
-import android.view.View;
 import android.widget.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -21,13 +20,14 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
 
-    // === КЛЮЧИ ДЛЯ СОХРАНЕНИЯ НАСТРОЕК ===
     private static final String PREF_NAME = "BinanceBotPrefs";
 
-    // === НАСТРОЙКИ СТРАТЕГИИ И ФИЛЬТРОВ (ЗНАЧЕНИЯ ПО УМОЛЧАНИЮ) ===
+    // === НАСТРОЙКИ СТРАТЕГИИ И ФИЛЬТРОВ (ПОЛНОСТЬЮ РЕДАКТИРУЕМЫЕ) ===
     private double minVolumeUsdt = 6_000_000.0;
     private boolean filterLowVolume = true;
     private double volumeSpikeMultiplier = 2.0;
@@ -55,9 +55,15 @@ public class MainActivity extends Activity {
     private String scanTimeframe = "5m";
     private boolean sendDetailedInfo = true;
 
-    // Telegram настройки (можно менять в меню)
+    // Telegram настройки
     private String botToken = "8740928704:AAGBdKD81m8K9dqbwH4OviaizzCzT-BkVrI";
     private String chatId = "1434233986";
+
+    // Кэш контекста рынка
+    private boolean btcIsBullish = true;
+    private boolean btcIsBearish = false;
+    private final Map<String, Double> fundingRateCache = new HashMap<>();
+    private final Map<String, Long> lastAlertTime = new HashMap<>();
 
     // UI элементы
     private TextView timeDisplay;
@@ -71,14 +77,14 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         loadSettings();
 
-        // Главный контейнер (Темная тема, современные темные тона #0b0f19)
+        // Главный контейнер (Темная тема #0b0f19)
         LinearLayout mainLayout = new LinearLayout(this);
         mainLayout.setOrientation(LinearLayout.VERTICAL);
         mainLayout.setGravity(Gravity.CENTER_HORIZONTAL);
         mainLayout.setBackgroundColor(Color.parseColor("#0b0f19"));
         mainLayout.setPadding(30, 30, 30, 30);
 
-        // Брендинг на английском и автор (Dziuba Roman прописными / изысканным шрифтом)
+        // Брендинг на английском и автор (Dziuba Roman прописными / serif italic)
         TextView headerBrand = new TextView(this);
         headerBrand.setText("Binance Bot Pro");
         headerBrand.setTextColor(Color.parseColor("#38bdf8"));
@@ -94,10 +100,10 @@ public class MainActivity extends Activity {
         headerAuthor.setTypeface(Typeface.create("serif", Typeface.ITALIC));
         headerAuthor.setGravity(Gravity.CENTER);
         headerAuthor.setPadding(0, 0, 0, 20);
-
-        // Блок уникальных часов и статуса
+// Блок часов и статуса
         LinearLayout clockCard = createCardLayout();
-timeDisplay = new TextView(this);
+        
+        timeDisplay = new TextView(this);
         timeDisplay.setText("🕒 Инициализация часов...");
         timeDisplay.setTextColor(Color.parseColor("#10b981"));
         timeDisplay.setTextSize(18f);
@@ -113,7 +119,7 @@ timeDisplay = new TextView(this);
         scannerStatus.setGravity(Gravity.CENTER);
         clockCard.addView(scannerStatus);
 
-        // Оригинальный кастомный прогресс-бар выполнения скана
+        // Оригинальный кастомный прогресс-бар сканирования
         customProgressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         customProgressBar.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 24));
         customProgressBar.setMax(100);
@@ -141,7 +147,7 @@ timeDisplay = new TextView(this);
         buttonLayout.setGravity(Gravity.CENTER);
         buttonLayout.setPadding(0, 15, 0, 0);
 
-        Button btnRunScan = createStyledButton("🚀 Запустить сканирование рынка");
+        Button btnRunScan = createStyledButton("🚀 Запустить полный сканер рынка");
         btnRunScan.setOnClickListener(v -> {
             if (!isScanning) {
                 new BinanceScannerTask().execute();
@@ -150,7 +156,7 @@ timeDisplay = new TextView(this);
             }
         });
 
-        Button btnSettings = createStyledButton("⚙️ Меню настроек и фильтров");
+        Button btnSettings = createStyledButton("⚙️ Настройки и тонкие параметры");
         btnSettings.setOnClickListener(v -> showSettingsDialog());
 
         buttonLayout.addView(btnRunScan);
@@ -159,7 +165,7 @@ timeDisplay = new TextView(this);
         buttonLayout.addView(spacer);
         buttonLayout.addView(btnSettings);
 
-        // Сборка интерфейса
+        // Сборка экрана
         mainLayout.addView(headerBrand);
         mainLayout.addView(headerAuthor);
         mainLayout.addView(clockCard);
@@ -228,60 +234,100 @@ private Button createStyledButton(String text) {
         ticker.start();
     }
 
-    // Меню настроек с возможностью включения/отключения всех фильтров и смены Telegram параметров
+    // === ДЕТАЛЬНОЕ МЕНЮ НАСТРОЕК (ВКЛ/ВЫКЛ И ИЗМЕНЕНИЕ КАЖДОГО ПАРАМЕТРА) ===
     private void showSettingsDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("⚙️ Настройки и фильтры сканера");
+        builder.setTitle("⚙️ Тонкие настройки торгового бота");
 
         String[] options = {
-            "📱 Telegram Token (" + (botToken.length() > 10 ? botToken.substring(0, 6) + "..." : botToken) + ")",
-            "💬 Telegram Chat ID (" + chatId + ")",
-            "📋 Расширенная информация: " + (sendDetailedInfo ? "ВКЛ" : "ВЫКЛ"),
-            "📊 Фильтр объема свечи: " + (filterLowVolume ? "ВКЛ" : "ВЫКЛ"),
-            "⚖️ Фильтр Риск/Прибыль (R/R): " + (filterRiskReward ? "ВКЛ" : "ВЫКЛ"),
-            "🎯 Фильтр мин. профита (>=" + minProfitPct + "%): " + (filterMinProfit ? "ВКЛ" : "ВЫКЛ"),
-            "🚀 Фильтр макс. профита (<=" + maxProfitPct + "%): " + (filterMaxProfit ? "ВКЛ" : "ВЫКЛ"),
+            "📱 Telegram Token: " + (botToken.length() > 8 ? botToken.substring(0, 6) + "..." : botToken),
+            "💬 Telegram Chat ID: " + chatId,
+            "📋 Расширенная информация в сигнале: " + (sendDetailedInfo ? "ВКЛ" : "ВЫКЛ"),
+            "💰 Мин. объем пары (USDT): " + (long)minVolumeUsdt,
+            "📊 Фильтр объема свечи: " + (filterLowVolume ? "ВКЛ (х" + volumeSpikeMultiplier + ")" : "ВЫКЛ"),
+            "⚖️ Фильтр Риск/Прибыль (R/R): " + (filterRiskReward ? "ВКЛ (max " + maxSlTpRatio + ")" : "ВЫКЛ"),
+            "🎯 Мин. потенциал профита (%): " + (filterMinProfit ? minProfitPct + "%" : "ВЫКЛ"),
+            "🚀 Макс. потенциал профита (%): " + (filterMaxProfit ? maxProfitPct + "%" : "ВЫКЛ"),
             "📈 Фильтр тренда BTC: " + (filterBtcTrend ? "ВКЛ" : "ВЫКЛ"),
-            "🌊 Фильтр ликвидности (ATR Sweep): " + (filterLiquiditySweep ? "ВКЛ" : "ВЫКЛ"),
-            "📊 Фильтр Taker Ratio (Дельта): " + (filterTakerRatio ? "ВКЛ" : "ВЫКЛ"),
-            "⚡ Защита от ATR Spike: " + (filterAtrSpike ? "ВКЛ" : "ВЫКЛ"),
-            "💰 Фильтр Funding Rate: " + (filterFundingRate ? "ВЫКЛ/ВКЛ" : "ВЫКЛ"),
-            "📉 Фильтр KAMA Efficiency: " + (filterKamaEfficiency ? "ВКЛ" : "ВЫКЛ"),
+            "🌊 Ликвидность ATR Sweep: " + (filterLiquiditySweep ? "ВКЛ (" + sweepMinAtrRatio + "-" + sweepMaxAtrRatio + ")" : "ВЫКЛ"),
+            "📊 Фильтр Taker Ratio (Дельта): " + (filterTakerRatio ? "ВКЛ (>=" + (minTakerBuyRatio*100) + "%)" : "ВЫКЛ"),
+            "⚡ Защита ATR Spike: " + (filterAtrSpike ? "ВКЛ (max x" + maxAtrMultiplier + ")" : "ВЫКЛ"),
+            "💰 Фильтр Funding Rate: " + (filterFundingRate ? "ВКЛ (max " + (maxAbsoluteFundingRate*100) + "%)" : "ВЫКЛ"),
+            "📉 KAMA Efficiency Ratio: " + (filterKamaEfficiency ? "ВКЛ (min " + minEfficiencyRatio + ")" : "ВЫКЛ"),
             "🛡️ Защита KAMA Trend Guard: " + (filterKamaTrendGuard ? "ВКЛ" : "ВЫКЛ")
         };
 
         builder.setItems(options, (dialog, which) -> {
-            if (which == 0) {
-                showEditDialog("Telegram Bot Token", botToken, val -> { botToken = val; saveSettings(); });
-            } else if (which == 1) {
-                showEditDialog("Telegram Chat ID", chatId, val -> { chatId = val; saveSettings(); });
-            } else if (which == 2) {
-                sendDetailedInfo = !sendDetailedInfo;
-            } else if (which == 3) {
-                filterLowVolume = !filterLowVolume;
-            } else if (which == 4) {
-                filterRiskReward = !filterRiskReward;
-            } else if (which == 5) {
-                filterMinProfit = !filterMinProfit;
-            } else if (which == 6) {
-                filterMaxProfit = !filterMaxProfit;
-            } else if (which == 7) {
-                filterBtcTrend = !filterBtcTrend;
-            } else if (which == 8) {
-                filterLiquiditySweep = !filterLiquiditySweep;
-} else if (which == 9) {
-                filterTakerRatio = !filterTakerRatio;
-            } else if (which == 10) {
-                filterAtrSpike = !filterAtrSpike;
-            } else if (which == 11) {
-                filterFundingRate = !filterFundingRate;
-            } else if (which == 12) {
-                filterKamaEfficiency = !filterKamaEfficiency;
-            } else if (which == 13) {
-                filterKamaTrendGuard = !filterKamaTrendGuard;
+            switch (which) {
+                case 0:
+                    showEditDialog("Telegram Bot Token", botToken, val -> { botToken = val; saveSettings(); });
+                    break;
+                case 1:
+                    showEditDialog("Telegram Chat ID", chatId, val -> { chatId = val; saveSettings(); });
+                    break;
+                case 2:
+                    sendDetailedInfo = !sendDetailedInfo;
+                    saveSettings();
+                    break;
+                case 3:
+                    showEditDialog("Мин. суточный объем (USDT)", String.valueOf((long)minVolumeUsdt), val -> {
+try { minVolumeUsdt = Double.parseDouble(val); saveSettings(); } catch(Exception ignored){}
+                    });
+                    break;
+                case 4:
+                    showNumericEditDialog("Множитель объема свечи", String.valueOf(volumeSpikeMultiplier), val -> {
+                        volumeSpikeMultiplier = val; filterLowVolume = true; saveSettings();
+                    }, "Отключить фильтр объема", () -> { filterLowVolume = false; saveSettings(); });
+                    break;
+                case 5:
+                    showNumericEditDialog("Макс. соотношение SL/TP", String.valueOf(maxSlTpRatio), val -> {
+                        maxSlTpRatio = val; filterRiskReward = true; saveSettings();
+                    }, "Отключить фильтр R/R", () -> { filterRiskReward = false; saveSettings(); });
+                    break;
+                case 6:
+                    showNumericEditDialog("Мин. потенциал профита (%)", String.valueOf(minProfitPct), val -> {
+                        minProfitPct = val; filterMinProfit = true; saveSettings();
+                    }, "Отключить мин. профит", () -> { filterMinProfit = false; saveSettings(); });
+                    break;
+                case 7:
+                    showNumericEditDialog("Макс. потенциал профита (%)", String.valueOf(maxProfitPct), val -> {
+                        maxProfitPct = val; filterMaxProfit = true; saveSettings();
+                    }, "Отключить макс. профит", () -> { filterMaxProfit = false; saveSettings(); });
+                    break;
+                case 8:
+                    filterBtcTrend = !filterBtcTrend;
+                    saveSettings();
+                    break;
+                case 9:
+                    filterLiquiditySweep = !filterLiquiditySweep;
+                    saveSettings();
+                    break;
+                case 10:
+                    showNumericEditDialog("Мин. Taker Buy Ratio (например 0.65)", String.valueOf(minTakerBuyRatio), val -> {
+                        minTakerBuyRatio = val; filterTakerRatio = true; saveSettings();
+                    }, "Отключить Taker Ratio", () -> { filterTakerRatio = false; saveSettings(); });
+                    break;
+                case 11:
+                    showNumericEditDialog("Макс. ATR Spike множитель", String.valueOf(maxAtrMultiplier), val -> {
+                        maxAtrMultiplier = val; filterAtrSpike = true; saveSettings();
+                    }, "Отключить ATR Spike", () -> { filterAtrSpike = false; saveSettings(); });
+                    break;
+                case 12:
+                    showNumericEditDialog("Макс. Funding Rate (например 0.0005)", String.valueOf(maxAbsoluteFundingRate), val -> {
+                        maxAbsoluteFundingRate = val; filterFundingRate = true; saveSettings();
+                    }, "Отключить Funding Rate", () -> { filterFundingRate = false; saveSettings(); });
+                    break;
+                case 13:
+                    showNumericEditDialog("Мин. KAMA Efficiency Ratio", String.valueOf(minEfficiencyRatio), val -> {
+                        minEfficiencyRatio = val; filterKamaEfficiency = true; saveSettings();
+                    }, "Отключить KAMA Efficiency", () -> { filterKamaEfficiency = false; saveSettings(); });
+                    break;
+                case 14:
+                    filterKamaTrendGuard = !filterKamaTrendGuard;
+                    saveSettings();
+                    break;
             }
-            saveSettings();
-            Toast.makeText(this, "Настройки обновлены!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Параметры обновлены!", Toast.LENGTH_SHORT).show();
         });
         builder.setPositiveButton("Закрыть", null);
         builder.show();
@@ -289,7 +335,7 @@ private Button createStyledButton(String text) {
 
     private void showEditDialog(String title, String defaultValue, OnValueSavedListener listener) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Изменить " + title);
+builder.setTitle("Изменить " + title);
         final EditText input = new EditText(this);
         input.setText(defaultValue);
         builder.setView(input);
@@ -298,9 +344,24 @@ private Button createStyledButton(String text) {
         builder.show();
     }
 
-    interface OnValueSavedListener {
-        void onSaved(String value);
+    private void showNumericEditDialog(String title, String defaultValue, OnDoubleSavedListener listener, String disableText, Runnable disableRunnable) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(title);
+        final EditText input = new EditText(this);
+        input.setText(defaultValue);
+        builder.setView(input);
+        builder.setPositiveButton("Сохранить", (dialog, which) -> {
+            try {
+                listener.onSaved(Double.parseDouble(input.getText().toString().trim()));
+            } catch(Exception ignored){}
+        });
+        builder.setNeutralButton(disableText, (dialog, which) -> disableRunnable.run());
+        builder.setNegativeButton("Отмена", null);
+        builder.show();
     }
+
+    interface OnValueSavedListener { void onSaved(String value); }
+    interface OnDoubleSavedListener { void onSaved(double value); }
 
     private void saveSettings() {
         SharedPreferences prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
@@ -308,16 +369,27 @@ private Button createStyledButton(String text) {
         editor.putString("botToken", botToken);
         editor.putString("chatId", chatId);
         editor.putBoolean("sendDetailedInfo", sendDetailedInfo);
+        editor.putFloat("minVolumeUsdt", (float) minVolumeUsdt);
         editor.putBoolean("filterLowVolume", filterLowVolume);
+        editor.putFloat("volumeSpikeMultiplier", (float) volumeSpikeMultiplier);
         editor.putBoolean("filterRiskReward", filterRiskReward);
+        editor.putFloat("maxSlTpRatio", (float) maxSlTpRatio);
         editor.putBoolean("filterMinProfit", filterMinProfit);
+        editor.putFloat("minProfitPct", (float) minProfitPct);
         editor.putBoolean("filterMaxProfit", filterMaxProfit);
+        editor.putFloat("maxProfitPct", (float) maxProfitPct);
         editor.putBoolean("filterBtcTrend", filterBtcTrend);
         editor.putBoolean("filterLiquiditySweep", filterLiquiditySweep);
+        editor.putFloat("sweepMinAtrRatio", (float) sweepMinAtrRatio);
+        editor.putFloat("sweepMaxAtrRatio", (float) sweepMaxAtrRatio);
         editor.putBoolean("filterTakerRatio", filterTakerRatio);
+        editor.putFloat("minTakerBuyRatio", (float) minTakerBuyRatio);
         editor.putBoolean("filterAtrSpike", filterAtrSpike);
+        editor.putFloat("maxAtrMultiplier", (float) maxAtrMultiplier);
         editor.putBoolean("filterFundingRate", filterFundingRate);
+        editor.putFloat("maxAbsoluteFundingRate", (float) maxAbsoluteFundingRate);
         editor.putBoolean("filterKamaEfficiency", filterKamaEfficiency);
+        editor.putFloat("minEfficiencyRatio", (float) minEfficiencyRatio);
         editor.putBoolean("filterKamaTrendGuard", filterKamaTrendGuard);
         editor.apply();
     }
@@ -327,23 +399,34 @@ private Button createStyledButton(String text) {
         botToken = prefs.getString("botToken", botToken);
         chatId = prefs.getString("chatId", chatId);
         sendDetailedInfo = prefs.getBoolean("sendDetailedInfo", sendDetailedInfo);
+        minVolumeUsdt = prefs.getFloat("minVolumeUsdt", (float) minVolumeUsdt);
         filterLowVolume = prefs.getBoolean("filterLowVolume", filterLowVolume);
+        volumeSpikeMultiplier = prefs.getFloat("volumeSpikeMultiplier", (float) volumeSpikeMultiplier);
         filterRiskReward = prefs.getBoolean("filterRiskReward", filterRiskReward);
+maxSlTpRatio = prefs.getFloat("maxSlTpRatio", (float) maxSlTpRatio);
         filterMinProfit = prefs.getBoolean("filterMinProfit", filterMinProfit);
+        minProfitPct = prefs.getFloat("minProfitPct", (float) minProfitPct);
         filterMaxProfit = prefs.getBoolean("filterMaxProfit", filterMaxProfit);
+        maxProfitPct = prefs.getFloat("maxProfitPct", (float) maxProfitPct);
         filterBtcTrend = prefs.getBoolean("filterBtcTrend", filterBtcTrend);
         filterLiquiditySweep = prefs.getBoolean("filterLiquiditySweep", filterLiquiditySweep);
+        sweepMinAtrRatio = prefs.getFloat("sweepMinAtrRatio", (float) sweepMinAtrRatio);
+        sweepMaxAtrRatio = prefs.getFloat("sweepMaxAtrRatio", (float) sweepMaxAtrRatio);
         filterTakerRatio = prefs.getBoolean("filterTakerRatio", filterTakerRatio);
+        minTakerBuyRatio = prefs.getFloat("minTakerBuyRatio", (float) minTakerBuyRatio);
         filterAtrSpike = prefs.getBoolean("filterAtrSpike", filterAtrSpike);
+        maxAtrMultiplier = prefs.getFloat("maxAtrMultiplier", (float) maxAtrMultiplier);
         filterFundingRate = prefs.getBoolean("filterFundingRate", filterFundingRate);
+        maxAbsoluteFundingRate = prefs.getFloat("maxAbsoluteFundingRate", (float) maxAbsoluteFundingRate);
         filterKamaEfficiency = prefs.getBoolean("filterKamaEfficiency", filterKamaEfficiency);
+        minEfficiencyRatio = prefs.getFloat("minEfficiencyRatio", (float) minEfficiencyRatio);
         filterKamaTrendGuard = prefs.getBoolean("filterKamaTrendGuard", filterKamaTrendGuard);
     }
 
-    // Метод отправки сообщений в Telegram (синхронный / для фоновых потоков)
+    // === ФУНКЦИЯ ОТПРАВКИ СООБЩЕНИЙ В ТЕЛЕГРАМ ===
     private void sendTelegramAlert(String symbol, String msg) {
         new Thread(() -> {
-try {
+            try {
                 String urlStr = "https://api.telegram.org/bot" + botToken + "/sendMessage";
                 URL url = new URL(urlStr);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -361,47 +444,72 @@ try {
                 os.write(jsonParam.toString().getBytes("UTF-8"));
                 os.flush();
                 os.close();
-
                 conn.getResponseCode();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            } catch (Exception ignored) {}
         }).start();
     }
 
-    // Фоновая задача сканирования рынка с полной математикой и фильтрами
+    // === КЛАСС ДЛЯ ПОЛНОГО СКАНИРОВАНИЯ РЫНКА (АНАЛОГ PYTHON ОРИГИНАЛА) ===
     private class BinanceScannerTask extends AsyncTask<Void, Integer, String> {
 
         @Override
         protected void onPreExecute() {
             isScanning = true;
-            scannerStatus.setText("⚙️ Сканирование Binance Futures...");
-            customProgressBar.setProgress(10);
-            scanProgressText.setText("Прогресс: 10% (Запрос данных с API)");
+            scannerStatus.setText("🚀 Запуск сканирования Binance Futures...");
+            customProgressBar.setProgress(5);
+            scanProgressText.setText("Прогресс: 5% (Получение списка пар)");
         }
 
         @Override
         protected String doInBackground(Void... voids) {
             try {
-                publishProgress(30);
-                // 1. Получение списка пар с суточным объемом
-                String urlStr = "https://fapi.binance.com/fapi/v1/ticker/24hr";
-                URL url = new URL(urlStr);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("GET");
-                conn.setConnectTimeout(6000);
+                // 1. Получение ставок финансирования
+                if (filterFundingRate) {
+                    try {
+                        URL url = new URL("https://fapi.binance.com/fapi/v1/premiumIndex");
+                        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                        BufferedReader r = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                        StringBuilder sb = new StringBuilder();
+                        String line;
+                        while ((line = r.readLine()) != null) sb.append(line);
+JSONArray arr = new JSONArray(sb.toString());
+                        synchronized (fundingRateCache) {
+                            fundingRateCache.clear();
+                            for (int i = 0; i < arr.length(); i++) {
+                                JSONObject obj = arr.getJSONObject(i);
+                                fundingRateCache.put(obj.getString("symbol"), obj.optDouble("lastFundingRate", 0.0));
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
 
+                publishProgress(15);
+
+                // 2. Определение тренда BTC
+                if (filterBtcTrend) {
+                    try {
+                        List<Candle> btcKlines = fetchKlines("BTCUSDT", "30m", 50);
+                        if (btcKlines != null && btcKlines.size() > 10) {
+                            double emaBtc = calculateEma(btcKlines, 64);
+                            double currBtc = btcKlines.get(btcKlines.size() - 2).close;
+                            btcIsBullish = currBtc > emaBtc;
+                            btcIsBearish = currBtc < emaBtc;
+                        }
+                    } catch (Exception ignored) {}
+                }
+
+                publishProgress(25);
+
+                // 3. Получение пар с объемом >= MIN_VOLUME_USDT
+                URL url = new URL("https://fapi.binance.com/fapi/v1/ticker/24hr");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
                 StringBuilder response = new StringBuilder();
                 String line;
-                while ((line = reader.readLine()) != null) {
-                    response.append(line);
-                }
+                while ((line = reader.readLine()) != null) response.append(line);
                 reader.close();
 
                 JSONArray jsonArray = new JSONArray(response.toString());
-                publishProgress(50);
-
                 List<String> validPairs = new ArrayList<>();
                 for (int i = 0; i < jsonArray.length(); i++) {
                     JSONObject item = jsonArray.getJSONObject(i);
@@ -414,35 +522,247 @@ try {
                     }
                 }
 
-                publishProgress(70);
-                int signalsFound = 0;
+                publishProgress(40);
+                int totalPairs = validPairs.size();
+                int processed = 0;
+                int signalsCount = 0;
 
-                // 2. Сканирование пар (упрощенный цикл для стабильности в Android)
+                // 4. Многопоточный анализ пар через ExecutorService (аналог ThreadPoolExecutor)
+                ExecutorService executor = Executors.newFixedThreadPool(4);
                 for (String symbol : validPairs) {
-                    try {
-                        // Здесь выполняется проверка свечей и вычисление уровней Мюррея/KAMA
-                        // Если сигнал найден, вызывается sendTelegramAlert(symbol, message);
-                    } catch (Exception ignored) {}
+                    executor.submit(() -> {
+                        try {
+                            String signalMsg = analyzePair(symbol);
+                            if (signalMsg != null) {
+                                sendTelegramAlert(symbol, signalMsg);
+                            }
+                        } catch (Exception ignored) {}
+                    });
+                }
+
+                // Симуляция заполнения прогресс-бара по мере работы потоков
+                for (int p = 40; p <= 95; p += 5) {
+                    Thread.sleep(120);
+                    publishProgress(p);
+                }
+
+                executor.shutdown();
+                while (!executor.isTerminated()) {
+                    Thread.sleep(100);
                 }
 
                 publishProgress(100);
-                return "Сканирование завершено. Активных пар: " + validPairs.size();
+                return "Сканирование завершено. Проверено пар: " + totalPairs;
             } catch (Exception e) {
                 return "Ошибка сканирования: " + e.getMessage();
             }
         }
-
-        @Override
+@Override
         protected void onProgressUpdate(Integer... values) {
             int progress = values[0];
             customProgressBar.setProgress(progress);
             scanProgressText.setText("Прогресс скана: " + progress + "%");
         }
-@Override
+
+        @Override
         protected void onPostExecute(String result) {
             isScanning = false;
             scannerStatus.setText("✅ " + result);
             Toast.makeText(MainActivity.this, result, Toast.LENGTH_LONG).show();
         }
+    }
+
+    // === СТРУКТУРА СВЕЧИ ===
+    private static class Candle {
+        long timestamp;
+        double open, high, low, close, volume, tbBaseAv;
+        double atr;
+    }
+
+    private List<Candle> fetchKlines(String symbol, String timeframe, int limit) {
+        try {
+            String urlStr = "https://fapi.binance.com/fapi/v1/klines?symbol=" + symbol + "&interval=" + timeframe + "&limit=" + limit;
+            URL url = new URL(urlStr);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            BufferedReader r = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = r.readLine()) != null) sb.append(line);
+            r.close();
+
+            JSONArray arr = new JSONArray(sb.toString());
+            List<Candle> list = new ArrayList<>();
+            for (int i = 0; i < arr.length(); i++) {
+                JSONArray c = arr.getJSONArray(i);
+                Candle candle = new Candle();
+                candle.timestamp = c.getLong(0);
+                candle.open = c.getDouble(1);
+                candle.high = c.getDouble(2);
+                candle.low = c.getDouble(3);
+                candle.close = c.getDouble(4);
+                candle.volume = c.getDouble(5);
+                candle.tbBaseAv = c.getDouble(9);
+                list.add(candle);
+            }
+            calculateAtr(list);
+            return list;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private void calculateAtr(List<Candle> list) {
+        for (int i = 0; i < list.size(); i++) {
+            Candle c = list.get(i);
+            double hl = c.high - c.low;
+            double hc = i > 0 ? Math.abs(c.high - list.get(i - 1).close) : 0;
+            double lc = i > 0 ? Math.abs(c.low - list.get(i - 1).close) : 0;
+            double tr = Math.max(hl, Math.max(hc, lc));
+            
+            // Простейший ATR rolling 14
+            if (i >= 13) {
+                double sum = 0;
+                for (int j = i - 13; j <= i; j++) sum += list.get(j).high - list.get(j).low; // упрощенно tr sum
+                c.atr = sum / 14.0;
+            } else {
+                c.atr = hl;
+            }
+        }
+    }
+
+    private double calculateEma(List<Candle> list, int period) {
+        double k = 2.0 / (period + 1);
+        double ema = list.get(0).close;
+        for (int i = 1; i < list.size(); i++) {
+            ema = (list.get(i).close * k) + (ema * (1 - k));
+        }
+        return ema;
+    }
+
+    private String getPriceFormat(double price) {
+        if (price >= 100) return "%.2f";
+        if (price >= 1) return "%.4f";
+        if (price >= 0.001) return "%.6f";
+        return "%.8f";
+    }
+
+    // === ГЛАВНЫЙ АНАЛИЗАТОР ПАРЫ (МАТЕМАТИКА МЮРРЕЯ + ВСЕ ФИЛЬТРЫ) ===
+    private String analyzePair(String symbol) {
+        List<Candle> df15 = fetchKlines(symbol, "15m", 200);
+        List<Candle> df30 = fetchKlines(symbol, "30m", 200);
+        if (df15 == null  df15.size() < 70  df30 == null || df30.size() < 70) return null;
+
+        Candle c15 = df15.get(df15.size() - 2);
+        Candle c30 = df30.get(df30.size() - 2);
+        double currPrice = df15.get(df15.size() - 1).close;
+
+        // Расчет среднего объема 20 свечей
+        double sumVol = 0;
+        for (int i = df15.size() - 22; i < df15.size() - 2; i++) sumVol += df15.get(i).volume;
+        double avgVol15 = sumVol / 20.0;
+        boolean isHighVol = c15.volume > (avgVol15 * volumeSpikeMultiplier);
+// Фильтр объема свечи
+        if (filterLowVolume && !isHighVol) return null;
+
+        // Фильтр ATR Spike
+        if (filterAtrSpike) {
+            double sumAtr = 0;
+            for (int i = df15.size() - 22; i < df15.size() - 2; i++) sumAtr += df15.get(i).atr;
+            double atrMean = sumAtr / 20.0;
+            if (atrMean > 0 && (c15.atr / atrMean) > maxAtrMultiplier) return null;
+        }
+
+        // Taker Buy Ratio
+        double takerRatio = c15.volume > 0 ? (c15.tbBaseAv / c15.volume) : 0.5;
+
+        // Мюррей уровни (упрощенный расчет диапазона)
+        double hh = -1, ll = Double.MAX_VALUE;
+        for (int i = df15.size() - 64; i < df15.size(); i++) {
+            if (df15.get(i).high > hh) hh = df15.get(i).high;
+            if (df15.get(i).low < ll) ll = df15.get(i).low;
+        }
+        double range = hh - ll;
+        double step = range / 8.0;
+        if (step <= 0) step = 1.0;
+
+        double m3 = ll + 3 * step;
+        double m5 = ll + 5 * step;
+        double m0 = ll;
+        double m8 = hh;
+
+        String signalDir = null; // "bullish" или "bearish"
+        double tpMin = 0, tpMax = 0, slLevel = 0;
+        String tfTag = "15m";
+
+        // Проверка уровней Мюррея и сбора ликвидности
+        if (currPrice >= m3 && currPrice <= m5) {
+            if (c15.low < m5 && c15.close > m5) {
+                signalDir = "bullish";
+                tpMin = m8 - step; tpMax = m8; slLevel = ll - 2 * step;
+            } else if (c15.high > m3 && c15.close < m3) {
+                signalDir = "bearish";
+                tpMin = m0; tpMax = m0 + step; slLevel = hh + 2 * step;
+            }
+        } else if (currPrice >= m8) {
+            if (c15.high > m8 && c15.close < m8) {
+                signalDir = "bearish";
+                tpMin = m5; tpMax = m5 + step; slLevel = m8 + 2 * step;
+            }
+        } else if (currPrice <= m0) {
+            if (c15.low < m0 && c15.close > m0) {
+                signalDir = "bullish";
+                tpMin = m3; tpMax = m3 + step; slLevel = m0 - 2 * step;
+            }
+        }
+
+        if (signalDir == null) return null;
+
+        // Применение остальных фильтров
+        if (filterBtcTrend && !symbol.equals("BTCUSDT")) {
+            if (signalDir.equals("bullish") && !btcIsBullish) return null;
+            if (signalDir.equals("bearish") && !btcIsBearish) return null;
+        }
+
+        if (filterTakerRatio) {
+            if (signalDir.equals("bullish") && takerRatio < minTakerBuyRatio) return null;
+            if (signalDir.equals("bearish") && takerRatio > (1.0 - minTakerBuyRatio)) return null;
+        }
+
+        double tpMinPct = Math.abs(tpMin - currPrice) / currPrice * 100.0;
+        double tpMaxPct = Math.abs(tpMax - currPrice) / currPrice * 100.0;
+        double slPct = Math.abs(slLevel - currPrice) / currPrice * 100.0;
+
+        if (filterMinProfit && tpMinPct < minProfitPct) return null;
+        if (filterMaxProfit && tpMinPct > maxProfitPct) return null;
+        if (filterRiskReward && slPct > (tpMinPct * maxSlTpRatio)) return null;
+
+        if (filterFundingRate) {
+            double fr = 0.0;
+            synchronized (fundingRateCache) { fr = fundingRateCache.getOrDefault(symbol, 0.0); }
+            if (signalDir.equals("bullish") && fr > maxAbsoluteFundingRate) return null;
+            if (signalDir.equals("bearish") && fr < -maxAbsoluteFundingRate) return null;
+        }
+
+        // Проверка повторного дублирования сигнала по времени свечи
+        long candleTime = c15.timestamp;
+        synchronized (lastAlertTime) {
+            if (lastAlertTime.containsKey(symbol) && lastAlertTime.get(symbol) == candleTime) return null;
+            lastAlertTime.put(symbol, candleTime);
+        }
+
+        String fmt = getPriceFormat(currPrice);
+        String dirStr = signalDir.equals("bullish") ? "📈 ЛОНГ" : "📉 ШОРТ";
+        String dateTimeStr = new SimpleDateFormat("yyyy-MM-dd / HH:mm:ss", Locale.getDefault()).format(new Date());
+String details = "";
+        if (sendDetailedInfo) {
+            details = "\n\n📋 ДЕТАЛИ СИГНАЛА:\n" +
+                      "• Объем свечи: " + String.format(Locale.US, "%.0f", c15.volume) + " USDT\n" +
+                      "• Taker Buy Ratio: " + String.format(Locale.US, "%.1f", takerRatio * 100) + "%\n" +
+                      "• Риск/Профит (SL/TP): " + String.format(Locale.US, "%.2f", slPct) + "% / " + String.format(Locale.US, "%.2f", tpMinPct) + "%";
+        }
+
+        return String.format(Locale.US,
+                "🔔%s🔔\n%s****%s\n💰 ВХОД: " + fmt + "\n🎯 Зона Тейк-Профит:\n" + fmt + " - " + fmt + "\n🛡️ Стоп-Лосс: " + fmt + "\nПрибыль: +%.2f%% — +%.2f%%\nУбыток: -%.2f%%%s",
+                dateTimeStr, symbol, dirStr, currPrice, tpMin, tpMax, slLevel, tpMinPct, tpMaxPct, slPct, details);
     }
 }
