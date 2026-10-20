@@ -215,7 +215,7 @@ GradientDrawable drawable = new GradientDrawable();
         Button button = new Button(this);
         button.setText(text);
         button.setTextColor(Color.WHITE);
-        button.setTextSize(15f;
+        button.setTextSize(15f); // ИСПРАВЛЕНО: добавлена закрывающая скобка
         button.setTypeface(null, Typeface.BOLD);
         button.setPadding(24, 24, 24, 24);
         
@@ -403,7 +403,8 @@ JSONArray jsonArray = new JSONArray(sb.toString());
                     JSONObject item = jsonArray.getJSONObject(i);
                     String symbol = item.getString("symbol");
                     if (symbol.endsWith("USDT")) {
-                        double volumeUsdt = item.getString("quoteVolume").toDouble();
+                        // ИСПРАВЛЕНО: заменено на Double.parseDouble для Java
+                        double volumeUsdt = Double.parseDouble(item.getString("quoteVolume"));
                         if (volumeUsdt >= minVolumeUsdt) {
                             validPairs.add(symbol);
                         }
@@ -448,13 +449,14 @@ JSONArray jsonArray = new JSONArray(sb.toString());
 
                             int len = klines.length();
                             JSONArray lastCandle = klines.getJSONArray(len - 1);
-                            double currentPrice = lastCandle.getString(4).toDouble();
-                            double prevPrice = klines.getJSONArray(len - 2).getString(4).toDouble();
+                            // ИСПРАВЛЕНО: заменено на Double.parseDouble для Java
+                            double currentPrice = Double.parseDouble(lastCandle.getString(4));
+                            double prevPrice = Double.parseDouble(klines.getJSONArray(len - 2).getString(4));
 
-                            double lastVol = lastCandle.getString(5).toDouble();
+                            double lastVol = Double.parseDouble(lastCandle.getString(5));
                             double avgVol = 0.0;
                             for (int k = 0; k < len; k++) {
-                                avgVol += klines.getJSONArray(k).getString(5).toDouble();
+                                avgVol += Double.parseDouble(klines.getJSONArray(k).getString(5));
                             }
                             avgVol /= (double) len;
                             double volRatio = avgVol == 0.0 ? 1.0 : lastVol / avgVol;
@@ -494,7 +496,7 @@ String slStr = String.format(Locale.US, "%.4f", sl);
                 final int finalSignals = activeSignalsCount;
                 handler.post(() -> {
                     tvStatsPassed.setText(String.valueOf(finalPassed));
-                    tvStatsSignals.text = String.valueOf(finalSignals);
+                    tvStatsSignals.setText(String.valueOf(finalSignals));
                     progressBar.setProgress(100);
                     tvStatus.setText("✅ Сканирование и анализ завершены!");
                     tvConsole.setText(logBuilder.toString());
