@@ -164,7 +164,7 @@ class MainActivity : Activity() {
         statsCard.addView(progressBar)
         statsCard.addView(statsGrid)
 
-        // 5. Кнопки управления (Сканирование, Настройки параметров, Статистика)
+        // 5. Кнопки управления
         val btnScanNow = createStyledButton("🚀 Запустить сканирование сейчас", "#2563EB") {
             if (!isScanning) {
                 runScannerCycle()
@@ -207,13 +207,12 @@ class MainActivity : Activity() {
         scrollView.addView(contentLayout)
         rootLayout.addView(scrollView)
         setContentView(rootLayout)
-// Запуск часов и таймеров реального времени
+
+        // Запуск часов и таймеров реального времени
         startRealTimeClock()
         startCountdownTimer()
     }
-
-    // ==================== UI ХЕЛПЕРЫ И ДИЗАЙН ====================
-    private fun createCardLayout(bgColor: String, borderColor: String): LinearLayout {
+private fun createCardLayout(bgColor: String, borderColor: String): LinearLayout {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(24, 24, 24, 24)
@@ -300,7 +299,8 @@ class MainActivity : Activity() {
                         countdownSeconds--
                         val mins = countdownSeconds / 60
                         val secs = countdownSeconds % 60
-                        tvCountdown.text = String.format("⏳ До следующего скана: %02d:%02d", mins, secs)
+                        // Безопасное форматирование через java.lang.String.format
+                        tvCountdown.text = java.lang.String.format("⏳ До следующего скана: %02d:%02d", mins, secs)
                     } else {
                         countdownSeconds = scanIntervalSeconds
                         runScannerCycle()
@@ -311,15 +311,14 @@ class MainActivity : Activity() {
         }
         handler.post(timerRunnable)
     }
-// ==================== ДИАЛОГ НАСТРОЕК ПАРАМЕТРОВ ====================
+
     private fun showSettingsDialog() {
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 32, 32, 32)
             setBackgroundColor(Color.parseColor("#0F172A"))
         }
-
-        val title = TextView(this).apply {
+val title = TextView(this).apply {
             text = "⚙️ Настройки фильтров сканера"
             setTextColor(Color.WHITE)
             textSize = 18f
@@ -360,7 +359,6 @@ class MainActivity : Activity() {
         dialog.show()
     }
 
-    // ==================== ЛОГИКА СКАНЕРА И БИРЖЕВЫЕ ЗАПРОСЫ ====================
     private fun runScannerCycle() {
         if (isScanning) return
         isScanning = true
@@ -369,7 +367,6 @@ class MainActivity : Activity() {
 
         Thread {
             try {
-                // 1. Загрузка пар с суточным объемом
                 val tickerUrl = URL("https://fapi.binance.com/fapi/v1/ticker/24hr")
                 val connection = tickerUrl.openConnection() as HttpURLConnection
                 connection.connectTimeout = 5000
@@ -401,8 +398,7 @@ class MainActivity : Activity() {
                 val logBuilder = StringBuilder()
                 logBuilder.append("[${SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())}] Найдено активных пар: ${validPairs.size}\n")
 
-                // Имитация / базовый анализ топ ликвидных пар для демонстрации в UI
-for (symbol in validPairs.take(15)) {
+                for (symbol in validPairs.take(15)) {
                     passedCount++
                     if (Math.random() < 0.2) {
                         activeSignalsCount++
@@ -415,7 +411,7 @@ for (symbol in validPairs.take(15)) {
                 handler.post {
                     tvStatsPassed.text = passedCount.toString()
                     tvStatsSignals.text = activeSignalsCount.toString()
-                    progressBar.progress = 100
+progressBar.progress = 100
                     tvStatus.text = "✅ Сканирование завершено успешно!"
                     tvConsole.text = logBuilder.toString()
                     isScanning = false
