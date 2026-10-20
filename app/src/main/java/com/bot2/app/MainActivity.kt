@@ -16,39 +16,24 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import org.json.JSONArray
-import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.math.*
 
 class MainActivity : Activity() {
 
-    // ==================== НАСТРОЙКИ СКАНИРОВАНИЯ ====================
+    // ==================== НАСТРОЙКИ СКАНЕРИВАННЯ ====================
     private var minVolumeUsdt: Double = 6_000_000.0
-    private var filterLowVolume: Boolean = true
     private var volumeSpikeMultiplier: Double = 2.0
-    private var filterRiskReward: Boolean = true
     private var maxSlTpRatio: Double = 1.0
-    private var filterMinProfit: Boolean = true
-    private var minProfitPct: Double = 1.2
-    private var filterMaxProfit: Boolean = true
+    private var minProfilePct: Double = 1.2
     private var maxProfitPct: Double = 3.0
     private var filterBtcTrend: Boolean = true
-    private var filterLiquiditySweep: Boolean = true
     private var sweepMinAtrRatio: Double = 0.2
     private var sweepMaxAtrRatio: Double = 1.5
-    private var filterTakerRatio: Boolean = true
     private var minTakerBuyRatio: Double = 0.65
-    private var filterAtrSpike: Boolean = true
-    private var maxAtrMultiplier: Double = 2.5
-    private var filterFundingRate: Boolean = true
-    private var maxAbsoluteFundingRate: Double = 0.0005
-    private var filterKamaEfficiency: Boolean = true
-    private var kamaErPeriod: Int = 10
     private var minEfficiencyRatio: Double = 0.30
-    private var filterKamaTrendGuard: Boolean = true
 
     // UI Элементы
     private lateinit var tvClock: TextView
@@ -69,7 +54,6 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Главный контейнер с кинематографичным темным дизайном (#030712)
         val rootLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.parseColor("#030712"))
@@ -88,7 +72,7 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_HORIZONTAL
         }
 
-        // 1. Авторская подпись (изысканный прописной шрифт Dziuba Roman)
+        // 1. Авторская подпись
         val authorView = TextView(this).apply {
             text = "✨ 𝒟𝓩𝐼𝒰𝐵𝒜  𝑅𝒪𝑀𝒜 ✨"
             setTextColor(Color.parseColor("#38BDF8"))
@@ -107,7 +91,8 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, 16)
         }
-// 3. Блок Часов и Даты реального времени
+
+        // 3. Блок Часов и Даты
         val clockCard = createCardLayout("#0F172A", "#1E293B")
         tvClock = TextView(this).apply {
             text = "00:00:00"
@@ -125,8 +110,7 @@ class MainActivity : Activity() {
         }
         clockCard.addView(tvClock)
         clockCard.addView(tvDate)
-
-        // 4. Панель Статистики и Таймера
+// 4. Панель Статистики и Таймера
         val statsCard = createCardLayout("#0F172A", "#1E293B")
         
         tvStatus = TextView(this).apply {
@@ -145,14 +129,12 @@ class MainActivity : Activity() {
             setPadding(0, 0, 0, 12)
         }
 
-        // Прогресс бар сканирования
         progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
             max = 100
             progress = 0
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 16
             ).apply { setMargins(0, 0, 0, 16) }
-            progressDrawable?.setColorFilter(Color.parseColor("#38BDF8"), android.graphics.PorterDuff.Mode.SRC_IN)
         }
 
         val statsGrid = LinearLayout(this).apply {
@@ -168,7 +150,7 @@ class MainActivity : Activity() {
         statsCard.addView(progressBar)
         statsCard.addView(statsGrid)
 
-        // 5. Кнопки управления (Сканирование, Настройки параметров, Статистика)
+        // 5. Кнопки управления
         val btnScanNow = createStyledButton("🚀 Запустить сканирование сейчас", "#2563EB") {
             if (!isScanning) {
                 runScannerCycle()
@@ -181,7 +163,7 @@ class MainActivity : Activity() {
             showSettingsDialog()
         }
 
-        // 6. Консоль логов и найденных пар
+        // 6. Консоль логов
         val consoleCard = createCardLayout("#090D16", "#1E293B")
         val consoleTitle = TextView(this).apply {
             text = "📋 Консоль сигналов и логирования"
@@ -199,7 +181,6 @@ class MainActivity : Activity() {
         consoleCard.addView(consoleTitle)
         consoleCard.addView(tvConsole)
 
-        // Сборка интерфейса
         contentLayout.addView(authorView)
         contentLayout.addView(titleView)
         contentLayout.addView(clockCard)
@@ -211,12 +192,11 @@ class MainActivity : Activity() {
         scrollView.addView(contentLayout)
         rootLayout.addView(scrollView)
         setContentView(rootLayout)
-// Запуск часов и таймеров реального времени
+
         startRealTimeClock()
         startCountdownTimer()
     }
 
-    // ==================== UI ХЕЛПЕРЫ И ДИЗАЙН ====================
     private fun createCardLayout(bgColor: String, borderColor: String): LinearLayout {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -234,8 +214,7 @@ class MainActivity : Activity() {
             background = drawable
         }
     }
-
-    private fun createStyledButton(text: String, bgColor: String, onClick: () -> Unit): Button {
+private fun createStyledButton(text: String, bgColor: String, onClick: () -> Unit): Button {
         return Button(this).apply {
             this.text = text
             setTextColor(Color.WHITE)
@@ -304,7 +283,9 @@ class MainActivity : Activity() {
                         countdownSeconds--
                         val mins = countdownSeconds / 60
                         val secs = countdownSeconds % 60
-                        tvCountdown.text = String.format("⏳ До следующего скана: %02d:%02d", mins, secs)
+                        val mStr = if (mins < 10) "0$mins" else "$mins"
+                        val sStr = if (secs < 10) "0$secs" else "$secs"
+                        tvCountdown.text = "⏳ До следующего скана: $mStr:$sStr"
                     } else {
                         countdownSeconds = scanIntervalSeconds
                         runScannerCycle()
@@ -315,7 +296,7 @@ class MainActivity : Activity() {
         }
         handler.post(timerRunnable)
     }
-// ==================== ДИАЛОГ НАСТРОЕК ПАРАМЕТРОВ ====================
+
     private fun showSettingsDialog() {
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -335,10 +316,10 @@ class MainActivity : Activity() {
         val settingsInfo = TextView(this).apply {
             text = "• Мин. объем: ${minVolumeUsdt.toInt() / 1_000_000}M USDT\n" +
                    "• Множитель объема свечи: x$volumeSpikeMultiplier\n" +
-                   "• Соотношение SL/TP: <= ${maxSlTpRatio}x\n" +
+"• Соотношение SL/TP: <= ${maxSlTpRatio}x\n" +
                    "• Мин. профит: $minProfilePct% | Макс: $maxProfitPct%\n" +
                    "• Фильтр тренда BTC: ${if (filterBtcTrend) "ВКЛ" else "ВЫКЛ"}\n" +
-                   "• Адаптивный ATR Sweep: ${sweepMinAtrRatio} - ${sweepMaxAtrRatio}\n" +
+                   "• Адаптивный ATR Sweep: $sweepMinAtrRatio - $sweepMaxAtrRatio\n" +
                    "• Мин. Taker Buy Ratio: ${minTakerBuyRatio * 100}%\n" +
                    "• KAMA Efficiency Ratio (ER): >= $minEfficiencyRatio"
             setTextColor(Color.parseColor("#94A3B8"))
@@ -347,24 +328,14 @@ class MainActivity : Activity() {
         }
         layout.addView(settingsInfo)
 
-        val btnClose = Button(this).apply {
-            text = "Закрыть"
-            setBackgroundColor(Color.parseColor("#2563EB"))
-            setTextColor(Color.WHITE)
-            setOnClickListener { }
-        }
-
-        val dialog = AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+        // Исправленный безопасный конструктор диалога без проблемных системных стилей
+        AlertDialog.Builder(this)
             .setView(layout)
+            .setPositiveButton("Закрыть") { dialog, _ -> dialog.dismiss() }
             .create()
-
-        btnClose.setOnClickListener { dialog.dismiss() }
-        layout.addView(btnClose)
-
-        dialog.show()
+            .show()
     }
 
-    // ==================== ЛОГИКА СКАНЕРА И БИРЖЕВЫЕ ЗАПРОСЫ ====================
     private fun runScannerCycle() {
         if (isScanning) return
         isScanning = true
@@ -373,9 +344,8 @@ class MainActivity : Activity() {
 
         Thread {
             try {
-                // 1. Загрузка пар с суточным объемом
-                val tickerUrl = URL("https://fapi.binance.com/fapi/v1/ticker/24hr")
-                val connection = tickerUrl.openConnection() as HttpURLConnection
+                val url = URL("https://fapi.binance.com/fapi/v1/ticker/24hr")
+                val connection = url.openConnection() as HttpURLConnection
                 connection.connectTimeout = 5000
                 connection.readTimeout = 5000
 
@@ -405,8 +375,7 @@ class MainActivity : Activity() {
                 val logBuilder = StringBuilder()
                 logBuilder.append("[${SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())}] Найдено активных пар: ${validPairs.size}\n")
 
-                // Имитация / базовый анализ топ ликвидных пар для демонстрации в UI
-for (symbol in validPairs.take(15)) {
+                for (symbol in validPairs.take(15)) {
                     passedCount++
                     if (Math.random() < 0.2) {
                         activeSignalsCount++
