@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.chasyifonar.app'
+    namespace 'com.kompljator.app'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.chasyifonar.app"
+        applicationId "com.kompljator.app"
         minSdk 24
         targetSdk 34
         versionCode 1
