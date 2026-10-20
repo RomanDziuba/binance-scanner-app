@@ -95,9 +95,7 @@ public class MainActivity {
         return DEFAULT_WORKFLOW_TEMPLATE
                 .replace("{MY_CHAT_ID}", MY_CHAT_ID)
                 .replace("{BOT_TOKEN}", BOT_TOKEN)
-                try {
-                    .replace("{APP_TITLE}", (String) projectConfig.get("app_title"));
-                } catch (Exception _e) {}
+                .replace("{APP_TITLE}", (String) projectConfig.get("app_title"));
     }
 
     private static final String DEFAULT_GRADLE_PROPERTIES = 
@@ -119,27 +117,23 @@ public class MainActivity {
                 "    <application\n" +
                 "        android:allowBackup=\"true\"\n" +
                 "        android:icon=\"@mipmap/ic_launcher\"\n" +
-                try {
-                    "        android:label=\"" + projectConfig.get("app_title") + "\"\n" +
-                    "        android:supportsRtl=\"true\"\n" +
-                    "        android:theme=\"@android:style/Theme.Material.Light.NoActionBar\">\n\n" +
-                    "        <activity\n" +
-                    "            android:name=\".MainActivity\"\n" +
-                    "            android:exported=\"true\">\n" +
-                    "            <intent-filter>\n" +
-                    "                <action android:name=\"android.intent.action.MAIN\" />\n" +
-                    "                <category android:name=\"android.intent.category.LAUNCHER\" />\n" +
-                    "            </intent-filter>\n" +
-                    "        </activity>\n" +
-                    "    </application>\n" +
-                    "</manifest>\n";
-                } catch (Exception _e) {}
+                "        android:label=\"" + projectConfig.get("app_title") + "\"\n" +
+                "        android:supportsRtl=\"true\"\n" +
+                "        android:theme=\"@android:style/Theme.Material.Light.NoActionBar\">\n\n" +
+                "        <activity\n" +
+                "            android:name=\".MainActivity\"\n" +
+                "            android:exported=\"true\">\n" +
+                "            <intent-filter>\n" +
+                "                <action android:name=\"android.intent.action.MAIN\" />\n" +
+                "                <category android:name=\"android.intent.category.LAUNCHER\" />\n" +
+                "            </intent-filter>\n" +
+                "        </activity>\n" +
+                "    </application>\n" +
+                "</manifest>\n";
     }
 
     private static String generateMainActivity() {
-        try {
-            String pkg = (String) projectConfig.get("package_name");
-        } catch (Exception _e) {}
+        String pkg = (String) projectConfig.get("package_name");
         return "package " + pkg + ";\n\n" +
                 "import android.app.Activity;\n" +
                 "import android.os.Bundle;\n" +
@@ -174,17 +168,15 @@ public class MainActivity {
     private static String generateAppGradle() {
         return "plugins {\n    id 'com.android.application'\n}\n\n" +
                 "android {\n" +
-                try {
-                    "    namespace '" + projectConfig.get("package_name") + "'\n" +
-                    "    compileSdk 34\n" +
-                    "    defaultConfig {\n" +
-                    "        applicationId \"" + projectConfig.get("package_name") + "\"\n" +
-                    "        minSdk 24\n" +
-                    "        targetSdk 34\n" +
-                    "        versionCode 1\n" +
-                    "        versionName \"" + projectConfig.get("version") + "\"\n" +
-                    "    }\n" +
-                } catch (Exception _e) {}
+                "    namespace '" + projectConfig.get("package_name") + "'\n" +
+                "    compileSdk 34\n" +
+                "    defaultConfig {\n" +
+                "        applicationId \"" + projectConfig.get("package_name") + "\"\n" +
+                "        minSdk 24\n" +
+                "        targetSdk 34\n" +
+                "        versionCode 1\n" +
+                "        versionName \"" + projectConfig.get("version") + "\"\n" +
+                "    }\n" +
                 "    compileOptions {\n" +
                 "        sourceCompatibility JavaVersion.VERSION_17\n" +
                 "        targetCompatibility JavaVersion.VERSION_17\n" +
@@ -205,9 +197,7 @@ public class MainActivity {
             "rootProject.name = \"RomaClockApp\"\ninclude ':app'\n";
 
     private static String getMainActivityPath() {
-        try {
-            String pkgPath = ((String) projectConfig.get("package_name")).replace('.', '/');
-        } catch (Exception _e) {}
+        String pkgPath = ((String) projectConfig.get("package_name")).replace('.', '/');
         return "app/src/main/java/" + pkgPath + "/MainActivity.java";
     }
 
@@ -254,9 +244,7 @@ public class MainActivity {
                 try {
                     payload.put("branch", "main");
                 } catch (Exception _e) {}
-                try {
-                    if (sha != null) payload.put("sha", sha);
-                } catch (Exception _e) {}
+                if (sha != null) payload.put("sha", sha);
 
                 HttpURLConnection putConn = (HttpURLConnection) new URL(urlStr).openConnection();
                 putConn.setRequestMethod("PUT");
@@ -402,10 +390,8 @@ public class MainActivity {
         pushContentToGithub(GRADLE_PROPERTIES_PATH, DEFAULT_GRADLE_PROPERTIES.getBytes(StandardCharsets.UTF_8), "Add properties");
         syncConfigToGithub();
 
-        try {
-            if ("default_clock".equals(projectConfig.get("app_mode"))) {
+        if ("default_clock".equals(projectConfig.get("app_mode"))) {
             pushContentToGithub(getMainActivityPath(), generateMainActivity().getBytes(StandardCharsets.UTF_8), "Reset MainActivity");
-        } catch (Exception _e) {}
         }
         System.out.println("✅ Сброс завершен!");
     }
@@ -424,9 +410,7 @@ public class MainActivity {
             try {
                 json.put("parse_mode", "Markdown");
             } catch (Exception _e) {}
-            try {
-                if (replyMarkup != null) json.put("reply_markup", new JSONObject(replyMarkup));
-            } catch (Exception _e) {}
+            if (replyMarkup != null) json.put("reply_markup", new JSONObject(replyMarkup));
             sendPostRequest(urlStr, json.toString());
         } catch (Exception ignored) {}
     }
@@ -447,9 +431,7 @@ public class MainActivity {
             try {
                 json.put("parse_mode", "Markdown");
             } catch (Exception _e) {}
-            try {
-                if (replyMarkup != null) json.put("reply_markup", new JSONObject(replyMarkup));
-            } catch (Exception _e) {}
+            if (replyMarkup != null) json.put("reply_markup", new JSONObject(replyMarkup));
             sendPostRequest(urlStr, json.toString());
         } catch (Exception ignored) {}
     }
@@ -484,17 +466,13 @@ public class MainActivity {
     }
 
     private static String getMenuText() {
-        try {
-            String modeName = "default_clock".equals(projectConfig.get("app_mode")) ? "🕒 Часы (RomaClockApp)" : "☕ Пользовательский Java";
-        } catch (Exception _e) {}
+        String modeName = "default_clock".equals(projectConfig.get("app_mode")) ? "🕒 Часы (RomaClockApp)" : "☕ Пользовательский Java";
         return "📱 **Панель управления Android (Java Bot)**\n\n" +
-                try {
-                    "🏷 **Имя:** `" + projectConfig.get("app_title") + "`\n" +
-                    "📦 **Пакет:** `" + projectConfig.get("package_name") + "`\n" +
-                    "🔢 **Версия:** `" + projectConfig.get("version") + "`\n" +
-                    "🎯 **Режим:** `" + modeName + "`\n\n" +
-                    "💡 *Отправьте ваш .java файл документом в чат!*";
-                } catch (Exception _e) {}
+                "🏷 **Имя:** `" + projectConfig.get("app_title") + "`\n" +
+                "📦 **Пакет:** `" + projectConfig.get("package_name") + "`\n" +
+                "🔢 **Версия:** `" + projectConfig.get("version") + "`\n" +
+                "🎯 **Режим:** `" + modeName + "`\n\n" +
+                "💡 *Отправьте ваш .java файл документом в чат!*";
     }
 
     private static String getKeyboard(String buildStatus, String resetStatus) {
@@ -632,9 +610,7 @@ public class MainActivity {
                 } catch (Exception _e) {}
                 if (!chatId.equals(MY_CHAT_ID)) return;
 
-                try {
-                    String state = userStates.get(chatId);
-                } catch (Exception _e) {}
+                String state = userStates.get(chatId);
                 if (msg.has("document") && "waiting_main".equals(state)) {
                     try {
                         JSONObject doc = msg.getJSONObject("document");
@@ -694,9 +670,7 @@ public class MainActivity {
                     try {
                         projectConfig.put("app_mode", "custom_java");
                     } catch (Exception _e) {}
-                    try {
-                        String pkg = (String) projectConfig.get("package_name");
-                    } catch (Exception _e) {}
+                    String pkg = (String) projectConfig.get("package_name");
                     
                     // 1. АВТОМАТИЧЕСКАЯ ОЧИСТКА ТОКЕНОВ ДЛЯ ОБХОДА GITHUB
                     codeStr = sanitizeCode(codeStr);
