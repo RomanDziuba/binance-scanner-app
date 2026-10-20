@@ -34,7 +34,7 @@ class MainActivity : Activity() {
     private var kamaPeriod: Int = 10
     private var minEfficiencyRatio: Double = 0.25
 
-    // UI Элементы интерфейса
+    // UI Элементы
     private lateinit var tvClock: TextView
     private lateinit var tvDate: TextView
     private lateinit var tvStatus: TextView
@@ -47,7 +47,7 @@ class MainActivity : Activity() {
 
     private val handler = Handler(Looper.getMainLooper())
     private var isScanning = false
-    private var countdownSeconds = 300 // 5 минут до следующего автоматического скана
+    private var countdownSeconds = 300
     private val scanIntervalSeconds = 300
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -109,8 +109,9 @@ class MainActivity : Activity() {
         }
         clockCard.addView(tvClock)
         clockCard.addView(tvDate)
-// 4. Панель Статистики и Таймера
-        val statsCard = createCardLayout("#0F172A", "#1E293B")
+
+        // 4. Панель Статистики и Таймера
+val statsCard = createCardLayout("#0F172A", "#1E293B")
         
         tvStatus = TextView(this).apply {
             text = "⚡ Статус: Ожидание запуска..."
@@ -378,9 +379,10 @@ val lblMult = TextView(this).apply {
         }.start()
     }
 
-    // Безопасный расчет KAMA и ATR с предварительным парсингом строк в Double
     private fun calculateKamaAndAtr(klines: JSONArray): Triple<Double, Double, Double> {
         val len = klines.length()
+        if (len < kamaPeriod + 1) return Triple(0.0, 0.0, 0.0)
+
         val closes = DoubleArray(len)
         val highs = DoubleArray(len)
         val lows = DoubleArray(len)
@@ -392,8 +394,6 @@ val lblMult = TextView(this).apply {
             closes[i] = candle.getString(4).toDouble()
         }
 
-        if (len < kamaPeriod + 1) return Triple(0.0, 0.0, 0.0)
-
         val change = Math.abs(closes[len - 1] - closes[len - 1 - kamaPeriod])
         var volatility = 0.0
         for (i in (len - kamaPeriod) until len) {
@@ -401,26 +401,32 @@ val lblMult = TextView(this).apply {
         }
 
         val er = if (volatility == 0.0) 0.0 else change / volatility
-        val fastSC = 2.0 / (2.0 + 1.0)
-        val slowSC = 2.0 / (30.0 + 1.0)
-        val sc = (er * (fastSC - slowSC) + slowSC).let { it * it }
+        val fastSC = 2.0 / 3.0
+        val slowSC = 2.0 / 31.0
+        val scBase = er * (fastSC - slowSC) + slowSC
+        val sc = scBase * scBase
 
         var atr = 0.0
         val atrPeriod = Math.min(14, len - 1)
         for (i in (len - atrPeriod) until len) {
-            val tr = Math.max(highs[i] - lows[i], Math.max(Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1])))
+            val h = highs[i]
+            val l = lows[i]
+            val cPrev = closes[i - 1]
+            val tr = Math.max(h - l, Math.max(Math.abs(h - cPrev), Math.abs(l - cPrev)))
             atr += tr
         }
         atr /= atrPeriod.toDouble()
 
         val lastVolume = klines.getJSONArray(len - 1).getString(5).toDouble()
         var avgVolume = 0.0
-        for (i in (len - 20) until len) {
+        val volPeriod = Math.min(20, len)
+        for (i in (len - volPeriod) until len) {
             avgVolume += klines.getJSONArray(i).getString(5).toDouble()
         }
-        avgVolume /= 20.0
+        avgVolume /= volPeriod.toDouble()
 
-        return Triple(er, atr, lastVolume / avgVolume)
+        val volRatio = if (avgVolume == 0.0) 1.0 else lastVolume / avgVolume
+        return Triple(er, atr, volRatio)
     }
 
     private fun runScannerCycle() {
@@ -443,7 +449,6 @@ Thread {
                     val item = jsonArray.getJSONObject(i)
                     val symbol = item.getString("symbol")
                     if (symbol.endsWith("USDT")) {
-                        // Безопасное извлечение объема торгов через getString().toDouble()
                         val volumeUsdt = item.getString("quoteVolume").toDouble()
                         if (volumeUsdt >= minVolumeUsdt) {
                             validPairs.add(symbol)
@@ -497,9 +502,9 @@ Thread {
                                     🚨 *BINANCE KAMA SIGNAL* 🚨
                                     • 🪙 Монета: $symbol
                                     • 📈 Вход (Entry): $currentPrice
-• 🛑 Стоп-Лосс (SL): $slStr
+                                    • 🛑 Стоп-Лосс (SL): $slStr
                                     • 🎯 Тейк-Профит (TP): $tpStr
-                                    • 💰 Ожидаемый профит: +$profitStr%
+• 💰 Ожидаемый профит: +$profitStr%
                                     • 📊 KAMA ER: $erStr
                                     • ⚡ Объем (Spike): x$volStr
                                 """.trimIndent()
@@ -509,7 +514,7 @@ Thread {
                             }
                         }
                     } catch (e: Exception) {
-                        // Безопасный пропуск пары при временном сбое сети или тайм-ауте
+                        // Безопасный пропуск пары при временном сбое сети
                     }
 
                     val currentProg = 30 + (idx + 1) * step
