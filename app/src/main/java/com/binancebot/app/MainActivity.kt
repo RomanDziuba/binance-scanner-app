@@ -12,7 +12,8 @@ import android.widget.*
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
-import org.json.JSONArray
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 import java.text.SimpleDateFormat
@@ -45,7 +46,7 @@ class MainActivity : Activity() {
 
     private val handler = Handler(Looper.getMainLooper())
     private var isScanning = false
-    private var countdownSeconds = 300 // 5 минут до следующего скана
+    private var countdownSeconds = 300
     private val scanIntervalSeconds = 300
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -133,7 +134,6 @@ class MainActivity : Activity() {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 16
             ).apply { setMargins(0, 0, 0, 16) }
-            progressDrawable?.setColorFilter(Color.parseColor("#38BDF8"), android.graphics.PorterDuff.Mode.SRC_IN)
         }
 
         val statsGrid = LinearLayout(this).apply {
@@ -343,22 +343,43 @@ class MainActivity : Activity() {
 
         Thread {
             try {
-                val tickerUrl = URL("https://fapi.binance.com/fapi/v1/ticker/24hr")
-                val connection = tickerUrl.openConnection() as HttpURLConnection
+                val url = URL("https://fapi.binance.com/fapi/v1/ticker/24hr")
+                val connection = url.openConnection() as HttpURLConnection
                 connection.connectTimeout = 5000
                 connection.readTimeout = 5000
 
-                val responseJson = connection.inputStream.bufferedReader().use { it.readText() }
-                val jsonArray = JSONArray(responseJson)
+                val reader = BufferedReader(InputStreamReader(connection.inputStream))
+                val responseJson = StringBuilder()
+                var line: String? = reader.readLine()
+                while (line != null) {
+                    responseJson.append(line)
+                    line = reader.readLine()
+                }
+                reader.close()
 
+                val jsonStr = responseJson.toString()
                 val validPairs = mutableListOf<String>()
-                for (i in 0 until jsonArray.length()) {
-                    val item = jsonArray.getJSONObject(i)
-                    val symbol = item.getString("symbol")
-                    if (symbol.endsWith("USDT")) {
-                        // Безопасное извлечение объемных данных из строкового формата Binance API
-                        val volumeUsdt = item.getString("quoteVolume").toDouble()
-                        if (volumeUsdt >= minVolumeUsdt) {
+
+                // Безопасный встроенный парсинг массива без внешних хрупких библиотек
+                val items = jsonStr.split("},{")
+                for (item in items) {
+                    if (item.contains("USDT")) {
+                        var symbol = ""
+                        var quoteVol = 0.0
+
+                        val symMatch = Regex("\"symbol\":\"([^\"]+)\"").find(item)
+                        if (symMatch != null) {
+                            symbol = symMatch.groupValues[1]
+                        }
+
+                        val volMatch = Regex("\"quoteVolume\":\"([^\"]+)\"").find(item)
+                        if (volMatch != null) {
+                            try {
+                                quoteVol = volMatch.groupValues[1].toDouble()
+                            } catch (e: Exception) {}
+                        }
+
+                        if (symbol.endsWith("USDT") && quoteVol >= minVolumeUsdt) {
                             validPairs.add(symbol)
                         }
                     }
