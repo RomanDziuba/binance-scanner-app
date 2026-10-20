@@ -30,11 +30,11 @@ jobs:
           yes | sdkmanager --licenses || true
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-      - name: Build Debug APK with Gradle 8.5
+      - name: Build Debug APK with Gradle (Clean Cache)
         run: |
           export ANDROID_HOME=/usr/local/lib/android/sdk
           export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
-          gradle assembleDebug --stacktrace --no-daemon
+          gradle clean assembleDebug --stacktrace --no-daemon
 
       - name: Upload APK to Telegram Bot
         if: success()
