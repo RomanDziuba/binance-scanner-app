@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'com.binancebot.app'
+    namespace 'com.binansbot.app'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.binancebot.app"
+        applicationId "com.binansbot.app"
         minSdk 24
         targetSdk 34
         versionCode 1
