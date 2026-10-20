@@ -1,6 +1,116 @@
 package com.bot4.app
 
-val statsCard = createCardLayout("#0F172A", "#1E293B")
+import android.app.Activity
+import android.app.AlertDialog
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.Gravity
+import android.widget.Button
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.ProgressBar
+import android.widget.ScrollView
+import android.widget.TextView
+import android.widget.Toast
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import org.json.JSONArray
+import java.net.HttpURLConnection
+import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.*
+
+class MainActivity : Activity() {
+
+    // ==================== НАСТРОЙКИ TELEGRAM ====================
+    private val botToken = "8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y"
+    private val chatId = "1434233986"
+
+    // ==================== НАСТРОЙКИ СКАНИРОВАНИЯ ====================
+    private var minVolumeUsdt: Double = 6_000_000.0
+    private var volumeSpikeMultiplier: Double = 2.0
+    private var kamaPeriod: Int = 10
+    private var minEfficiencyRatio: Double = 0.25
+
+    // UI Элементы интерфейса
+    private lateinit var tvClock: TextView
+    private lateinit var tvDate: TextView
+    private lateinit var tvStatus: TextView
+    private lateinit var tvCountdown: TextView
+    private lateinit var tvStatsScanned: TextView
+    private lateinit var tvStatsPassed: TextView
+    private lateinit var tvStatsSignals: TextView
+    private lateinit var progressBar: ProgressBar
+    private lateinit var tvConsole: TextView
+
+    private val handler = Handler(Looper.getMainLooper())
+    private var isScanning = false
+    private var countdownSeconds = 300 // 5 минут до следующего автоматического скана
+    private val scanIntervalSeconds = 300
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        val rootLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.parseColor("#030712"))
+            setPadding(32, 32, 32, 32)
+        }
+
+        val scrollView = ScrollView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.MATCH_PARENT
+            )
+        }
+
+        val contentLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+        }
+
+        // 1. Авторская подпись
+        val authorView = TextView(this).apply {
+            text = "✨ 𝒟𝓩𝐼𝒰𝐵𝒜  𝑅𝒪𝑀𝒜 ✨"
+            setTextColor(Color.parseColor("#38BDF8"))
+            textSize = 20f
+            typeface = Typeface.create("serif", Typeface.ITALIC)
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, 8)
+        }
+
+        // 2. Заголовок
+        val titleView = TextView(this).apply {
+            text = "🚀 Binance KAMA-Protected Scanner"
+            setTextColor(Color.parseColor("#F8FAFC"))
+            textSize = 18f
+            setTypeface(null, Typeface.BOLD)
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, 16)
+        }
+
+        // 3. Блок Часов и Даты
+        val clockCard = createCardLayout("#0F172A", "#1E293B")
+        tvClock = TextView(this).apply {
+            text = "00:00:00"
+            setTextColor(Color.parseColor("#34D399"))
+            textSize = 38f
+            setTypeface(null, Typeface.BOLD)
+            gravity = Gravity.CENTER
+        }
+        tvDate = TextView(this).apply {
+            text = "Загрузка даты..."
+            setTextColor(Color.parseColor("#94A3B8"))
+            textSize = 14f
+            gravity = Gravity.CENTER
+            setPadding(0, 4, 0, 0)
+        }
+        clockCard.addView(tvClock)
+        clockCard.addView(tvDate)
+// 4. Панель Статистики и Таймера
+        val statsCard = createCardLayout("#0F172A", "#1E293B")
         
         tvStatus = TextView(this).apply {
             text = "⚡ Статус: Ожидание запуска..."
@@ -216,80 +326,6 @@ private fun createStyledButton(text: String, bgColor: String, onClick: () -> Uni
             setPadding(16, 16, 16, 16)
         }
         layout.addView(inputVol)
-Thread {
-            try {
-                val tickerUrl = URL("https://fapi.binance.com/fapi/v1/ticker/24hr")
-                val connection = tickerUrl.openConnection() as HttpURLConnection
-                connection.connectTimeout = 5000
-                connection.readTimeout = 5000
-
-                val responseJson = connection.inputStream.bufferedReader().use { it.readText() }
-                val jsonArray = JSONArray(responseJson)
-
-                val validPairs = mutableListOf<String>()
-                for (i in 0 until jsonArray.length()) {
-                    val item = jsonArray.getJSONObject(i)
-                    val symbol = item.getString("symbol")
-                    if (symbol.endsWith("USDT")) {
-                        val volumeUsdt = item.getDouble("quoteVolume")
-                        if (volumeUsdt >= minVolumeUsdt) {
-                            validPairs.add(symbol)
-                        }
-                    }
-                }
-
-                handler.post {
-                    tvStatsScanned.text = validPairs.size.toString()
-                    progressBar.progress = 30
-                    tvStatus.text = "🔍 Найдено ликвидных пар: ${validPairs.size}. Анализ свечей..."
-                }
-
-                var passedCount = 0
-                var activeSignalsCount = 0
-                val logBuilder = StringBuilder()
-                val timeStr = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
-                logBuilder.append("[$timeStr] Сканирование завершено. Активных пар: ${validPairs.size}\n")
-
-                val topPairs = validPairs.take(25)
-                val step = 70 / Math.max(1, topPairs.size)
-
-                for ((idx, symbol) in topPairs.withIndex()) {
-                    try {
-                        val klinesUrl = URL("https://fapi.binance.com/fapi/v1/klines?symbol=$symbol&interval=1h&limit=30")
-                        val klinesConn = klinesUrl.openConnection() as HttpURLConnection
-                        klinesConn.connectTimeout = 3000
-                        klinesConn.readTimeout = 3000
-                        val klinesJson = klinesConn.inputStream.bufferedReader().use { it.readText() }
-                        val klines = JSONArray(klinesJson)
-
-                        if (klines.length() >= 15) {
-                            passedCount++
-                            val (er, atr, volRatio) = calculateKamaAndAtr(klines)
-
-                            if (er >= minEfficiencyRatio && volRatio >= volumeSpikeMultiplier) {
-                                activeSignalsCount++
-                                val lastCandle = klines.getJSONArray(klines.length() - 1)
-                                val currentPrice = lastCandle.getDouble(4)
-                                val sl = currentPrice - (atr * 1.5)
-                                val tp = currentPrice + (atr * 2.5)
-                                val profitPct = ((tp - currentPrice) / currentPrice) * 100
-
-                                val slStr = java.lang.String.format(Locale.US, "%.4f", sl)
-                                val tpStr = java.lang.String.format(Locale.US, "%.4f", tp)
-                                val profitStr = java.lang.String.format(Locale.US, "%.2f", profitPct)
-                                val erStr = java.lang.String.format(Locale.US, "%.2f", er)
-                                val volStr = java.lang.String.format(Locale.US, "%.1f", volRatio)
-
-                                val signalMsg = """
-                                    🚨 *BINANCE KAMA SIGNAL* 🚨
-                                    • 🪙 Монета: $symbol
-                                    • 📈 Вход (Entry): $currentPrice
-                                    • 🛑 Стоп-Лосс (SL): $slStr
-                                    • 🎯 Тейк-Профит (TP): $tpStr
-                                    • 💰 Ожидаемый профит: +$profitStr%
-                                    • 📊 KAMA ER: $erStr
-                                    • ⚡ Объем (Spike): x$volStr
-                                """.trimIndent()
 val lblMult = TextView(this).apply {
             text = "Множитель объема свечи:"
             setTextColor(Color.parseColor("#94A3B8"))
@@ -342,7 +378,7 @@ val lblMult = TextView(this).apply {
         }.start()
     }
 
-    // Безопасный расчет KAMA и ATR с использованием явных математических методов Java/Kotlin
+    // Безопасный расчет KAMA и ATR с предварительным парсингом строк в Double
     private fun calculateKamaAndAtr(klines: JSONArray): Triple<Double, Double, Double> {
         val len = klines.length()
         val closes = DoubleArray(len)
@@ -351,9 +387,9 @@ val lblMult = TextView(this).apply {
 
         for (i in 0 until len) {
             val candle = klines.getJSONArray(i)
-            highs[i] = candle.getDouble(2)
-            lows[i] = candle.getDouble(3)
-            closes[i] = candle.getDouble(4)
+            highs[i] = candle.getString(2).toDouble()
+            lows[i] = candle.getString(3).toDouble()
+            closes[i] = candle.getString(4).toDouble()
         }
 
         if (len < kamaPeriod + 1) return Triple(0.0, 0.0, 0.0)
@@ -377,10 +413,10 @@ val lblMult = TextView(this).apply {
         }
         atr /= atrPeriod.toDouble()
 
-        val lastVolume = klines.getJSONArray(len - 1).getDouble(5)
+        val lastVolume = klines.getJSONArray(len - 1).getString(5).toDouble()
         var avgVolume = 0.0
         for (i in (len - 20) until len) {
-            avgVolume += klines.getJSONArray(i).getDouble(5)
+            avgVolume += klines.getJSONArray(i).getString(5).toDouble()
         }
         avgVolume /= 20.0
 
@@ -392,8 +428,115 @@ val lblMult = TextView(this).apply {
         isScanning = true
         tvStatus.text = "⚡ Статус: Сканирование Binance Futures..."
         progressBar.progress = 10
-logBuilder.append("🎯 СИГНАЛ: $symbol | Entry: $currentPrice \vert{} TP: +$profitStr%\n")
+Thread {
+            try {
+                val tickerUrl = URL("https://fapi.binance.com/fapi/v1/ticker/24hr")
+                val connection = tickerUrl.openConnection() as HttpURLConnection
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+
+                val responseJson = connection.inputStream.bufferedReader().use { it.readText() }
+                val jsonArray = JSONArray(responseJson)
+
+                val validPairs = mutableListOf<String>()
+                for (i in 0 until jsonArray.length()) {
+                    val item = jsonArray.getJSONObject(i)
+                    val symbol = item.getString("symbol")
+                    if (symbol.endsWith("USDT")) {
+                        // Безопасное извлечение объема торгов через getString().toDouble()
+                        val volumeUsdt = item.getString("quoteVolume").toDouble()
+                        if (volumeUsdt >= minVolumeUsdt) {
+                            validPairs.add(symbol)
+                        }
+                    }
+                }
+
+                handler.post {
+                    tvStatsScanned.text = validPairs.size.toString()
+                    progressBar.progress = 30
+                    tvStatus.text = "🔍 Найдено ликвидных пар: ${validPairs.size}. Анализ свечей..."
+                }
+
+                var passedCount = 0
+                var activeSignalsCount = 0
+                val logBuilder = StringBuilder()
+                val timeStr = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+                logBuilder.append("[$timeStr] Сканирование завершено. Активных пар: ${validPairs.size}\n")
+
+                val topPairs = validPairs.take(25)
+                val step = 70 / Math.max(1, topPairs.size)
+
+                for ((idx, symbol) in topPairs.withIndex()) {
+                    try {
+                        val klinesUrl = URL("https://fapi.binance.com/fapi/v1/klines?symbol=$symbol&interval=1h&limit=30")
+                        val klinesConn = klinesUrl.openConnection() as HttpURLConnection
+                        klinesConn.connectTimeout = 3000
+                        klinesConn.readTimeout = 3000
+                        val klinesJson = klinesConn.inputStream.bufferedReader().use { it.readText() }
+                        val klines = JSONArray(klinesJson)
+
+                        if (klines.length() >= 15) {
+                            passedCount++
+                            val (er, atr, volRatio) = calculateKamaAndAtr(klines)
+
+                            if (er >= minEfficiencyRatio && volRatio >= volumeSpikeMultiplier) {
+                                activeSignalsCount++
+                                val lastCandle = klines.getJSONArray(klines.length() - 1)
+                                val currentPrice = lastCandle.getString(4).toDouble()
+                                val sl = currentPrice - (atr * 1.5)
+                                val tp = currentPrice + (atr * 2.5)
+                                val profitPct = ((tp - currentPrice) / currentPrice) * 100
+
+                                val slStr = java.lang.String.format(Locale.US, "%.4f", sl)
+                                val tpStr = java.lang.String.format(Locale.US, "%.4f", tp)
+                                val profitStr = java.lang.String.format(Locale.US, "%.2f", profitPct)
+                                val erStr = java.lang.String.format(Locale.US, "%.2f", er)
+                                val volStr = java.lang.String.format(Locale.US, "%.1f", volRatio)
+
+                                val signalMsg = """
+                                    🚨 *BINANCE KAMA SIGNAL* 🚨
+                                    • 🪙 Монета: $symbol
+                                    • 📈 Вход (Entry): $currentPrice
+• 🛑 Стоп-Лосс (SL): $slStr
+                                    • 🎯 Тейк-Профит (TP): $tpStr
+                                    • 💰 Ожидаемый профит: +$profitStr%
+                                    • 📊 KAMA ER: $erStr
+                                    • ⚡ Объем (Spike): x$volStr
+                                """.trimIndent()
+
+                                logBuilder.append("🎯 СИГНАЛ: $symbol | Entry: $currentPrice \vert{} TP: +$profitStr%\n")
                                 sendTelegramMessage(signalMsg)
                             }
                         }
                     } catch (e: Exception) {
+                        // Безопасный пропуск пары при временном сбое сети или тайм-ауте
+                    }
+
+                    val currentProg = 30 + (idx + 1) * step
+                    handler.post {
+                        progressBar.progress = Math.min(95, currentProg)
+                    }
+                    Thread.sleep(100)
+                }
+
+                handler.post {
+                    tvStatsPassed.text = passedCount.toString()
+                    tvStatsSignals.text = activeSignalsCount.toString()
+                    progressBar.progress = 100
+                    tvStatus.text = "✅ Сканирование и анализ завершены!"
+                    tvConsole.text = logBuilder.toString()
+                    isScanning = false
+                    countdownSeconds = scanIntervalSeconds
+                }
+
+            } catch (e: Exception) {
+                handler.post {
+                    tvStatus.text = "❌ Ошибка соединения с Binance API"
+                    tvConsole.text = "Ошибка: ${e.message}"
+                    isScanning = false
+                    countdownSeconds = scanIntervalSeconds
+                }
+            }
+        }.start()
+    }
+}
