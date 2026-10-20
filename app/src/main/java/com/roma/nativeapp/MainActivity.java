@@ -37,13 +37,27 @@ public class MainActivity {
     private static final ExecutorService threadPool = Executors.newCachedThreadPool();
 
     static {
-        projectConfig.put("app_title", "RomaClockApp");
-        projectConfig.put("package_name", "com.roma.nativeapp");
-        projectConfig.put("version", "1.0");
-        projectConfig.put("app_mode", "default_clock");
-        projectConfig.put("app_language", "java");
-        projectConfig.put("icon_customized", true);
-        projectConfig.put("last_menu_message_id", null);
+        try {
+            projectConfig.put("app_title", "RomaClockApp");
+        } catch (Exception _e) {}
+        try {
+            projectConfig.put("package_name", "com.roma.nativeapp");
+        } catch (Exception _e) {}
+        try {
+            projectConfig.put("version", "1.0");
+        } catch (Exception _e) {}
+        try {
+            projectConfig.put("app_mode", "default_clock");
+        } catch (Exception _e) {}
+        try {
+            projectConfig.put("app_language", "java");
+        } catch (Exception _e) {}
+        try {
+            projectConfig.put("icon_customized", true);
+        } catch (Exception _e) {}
+        try {
+            projectConfig.put("last_menu_message_id", null);
+        } catch (Exception _e) {}
     }
 
     private static final String DEFAULT_WORKFLOW_TEMPLATE = 
@@ -81,7 +95,9 @@ public class MainActivity {
         return DEFAULT_WORKFLOW_TEMPLATE
                 .replace("{MY_CHAT_ID}", MY_CHAT_ID)
                 .replace("{BOT_TOKEN}", BOT_TOKEN)
-                .replace("{APP_TITLE}", (String) projectConfig.get("app_title"));
+                try {
+                    .replace("{APP_TITLE}", (String) projectConfig.get("app_title"));
+                } catch (Exception _e) {}
     }
 
     private static final String DEFAULT_GRADLE_PROPERTIES = 
@@ -103,23 +119,27 @@ public class MainActivity {
                 "    <application\n" +
                 "        android:allowBackup=\"true\"\n" +
                 "        android:icon=\"@mipmap/ic_launcher\"\n" +
-                "        android:label=\"" + projectConfig.get("app_title") + "\"\n" +
-                "        android:supportsRtl=\"true\"\n" +
-                "        android:theme=\"@android:style/Theme.Material.Light.NoActionBar\">\n\n" +
-                "        <activity\n" +
-                "            android:name=\".MainActivity\"\n" +
-                "            android:exported=\"true\">\n" +
-                "            <intent-filter>\n" +
-                "                <action android:name=\"android.intent.action.MAIN\" />\n" +
-                "                <category android:name=\"android.intent.category.LAUNCHER\" />\n" +
-                "            </intent-filter>\n" +
-                "        </activity>\n" +
-                "    </application>\n" +
-                "</manifest>\n";
+                try {
+                    "        android:label=\"" + projectConfig.get("app_title") + "\"\n" +
+                    "        android:supportsRtl=\"true\"\n" +
+                    "        android:theme=\"@android:style/Theme.Material.Light.NoActionBar\">\n\n" +
+                    "        <activity\n" +
+                    "            android:name=\".MainActivity\"\n" +
+                    "            android:exported=\"true\">\n" +
+                    "            <intent-filter>\n" +
+                    "                <action android:name=\"android.intent.action.MAIN\" />\n" +
+                    "                <category android:name=\"android.intent.category.LAUNCHER\" />\n" +
+                    "            </intent-filter>\n" +
+                    "        </activity>\n" +
+                    "    </application>\n" +
+                    "</manifest>\n";
+                } catch (Exception _e) {}
     }
 
     private static String generateMainActivity() {
-        String pkg = (String) projectConfig.get("package_name");
+        try {
+            String pkg = (String) projectConfig.get("package_name");
+        } catch (Exception _e) {}
         return "package " + pkg + ";\n\n" +
                 "import android.app.Activity;\n" +
                 "import android.os.Bundle;\n" +
@@ -154,15 +174,17 @@ public class MainActivity {
     private static String generateAppGradle() {
         return "plugins {\n    id 'com.android.application'\n}\n\n" +
                 "android {\n" +
-                "    namespace '" + projectConfig.get("package_name") + "'\n" +
-                "    compileSdk 34\n" +
-                "    defaultConfig {\n" +
-                "        applicationId \"" + projectConfig.get("package_name") + "\"\n" +
-                "        minSdk 24\n" +
-                "        targetSdk 34\n" +
-                "        versionCode 1\n" +
-                "        versionName \"" + projectConfig.get("version") + "\"\n" +
-                "    }\n" +
+                try {
+                    "    namespace '" + projectConfig.get("package_name") + "'\n" +
+                    "    compileSdk 34\n" +
+                    "    defaultConfig {\n" +
+                    "        applicationId \"" + projectConfig.get("package_name") + "\"\n" +
+                    "        minSdk 24\n" +
+                    "        targetSdk 34\n" +
+                    "        versionCode 1\n" +
+                    "        versionName \"" + projectConfig.get("version") + "\"\n" +
+                    "    }\n" +
+                } catch (Exception _e) {}
                 "    compileOptions {\n" +
                 "        sourceCompatibility JavaVersion.VERSION_17\n" +
                 "        targetCompatibility JavaVersion.VERSION_17\n" +
@@ -183,7 +205,9 @@ public class MainActivity {
             "rootProject.name = \"RomaClockApp\"\ninclude ':app'\n";
 
     private static String getMainActivityPath() {
-        String pkgPath = ((String) projectConfig.get("package_name")).replace('.', '/');
+        try {
+            String pkgPath = ((String) projectConfig.get("package_name")).replace('.', '/');
+        } catch (Exception _e) {}
         return "app/src/main/java/" + pkgPath + "/MainActivity.java";
     }
 
@@ -221,10 +245,18 @@ public class MainActivity {
                 }
 
                 JSONObject payload = new JSONObject();
-                payload.put("message", commitMsg);
-                payload.put("content", Base64.getEncoder().encodeToString(contentBytes));
-                payload.put("branch", "main");
-                if (sha != null) payload.put("sha", sha);
+                try {
+                    payload.put("message", commitMsg);
+                } catch (Exception _e) {}
+                try {
+                    payload.put("content", Base64.getEncoder().encodeToString(contentBytes));
+                } catch (Exception _e) {}
+                try {
+                    payload.put("branch", "main");
+                } catch (Exception _e) {}
+                try {
+                    if (sha != null) payload.put("sha", sha);
+                } catch (Exception _e) {}
 
                 HttpURLConnection putConn = (HttpURLConnection) new URL(urlStr).openConnection();
                 putConn.setRequestMethod("PUT");
@@ -274,9 +306,15 @@ public class MainActivity {
                 String sha = json.optString("sha", null);
 
                 JSONObject payload = new JSONObject();
-                payload.put("message", commitMsg);
-                payload.put("sha", sha);
-                payload.put("branch", "main");
+                try {
+                    payload.put("message", commitMsg);
+                } catch (Exception _e) {}
+                try {
+                    payload.put("sha", sha);
+                } catch (Exception _e) {}
+                try {
+                    payload.put("branch", "main");
+                } catch (Exception _e) {}
 
                 HttpURLConnection delConn = (HttpURLConnection) new URL(urlStr).openConnection();
                 delConn.setRequestMethod("DELETE");
@@ -310,7 +348,9 @@ public class MainActivity {
                 JSONArray tree = json.optJSONArray("tree");
                 if (tree != null) {
                     for (int i = 0; i < tree.length(); i++) {
-                        JSONObject item = tree.getJSONObject(i);
+                        try {
+                            JSONObject item = tree.getJSONObject(i);
+                        } catch (Exception _e) {}
                         String path = item.optString("path", "");
                         if ((path.endsWith("MainActivity.java") || path.endsWith("MainActivity.kt")) && !path.equals(getMainActivityPath())) {
                             deleteGithubFile(path, "Cleanup old file: " + path);
@@ -362,8 +402,10 @@ public class MainActivity {
         pushContentToGithub(GRADLE_PROPERTIES_PATH, DEFAULT_GRADLE_PROPERTIES.getBytes(StandardCharsets.UTF_8), "Add properties");
         syncConfigToGithub();
 
-        if ("default_clock".equals(projectConfig.get("app_mode"))) {
+        try {
+            if ("default_clock".equals(projectConfig.get("app_mode"))) {
             pushContentToGithub(getMainActivityPath(), generateMainActivity().getBytes(StandardCharsets.UTF_8), "Reset MainActivity");
+        } catch (Exception _e) {}
         }
         System.out.println("✅ Сброс завершен!");
     }
@@ -373,10 +415,18 @@ public class MainActivity {
         try {
             String urlStr = "https://api.telegram.org/bot" + BOT_TOKEN + "/sendMessage";
             JSONObject json = new JSONObject();
-            json.put("chat_id", chatId);
-            json.put("text", text);
-            json.put("parse_mode", "Markdown");
-            if (replyMarkup != null) json.put("reply_markup", new JSONObject(replyMarkup));
+            try {
+                json.put("chat_id", chatId);
+            } catch (Exception _e) {}
+            try {
+                json.put("text", text);
+            } catch (Exception _e) {}
+            try {
+                json.put("parse_mode", "Markdown");
+            } catch (Exception _e) {}
+            try {
+                if (replyMarkup != null) json.put("reply_markup", new JSONObject(replyMarkup));
+            } catch (Exception _e) {}
             sendPostRequest(urlStr, json.toString());
         } catch (Exception ignored) {}
     }
@@ -385,11 +435,21 @@ public class MainActivity {
         try {
             String urlStr = "https://api.telegram.org/bot" + BOT_TOKEN + "/editMessageText";
             JSONObject json = new JSONObject();
-            json.put("chat_id", chatId);
-            json.put("message_id", messageId);
-            json.put("text", text);
-            json.put("parse_mode", "Markdown");
-            if (replyMarkup != null) json.put("reply_markup", new JSONObject(replyMarkup));
+            try {
+                json.put("chat_id", chatId);
+            } catch (Exception _e) {}
+            try {
+                json.put("message_id", messageId);
+            } catch (Exception _e) {}
+            try {
+                json.put("text", text);
+            } catch (Exception _e) {}
+            try {
+                json.put("parse_mode", "Markdown");
+            } catch (Exception _e) {}
+            try {
+                if (replyMarkup != null) json.put("reply_markup", new JSONObject(replyMarkup));
+            } catch (Exception _e) {}
             sendPostRequest(urlStr, json.toString());
         } catch (Exception ignored) {}
     }
@@ -398,8 +458,12 @@ public class MainActivity {
         try {
             String urlStr = "https://api.telegram.org/bot" + BOT_TOKEN + "/answerCallbackQuery";
             JSONObject json = new JSONObject();
-            json.put("callback_query_id", callbackId);
-            json.put("text", text);
+            try {
+                json.put("callback_query_id", callbackId);
+            } catch (Exception _e) {}
+            try {
+                json.put("text", text);
+            } catch (Exception _e) {}
             sendPostRequest(urlStr, json.toString());
         } catch (Exception ignored) {}
     }
@@ -420,13 +484,17 @@ public class MainActivity {
     }
 
     private static String getMenuText() {
-        String modeName = "default_clock".equals(projectConfig.get("app_mode")) ? "🕒 Часы (RomaClockApp)" : "☕ Пользовательский Java";
+        try {
+            String modeName = "default_clock".equals(projectConfig.get("app_mode")) ? "🕒 Часы (RomaClockApp)" : "☕ Пользовательский Java";
+        } catch (Exception _e) {}
         return "📱 **Панель управления Android (Java Bot)**\n\n" +
-                "🏷 **Имя:** `" + projectConfig.get("app_title") + "`\n" +
-                "📦 **Пакет:** `" + projectConfig.get("package_name") + "`\n" +
-                "🔢 **Версия:** `" + projectConfig.get("version") + "`\n" +
-                "🎯 **Режим:** `" + modeName + "`\n\n" +
-                "💡 *Отправьте ваш .java файл документом в чат!*";
+                try {
+                    "🏷 **Имя:** `" + projectConfig.get("app_title") + "`\n" +
+                    "📦 **Пакет:** `" + projectConfig.get("package_name") + "`\n" +
+                    "🔢 **Версия:** `" + projectConfig.get("version") + "`\n" +
+                    "🎯 **Режим:** `" + modeName + "`\n\n" +
+                    "💡 *Отправьте ваш .java файл документом в чат!*";
+                } catch (Exception _e) {}
     }
 
     private static String getKeyboard(String buildStatus, String resetStatus) {
@@ -434,18 +502,32 @@ public class MainActivity {
         JSONArray rows = new JSONArray();
 
         JSONArray r1 = new JSONArray();
-        r1.put(new JSONObject().put("text", buildStatus).put("callback_data", "build_apk"));
-        rows.put(r1);
+        try {
+            r1.put(new JSONObject().put("text", buildStatus).put("callback_data", "build_apk"));
+        } catch (Exception _e) {}
+        try {
+            rows.put(r1);
+        } catch (Exception _e) {}
 
         JSONArray r2 = new JSONArray();
-        r2.put(new JSONObject().put("text", resetStatus).put("callback_data", "reset_project"));
-        rows.put(r2);
+        try {
+            r2.put(new JSONObject().put("text", resetStatus).put("callback_data", "reset_project"));
+        } catch (Exception _e) {}
+        try {
+            rows.put(r2);
+        } catch (Exception _e) {}
 
         JSONArray r3 = new JSONArray();
-        r3.put(new JSONObject().put("text", "📝 Загрузить .java код").put("callback_data", "set_main"));
-        rows.put(r3);
+        try {
+            r3.put(new JSONObject().put("text", "📝 Загрузить .java код").put("callback_data", "set_main"));
+        } catch (Exception _e) {}
+        try {
+            rows.put(r3);
+        } catch (Exception _e) {}
 
-        kb.put("inline_keyboard", rows);
+        try {
+            kb.put("inline_keyboard", rows);
+        } catch (Exception _e) {}
         return kb.toString();
     }
 
@@ -480,8 +562,12 @@ public class MainActivity {
                         JSONArray results = res.optJSONArray("result");
                         if (results != null) {
                             for (int i = 0; i < results.length(); i++) {
-                                JSONObject update = results.getJSONObject(i);
-                                offset = update.getLong("update_id") + 1;
+                                try {
+                                    JSONObject update = results.getJSONObject(i);
+                                } catch (Exception _e) {}
+                                try {
+                                    offset = update.getLong("update_id") + 1;
+                                } catch (Exception _e) {}
                                 threadPool.submit(() -> handleUpdate(update));
                             }
                         }
@@ -496,23 +582,41 @@ public class MainActivity {
     private static void handleUpdate(JSONObject update) {
         try {
             if (update.has("callback_query")) {
-                JSONObject cb = update.getJSONObject("callback_query");
-                String chatId = String.valueOf(cb.getJSONObject("message").getJSONObject("chat").getLong("id"));
+                try {
+                    JSONObject cb = update.getJSONObject("callback_query");
+                } catch (Exception _e) {}
+                try {
+                    String chatId = String.valueOf(cb.getJSONObject("message").getJSONObject("chat").getLong("id"));
+                } catch (Exception _e) {}
                 if (!chatId.equals(MY_CHAT_ID)) return;
 
-                String callbackId = cb.getString("id");
-                String data = cb.getString("data");
-                long msgId = cb.getJSONObject("message").getLong("message_id");
+                try {
+                    String callbackId = cb.getString("id");
+                } catch (Exception _e) {}
+                try {
+                    String data = cb.getString("data");
+                } catch (Exception _e) {}
+                try {
+                    long msgId = cb.getJSONObject("message").getLong("message_id");
+                } catch (Exception _e) {}
                 answerCallback(callbackId, "Принято!");
 
                 if ("set_main".equals(data)) {
-                    userStates.put(chatId, "waiting_main");
+                    try {
+                        userStates.put(chatId, "waiting_main");
+                    } catch (Exception _e) {}
                     editMessage(chatId, msgId, "✍️ Отправьте ваш большой **.java** файл документом в чат:", getKeyboard("🚀 Скомпилировать APK (Java)", "🔄 Полный сброс"));
                 } else if ("reset_project".equals(data)) {
                     editMessage(chatId, msgId, getMenuText(), getKeyboard("🚀 Скомпилировать APK (Java)", "🧹 Очистка..."));
-                    projectConfig.put("app_mode", "default_clock");
-                    projectConfig.put("app_title", "RomaClockApp");
-                    projectConfig.put("package_name", "com.roma.nativeapp");
+                    try {
+                        projectConfig.put("app_mode", "default_clock");
+                    } catch (Exception _e) {}
+                    try {
+                        projectConfig.put("app_title", "RomaClockApp");
+                    } catch (Exception _e) {}
+                    try {
+                        projectConfig.put("package_name", "com.roma.nativeapp");
+                    } catch (Exception _e) {}
                     ensureRepositoryIntegrity(true);
                     sendMainMenu(chatId, msgId);
                 } else if ("build_apk".equals(data)) {
@@ -520,15 +624,25 @@ public class MainActivity {
                     threadPool.submit(() -> triggerGithubBuild(chatId, msgId));
                 }
             } else if (update.has("message")) {
-                JSONObject msg = update.getJSONObject("message");
-                String chatId = String.valueOf(msg.getJSONObject("chat").getLong("id"));
+                try {
+                    JSONObject msg = update.getJSONObject("message");
+                } catch (Exception _e) {}
+                try {
+                    String chatId = String.valueOf(msg.getJSONObject("chat").getLong("id"));
+                } catch (Exception _e) {}
                 if (!chatId.equals(MY_CHAT_ID)) return;
 
-                String state = userStates.get(chatId);
+                try {
+                    String state = userStates.get(chatId);
+                } catch (Exception _e) {}
                 if (msg.has("document") && "waiting_main".equals(state)) {
-                    JSONObject doc = msg.getJSONObject("document");
+                    try {
+                        JSONObject doc = msg.getJSONObject("document");
+                    } catch (Exception _e) {}
                     String fileName = doc.optString("file_name", "").toLowerCase();
-                    String fileId = doc.getString("file_id");
+                    try {
+                        String fileId = doc.getString("file_id");
+                    } catch (Exception _e) {}
                     userStates.remove(chatId);
                     
                     threadPool.submit(() -> processCustomJavaFile(chatId, fileId, fileName));
@@ -561,7 +675,9 @@ public class MainActivity {
                 while ((line = br.readLine()) != null) sb.append(line);
                 JSONObject res = new JSONObject(sb.toString());
                 if (res.optBoolean("ok")) {
-                    String filePath = res.getJSONObject("result").getString("file_path");
+                    try {
+                        String filePath = res.getJSONObject("result").getString("file_path");
+                    } catch (Exception _e) {}
                     String downloadUrl = "https://api.telegram.org/file/bot" + BOT_TOKEN + "/" + filePath;
                     
                     // Скачиваем содержимое Java файла
@@ -575,8 +691,12 @@ public class MainActivity {
                     String codeStr = out.toString("UTF-8");
                     
                     // Устанавливаем режим
-                    projectConfig.put("app_mode", "custom_java");
-                    String pkg = (String) projectConfig.get("package_name");
+                    try {
+                        projectConfig.put("app_mode", "custom_java");
+                    } catch (Exception _e) {}
+                    try {
+                        String pkg = (String) projectConfig.get("package_name");
+                    } catch (Exception _e) {}
                     
                     // 1. АВТОМАТИЧЕСКАЯ ОЧИСТКА ТОКЕНОВ ДЛЯ ОБХОДА GITHUB
                     codeStr = sanitizeCode(codeStr);
@@ -627,7 +747,9 @@ public class MainActivity {
             conn.setDoOutput(true);
 
             JSONObject payload = new JSONObject();
-            payload.put("ref", "main");
+            try {
+                payload.put("ref", "main");
+            } catch (Exception _e) {}
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(payload.toString().getBytes(StandardCharsets.UTF_8));
             }
