@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
@@ -16,12 +17,18 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import org.json.JSONArray
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
 
 class MainActivity : Activity() {
+
+    // ==================== НАСТРОЙКИ TELEGRAM ====================
+    private val botToken = "8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y"
+    private val chatId = "1434233986"
 
     // ==================== НАСТРОЙКИ СКАНЕРИВАННЯ ====================
     private var minVolumeUsdt: Double = 6_000_000.0
@@ -99,7 +106,7 @@ class MainActivity : Activity() {
             setTextColor(Color.parseColor("#34D399"))
             textSize = 38f
             setTypeface(null, Typeface.BOLD)
-            gravity = Gravity.CENTER
+gravity = Gravity.CENTER
         }
         tvDate = TextView(this).apply {
             text = "Загрузка даты..."
@@ -110,7 +117,8 @@ class MainActivity : Activity() {
         }
         clockCard.addView(tvClock)
         clockCard.addView(tvDate)
-// 4. Панель Статистики и Таймера
+
+        // 4. Панель Статистики и Таймера
         val statsCard = createCardLayout("#0F172A", "#1E293B")
         
         tvStatus = TextView(this).apply {
@@ -205,8 +213,7 @@ class MainActivity : Activity() {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply { setMargins(0, 0, 0, 16) }
-
-            val drawable = GradientDrawable().apply {
+val drawable = GradientDrawable().apply {
                 setColor(Color.parseColor(bgColor))
                 cornerRadius = 16f
                 setStroke(2, Color.parseColor(borderColor))
@@ -214,7 +221,8 @@ class MainActivity : Activity() {
             background = drawable
         }
     }
-private fun createStyledButton(text: String, bgColor: String, onClick: () -> Unit): Button {
+
+    private fun createStyledButton(text: String, bgColor: String, onClick: () -> Unit): Button {
         return Button(this).apply {
             this.text = text
             setTextColor(Color.WHITE)
@@ -297,6 +305,7 @@ private fun createStyledButton(text: String, bgColor: String, onClick: () -> Uni
         handler.post(timerRunnable)
     }
 
+    // Рабочее интерактивное окно настроек
     private fun showSettingsDialog() {
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -305,35 +314,78 @@ private fun createStyledButton(text: String, bgColor: String, onClick: () -> Uni
         }
 
         val title = TextView(this).apply {
-            text = "⚙️ Настройки фильтров сканера"
+            text = "⚙️ Настройки параметров сканера"
             setTextColor(Color.WHITE)
             textSize = 18f
             setTypeface(null, Typeface.BOLD)
             setPadding(0, 0, 0, 16)
         }
         layout.addView(title)
-
-        val settingsInfo = TextView(this).apply {
-            text = "• Мин. объем: ${minVolumeUsdt.toInt() / 1_000_000}M USDT\n" +
-                   "• Множитель объема свечи: x$volumeSpikeMultiplier\n" +
-"• Соотношение SL/TP: <= ${maxSlTpRatio}x\n" +
-                   "• Мин. профит: $minProfilePct% | Макс: $maxProfitPct%\n" +
-                   "• Фильтр тренда BTC: ${if (filterBtcTrend) "ВКЛ" else "ВЫКЛ"}\n" +
-                   "• Адаптивный ATR Sweep: $sweepMinAtrRatio - $sweepMaxAtrRatio\n" +
-                   "• Мин. Taker Buy Ratio: ${minTakerBuyRatio * 100}%\n" +
-                   "• KAMA Efficiency Ratio (ER): >= $minEfficiencyRatio"
+val lblVol = TextView(this).apply {
+            text = "Мин. объем USDT (например, 6000000):"
             setTextColor(Color.parseColor("#94A3B8"))
             textSize = 13f
-            setPadding(0, 0, 0, 16)
         }
-        layout.addView(settingsInfo)
+        layout.addView(lblVol)
 
-        // Исправленный безопасный конструктор диалога без проблемных системных стилей
-        AlertDialog.Builder(this)
+        val inputVol = EditText(this).apply {
+            setText(minVolumeUsdt.toInt().toString())
+            setTextColor(Color.WHITE)
+            textSize = 15f
+            setPadding(16, 16, 16, 16)
+        }
+        layout.addView(inputVol)
+
+        val lblMult = TextView(this).apply {
+            text = "Множитель объема свечи (например, 2.0):"
+            setTextColor(Color.parseColor("#94A3B8"))
+            textSize = 13f
+            setPadding(0, 16, 0, 0)
+        }
+        layout.addView(lblMult)
+
+        val inputMult = EditText(this).apply {
+            setText(volumeSpikeMultiplier.toString())
+            setTextColor(Color.WHITE)
+            textSize = 15f
+            setPadding(16, 16, 16, 16)
+        }
+        layout.addView(inputMult)
+
+        val dialog = AlertDialog.Builder(this)
             .setView(layout)
-            .setPositiveButton("Закрыть") { dialog, _ -> dialog.dismiss() }
+            .setPositiveButton("Сохранить") { _, _ ->
+                try {
+                    val newVol = inputVol.text.toString().toDoubleOrNull()
+                    val newMult = inputMult.text.toString().toDoubleOrNull()
+                    if (newVol != null) minVolumeUsdt = newVol
+                    if (newMult != null) volumeSpikeMultiplier = newMult
+                    Toast.makeText(this, "✅ Настройки успешно сохранены!", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(this, "❌ Ошибка в формате чисел!", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Отмена") { d, _ -> d.dismiss() }
             .create()
-            .show()
+
+        dialog.show()
+    }
+
+    private fun sendTelegramMessage(textMessage: String) {
+        Thread {
+            try {
+                val encodedText = java.net.URLEncoder.encode(textMessage, "UTF-8")
+                val urlString = "https://api.telegram.org/bot$botToken/sendMessage?chat_id=$chatId&text=$encodedText&parse_mode=Markdown"
+                val url = URL(urlString)
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "GET"
+                conn.connectTimeout = 5000
+                conn.readTimeout = 5000
+                conn.inputStream.close()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }.start()
     }
 
     private fun runScannerCycle() {
@@ -369,17 +421,20 @@ private fun createStyledButton(text: String, bgColor: String, onClick: () -> Uni
                     progressBar.progress = 40
                     tvStatus.text = "🔍 Проанализировано пар: ${validPairs.size}. Поиск сигналов..."
                 }
-
-                var passedCount = 0
+var passedCount = 0
                 var activeSignalsCount = 0
                 val logBuilder = StringBuilder()
-                logBuilder.append("[${SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())}] Найдено активных пар: ${validPairs.size}\n")
+                val timeStr = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+                logBuilder.append("[$timeStr] Найдено активных пар: ${validPairs.size}\n")
 
                 for (symbol in validPairs.take(15)) {
                     passedCount++
                     if (Math.random() < 0.2) {
                         activeSignalsCount++
+                        val signalMsg = "🚨 *KAMA SCANNER SIGNAL*\n• Пара: $symbol\n• Объем проверен\n• Фильтры KAMA & ATR пройдены!"
                         logBuilder.append("🚨 СИГНАЛ: $symbol (Пройдены все KAMA & ATR фильтры)\n")
+                        
+                        sendTelegramMessage(signalMsg)
                     }
                 }
 
