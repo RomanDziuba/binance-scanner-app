@@ -1,5 +1,7 @@
 package com.binancebot.app
 
+﻿package com.roma.nativeapp
+
 import android.app.Activity
 import android.app.AlertDialog
 import android.os.Bundle
@@ -18,32 +20,19 @@ import java.util.*
 
 class MainActivity : Activity() {
 
-    // ==================== КОНФИГУРАЦИЯ СКАНИРОВАНИЯ ====================
-    private var minVolumeUsdt: Double = 6_000_000.0
-    private var filterLowVolume: Boolean = true
-    private var volumeSpikeMultiplier: Double = 2.0
-    private var filterRiskReward: Boolean = true
-    private var maxSlTpRatio: Double = 1.0
-    private var filterMinProfit: Boolean = true
-    private var minProfitPct: Double = 1.2
-    private var filterMaxProfit: Boolean = true
-    private var maxProfitPct: Double = 3.0
-    private var filterBtcTrend: Boolean = true
-    private var filterLiquiditySweep: Boolean = true
-    private var sweepMinAtrRatio: Double = 0.2
-    private var sweepMaxAtrRatio: Double = 1.5
-    private var filterTakerRatio: Boolean = true
-    private var minTakerBuyRatio: Double = 0.65
-    private var filterAtrSpike: Boolean = true
-    private var maxAtrMultiplier: Double = 2.5
-    private var filterFundingRate: Boolean = true
-    private var maxAbsoluteFundingRate: Double = 0.0005
-    private var filterKamaEfficiency: Boolean = true
-    private var kamaErPeriod: Int = 10
-    private var minEfficiencyRatio: Double = 0.30
-    private var filterKamaTrendGuard: Boolean = true
+    // ==================== НАСТРОЙКИ СКАНИРОВАНИЯ ====================
+    private val minVolumeUsdt: Double = 6_000_000.0
+    private val volumeSpikeMultiplier: Double = 2.0
+    private val maxSlTpRatio: Double = 1.0
+    private val minProfitPct: Double = 1.2
+    private val maxProfitPct: Double = 3.0
+    private val filterBtcTrend: Boolean = true
+    private val sweepMinAtrRatio: Double = 0.2
+    private val sweepMaxAtrRatio: Double = 1.5
+    private val minTakerBuyRatio: Double = 0.65
+    private val minEfficiencyRatio: Double = 0.30
 
-    // UI ЭЛЕМЕНТЫ ИНТЕРФЕЙСА
+    // UI Элементы
     private lateinit var tvClock: TextView
     private lateinit var tvDate: TextView
     private lateinit var tvStatus: TextView
@@ -54,10 +43,10 @@ class MainActivity : Activity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var tvConsole: TextView
 
-    private val handler: Handler = Handler(Looper.getMainLooper())
-    private var isScanning: Boolean = false
-    private var countdownSeconds: Int = 300
-    private val scanIntervalSeconds: Int = 300
+    private val handler = Handler(Looper.getMainLooper())
+    private var isScanning = false
+    private var countdownSeconds = 300 // 5 минут до следующего скана
+    private val scanIntervalSeconds = 300
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,7 +69,7 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_HORIZONTAL
         }
 
-        // 1. АВТОРСКАЯ ПОДПИСЬ (Dziuba Roman)
+        // 1. Авторская подпись
         val authorView = TextView(this).apply {
             text = "✨ 𝒟𝓩𝐼𝒰𝐵𝒜  𝑅𝒪𝑀𝒜 ✨"
             setTextColor(Color.parseColor("#38BDF8"))
@@ -90,7 +79,7 @@ class MainActivity : Activity() {
             setPadding(0, 0, 0, 8)
         }
 
-        // 2. ЗАГОЛОВОК
+        // 2. Заголовок
         val titleView = TextView(this).apply {
             text = "🚀 Binance KAMA-Protected Scanner"
             setTextColor(Color.parseColor("#F8FAFC"))
@@ -100,9 +89,9 @@ class MainActivity : Activity() {
             setPadding(0, 0, 0, 16)
         }
 
-        // 3. БЛОК ЧАСОВ И ДАТЫ
+        // 3. Блок Часов и Даты
         val clockCard = createCardLayout("#0F172A", "#1E293B")
-tvClock = TextView(this).apply {
+        tvClock = TextView(this).apply {
             text = "00:00:00"
             setTextColor(Color.parseColor("#34D399"))
             textSize = 38f
@@ -119,7 +108,7 @@ tvClock = TextView(this).apply {
         clockCard.addView(tvClock)
         clockCard.addView(tvDate)
 
-        // 4. ПАНЕЛЬ СТАТИСТИКИ И ТАЙМЕРА
+        // 4. Панель Статистики и Таймера
         val statsCard = createCardLayout("#0F172A", "#1E293B")
         
         tvStatus = TextView(this).apply {
@@ -160,7 +149,7 @@ tvClock = TextView(this).apply {
         statsCard.addView(progressBar)
         statsCard.addView(statsGrid)
 
-        // 5. КНОПКИ УПРАВЛЕНИЯ
+        // 5. Кнопки управления
         val btnScanNow = createStyledButton("🚀 Запустить сканирование сейчас", "#2563EB") {
             if (!isScanning) {
                 runScannerCycle()
@@ -173,7 +162,7 @@ tvClock = TextView(this).apply {
             showSettingsDialog()
         }
 
-        // 6. КОНСОЛЬ ЛОГИРОВАНИЯ
+        // 6. Консоль логов
         val consoleCard = createCardLayout("#090D16", "#1E293B")
         val consoleTitle = TextView(this).apply {
             text = "📋 Консоль сигналов и логирования"
@@ -206,7 +195,8 @@ tvClock = TextView(this).apply {
         startRealTimeClock()
         startCountdownTimer()
     }
-private fun createCardLayout(bgColor: String, borderColor: String): LinearLayout {
+
+    private fun createCardLayout(bgColor: String, borderColor: String): LinearLayout {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(24, 24, 24, 24)
@@ -293,7 +283,9 @@ private fun createCardLayout(bgColor: String, borderColor: String): LinearLayout
                         countdownSeconds--
                         val mins = countdownSeconds / 60
                         val secs = countdownSeconds % 60
-                        tvCountdown.text = java.lang.String.format("⏳ До следующего скана: %02d:%02d", mins, secs)
+                        val mStr = if (mins < 10) "0$mins" else "$mins"
+                        val sStr = if (secs < 10) "0$secs" else "$secs"
+                        tvCountdown.text = "⏳ До следующего скана: $mStr:$sStr"
                     } else {
                         countdownSeconds = scanIntervalSeconds
                         runScannerCycle()
@@ -311,7 +303,8 @@ private fun createCardLayout(bgColor: String, borderColor: String): LinearLayout
             setPadding(32, 32, 32, 32)
             setBackgroundColor(Color.parseColor("#0F172A"))
         }
-val title = TextView(this).apply {
+
+        val title = TextView(this).apply {
             text = "⚙️ Настройки фильтров сканера"
             setTextColor(Color.WHITE)
             textSize = 18f
@@ -326,7 +319,7 @@ val title = TextView(this).apply {
                    "• Соотношение SL/TP: <= ${maxSlTpRatio}x\n" +
                    "• Мин. профит: $minProfilePct% | Макс: $maxProfitPct%\n" +
                    "• Фильтр тренда BTC: ${if (filterBtcTrend) "ВКЛ" else "ВЫКЛ"}\n" +
-                   "• Адаптивный ATR Sweep: ${sweepMinAtrRatio} - ${sweepMaxAtrRatio}\n" +
+                   "• Адаптивный ATR Sweep: $sweepMinAtrRatio - $sweepMaxAtrRatio\n" +
                    "• Мин. Taker Buy Ratio: ${minTakerBuyRatio * 100}%\n" +
                    "• KAMA Efficiency Ratio (ER): >= $minEfficiencyRatio"
             setTextColor(Color.parseColor("#94A3B8"))
@@ -335,20 +328,11 @@ val title = TextView(this).apply {
         }
         layout.addView(settingsInfo)
 
-        val btnClose = Button(this).apply {
-            text = "Закрыть"
-            setBackgroundColor(Color.parseColor("#2563EB"))
-            setTextColor(Color.WHITE)
-        }
-
-        val dialog = AlertDialog.Builder(this)
+        AlertDialog.Builder(this)
             .setView(layout)
+            .setPositiveButton("Закрыть") { dialog, _ -> dialog.dismiss() }
             .create()
-
-        btnClose.setOnClickListener { dialog.dismiss() }
-        layout.addView(btnClose)
-
-        dialog.show()
+            .show()
     }
 
     private fun runScannerCycle() {
@@ -409,7 +393,8 @@ val title = TextView(this).apply {
                     isScanning = false
                     countdownSeconds = scanIntervalSeconds
                 }
-} catch (e: Exception) {
+
+            } catch (e: Exception) {
                 handler.post {
                     tvStatus.text = "❌ Ошибка соединения с Binance API"
                     tvConsole.text = "Ошибка: ${e.message}"
