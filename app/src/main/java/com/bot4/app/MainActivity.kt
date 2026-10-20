@@ -53,6 +53,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val actContext = this
 
         val rootLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -110,9 +111,8 @@ class MainActivity : Activity() {
         }
         clockCard.addView(tvClock)
         clockCard.addView(tvDate)
-
-        // 4. Панель Статистики и Таймера
-val statsCard = createCardLayout("#0F172A", "#1E293B")
+// 4. Панель Статистики и Таймера
+        val statsCard = createCardLayout("#0F172A", "#1E293B")
         
         tvStatus = TextView(this).apply {
             text = "⚡ Статус: Ожидание запуска..."
@@ -156,7 +156,7 @@ val statsCard = createCardLayout("#0F172A", "#1E293B")
             if (!isScanning) {
                 runScannerCycle()
             } else {
-                Toast.makeText(this, "Сканирование уже выполняется!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(actContext, "Сканирование уже выполняется!", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -299,6 +299,7 @@ private fun createStyledButton(text: String, bgColor: String, onClick: () -> Uni
     }
 
     private fun showSettingsDialog() {
+        val actContext = this
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 32, 32, 32)
@@ -320,15 +321,15 @@ private fun createStyledButton(text: String, bgColor: String, onClick: () -> Uni
             textSize = 13f
         }
         layout.addView(lblVol)
-
-        val inputVol = EditText(this).apply {
+val inputVol = EditText(this).apply {
             setText(minVolumeUsdt.toInt().toString())
             setTextColor(Color.WHITE)
             textSize = 15f
             setPadding(16, 16, 16, 16)
         }
         layout.addView(inputVol)
-val lblMult = TextView(this).apply {
+
+        val lblMult = TextView(this).apply {
             text = "Множитель объема свечи:"
             setTextColor(Color.parseColor("#94A3B8"))
             textSize = 13f
@@ -344,7 +345,7 @@ val lblMult = TextView(this).apply {
         }
         layout.addView(inputMult)
 
-        val dialog = AlertDialog.Builder(this)
+        AlertDialog.Builder(this)
             .setView(layout)
             .setPositiveButton("Сохранить") { _, _ ->
                 try {
@@ -352,15 +353,14 @@ val lblMult = TextView(this).apply {
                     val newMult = inputMult.text.toString().toDoubleOrNull()
                     if (newVol != null) minVolumeUsdt = newVol
                     if (newMult != null) volumeSpikeMultiplier = newMult
-                    Toast.makeText(this, "✅ Настройки сохранены!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(actContext, "✅ Настройки сохранены!", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
-                    Toast.makeText(this, "❌ Ошибка в числах!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(actContext, "❌ Ошибка в числах!", Toast.LENGTH_SHORT).show()
                 }
             }
-            .setNegativeButton("Отмена") { d, _ -> d.dismiss() }
+            .setNegativeButton("Отмена") { dialog, _ -> dialog.dismiss() }
             .create()
-
-        dialog.show()
+            .show()
     }
 
     private fun sendTelegramMessage(textMessage: String) {
@@ -421,13 +421,13 @@ val lblMult = TextView(this).apply {
                     progressBar.progress = 30
                     tvStatus.text = "🔍 Найдено ликвидных пар: ${validPairs.size}. Анализ свечей..."
                 }
-
-                var passedCount = 0
+var passedCount = 0
                 var activeSignalsCount = 0
                 val logBuilder = StringBuilder()
                 val timeStr = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
                 logBuilder.append("[$timeStr] Сканирование завершено. Активных пар: ${validPairs.size}\n")
-val topPairs = validPairs.take(20)
+
+                val topPairs = validPairs.take(20)
                 val step = 70 / Math.max(1, topPairs.size)
 
                 for ((idx, symbol) in topPairs.withIndex()) {
@@ -493,14 +493,14 @@ val topPairs = validPairs.take(20)
                     } catch (e: Exception) {
                         // Безопасный пропуск при сетевой ошибке
                     }
-
-                    val currentProg = 30 + (idx + 1) * step
+val currentProg = 30 + (idx + 1) * step
                     handler.post {
                         progressBar.progress = Math.min(95, currentProg)
                     }
                     Thread.sleep(60)
                 }
-handler.post {
+
+                handler.post {
                     tvStatsPassed.text = passedCount.toString()
                     tvStatsSignals.text = activeSignalsCount.toString()
                     progressBar.progress = 100
