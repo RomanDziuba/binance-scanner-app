@@ -1,2 +1,2 @@
-rootProject.name = "NativeApp"
+rootProject.name = "NativeAppJava"
 include ':app'
