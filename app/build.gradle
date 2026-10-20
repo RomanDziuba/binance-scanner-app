@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'com.bot2.app'
+    namespace 'com.bot3.app'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.bot2.app"
+        applicationId "com.bot3.app"
         minSdk 24
         targetSdk 34
         versionCode 1
