@@ -10,9 +10,12 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.*;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -28,26 +31,23 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Главный контейнер (Глубокий темный фон)
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
         rootLayout.setGravity(Gravity.CENTER);
-        rootLayout.setBackgroundColor(Color.parseColor("#0F172A")); // Slate 900
+        rootLayout.setBackgroundColor(Color.parseColor("#0F172A"));
         rootLayout.setPadding(40, 40, 40, 40);
 
-        // Карточка интерфейса
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setGravity(Gravity.CENTER_HORIZONTAL);
         card.setPadding(40, 50, 40, 50);
         
         GradientDrawable cardBg = new GradientDrawable();
-        cardBg.setColor(Color.parseColor("#1E293B")); // Slate 800
+        cardBg.setColor(Color.parseColor("#1E293B"));
         cardBg.setCornerRadius(32f);
         cardBg.setStroke(2, Color.parseColor("#334155"));
         card.setBackground(cardBg);
 
-        // Заголовок
         TextView title = new TextView(this);
         title.setText("💬 Telegram Bot Sender");
         title.setTextColor(Color.parseColor("#38BDF8"));
@@ -57,7 +57,6 @@ public class MainActivity extends Activity {
         title.setPadding(0, 0, 0, 24);
         card.addView(title);
 
-        // Поле ввода сообщения
         inputMessage = new EditText(this);
         inputMessage.setHint("Введите сообщение для отправки...");
         inputMessage.setHintTextColor(Color.parseColor("#64748B"));
@@ -74,10 +73,9 @@ public class MainActivity extends Activity {
         inputMessage.setGravity(Gravity.TOP | Gravity.START);
         card.addView(inputMessage);
 
-        // Кнопка отправки
         sendButton = new Button(this);
         sendButton.setText("🚀 Отправить в Telegram");
-        sendButton.setBackgroundColor(Color.parseColor("#2563EB")); // Blue 600
+        sendButton.setBackgroundColor(Color.parseColor("#2563EB"));
         sendButton.setTextColor(Color.WHITE);
         sendButton.setTextSize(16f);
         sendButton.setTypeface(Typeface.DEFAULT_BOLD);
@@ -102,7 +100,6 @@ public class MainActivity extends Activity {
         });
         card.addView(sendButton);
 
-        // Текст статуса
         statusText = new TextView(this);
         statusText.setText("Статус: Готов к работе");
         statusText.setTextColor(Color.parseColor("#94A3B8"));
@@ -111,7 +108,6 @@ public class MainActivity extends Activity {
         statusText.setPadding(0, 10, 0, 10);
         card.addView(statusText);
 
-        // Подпись автора
         TextView author = new TextView(this);
         author.setText("App engineering by Dziuba R.V");
         author.setTextColor(Color.parseColor("#475569"));
@@ -132,12 +128,11 @@ public class MainActivity extends Activity {
         statusText.setText("Статус: Отправка...");
         sendButton.setEnabled(false);
 
-        // Сетевые запросы должны выполняться в отдельном потоке (Thread)
         new Thread(new Runnable() {
             @Override
             public void run() {
+                String errorDetails = "";
                 try {
-                    // Ваши реальные данные (бот автоматически зашифрует токен в Base64 для GitHub)
                     String token = "REDACTED_TELEGRAM_TOKEN";
                     String chatId = "1434233986";
 
@@ -149,7 +144,6 @@ public class MainActivity extends Activity {
                     conn.setRequestProperty("Accept", "application/json");
                     conn.setDoOutput(true);
 
-                    // Формируем JSON тело запроса
                     String jsonInputString = "{\"chat_id\": \"" + chatId + "\", \"text\": \"" + messageText.replace("\"", "\\\"") + "\"}";
 
                     try (OutputStream os = conn.getOutputStream()) {
@@ -158,9 +152,22 @@ public class MainActivity extends Activity {
                     }
 
                     int responseCode = conn.getResponseCode();
-                    final boolean success = (responseCode >= 200 && responseCode < 300);
 
-                    // Возвращаемся в главный поток для обновления интерфейса
+                    // Читаем текст ошибки от сервера, если статус не 200-299
+                    if (responseCode >= 400) {
+                        try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8))) {
+                            StringBuilder response = new StringBuilder();
+                            String responseLine;
+                            while ((responseLine = br.readLine()) != null) {
+                                response.append(responseLine.trim());
+                            }
+                            errorDetails = response.toString();
+                        } catch (Exception ignored) {}
+                    }
+
+                    final boolean success = (responseCode >= 200 && responseCode < 300);
+                    final String finalError = errorDetails;
+
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -170,7 +177,8 @@ public class MainActivity extends Activity {
                                 inputMessage.setText("");
                                 Toast.makeText(MainActivity.this, "Сообщение доставлено!", Toast.LENGTH_SHORT).show();
                             } else {
-                                statusText.setText("Статус: ❌ Ошибка сервера (" + responseCode + ")");
+                                statusText.setText("Статус: ❌ Ошибка " + responseCode);
+                                Toast.makeText(MainActivity.this, "Ответ сервера: " + finalError, Toast.LENGTH_LONG).show();
                             }
                         }
                     });
