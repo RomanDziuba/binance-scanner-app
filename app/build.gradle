@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.kompas.app'
+    namespace 'com.chasy.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.kompas.app"
+        applicationId "com.chasy.app"
         minSdk 21
         targetSdk 34
         versionCode 1
