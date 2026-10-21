@@ -49,7 +49,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
         }
 
-        // Инициализация современного менеджера камеры для фонарика
+        // Инициализация менеджера фонарика
         cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         try {
             if (cameraManager != null && cameraManager.getCameraIdList().length > 0) {
@@ -57,54 +57,54 @@ public class MainActivity extends Activity implements SensorEventListener {
             }
         } catch (Exception ignored) {}
 
-        // Главный фон — глубокий космос / темный металл
+        // Главный фон — глубокий ретро-стиль
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
         rootLayout.setGravity(Gravity.CENTER);
-        rootLayout.setBackgroundColor(Color.parseColor("#050B14"));
+        rootLayout.setBackgroundColor(Color.parseColor("#0A0908"));
         rootLayout.setPadding(20, 20, 20, 20);
 
-        // Верхняя гравировка «Д Р В»
-        TextView drvView = new TextView(this);
-        drvView.setText("✦  Д  Р  В  ✦");
-        drvView.setTextColor(Color.parseColor("#F59E0B"));
-        drvView.setTextSize(22f);
-        drvView.setTypeface(Typeface.create("serif", Typeface.BOLD_ITALIC));
-        drvView.setGravity(Gravity.CENTER);
-        drvView.setPadding(0, 0, 0, 15);
+        // Верхний заголовок
+        TextView titleTop = new TextView(this);
+        titleTop.setText("ANTIQUE CHRONOMETER");
+        titleTop.setTextColor(Color.parseColor("#92704E"));
+        titleTop.setTextSize(14f);
+        titleTop.setTypeface(Typeface.MONOSPACE);
+        titleTop.setGravity(Gravity.CENTER);
+        titleTop.setPadding(0, 0, 0, 10);
 
-        // Текстовое поле градусов (крупное)
+        // Текстовое поле градусов
         degreeTextView = new TextView(this);
         degreeTextView.setText("0°");
-        degreeTextView.setTextColor(Color.parseColor("#34D399"));
-        degreeTextView.setTextSize(42f);
+        degreeTextView.setTextColor(Color.parseColor("#D4AF37"));
+        degreeTextView.setTextSize(38f);
         degreeTextView.setTypeface(Typeface.DEFAULT_BOLD);
         degreeTextView.setGravity(Gravity.CENTER);
 
         // Направление (Север, Юг...)
         directionTextView = new TextView(this);
         directionTextView.setText("СЕВЕР");
-        directionTextView.setTextColor(Color.parseColor("#38BDF8"));
-        directionTextView.setTextSize(18f);
+        directionTextView.setTextColor(Color.parseColor("#8DA4C4"));
+        directionTextView.setTextSize(16f);
         directionTextView.setTypeface(Typeface.MONOSPACE);
         directionTextView.setGravity(Gravity.CENTER);
-        directionTextView.setPadding(0, 0, 0, 20);
+        directionTextView.setPadding(0, 0, 0, 15);
 
-        // === ОГРОМНЫЙ КРУГЛЫЙ КОМПАС (Генерируется программно в высоком качестве) ===
+        // === ВИНТАЖНЫЙ КОМПАС КАК НА СКРИНШОТЕ ===
         FrameLayout compassContainer = new FrameLayout(this);
-        int compassSize = 850; // Большой размер компаса на экране
+        int compassSize = 880; // Большой размер
         FrameLayout.LayoutParams compParams = new FrameLayout.LayoutParams(compassSize, compassSize);
         compParams.gravity = Gravity.CENTER;
         compassContainer.setLayoutParams(compParams);
 
-        // Создаем циферблат с делениями и буквами N, E, S, W
-        Bitmap dialBitmap = createCompassDialBitmap(compassSize);
+        // Циферблат в старинном стиле
+        Bitmap dialBitmap = createVintageCompassDialBitmap(compassSize);
         ImageView dialImageView = new ImageView(this);
         dialImageView.setImageBitmap(dialBitmap);
         dialImageView.setLayoutParams(new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
-        // Создаем огромную красивую вращающуюся стрелку (Красный север / Синий юг)
-        Bitmap needleBitmap = createCompassNeedleBitmap(compassSize);
+        // Вращающаяся черная старинная стрелка
+        Bitmap needleBitmap = createVintageNeedleBitmap(compassSize);
         compassDialView = new ImageView(this);
         compassDialView.setImageBitmap(needleBitmap);
         compassDialView.setLayoutParams(new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
@@ -112,15 +112,15 @@ public class MainActivity extends Activity implements SensorEventListener {
         compassContainer.addView(dialImageView);
         compassContainer.addView(compassDialView);
 
-        // Кнопка Фонарика внизу
+        // Кнопка Фонарика
         btnFlash = new Button(this);
         btnFlash.setText("🔦 ФОНАРИК");
         btnFlash.setTextColor(Color.WHITE);
         btnFlash.setTextSize(16f);
         btnFlash.setTypeface(Typeface.DEFAULT_BOLD);
         
-        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 140);
-        btnParams.setMargins(40, 30, 40, 10);
+        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 130);
+        btnParams.setMargins(40, 25, 40, 10);
         btnFlash.setLayoutParams(btnParams);
         
         updateFlashButtonUI(false);
@@ -133,7 +133,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         });
 
         // Сборка экрана
-        rootLayout.addView(drvView);
+        rootLayout.addView(titleTop);
         rootLayout.addView(degreeTextView);
         rootLayout.addView(directionTextView);
         rootLayout.addView(compassContainer);
@@ -142,110 +142,209 @@ public class MainActivity extends Activity implements SensorEventListener {
         setContentView(rootLayout);
     }
 
-    // Рисуем шикарный циферблат с делениями и сторонами света
-    private Bitmap createCompassDialBitmap(int size) {
+    // Рисуем винтажный циферблат точь-в-точь как на фото + гравировка ДРВ прописью
+    private Bitmap createVintageCompassDialBitmap(int size) {
         Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
         int cx = size / 2;
         int cy = size / 2;
-        int radius = size / 2 - 20;
+        int radius = size / 2 - 25;
 
-        // Внешний золотой ободок хронометра
+        // 1. Металлический состаренный бронзовый ободок
         paint.setStyle(Paint.Style.FILL);
-        paint.setColor(Color.parseColor("#1E293B"));
+        paint.setColor(Color.parseColor("#2A1E14"));
         canvas.drawCircle(cx, cy, radius, paint);
 
         paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(8);
-        paint.setColor(Color.parseColor("#F59E0B")); // Золотой контур ДРВ
-        canvas.drawCircle(cx, cy, radius, paint);
+        paint.setStrokeWidth(14);
+        paint.setColor(Color.parseColor("#7A522C"));
+        canvas.drawCircle(cx, cy, radius - 7, paint);
 
+        // Зубчики по ободку (как на оригинале)
         paint.setStrokeWidth(3);
-        paint.setColor(Color.parseColor("#334155"));
-        canvas.drawCircle(cx, cy, radius - 30, paint);
-
-        // Штрихи градусов и сторон света
-        paint.setTextSize(36);
-        paint.setTypeface(Typeface.DEFAULT_BOLD);
-        
-        for (int i = 0; i < 360; i += 10) {
+        paint.setColor(Color.parseColor("#4A321A"));
+        for (int i = 0; i < 360; i += 3) {
             float angle = (float) Math.toRadians(i);
-            float innerR = (i % 30 == 0) ? radius - 60 : radius - 45;
-            float outerR = radius - 35;
-
-            float startX = cx + (float) (innerR * Math.sin(angle));
-            float startY = cy - (float) (innerR * Math.cos(angle));
-            float endX = cx + (float) (outerR * Math.sin(angle));
-            float endY = cy - (float) (outerR * Math.cos(angle));
-
-            paint.setStrokeWidth((i % 30 == 0) ? 5 : 2);
-            paint.setColor((i == 0) ? Color.parseColor("#EF4444") : Color.parseColor("#94A3B8"));
-            canvas.drawLine(startX, startY, endX, endY, paint);
+            float innerR = radius - 16;
+            float outerR = radius - 2;
+            canvas.drawLine(
+                cx + (float)(innerR * Math.sin(angle)), cy - (float)(innerR * Math.cos(angle)),
+                cx + (float)(outerR * Math.sin(angle)), cy - (float)(outerR * Math.cos(angle)), paint
+            );
         }
 
-        // Буквы N, E, S, W
-        paint.setTextAlign(Paint.Align.CENTER);
-        paint.setTypeface(Typeface.DEFAULT_BOLD);
-        
-        // Север (Красный)
-        paint.setColor(Color.parseColor("#EF4444"));
-        paint.setTextSize(48);
-        canvas.drawText("N", cx, cy - radius + 90, paint);
+        // 2. Внутреннее пергаментное поле циферблата (кремовый/слоновая кость)
+        int innerRadius = radius - 22;
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(Color.parseColor("#F4EEDC"));
+        canvas.drawCircle(cx, cy, innerRadius, paint);
 
-        // Восток, Юг, Запад
-        paint.setColor(Color.parseColor("#F1F5F9"));
-        canvas.drawText("E", cx + radius - 90, cy + 18, paint);
-        canvas.drawText("S", cx, cy + radius - 50, paint);
-        canvas.drawText("W", cx - radius + 90, cy + 18, paint);
+        // Тонкие черные кольца внутри
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(2);
+        paint.setColor(Color.parseColor("#2C221E"));
+        canvas.drawCircle(cx, cy, innerRadius, paint);
+        canvas.drawCircle(cx, cy, innerRadius - 35, paint);
+        canvas.drawCircle(cx, cy, innerRadius - 130, paint);
 
-        // Гравировка по центру циферблата
-        paint.setTextSize(22);
-        paint.setColor(Color.parseColor("#64748B"));
-        canvas.drawText("CHRONOMETER", cx, cy - 60, paint);
-        
+        // 3. Градусная шкала и цифры (0, 20, 40... 340)
         paint.setTextSize(26);
-        paint.setColor(Color.parseColor("#F59E0B"));
-        canvas.drawText("Д Р В", cx, cy + 70, paint);
+        paint.setTypeface(Typeface.create("serif", Typeface.BOLD));
+        paint.setColor(Color.parseColor("#2C221E"));
+        paint.setTextAlign(Paint.Align.CENTER);
+
+        for (int i = 0; i < 360; i += 10) {
+            float angle = (float) Math.toRadians(i);
+            float tickInner = (i % 20 == 0) ? innerRadius - 22 : innerRadius - 12;
+            float tickOuter = innerRadius - 4;
+
+            canvas.drawLine(
+                cx + (float)(tickInner * Math.sin(angle)), cy - (float)(tickInner * Math.cos(angle)),
+                cx + (float)(tickOuter * Math.sin(angle)), cy - (float)(tickOuter * Math.cos(angle)), paint
+            );
+
+            // Цифры градусов каждые 20 градусов
+            if (i > 0 && i % 20 == 0) {
+                float textR = innerRadius - 55;
+                float tx = cx + (float)(textR * Math.sin(angle));
+                float ty = cy - (float)(textR * Math.cos(angle));
+                
+                canvas.save();
+                canvas.translate(tx, ty);
+                canvas.rotate(i);
+                canvas.drawText(String.valueOf(i), 0, 8, paint);
+                canvas.restore();
+            }
+        }
+
+        // 4. Сложная винтажная многолучевая звезда (Компасная роза)
+        drawVintageCompassRose(canvas, cx, cy, innerRadius - 135);
+
+        // 5. Буквы сторон света (N, E, S, W, N.E, N.W, S.E, S.W)
+        paint.setTextSize(42);
+        paint.setTypeface(Typeface.create("serif", Typeface.BOLD_ITALIC));
+        paint.setColor(Color.parseColor("#1A1412"));
+
+        // Север сверху
+        canvas.drawText("N", cx, cy - innerRadius + 95, paint);
+        // Восток справа
+        canvas.drawText("E", cx + innerRadius - 70, cy + 14, paint);
+        // Юг снизу
+        canvas.drawText("S", cx, cy + innerRadius - 55, paint);
+        // Запад слева
+        canvas.drawText("W", cx - innerRadius + 70, cy + 14, paint);
+
+        // Промежуточные (N.E, N.W, S.E, S.W)
+        paint.setTextSize(24);
+        paint.setTypeface(Typeface.create("serif", Typeface.ITALIC));
+        canvas.drawText("N.E", cx + 180, cy - 180, paint);
+        canvas.drawText("N.W", cx - 180, cy - 180, paint);
+        canvas.drawText("S.E", cx + 180, cy + 200, paint);
+        canvas.drawText("S.W", cx - 180, cy + 200, paint);
+
+        // 6. ИЗЯЩНАЯ ПРОПИСНАЯ ГРАВИРОВКА «Д Р В» ПОД СТАРИНУ ВНУТРИ КОМПАСА
+        paint.setTextSize(36);
+        paint.setTypeface(Typeface.create("serif", Typeface.BOLD_ITALIC));
+        paint.setColor(Color.parseColor("#8C6239")); // Благородный бронзово-золотой оттенок
+        canvas.drawText("Д · Р · В", cx, cy + 75, paint);
 
         return bitmap;
     }
 
-    // Рисуем большую, массивную двухцветную стрелку компаса
-    private Bitmap createCompassNeedleBitmap(int size) {
+    // Отрисовка старинного узора звезды компаса
+    private void drawVintageCompassRose(Canvas canvas, int cx, int cy, int maxR) {
+        Paint starPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        starPaint.setStyle(Paint.Style.FILL);
+
+        // Рисуем лучи звезды
+        for (int i = 0; i < 8; i++) {
+            float angle = (float) Math.toRadians(i * 45);
+            Path rayPath = new Path();
+            
+            float length = (i % 2 == 0) ? maxR : maxR * 0.7f;
+            float width = (i % 2 == 0) ? 18f : 10f;
+
+            float tipX = cx + (float)(length * Math.sin(angle));
+            float tipY = cy - (float)(length * Math.cos(angle));
+
+            float leftX = cx + (float)(width * Math.cos(angle));
+            float leftY = cy + (float)(width * Math.sin(angle));
+            
+            float rightX = cx - (float)(width * Math.cos(angle));
+            float rightY = cy - (float)(width * Math.sin(angle));
+
+            rayPath.moveTo(tipX, tipY);
+            rayPath.lineTo(leftX, leftY);
+            rayPath.lineTo(cx, cy);
+            rayPath.close();
+
+            starPaint.setColor(i % 2 == 0 ? Color.parseColor("#1C1613") : Color.parseColor("#6E5B4D"));
+            canvas.drawPath(rayPath, starPaint);
+
+            Path rayPath2 = new Path();
+            rayPath2.moveTo(tipX, tipY);
+            rayPath2.lineTo(rightX, rightY);
+            rayPath2.lineTo(cx, cy);
+            rayPath2.close();
+            
+            starPaint.setColor(i % 2 == 0 ? Color.parseColor("#4A3B32") : Color.parseColor("#A89584"));
+            canvas.drawPath(rayPath2, starPaint);
+        }
+    }
+
+    // Рисуем оригинальную черную старинную стрелку с буквами N и S
+    private Bitmap createVintageNeedleBitmap(int size) {
         Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
         int cx = size / 2;
         int cy = size / 2;
-        int length = size / 2 - 110;
+        int length = size / 2 - 105;
 
-        Path northPath = new Path();
-        northPath.moveTo(cx, cy - length);
-        northPath.lineTo(cx - 22, cy);
-        northPath.lineTo(cx + 22, cy);
-        northPath.close();
+        // Сегменты стрелки (черный антикварный металл)
+        Path northNeedle = new Path();
+        northNeedle.moveTo(cx, cy - length);
+        northNeedle.lineTo(cx - 24, cy - 40);
+        northNeedle.lineTo(cx - 10, cy);
+        northNeedle.lineTo(cx + 10, cy);
+        northNeedle.lineTo(cx + 24, cy - 40);
+        northNeedle.close();
 
         paint.setStyle(Paint.Style.FILL);
-        paint.setColor(Color.parseColor("#EF4444")); // Северная стрелка — ярко-красная
-        canvas.drawPath(northPath, paint);
+        paint.setColor(Color.parseColor("#1A1412"));
+        canvas.drawPath(northNeedle, paint);
 
-        Path southPath = new Path();
-        southPath.moveTo(cx, cy + length);
-        southPath.lineTo(cx - 22, cy);
-        southPath.lineTo(cx + 22, cy);
-        southPath.close();
+        Path southNeedle = new Path();
+        southNeedle.moveTo(cx, cy + length);
+        southNeedle.lineTo(cx - 24, cy + 40);
+        southNeedle.lineTo(cx - 10, cy);
+        southNeedle.lineTo(cx + 10, cy);
+        southNeedle.lineTo(cx + 24, cy + 40);
+        southNeedle.close();
 
-        paint.setColor(Color.parseColor("#38BDF8")); // Южная стрелка — синяя/неоновая
-        canvas.drawPath(southPath, paint);
+        paint.setColor(Color.parseColor("#2C221E"));
+        canvas.drawPath(southNeedle, paint);
 
-        // Центральный золотой крепеж стрелки
-        paint.setColor(Color.parseColor("#F59E0B"));
-        canvas.drawCircle(cx, cy, 18, paint);
-        paint.setColor(Color.parseColor("#0F172A"));
-        canvas.drawCircle(cx, cy, 8, paint);
+        // Буквы N и S на стрелке
+        paint.setTextSize(20);
+        paint.setTypeface(Typeface.create("serif", Typeface.BOLD));
+        paint.setColor(Color.parseColor("#D4AF37")); // Золотистые буквы на стрелке
+        paint.setTextAlign(Paint.Align.CENTER);
+        
+        canvas.drawText("N", cx, cy - length + 55, paint);
+        canvas.drawText("S", cx, cy + length - 40, paint);
+
+        // Центральная латунная закрепка (как на фото с винтиком)
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(Color.parseColor("#8C6239"));
+        canvas.drawCircle(cx, cy, 22, paint);
+        paint.setColor(Color.parseColor("#D4AF37"));
+        canvas.drawCircle(cx, cy, 14, paint);
+        paint.setColor(Color.parseColor("#1A1412"));
+        canvas.drawCircle(cx, cy, 5, paint);
 
         return bitmap;
     }
@@ -289,7 +388,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                 float azimuthInDegrees = (float) Math.toDegrees(azimuthInRadians);
                 azimuthInDegrees = (azimuthInDegrees + 360) % 360;
 
-                // Плавное вращение большой стрелки
+                // Плавное вращение стрелки компаса
                 RotateAnimation ra = new RotateAnimation(
                         currentDegree,
                         -azimuthInDegrees,
@@ -354,10 +453,10 @@ public class MainActivity extends Activity implements SensorEventListener {
         btnBg.setCornerRadius(30f);
         if (isOn) {
             btnFlash.setText("🔦 ФОНАРИК ВКЛЮЧЕН");
-            btnBg.setColor(Color.parseColor("#059669")); // Зеленый активный
+            btnBg.setColor(Color.parseColor("#059669")); // Зеленый
         } else {
             btnFlash.setText("🔦 ВКЛЮЧИТЬ ФОНАРИК");
-            btnBg.setColor(Color.parseColor("#D97706")); // Золотой/Оранжевый
+            btnBg.setColor(Color.parseColor("#7A522C")); // Бронзово-коричневый винтаж
         }
         btnFlash.setBackground(btnBg);
     }
