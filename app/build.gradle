@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.proverkatelegram.app'
+    namespace 'com.roma.nativeapp'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.proverkatelegram.app"
+        applicationId "com.roma.nativeapp"
         minSdk 24
         targetSdk 34
         versionCode 1
