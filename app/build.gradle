@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.r.app'
+    namespace 'com.kompilyator.app'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.r.app"
+        applicationId "com.kompilyator.app"
         minSdk 24
         targetSdk 34
         versionCode 1
