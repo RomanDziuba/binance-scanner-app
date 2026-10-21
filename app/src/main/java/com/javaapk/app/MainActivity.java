@@ -43,7 +43,6 @@ public class MainActivity extends Activity {
     private static final int PICK_ICON_REQUEST = 1001;
     private static final int PICK_JAVA_REQUEST = 1002;
 
-    // Настройки, сохраняемые на телефоне
     private String githubToken = "";
     private String botToken = "";
     private String chatId = "1434233986";
@@ -81,7 +80,6 @@ public class MainActivity extends Activity {
         container.setOrientation(LinearLayout.VERTICAL);
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
-        // 1. Авторская подпись
         TextView authorView = new TextView(this);
         authorView.setText("✦ Created by Dziuba Roman ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
@@ -91,7 +89,6 @@ public class MainActivity extends Activity {
         authorView.setPadding(0, 5, 0, 10);
         container.addView(authorView);
 
-        // 2. Живые часы
         TextClock clock = new TextClock(this);
         clock.setTextColor(Color.parseColor("#10B981"));
         clock.setTextSize(24f);
@@ -143,39 +140,31 @@ public class MainActivity extends Activity {
         infoTextView.setLayoutParams(infoParams);
         card.addView(infoTextView);
 
-        // ЛОГИЧЕСКИЙ ПОРЯДОК КНОПОК
-        // 1. Кнопка компиляции (интерактивная с инфо о пакете)
         btnBuild = createStyledButton(getBuildButtonText(), "#2563EB");
         btnBuild.setOnClickListener(v -> triggerGitHubBuild());
         card.addView(btnBuild);
 
-        // 2. Кнопка загрузки Java файла (с именем файла)
         btnUploadJava = createStyledButton("📝 Java файл: " + currentJavaFileName, "#0D9488");
         btnUploadJava.setOnClickListener(v -> openJavaFilePicker());
         card.addView(btnUploadJava);
 
-        // 3. Полный сброс
         btnReset = createStyledButton("🔄 Полный сброс (Шаблон Часы)", "#D97706");
         btnReset.setOnClickListener(v -> confirmResetProject());
         card.addView(btnReset);
 
-        // 4. Изменить имя и пакет
         btnTitle = createStyledButton("🏷 Имя: " + appTitle + " (" + packageName + ")", "#475569");
         btnTitle.setOnClickListener(v -> showEditTitleDialog());
         card.addView(btnTitle);
 
-        // 5. Изменить версию
         btnVersion = createStyledButton("📦 Версия приложения: " + appVersion, "#475569");
         btnVersion.setOnClickListener(v -> showEditVersionDialog());
         card.addView(btnVersion);
 
-        // 6. Иконка приложения (с миниатюрой)
         btnIcon = createStyledButton("🖼 Иконка приложения (Нажмите для смены)", "#7C3AED");
         updateIconButtonPreview();
         btnIcon.setOnClickListener(v -> openIconFilePicker());
         card.addView(btnIcon);
 
-        // 7. Настройки API
         btnSettings = createStyledButton("⚙️ Настройки API (GitHub & Bot)", "#334155");
         btnSettings.setOnClickListener(v -> showSettingsDialog());
         card.addView(btnSettings);
@@ -189,7 +178,6 @@ public class MainActivity extends Activity {
         statusTextView.setPadding(0, 12, 0, 8);
         card.addView(statusTextView);
 
-        // РАСШИРЕННЫЙ ТЕРМИНАЛ / ЛОГИ
         TextView logLabel = new TextView(this);
         logLabel.setText("📋 Расширенный терминал / Логи:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
@@ -312,8 +300,6 @@ public class MainActivity extends Activity {
         updateInfoText();
     }
 
-    // ==================== ВЫБОР ФАЙЛОВ ИЗ СИСТЕМЫ ====================
-
     private void openJavaFilePicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
@@ -434,7 +420,6 @@ public class MainActivity extends Activity {
         return result;
     }
 
-    // ==================== ANTI-409 GITHUB SHIELD ====================
     private String sanitizeAndEncodeCode(String code) {
         if (code == null) return "";
         Matcher tgMatcher = Pattern.compile("['\"](\\d{8,}:[A-Za-z0-9_-]{35})['\"]").matcher(code);
@@ -452,8 +437,6 @@ public class MainActivity extends Activity {
         return code;
     }
 
-    // ==================== СЕТЕВЫЕ ОПЕРАЦИИ С GITHUB ====================
-
     private void triggerGitHubBuild() {
         if (githubToken.isEmpty()) {
             Toast.makeText(this, "⚠️ Введите GitHub Token в настройках!", Toast.LENGTH_LONG).show();
@@ -461,7 +444,6 @@ public class MainActivity extends Activity {
             return;
         }
 
-        // Блокируем кнопку компиляции и меняем цвет
         btnBuild.setEnabled(false);
         btnBuild.setBackgroundColor(Color.parseColor("#1E3A8A"));
         statusTextView.setText("Статус: ⚙️ Синхронизация файлов и запуск...");
@@ -684,7 +666,6 @@ public class MainActivity extends Activity {
             .setTitle("Полный сброс")
             .setMessage("Сбросить репозиторий и установить шаблон часов?")
             .setPositiveButton("Сбросить", (dialog, which) -> {
-                // Блокируем кнопку сброса и меняем цвет
                 btnReset.setEnabled(false);
                 btnReset.setBackgroundColor(Color.parseColor("#78350F"));
                 btnReset.setText("🔄 Выполняется полный сброс...");
@@ -830,7 +811,7 @@ public class MainActivity extends Activity {
 
     private String getRootGradleContent() {
         return "plugins {\n" +
-               "    id 'com.android.application' version '8.2.2' apply false\n" +
+               "    id 'com.android.application' version '8.1.1' apply false\n" +
                "}\n";
     }
 
@@ -845,7 +826,7 @@ public class MainActivity extends Activity {
                "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" +
                "      - uses: actions/checkout@v4\n" +
                "      - uses: actions/setup-java@v4\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n" +
-               "      - uses: gradle/actions/setup-gradle@v3\n        with:\n          gradle-version: '8.5'\n          cache-disabled: true\n" +
+               "      - uses: gradle/actions/setup-gradle@v3\n        with:\n          gradle-version: '8.0'\n          cache-disabled: false\n" +
                "      - name: Setup Android SDK & Accept Licenses\n        run: |\n" +
                "          export ANDROID_HOME=/usr/local/lib/android/sdk\n" +
                "          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n" +
