@@ -25,7 +25,6 @@ import android.text.style.ForegroundColorSpan;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.Window;
 import android.widget.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -80,7 +79,6 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         loadSettings();
 
-        // Инициализация стандартного кода, если он пуст
         if (currentJavaCode == null || currentJavaCode.trim().isEmpty()) {
             currentJavaCode = generateMainActivity();
         }
@@ -162,44 +160,37 @@ public class MainActivity extends Activity {
         infoTextView.setLayoutParams(infoParams);
         card.addView(infoTextView);
 
-        // ЛОГИЧЕСКИЙ ПОРЯДОК ИНТЕРАКТИВНЫХ КНОПОК
-        // 1. Кнопка компиляции (интерактивная с инфо о пакете)
+        // КНОПКИ УПРАВЛЕНИЯ
         btnBuild = createStyledButton(getBuildButtonText(), "#2563EB");
         btnBuild.setOnClickListener(v -> triggerGitHubBuild());
         card.addView(btnBuild);
 
-        // 2. Встроенный редактор кода с подсказками
         btnCodeEditor = createStyledButton("💻 Редактор кода (Подсветка + ИИ-Справка)", "#059669");
         btnCodeEditor.setOnClickListener(v -> openAdvancedCodeEditor());
         card.addView(btnCodeEditor);
 
-        // 3. Кнопка загрузки Java файла из памяти телефона
-        btnUploadJava = createStyledButton("📝 Выбрать .java файл: " + currentJavaFileName, "#0D9488");
+        // Поддержка любых файлов (.java, .txt, .kt и др.)
+        btnUploadJava = createStyledButton("📝 Загрузить файл (.java, .txt): " + currentJavaFileName, "#0D9488");
         btnUploadJava.setOnClickListener(v -> openJavaFilePicker());
         card.addView(btnUploadJava);
 
-        // 4. Полный сброс репозитория
         btnReset = createStyledButton("🔄 Полный сброс (Шаблон Часы)", "#D97706");
         btnReset.setOnClickListener(v -> confirmResetProject());
         card.addView(btnReset);
 
-        // 5. Изменить имя и пакет
         btnTitle = createStyledButton("🏷 Имя: " + appTitle + " (" + packageName + ")", "#475569");
         btnTitle.setOnClickListener(v -> showEditTitleDialog());
         card.addView(btnTitle);
 
-        // 6. Изменить версию приложения
         btnVersion = createStyledButton("📦 Версия приложения: " + appVersion, "#475569");
         btnVersion.setOnClickListener(v -> showEditVersionDialog());
         card.addView(btnVersion);
 
-        // 7. Иконка приложения (с миниатюрой)
         btnIcon = createStyledButton("🖼 Иконка приложения (Выбрать файл)", "#7C3AED");
         updateIconButtonPreview();
         btnIcon.setOnClickListener(v -> openIconFilePicker());
         card.addView(btnIcon);
 
-        // 8. Настройки API, SDK и Java
         btnSettings = createStyledButton("⚙️ Настройки API, SDK & Java", "#334155");
         btnSettings.setOnClickListener(v -> showSettingsDialog());
         card.addView(btnSettings);
@@ -215,14 +206,14 @@ public class MainActivity extends Activity {
 
         // РАСШИРЕННЫЙ ТЕРМИНАЛ / ЛОГИ
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Расширенный терминал / Логи:");
+        logLabel.setText("📋 Расширенный терминал / Умный анализ ошибок:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
         logLabel.setTextSize(12f);
         logLabel.setPadding(0, 8, 0, 4);
         card.addView(logLabel);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Здесь отображаются логи компиляции и ошибки GitHub Actions...");
+        logEditText.setHint("Здесь отображаются логи компиляции и результаты расширенного парсинга ошибок...");
         logEditText.setTextSize(11f);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
         logEditText.setHintTextColor(Color.parseColor("#475569"));
@@ -347,13 +338,20 @@ public class MainActivity extends Activity {
         updateInfoText();
     }
 
-    // ==================== ВЫБОР ФАЙЛОВ ИЗ СИСТЕМЫ ====================
+    // ==================== ВСЕЯДНЫЙ ВЫБОР ФАЙЛОВ (.JAVA, .TXT И ДР.) ====================
 
     private void openJavaFilePicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        // Разрешаем любые текстовые и исходные файлы (.java, .txt, .kt, etc.)
         intent.setType("*/*");
-        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"text/plain", "text/x-java-source", "application/octet-stream"});
-        startActivityForResult(Intent.createChooser(intent, "Выберите .java файл"), PICK_JAVA_REQUEST);
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
+            "text/plain", 
+            "text/x-java-source", 
+            "text/x-kotlin", 
+            "application/octet-stream",
+            "application/x-java"
+        });
+        startActivityForResult(Intent.createChooser(intent, "Выберите файл кода (.java / .txt)"), PICK_JAVA_REQUEST);
     }
 
     private void openIconFilePicker() {
@@ -380,6 +378,12 @@ public class MainActivity extends Activity {
         if (fileName == null) {
             fileName = "CustomCode.java";
         }
+        
+        // Автоматическая адаптация: если файл загружен как .txt, сохраняем расширение .java для компилятора
+        if (fileName.endsWith(".txt")) {
+            fileName = fileName.substring(0, fileName.length() - 4) + ".java";
+        }
+        
         final String finalFileName = fileName;
         
         try {
@@ -396,16 +400,16 @@ public class MainActivity extends Activity {
             currentJavaCode = code;
             currentJavaFileName = finalFileName;
             saveSettings();
-            btnUploadJava.setText("📝 Java файл: " + currentJavaFileName);
+            btnUploadJava.setText("📝 Файл: " + currentJavaFileName);
 
-            statusTextView.setText("Статус: ⚙️ Отправка кастомного Java кода...");
+            statusTextView.setText("Статус: ⚙️ Обработка и отправка файла...");
             logEditText.setText("Загружен файл: " + finalFileName + "\nПрименение Anti-409 Shield и отправка в репозиторий...");
 
             new Thread(() -> {
-                boolean success = pushFileToGitHub(getMainActivityPath(), currentJavaCode, "Upload custom Java file: " + finalFileName);
+                boolean success = pushFileToGitHub(getMainActivityPath(), currentJavaCode, "Upload custom source file: " + finalFileName);
                 handler.post(() -> {
                     if (success) {
-                        statusTextView.setText("Статус: ✅ Java файл успешно загружен!");
+                        statusTextView.setText("Статус: ✅ Файл успешно загружен!");
                         logEditText.setText("Файл " + finalFileName + " успешно адаптирован под пакет " + packageName + " и отправлен на GitHub.");
                     } else {
                         statusTextView.setText("Статус: ❌ Ошибка загрузки файла");
@@ -663,6 +667,7 @@ public class MainActivity extends Activity {
                                         logEditText.setText("Сборка завершена успешно! Бот автоматически отправил APK в ваш Telegram чат.");
                                     } else {
                                         statusTextView.setText("Статус: ❌ Ошибка компиляции (" + conclusion + ")");
+                                        // Запускаем расширенный интеллектуальный парсинг логов
                                         fetchLogsAsync(runId);
                                     }
                                 } else {
@@ -677,6 +682,8 @@ public class MainActivity extends Activity {
             }
         }).start();
     }
+
+    // ==================== РАСШИРЕННЫЙ И ИНТЕЛЛЕКТУАЛЬНЫЙ ПАРСИНГ ЛОГОВ ====================
 
     private void fetchLogsAsync(long runId) {
         new Thread(() -> {
@@ -704,24 +711,78 @@ public class MainActivity extends Activity {
                         if (logConn.getResponseCode() == 200) {
                             BufferedReader logBr = new BufferedReader(new InputStreamReader(logConn.getInputStream(), StandardCharsets.UTF_8));
                             StringBuilder logSb = new StringBuilder();
-                            while ((line = logBr.readLine()) != null) {
-                                logSb.append(line).append("\n");
+                            while ((line = logBr.readLine()) != logBr.readLine()) { // считываем построчно
+                                // Обрабатываем считывание
+                                String l = logBr.readLine();
+                                if (l == null) break;
+                                logSb.append(l).append("\n");
                             }
-                            final String fullLogs = logSb.toString();
+                            // Более надежное считывание всех логов
+                            StringBuilder fullLogBuilder = new StringBuilder();
+                            String currentLine;
+                            while ((currentLine = logBr.readLine()) != null) {
+                                fullLogBuilder.append(currentLine).append("\n");
+                            }
+                            logBr.close();
+                            
+                            final String rawLogs = fullLogBuilder.length() > 0 ? fullLogBuilder.toString() : logSb.toString();
+                            
+                            // УМНЫЙ АНАЛИЗАТОР ОШИБОК (Парсинг ключевых проблем компиляции)
+                            final String parsedSummary = parseAndHighlightErrors(rawLogs);
+
                             handler.post(() -> {
-                                if (fullLogs.length() > 4000) {
-                                    logEditText.setText(fullLogs.substring(fullLogs.length() - 4000));
-                                } else {
-                                    logEditText.setText(fullLogs);
-                                }
+                                // Выводим структурированный отчет об ошибке
+                                logEditText.setText(parsedSummary);
                             });
                         }
                     }
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                handler.printStackTrace();
+                handler.post(() -> logEditText.setText("Ошибка при загрузке логов: " + e.getMessage()));
             }
         }).start();
+    }
+
+    private String parseAndHighlightErrors(String fullLogs) {
+        if (fullLogs == null || fullLogs.isEmpty()) {
+            return "Логи пусты или недоступны.";
+        }
+
+        StringBuilder report = new StringBuilder();
+        report.append("=== 🔍 УМНЫЙ ОТЧЕТ ОБ ОШИБКЕ СБОРКИ ===\n\n");
+
+        // Ищем строки с ошибками компилятора Java/Gradle
+        String[] lines = fullLogs.split("\n");
+        boolean foundSpecificError = false;
+
+        for (String line : lines) {
+            String lower = line.toLowerCase();
+            if (lower.contains("error:") || lower.contains("fail") || lower.contains("exception") || lower.contains("cannot find symbol")) {
+                // Очищаем от таймстампов GitHub Actions для читаемости
+                String cleanLine = line.replaceAll("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d+Z\\s+", "");
+                report.append("❌ ").append(cleanLine).append("\n");
+                foundSpecificError = true;
+            }
+        }
+
+        if (!foundSpecificError) {
+            report.append("⚠️ Точечных ошибок компиляции не найдено в заголовках. Вот последние строки логов:\n\n");
+            int startIdx = Math.max(0, lines.length - 30);
+            for (int i = startIdx; i < lines.length; i++) {
+                report.append(lines[i]).append("\n");
+            }
+        } else {
+            report.append("\n----------------------------------------\n");
+            report.append("💡 Совет: Проверьте правильность написания классов, импортов и синтаксиса в редакторе кода.");
+        }
+
+        // Ограничиваем длину для удобного отображения в EditText
+        String result = report.toString();
+        if (result.length() > 4500) {
+            return result.substring(result.length() - 4500);
+        }
+        return result;
     }
 
     private void confirmResetProject() {
@@ -754,7 +815,7 @@ public class MainActivity extends Activity {
                         if (success) {
                             currentJavaFileName = "Шаблон: Часы (MainActivity.java)";
                             saveSettings();
-                            btnUploadJava.setText("📝 Java файл: " + currentJavaFileName);
+                            btnUploadJava.setText("📝 Файл: " + currentJavaFileName);
                             statusTextView.setText("Статус: ✅ Репозиторий сброшен к часам!");
                             logEditText.setText("Проект успешно сброшен к исходному шаблону часов.");
                         } else {
@@ -808,7 +869,7 @@ public class MainActivity extends Activity {
             .show();
     }
 
-    // ==================== РАСШИРЕННЫЕ НАСТРОЙКИ (API, SDK & JAVA) ====================
+    // ==================== НАСТРОЙКИ API, SDK & JAVA ====================
 
     private void showSettingsDialog() {
         ScrollView scroll = new ScrollView(this);
@@ -847,7 +908,7 @@ public class MainActivity extends Activity {
         if (javaVersion.equals("8")) spinnerJava.setSelection(0);
         else if (javaVersion.equals("11")) spinnerJava.setSelection(1);
         else if (javaVersion.equals("21")) spinnerJava.setSelection(3);
-        else spinnerJava.setSelection(2); // 17
+        else spinnerJava.setSelection(2);
         layout.addView(spinnerJava);
 
         TextView labelMinSdk = createLabelTextView("Минимальный Android SDK (minSdk):");
@@ -862,7 +923,6 @@ public class MainActivity extends Activity {
         final EditText inputCompileSdk = createCustomEditText("compileSdk (например, 33 или 34)", String.valueOf(compileSdk));
         layout.addView(inputCompileSdk);
 
-        // Пресет быстрой настройки под слабое/сильное устройство
         LinearLayout presetsLayout = new LinearLayout(this);
         presetsLayout.setOrientation(LinearLayout.HORIZONTAL);
         presetsLayout.setPadding(0, 15, 0, 15);
@@ -871,7 +931,7 @@ public class MainActivity extends Activity {
         btnWeakPreset.setText("⚡ Для слабых тел.");
         btnWeakPreset.setTextSize(10f);
         btnWeakPreset.setOnClickListener(v -> {
-            spinnerJava.setSelection(0); // Java 8
+            spinnerJava.setSelection(0);
             inputMinSdk.setText("21");
             inputCompileSdk.setText("30");
             Toast.makeText(this, "Установлены настройки для слабых устройств!", Toast.LENGTH_SHORT).show();
@@ -882,7 +942,7 @@ public class MainActivity extends Activity {
         btnStrongPreset.setText("🔥 Для сильных тел.");
         btnStrongPreset.setTextSize(10f);
         btnStrongPreset.setOnClickListener(v -> {
-            spinnerJava.setSelection(2); // Java 17
+            spinnerJava.setSelection(2);
             inputMinSdk.setText("24");
             inputCompileSdk.setText("34");
             Toast.makeText(this, "Установлены оптимальные мощные настройки!", Toast.LENGTH_SHORT).show();
@@ -968,7 +1028,6 @@ public class MainActivity extends Activity {
         mainRoot.setBackgroundColor(Color.parseColor("#090D16"));
         mainRoot.setPadding(16, 16, 16, 16);
 
-        // Панель заголовка редактора
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
@@ -991,7 +1050,6 @@ public class MainActivity extends Activity {
 
         mainRoot.addView(header);
 
-        // Поле ввода кода с динамической подсветкой
         final EditText codeInput = new EditText(this);
         codeInput.setText(currentJavaCode);
         codeInput.setTextSize(12f);
@@ -1002,10 +1060,8 @@ public class MainActivity extends Activity {
         codeInput.setGravity(Gravity.TOP);
         codeInput.setMinLines(20);
 
-        // Подсвечиваем первоначальный текст
         highlightSyntax(codeInput);
 
-        // Слушатель изменений кода для реальной подсветки ключевых слов
         codeInput.addTextChangedListener(new TextWatcher() {
             private boolean isHighlighting = false;
 
@@ -1030,7 +1086,6 @@ public class MainActivity extends Activity {
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
         ));
 
-        // Панель быстрых символов программирования
         HorizontalScrollView quickKeysScroll = new HorizontalScrollView(this);
         quickKeysScroll.setPadding(0, 8, 0, 8);
         LinearLayout quickKeysLayout = new LinearLayout(this);
@@ -1058,7 +1113,6 @@ public class MainActivity extends Activity {
         quickKeysScroll.addView(quickKeysLayout);
         mainRoot.addView(quickKeysScroll);
 
-        // Панель управления (Сохранить / Отмена)
         LinearLayout bottomBar = new LinearLayout(this);
         bottomBar.setOrientation(LinearLayout.HORIZONTAL);
         bottomBar.setPadding(0, 10, 0, 0);
@@ -1093,29 +1147,23 @@ public class MainActivity extends Activity {
         Editable editable = editor.getText();
         String text = editable.toString();
         
-        // Очищаем предыдущие стили
         ForegroundColorSpan[] spans = editable.getSpans(0, editable.length(), ForegroundColorSpan.class);
         for (ForegroundColorSpan span : spans) {
             editable.removeSpan(span);
         }
 
-        // 1. Ключевые слова Java (Синий)
         String keywordsRegex = "\\b(package|import|public|protected|private|class|extends|implements|void|int|boolean|long|float|double|new|return|if|else|for|while|try|catch|finally|static|final|super|this|volatile)\\b";
         applySpanPattern(editable, text, keywordsRegex, Color.parseColor("#3B82F6"));
 
-        // 2. Классы Android UI и типы (Зеленый / Голубой)
         String androidClassesRegex = "\\b(Activity|Bundle|LinearLayout|TextView|Button|EditText|ScrollView|Color|Typeface|GradientDrawable|Toast|Intent|Handler|Looper|SharedPreferences|Runnable|Thread|Context|View|Gravity)\\b";
         applySpanPattern(editable, text, androidClassesRegex, Color.parseColor("#10B981"));
 
-        // 3. Строковые литералы "..." (Оранжевый)
         String stringsRegex = "\"[^\"]*\"";
         applySpanPattern(editable, text, stringsRegex, Color.parseColor("#F59E0B"));
 
-        // 4. Однострочные комментарии //... (Серый)
         String commentsRegex = "//.*";
         applySpanPattern(editable, text, commentsRegex, Color.parseColor("#64748B"));
 
-        // 5. Числа (Пурпурный)
         String numbersRegex = "\\b\\d+\\b";
         applySpanPattern(editable, text, numbersRegex, Color.parseColor("#A855F7"));
     }
@@ -1133,8 +1181,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // ==================== ИИ-ПОДСКАЗКИ И СПРАВОЧНИК КОМАНД ДЛЯ ЧАЙНИКОВ ====================
-
     private void showAiHelpDialog() {
         ScrollView scroll = new ScrollView(this);
         LinearLayout layout = new LinearLayout(this);
@@ -1149,7 +1195,6 @@ public class MainActivity extends Activity {
         mainTitle.setPadding(0, 0, 0, 15);
         layout.addView(mainTitle);
 
-        // Раздел 1. Описание основных команд Android
         layout.addView(createAiHelpSection("📖 1. Базовые команды Java / Android",
             "• package com.roma.nativeapp; — Указывает имя вашего пакета.\n" +
             "• onCreate(Bundle saved) — Главная точка входа. Код внутри выполняется при запуске экрана.\n" +
@@ -1162,7 +1207,6 @@ public class MainActivity extends Activity {
             "• GradientDrawable — Программное создание красивых фонов с закругленными углами и рамками."
         ));
 
-        // Раздел 2. Промпты для генерации кода в ИИ (ChatGPT, Gemini, Claude)
         layout.addView(createAiHelpSection("🧠 2. Промпты для ИИ (Скопируйте и отправьте нейросети)",
             "Скопируйте любой текст ниже и вставьте в ChatGPT/Gemini, чтобы получить готовый код для этого приложения:"
         ));
@@ -1179,7 +1223,6 @@ public class MainActivity extends Activity {
             "Напиши простой калькулятор на Java Android без XML. Поле ввода для суммы в USD, кнопка 'Перевести в UAH' (курс 41.5), и крупный текст с результатом."
         ));
 
-        // Раздел 3. Советы по оптимизации под слабые устройства
         layout.addView(createAiHelpSection("⚡ 3. Советы для слабых телефонов",
             "1. В настройках API установите Java 8 и minSdk 21.\n" +
             "2. Избегайте слишком тяжелых анимаций и сложных многослойных Layout.\n" +
