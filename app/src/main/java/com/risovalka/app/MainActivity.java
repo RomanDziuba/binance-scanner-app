@@ -1,463 +1,790 @@
 package com.risovalka.app;
 
+import android.Manifest;
 import android.app.Activity;
-import android.content.Context;
+import android.content.ContentValues;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.*;
-import android.graphics.drawable.GradientDrawable;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
-import android.hardware.camera2.CameraAccessException;
-import android.hardware.camera2.CameraManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
-import android.view.Gravity;
-import android.view.View;
-import android.view.animation.Animation;
-import android.view.animation.RotateAnimation;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.view.*;
 import android.widget.*;
 
-public class MainActivity extends Activity implements SensorEventListener {
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Stack;
 
-    private SensorManager sensorManager;
-    private Sensor accelerometer;
-    private Sensor magnetometer;
-    
-    private float[] lastAccelerometer = new float[3];
-    private float[] lastMagnetometer = new float[3];
-    private boolean lastAccelerometerSet = false;
-    private boolean lastMagnetometerSet = false;
-    private float currentDegree = 0f;
+public class MainActivity extends Activity {
 
-    private ImageView compassDialView;
-    private TextView degreeTextView;
-    private TextView directionTextView;
-    private Button btnFlash;
-    
-    private boolean flashOn = false;
-    private CameraManager cameraManager;
-    private String cameraId;
+    private static final int REQUEST_CODE_PERMISSIONS = 100;
+    private static final int REQUEST_CODE_OPEN_IMAGE = 101;
+
+    // Внутреннее разрешение холста
+    private static final int CANVAS_W = 800;
+    private static final int CANVAS_H = 600;
+
+    // Модель слоя
+    public static class Layer {
+        public Bitmap bitmap;
+        public Canvas canvas;
+        public boolean visible = true;
+
+        public Layer(int w, int h) {
+            bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+            canvas = new Canvas(bitmap);
+            canvas.drawColor(Color.TRANSPARENT);
+        }
+    }
+
+    private List<Layer> layers = new ArrayList<>();
+    private int activeLayerIndex = 0;
+
+    private String currentTool = "brush";
+    private int brushColor = Color.BLACK;
+    private int brushSize = 5;
+    private int brushOpacity = 255; // 0 - 255
+
+    private boolean isSymmetry = false;
+    private boolean isStabilized = false;
+
+    private PaintView paintView;
+    private LinearLayout layersListLayout;
+    private TextView sizeValText, opacValText;
+
+    // История для Undo / Redo (храним снимки слоев в памяти)
+    private static class HistoryState {
+        List<Bitmap> bitmaps;
+        int activeIndex;
+    }
+    private Stack<HistoryState> undoStack = new Stack<>();
+    private Stack<HistoryState> redoStack = new Stack<>();
+    private Button btnUndo, btnRedo;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        requestPermissionsIfNeeded();
 
-        // Инициализация датчиков
-        sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-        if (sensorManager != null) {
-            accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-            magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
-        }
-
-        // Инициализация менеджера фонарика
-        cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-        try {
-            if (cameraManager != null && cameraManager.getCameraIdList().length > 0) {
-                cameraId = cameraManager.getCameraIdList()[0];
-            }
-        } catch (Exception ignored) {}
-
-        // Главный фон — глубокий ретро-стиль
+        // Главный контейнер (Темная тема в стиле редактора)
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
-        rootLayout.setGravity(Gravity.CENTER);
-        rootLayout.setBackgroundColor(Color.parseColor("#0A0908"));
-        rootLayout.setPadding(20, 20, 20, 20);
+        rootLayout.setBackgroundColor(Color.parseColor("#1e1e1e"));
+        rootLayout.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        // Верхний заголовок
-        TextView titleTop = new TextView(this);
-        titleTop.setText("ANTIQUE CHRONOMETER");
-        titleTop.setTextColor(Color.parseColor("#92704E"));
-        titleTop.setTextSize(14f);
-        titleTop.setTypeface(Typeface.MONOSPACE);
-        titleTop.setGravity(Gravity.CENTER);
-        titleTop.setPadding(0, 0, 0, 10);
+        // ==================== ВЕРХНЯЯ ПАНЕЛЬ ====================
+        HorizontalScrollView topBarScroll = new HorizontalScrollView(this);
+        topBarScroll.setBackgroundColor(Color.parseColor("#2d2d2d"));
+        LinearLayout topBar = new LinearLayout(this);
+        topBar.setOrientation(LinearLayout.HORIZONTAL);
+        topBar.setPadding(10, 10, 10, 10);
+        topBar.setGravity(Gravity.CENTER_VERTICAL);
+        topBarScroll.addView(topBar);
 
-        // Текстовое поле градусов
-        degreeTextView = new TextView(this);
-        degreeTextView.setText("0°");
-        degreeTextView.setTextColor(Color.parseColor("#D4AF37"));
-        degreeTextView.setTextSize(38f);
-        degreeTextView.setTypeface(Typeface.DEFAULT_BOLD);
-        degreeTextView.setGravity(Gravity.CENTER);
+        // Выбор цвета
+        final ColorPickerButton colorPicker = new ColorPickerButton(this);
+        topBar.addView(colorPicker);
 
-        // Направление (Север, Юг...)
-        directionTextView = new TextView(this);
-        directionTextView.setText("СЕВЕР");
-        directionTextView.setTextColor(Color.parseColor("#8DA4C4"));
-        directionTextView.setTextSize(16f);
-        directionTextView.setTypeface(Typeface.MONOSPACE);
-        directionTextView.setGravity(Gravity.CENTER);
-        directionTextView.setPadding(0, 0, 0, 15);
-
-        // === ВИНТАЖНЫЙ КОМПАС КАК НА СКРИНШОТЕ ===
-        FrameLayout compassContainer = new FrameLayout(this);
-        int compassSize = 880; // Большой размер
-        FrameLayout.LayoutParams compParams = new FrameLayout.LayoutParams(compassSize, compassSize);
-        compParams.gravity = Gravity.CENTER;
-        compassContainer.setLayoutParams(compParams);
-
-        // Циферблат в старинном стиле
-        Bitmap dialBitmap = createVintageCompassDialBitmap(compassSize);
-        ImageView dialImageView = new ImageView(this);
-        dialImageView.setImageBitmap(dialBitmap);
-        dialImageView.setLayoutParams(new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-
-        // Вращающаяся черная старинная стрелка
-        Bitmap needleBitmap = createVintageNeedleBitmap(compassSize);
-        compassDialView = new ImageView(this);
-        compassDialView.setImageBitmap(needleBitmap);
-        compassDialView.setLayoutParams(new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-
-        compassContainer.addView(dialImageView);
-        compassContainer.addView(compassDialView);
-
-        // Кнопка Фонарика
-        btnFlash = new Button(this);
-        btnFlash.setText("🔦 ФОНАРИК");
-        btnFlash.setTextColor(Color.WHITE);
-        btnFlash.setTextSize(16f);
-        btnFlash.setTypeface(Typeface.DEFAULT_BOLD);
-        
-        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 130);
-        btnParams.setMargins(40, 25, 40, 10);
-        btnFlash.setLayoutParams(btnParams);
-        
-        updateFlashButtonUI(false);
-
-        btnFlash.setOnClickListener(new View.OnClickListener() {
+        // Размер кисти
+        LinearLayout sizeGroup = createControlGroup("Размер:", sizeValText = new TextView(this), 1, 100, 5, new OnProgressChanged() {
             @Override
-            public void onClick(View v) {
-                toggleFlashlight();
+            public void onProgress(int val) {
+                brushSize = val;
+                sizeValText.setText(String.valueOf(val));
             }
         });
+        topBar.addView(sizeGroup);
 
-        // Сборка экрана
-        rootLayout.addView(titleTop);
-        rootLayout.addView(degreeTextView);
-        rootLayout.addView(directionTextView);
-        rootLayout.addView(compassContainer);
-        rootLayout.addView(btnFlash);
+        // Прозрачность
+        LinearLayout opacGroup = createControlGroup("Прозр.%:", opacValText = new TextView(this), 1, 100, 100, new OnProgressChanged() {
+            @Override
+            public void onProgress(int val) {
+                brushOpacity = (int) (val * 255.0 / 100.0);
+                opacValText.setText(String.valueOf(val));
+            }
+        });
+        topBar.addView(opacGroup);
+
+        // Чекбокс Симметрия
+        CheckBox symCheck = new CheckBox(this);
+        symCheck.setText("🪞 Симметрия");
+        symCheck.setTextColor(Color.WHITE);
+        symCheck.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            isSymmetry = isChecked;
+            paintView.invalidate();
+        });
+        topBar.addView(symCheck);
+
+        // Чекбокс Стабилизация
+        CheckBox stabCheck = new CheckBox(this);
+        stabCheck.setText("📈 Стаб.");
+        stabCheck.setTextColor(Color.WHITE);
+        stabCheck.setOnCheckedChangeListener((buttonView, isChecked) -> isStabilized = isChecked);
+        topBar.addView(stabCheck);
+
+        // Кнопки Undo / Redo
+        btnUndo = createButton("↩", v -> undo());
+        btnRedo = createButton("↪", v -> redo());
+        btnUndo.setEnabled(false);
+        btnRedo.setEnabled(false);
+        topBar.addView(btnUndo);
+        topBar.addView(btnRedo);
+
+        // Кнопки Открыть / Сохранить
+        Button btnOpen = createButton("📂 Открыть", v -> openImageFromGallery());
+        Button btnSave = createButton("💾 Сохранить", v -> saveArtworkToPhone());
+        topBar.addView(btnOpen);
+        topBar.addView(btnSave);
+
+        rootLayout.addView(topBarScroll);
+
+        // ==================== ОСНОВНАЯ РАБОЧАЯ ОБЛАСТЬ ====================
+        LinearLayout mainArea = new LinearLayout(this);
+        mainArea.setOrientation(LinearLayout.HORIZONTAL);
+        mainArea.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f));
+
+        // 1. Левая панель инструментов
+        ScrollView toolsScroll = new ScrollView(this);
+        toolsScroll.setBackgroundColor(Color.parseColor("#2d2d2d"));
+        LinearLayout toolsPanel = new LinearLayout(this);
+        toolsPanel.setOrientation(LinearLayout.VERTICAL);
+        toolsPanel.setPadding(8, 8, 8, 8);
+        toolsScroll.addView(toolsPanel);
+
+        String[][] toolsData = {
+            {"brush", "🖌️", "Кисть"},
+            {"eraser", "🧽", "Ластик"},
+            {"bucket", "🪣", "Заливка"},
+            {"circle", "⭕", "Точный круг"},
+            {"airbrush", "💨", "Пульверизатор"},
+            {"marker", "🖊️", "Маркер"},
+            {"calligraphy", "✒️", "Каллиграфия"},
+            {"pencil", "✏️", "Карандаш"},
+            {"highlighter", "🖍️", "Выделитель"},
+            {"dotted", "➖", "Пунктир"},
+            {"neon", "🌟", "Неон"},
+            {"pixel", "🧊", "Пиксель"}
+        };
+
+        final List<Button> toolButtons = new ArrayList<>();
+        for (String[] t : toolsData) {
+            final Button tBtn = new Button(this);
+            tBtn.setText(t[1]);
+            tBtn.setTag(t[0]);
+            tBtn.setOnClickListener(v -> {
+                for (Button b : toolButtons) b.setBackgroundColor(Color.parseColor("#444444"));
+                tBtn.setBackgroundColor(Color.parseColor("#5865F2"));
+                currentTool = (String) v.getTag();
+                if (currentTool.equals("highlighter")) {
+                    colorPicker.setColor(Color.YELLOW);
+                }
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(110, 110);
+            lp.setMargins(0, 4, 0, 4);
+            tBtn.setLayoutParams(lp);
+            toolsPanel.addView(tBtn);
+            toolButtons.add(tBtn);
+            if (t[0].equals("brush")) tBtn.setBackgroundColor(Color.parseColor("#5865F2"));
+        }
+        mainArea.addView(toolsScroll);
+
+        // 2. Центр: Холст
+        FrameLayout workspace = new FrameLayout(this);
+        workspace.setBackgroundColor(Color.parseColor("#252525"));
+        LinearLayout.LayoutParams wsParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1.0f);
+        workspace.setLayoutParams(wsParams);
+
+        paintView = new PaintView(this);
+        workspace.addView(paintView);
+        mainArea.addView(workspace);
+
+        // 3. Правая панель слоев
+        LinearLayout layersPanel = new LinearLayout(this);
+        layersPanel.setOrientation(LinearLayout.VERTICAL);
+        layersPanel.setBackgroundColor(Color.parseColor("#2d2d2d"));
+        layersPanel.setLayoutParams(new LinearLayout.LayoutParams(260, LinearLayout.LayoutParams.MATCH_PARENT));
+
+        // Шапка слоев
+        LinearLayout layersHeader = new LinearLayout(this);
+        layersHeader.setOrientation(LinearLayout.HORIZONTAL);
+        layersHeader.setPadding(10, 10, 10, 10);
+        layersHeader.setGravity(Gravity.CENTER_VERTICAL);
+        
+        TextView layersTitle = new TextView(this);
+        layersTitle.setText("Слои");
+        layersTitle.setTextColor(Color.WHITE);
+        layersTitle.setTextSize(16f);
+        layersTitle.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        layersHeader.addView(layersTitle);
+
+        Button btnAddLayer = createButton("+ Слой", v -> {
+            saveStateToUndo();
+            layers.add(new Layer(CANVAS_W, CANVAS_H));
+            activeLayerIndex = layers.size() - 1;
+            renderLayersUI();
+            paintView.invalidate();
+        });
+        layersHeader.addView(btnAddLayer);
+        layersPanel.addView(layersHeader);
+
+        // Список слоев
+        ScrollView layersScroll = new ScrollView(this);
+        layersListLayout = new LinearLayout(this);
+        layersListLayout.setOrientation(LinearLayout.VERTICAL);
+        layersListLayout.setPadding(8, 8, 8, 8);
+        layersScroll.addView(layersListLayout);
+        layersPanel.addView(layersScroll);
+
+        // Кнопки очистки/удаления слоя
+        LinearLayout layerActions = new LinearLayout(this);
+        layerActions.setOrientation(LinearLayout.HORIZONTAL);
+        layerActions.setPadding(8, 8, 8, 8);
+        
+        Button btnClearLayer = createButton("🧹 Очистить", v -> {
+            if (!layers.isEmpty()) {
+                saveStateToUndo();
+                layers.get(activeLayerIndex).canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+                paintView.invalidate();
+            }
+        });
+        Button btnDelLayer = createButton("🗑️", v -> {
+            if (layers.size() > 1) {
+                saveStateToUndo();
+                layers.remove(activeLayerIndex);
+                if (activeLayerIndex >= layers.size()) activeLayerIndex = layers.size() - 1;
+                renderLayersUI();
+                paintView.invalidate();
+            } else {
+                layers.get(0).canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+                paintView.invalidate();
+            }
+        });
+        layerActions.addView(btnClearLayer);
+        layerActions.addView(btnDelLayer);
+        layersPanel.addView(layerActions);
+
+        mainArea.addView(layersPanel);
+        rootLayout.addView(mainArea);
 
         setContentView(rootLayout);
+
+        // Создаем первый стартовый слой
+        layers.add(new Layer(CANVAS_W, CANVAS_H));
+        renderLayersUI();
     }
 
-    // Рисуем винтажный циферблат точь-в-точь как на фото + гравировка ДРВ прописью
-    private Bitmap createVintageCompassDialBitmap(int size) {
-        Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bitmap);
-        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    // ==================== КАСТОМНЫЙ ВИД РИСОВАНИЯ ====================
+    private class PaintView extends View {
+        private float lastX, lastY, startX, startY;
+        private float smoothX, smoothY;
+        private boolean isDrawing = false;
+        private Bitmap previewBitmap;
+        private Canvas previewCanvas;
 
-        int cx = size / 2;
-        int cy = size / 2;
-        int radius = size / 2 - 25;
-
-        // 1. Металлический состаренный бронзовый ободок
-        paint.setStyle(Paint.Style.FILL);
-        paint.setColor(Color.parseColor("#2A1E14"));
-        canvas.drawCircle(cx, cy, radius, paint);
-
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(14);
-        paint.setColor(Color.parseColor("#7A522C"));
-        canvas.drawCircle(cx, cy, radius - 7, paint);
-
-        // Зубчики по ободку (как на оригинале)
-        paint.setStrokeWidth(3);
-        paint.setColor(Color.parseColor("#4A321A"));
-        for (int i = 0; i < 360; i += 3) {
-            float angle = (float) Math.toRadians(i);
-            float innerR = radius - 16;
-            float outerR = radius - 2;
-            canvas.drawLine(
-                cx + (float)(innerR * Math.sin(angle)), cy - (float)(innerR * Math.cos(angle)),
-                cx + (float)(outerR * Math.sin(angle)), cy - (float)(outerR * Math.cos(angle)), paint
-            );
+        public PaintView(android.content.Context context) {
+            super(context);
+            previewBitmap = Bitmap.createBitmap(CANVAS_W, CANVAS_H, Bitmap.Config.ARGB_8888);
+            previewCanvas = new Canvas(previewBitmap);
         }
 
-        // 2. Внутреннее пергаментное поле циферблата (кремовый/слоновая кость)
-        int innerRadius = radius - 22;
-        paint.setStyle(Paint.Style.FILL);
-        paint.setColor(Color.parseColor("#F4EEDC"));
-        canvas.drawCircle(cx, cy, innerRadius, paint);
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            
+            // Масштабирование под экран с сохранением пропорций 4:3
+            float scaleX = (float) getWidth() / CANVAS_W;
+            float scaleY = (float) getHeight() / CANVAS_H;
+            float scale = Math.min(scaleX, scaleY);
+            
+            float offsetX = (getWidth() - CANVAS_W * scale) / 2f;
+            float offsetY = (getHeight() - CANVAS_H * scale) / 2f;
 
-        // Тонкие черные кольца внутри
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(2);
-        paint.setColor(Color.parseColor("#2C221E"));
-        canvas.drawCircle(cx, cy, innerRadius, paint);
-        canvas.drawCircle(cx, cy, innerRadius - 35, paint);
-        canvas.drawCircle(cx, cy, innerRadius - 130, paint);
+            canvas.save();
+            canvas.translate(offsetX, offsetY);
+            canvas.scale(scale, scale);
 
-        // 3. Градусная шкала и цифры (0, 20, 40... 340)
-        paint.setTextSize(26);
-        paint.setTypeface(Typeface.create("serif", Typeface.BOLD));
-        paint.setColor(Color.parseColor("#2C221E"));
-        paint.setTextAlign(Paint.Align.CENTER);
+            // Шахматный фон холста
+            Paint bgPaint = new Paint();
+            bgPaint.setColor(Color.WHITE);
+            canvas.drawRect(0, 0, CANVAS_W, CANVAS_H, bgPaint);
 
-        for (int i = 0; i < 360; i += 10) {
-            float angle = (float) Math.toRadians(i);
-            float tickInner = (i % 20 == 0) ? innerRadius - 22 : innerRadius - 12;
-            float tickOuter = innerRadius - 4;
+            // Отрисовка всех видимых слоев
+            for (Layer layer : layers) {
+                if (layer.visible) {
+                    canvas.drawBitmap(layer.bitmap, 0, 0, null);
+                }
+            }
 
-            canvas.drawLine(
-                cx + (float)(tickInner * Math.sin(angle)), cy - (float)(tickInner * Math.cos(angle)),
-                cx + (float)(tickOuter * Math.sin(angle)), cy - (float)(tickOuter * Math.cos(angle)), paint
-            );
+            // Отрисовка временного слоя предпросмотра (например, при рисовании круга)
+            canvas.drawBitmap(previewBitmap, 0, 0, null);
 
-            // Цифры градусов каждые 20 градусов
-            if (i > 0 && i % 20 == 0) {
-                float textR = innerRadius - 55;
-                float tx = cx + (float)(textR * Math.sin(angle));
-                float ty = cy - (float)(textR * Math.cos(angle));
-                
-                canvas.save();
-                canvas.translate(tx, ty);
-                canvas.rotate(i);
-                canvas.drawText(String.valueOf(i), 0, 8, paint);
-                canvas.restore();
+            canvas.restore();
+
+            // Линия симметрии
+            if (isSymmetry) {
+                Paint linePaint = new Paint();
+                linePaint.setColor(Color.RED);
+                linePaint.setStrokeWidth(2f);
+                linePaint.setStyle(Paint.Style.STROKE);
+                float symScreenX = offsetX + (CANVAS_W / 2f) * scale;
+                canvas.drawLine(symScreenX, offsetY, symScreenX, offsetY + CANVAS_H * scale, linePaint);
             }
         }
 
-        // 4. Сложная винтажная многолучевая звезда (Компасная роза)
-        drawVintageCompassRose(canvas, cx, cy, innerRadius - 135);
-
-        // 5. Буквы сторон света (N, E, S, W, N.E, N.W, S.E, S.W)
-        paint.setTextSize(42);
-        paint.setTypeface(Typeface.create("serif", Typeface.BOLD_ITALIC));
-        paint.setColor(Color.parseColor("#1A1412"));
-
-        // Север сверху
-        canvas.drawText("N", cx, cy - innerRadius + 95, paint);
-        // Восток справа
-        canvas.drawText("E", cx + innerRadius - 70, cy + 14, paint);
-        // Юг снизу
-        canvas.drawText("S", cx, cy + innerRadius - 55, paint);
-        // Запад слева
-        canvas.drawText("W", cx - innerRadius + 70, cy + 14, paint);
-
-        // Промежуточные (N.E, N.W, S.E, S.W)
-        paint.setTextSize(24);
-        paint.setTypeface(Typeface.create("serif", Typeface.ITALIC));
-        canvas.drawText("N.E", cx + 180, cy - 180, paint);
-        canvas.drawText("N.W", cx - 180, cy - 180, paint);
-        canvas.drawText("S.E", cx + 180, cy + 200, paint);
-        canvas.drawText("S.W", cx - 180, cy + 200, paint);
-
-        // 6. ИЗЯЩНАЯ ПРОПИСНАЯ ГРАВИРОВКА «Д Р В» ПОД СТАРИНУ ВНУТРИ КОМПАСА
-        paint.setTextSize(36);
-        paint.setTypeface(Typeface.create("serif", Typeface.BOLD_ITALIC));
-        paint.setColor(Color.parseColor("#8C6239")); // Благородный бронзово-золотой оттенок
-        canvas.drawText("Д · Р · В", cx, cy + 75, paint);
-
-        return bitmap;
-    }
-
-    // Отрисовка старинного узора звезды компаса
-    private void drawVintageCompassRose(Canvas canvas, int cx, int cy, int maxR) {
-        Paint starPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        starPaint.setStyle(Paint.Style.FILL);
-
-        // Рисуем лучи звезды
-        for (int i = 0; i < 8; i++) {
-            float angle = (float) Math.toRadians(i * 45);
-            Path rayPath = new Path();
+        private float[] getCanvasCoords(float screenX, float screenY) {
+            float scaleX = (float) getWidth() / CANVAS_W;
+            float scaleY = (float) getHeight() / CANVAS_H;
+            float scale = Math.min(scaleX, scaleY);
             
-            float length = (i % 2 == 0) ? maxR : maxR * 0.7f;
-            float width = (i % 2 == 0) ? 18f : 10f;
+            float offsetX = (getWidth() - CANVAS_W * scale) / 2f;
+            float offsetY = (getHeight() - CANVAS_H * scale) / 2f;
 
-            float tipX = cx + (float)(length * Math.sin(angle));
-            float tipY = cy - (float)(length * Math.cos(angle));
-
-            float leftX = cx + (float)(width * Math.cos(angle));
-            float leftY = cy + (float)(width * Math.sin(angle));
-            
-            float rightX = cx - (float)(width * Math.cos(angle));
-            float rightY = cy - (float)(width * Math.sin(angle));
-
-            rayPath.moveTo(tipX, tipY);
-            rayPath.lineTo(leftX, leftY);
-            rayPath.lineTo(cx, cy);
-            rayPath.close();
-
-            starPaint.setColor(i % 2 == 0 ? Color.parseColor("#1C1613") : Color.parseColor("#6E5B4D"));
-            canvas.drawPath(rayPath, starPaint);
-
-            Path rayPath2 = new Path();
-            rayPath2.moveTo(tipX, tipY);
-            rayPath2.lineTo(rightX, rightY);
-            rayPath2.lineTo(cx, cy);
-            rayPath2.close();
-            
-            starPaint.setColor(i % 2 == 0 ? Color.parseColor("#4A3B32") : Color.parseColor("#A89584"));
-            canvas.drawPath(rayPath2, starPaint);
-        }
-    }
-
-    // Рисуем оригинальную черную старинную стрелку с буквами N и S
-    private Bitmap createVintageNeedleBitmap(int size) {
-        Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bitmap);
-        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-
-        int cx = size / 2;
-        int cy = size / 2;
-        int length = size / 2 - 105;
-
-        // Сегменты стрелки (черный антикварный металл)
-        Path northNeedle = new Path();
-        northNeedle.moveTo(cx, cy - length);
-        northNeedle.lineTo(cx - 24, cy - 40);
-        northNeedle.lineTo(cx - 10, cy);
-        northNeedle.lineTo(cx + 10, cy);
-        northNeedle.lineTo(cx + 24, cy - 40);
-        northNeedle.close();
-
-        paint.setStyle(Paint.Style.FILL);
-        paint.setColor(Color.parseColor("#1A1412"));
-        canvas.drawPath(northNeedle, paint);
-
-        Path southNeedle = new Path();
-        southNeedle.moveTo(cx, cy + length);
-        southNeedle.lineTo(cx - 24, cy + 40);
-        southNeedle.lineTo(cx - 10, cy);
-        southNeedle.lineTo(cx + 10, cy);
-        southNeedle.lineTo(cx + 24, cy + 40);
-        southNeedle.close();
-
-        paint.setColor(Color.parseColor("#2C221E"));
-        canvas.drawPath(southNeedle, paint);
-
-        // Буквы N и S на стрелке
-        paint.setTextSize(20);
-        paint.setTypeface(Typeface.create("serif", Typeface.BOLD));
-        paint.setColor(Color.parseColor("#D4AF37")); // Золотистые буквы на стрелке
-        paint.setTextAlign(Paint.Align.CENTER);
-        
-        canvas.drawText("N", cx, cy - length + 55, paint);
-        canvas.drawText("S", cx, cy + length - 40, paint);
-
-        // Центральная латунная закрепка (как на фото с винтиком)
-        paint.setStyle(Paint.Style.FILL);
-        paint.setColor(Color.parseColor("#8C6239"));
-        canvas.drawCircle(cx, cy, 22, paint);
-        paint.setColor(Color.parseColor("#D4AF37"));
-        canvas.drawCircle(cx, cy, 14, paint);
-        paint.setColor(Color.parseColor("#1A1412"));
-        canvas.drawCircle(cx, cy, 5, paint);
-
-        return bitmap;
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if (sensorManager != null) {
-            if (accelerometer != null) sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_UI);
-            if (magnetometer != null) sensorManager.registerListener(this, magnetometer, SensorManager.SENSOR_DELAY_UI);
-        }
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        if (sensorManager != null) {
-            sensorManager.unregisterListener(this);
-        }
-        turnOffFlashlight();
-    }
-
-    @Override
-    public void onSensorChanged(SensorEvent event) {
-        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-            System.arraycopy(event.values, 0, lastAccelerometer, 0, event.values.length);
-            lastAccelerometerSet = true;
-        } else if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
-            System.arraycopy(event.values, 0, lastMagnetometer, 0, event.values.length);
-            lastMagnetometerSet = true;
+            float x = (screenX - offsetX) / scale;
+            float y = (screenY - offsetY) / scale;
+            return new float[]{x, y};
         }
 
-        if (lastAccelerometerSet && lastMagnetometerSet) {
-            float[] rMatrix = new float[9];
-            float[] orientation = new float[3];
-            
-            boolean success = SensorManager.getRotationMatrix(rMatrix, null, lastAccelerometer, lastMagnetometer);
-            if (success) {
-                SensorManager.getOrientation(rMatrix, orientation);
-                float azimuthInRadians = orientation[0];
-                float azimuthInDegrees = (float) Math.toDegrees(azimuthInRadians);
-                azimuthInDegrees = (azimuthInDegrees + 360) % 360;
+        @Override
+        public boolean onTouchEvent(MotionEvent event) {
+            if (layers.isEmpty() || !layers.get(activeLayerIndex).visible) return true;
 
-                // Плавное вращение стрелки компаса
-                RotateAnimation ra = new RotateAnimation(
-                        currentDegree,
-                        -azimuthInDegrees,
-                        Animation.RELATIVE_TO_SELF, 0.5f,
-                        Animation.RELATIVE_TO_SELF, 0.5f
-                );
-                ra.setDuration(200);
-                ra.setFillAfter(true);
-                compassDialView.startAnimation(ra);
-                currentDegree = -azimuthInDegrees;
+            float[] coords = getCanvasCoords(event.getX(), event.getY());
+            float x = coords[0];
+            float y = coords[1];
 
-                int degInt = Math.round(azimuthInDegrees);
-                degreeTextView.setText(degInt + "°");
-                directionTextView.setText(getDirectionString(degInt));
+            Layer activeLayer = layers.get(activeLayerIndex);
+            Canvas canvas = activeLayer.canvas;
+
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    saveStateToUndo();
+                    isDrawing = true;
+                    startX = x; startY = y;
+                    lastX = x; lastY = y;
+                    smoothX = x; smoothY = y;
+
+                    if (currentTool.equals("bucket")) {
+                        floodFill(activeLayer.bitmap, (int)x, (int)y, brushColor);
+                        if (isSymmetry) floodFill(activeLayer.bitmap, (int)(CANVAS_W - x), (int)y, brushColor);
+                        invalidate();
+                    }
+                    break;
+
+                case MotionEvent.ACTION_MOVE:
+                    if (!isDrawing) break;
+
+                    if (isStabilized) {
+                        smoothX += (x - smoothX) * 0.2f;
+                        smoothY += (y - smoothY) * 0.2f;
+                        x = smoothX;
+                        y = smoothY;
+                    }
+
+                    if (currentTool.equals("circle")) {
+                        previewCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+                        Paint p = createToolPaint();
+                        drawShapeCircle(previewCanvas, startX, startY, x, y, p);
+                        if (isSymmetry) drawShapeCircle(previewCanvas, CANVAS_W - startX, startY, CANVAS_W - x, y, p);
+                    } else if (currentTool.equals("airbrush")) {
+                        drawAirbrush(canvas, x, y);
+                        if (isSymmetry) drawAirbrush(canvas, CANVAS_W - x, y);
+                    } else {
+                        Paint p = createToolPaint();
+                        drawToolPath(canvas, lastX, lastY, x, y, p);
+                        if (isSymmetry) drawToolPath(canvas, CANVAS_W - lastX, lastY, CANVAS_W - x, y, p);
+                    }
+
+                    lastX = x; lastY = y;
+                    invalidate();
+                    break;
+
+                case MotionEvent.ACTION_UP:
+                    if (!isDrawing) break;
+                    isDrawing = false;
+
+                    if (currentTool.equals("circle")) {
+                        previewCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+                        Paint p = createToolPaint();
+                        drawShapeCircle(canvas, startX, startY, x, y, p);
+                        if (isSymmetry) drawShapeCircle(canvas, CANVAS_W - startX, startY, CANVAS_W - x, y, p);
+                    }
+                    invalidate();
+                    break;
             }
+            return true;
         }
     }
 
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {}
+    // ==================== НАСТРОЙКА ИНСТРУМЕНТОВ ====================
+    private Paint createToolPaint() {
+        Paint p = new Paint();
+        p.setAntiAlias(true);
+        p.setStrokeWidth(brushSize);
+        p.setColor(brushColor);
+        p.setAlpha(brushOpacity);
+        p.setStrokeCap(Paint.Cap.ROUND);
+        p.setStrokeJoin(Paint.Join.ROUND);
 
-    private String getDirectionString(int deg) {
-        if (deg >= 338 || deg < 23) return "СЕВЕР (N)";
-        if (deg >= 23 && deg < 68) return "СЕВЕРО-ВОСТОК (NE)";
-        if (deg >= 68 && deg < 113) return "ВОСТОК (E)";
-        if (deg >= 113 && deg < 158) return "ЮГО-ВОСТОК (SE)";
-        if (deg >= 158 && deg < 203) return "ЮГ (S)";
-        if (deg >= 203 && deg < 248) return "ЮГО-ЗАПАД (SW)";
-        if (deg >= 248 && deg < 293) return "ЗАПАД (W)";
-        if (deg >= 293 && deg < 338) return "СЕВЕРО-ЗАПАД (NW)";
-        return "СЕВЕР (N)";
+        switch (currentTool) {
+            case "eraser":
+                p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
+                p.setAlpha(255);
+                break;
+            case "marker":
+            case "highlighter":
+                p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.MULTIPLY));
+                if (currentTool.equals("highlighter")) {
+                    p.setAlpha((int)(brushOpacity * 0.4));
+                    p.setStrokeWidth(brushSize * 2);
+                }
+                break;
+            case "pencil":
+                p.setStrokeWidth(Math.max(1, brushSize * 0.5f));
+                break;
+            case "dotted":
+                p.setPathEffect(new DashPathEffect(new float[]{brushSize * 2, brushSize * 2}, 0));
+                break;
+            case "neon":
+                p.setMaskFilter(new BlurMaskFilter(brushSize, BlurMaskFilter.Blur.NORMAL));
+                p.setColor(Color.WHITE);
+                break;
+            case "pixel":
+                p.setAntiAlias(false);
+                p.setStrokeCap(Paint.Cap.SQUARE);
+                break;
+        }
+        return p;
     }
 
-    private void toggleFlashlight() {
-        if (cameraManager == null || cameraId == null) {
-            Toast.makeText(this, "Вспышка не обнаружена на устройстве", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        try {
-            flashOn = !flashOn;
-            cameraManager.setTorchMode(cameraId, flashOn);
-            updateFlashButtonUI(flashOn);
-        } catch (CameraAccessException e) {
-            Toast.makeText(this, "Ошибка доступа к камере", Toast.LENGTH_SHORT).show();
-            flashOn = false;
-            updateFlashButtonUI(false);
-        }
-    }
-
-    private void turnOffFlashlight() {
-        if (cameraManager != null && cameraId != null && flashOn) {
-            try {
-                cameraManager.setTorchMode(cameraId, false);
-                flashOn = false;
-            } catch (Exception ignored) {}
-        }
-    }
-
-    private void updateFlashButtonUI(boolean isOn) {
-        GradientDrawable btnBg = new GradientDrawable();
-        btnBg.setCornerRadius(30f);
-        if (isOn) {
-            btnFlash.setText("🔦 ФОНАРИК ВКЛЮЧЕН");
-            btnBg.setColor(Color.parseColor("#059669")); // Зеленый
+    private void drawToolPath(Canvas canvas, float x1, float y1, float x2, float y2, Paint paint) {
+        if (currentTool.equals("calligraphy")) {
+            paint.setStyle(Paint.Style.FILL);
+            canvas.drawRect(x2 - brushSize/2f, y2 - brushSize/2f, x2 + brushSize/2f, y2 + brushSize/2f, paint);
         } else {
-            btnFlash.setText("🔦 ВКЛЮЧИТЬ ФОНАРИК");
-            btnBg.setColor(Color.parseColor("#7A522C")); // Бронзово-коричневый винтаж
+            paint.setStyle(Paint.Style.STROKE);
+            canvas.drawLine(x1, y1, x2, y2, paint);
         }
-        btnFlash.setBackground(btnBg);
+    }
+
+    private void drawShapeCircle(Canvas canvas, float x1, float y1, float x2, float y2, Paint paint) {
+        paint.setStyle(Paint.Style.STROKE);
+        float radius = (float) Math.hypot(x2 - x1, y2 - y1);
+        canvas.drawCircle(x1, y1, radius, paint);
+    }
+
+    private void drawAirbrush(Canvas canvas, float cx, float cy) {
+        Paint p = new Paint();
+        p.setColor(brushColor);
+        p.setAlpha((int)(brushOpacity * 0.3));
+        int density = brushSize * 2;
+        for (int i = 0; i < density; i++) {
+            double r = Math.random() * brushSize;
+            double angle = Math.random() * Math.PI * 2;
+            float px = (float)(cx + r * Math.cos(angle));
+            float py = (float)(cy + r * Math.sin(angle));
+            canvas.drawPoint(px, py, p);
+        }
+    }
+
+    // Алгоритм заливки (Flood Fill)
+    private void floodFill(Bitmap bmp, int x, int y, int newColor) {
+        if (x < 0 || x >= bmp.getWidth() || y < 0 || y >= bmp.getHeight()) return;
+        int targetColor = bmp.getPixel(x, y);
+        if (targetColor == newColor) return;
+
+        int w = bmp.getWidth();
+        int h = bmp.getHeight();
+        int[] pixels = new int[w * h];
+        bmp.getPixels(pixels, 0, w, 0, 0, w, h);
+
+        int target = targetColor;
+        List<Point> queue = new ArrayList<>();
+        queue.add(new Point(x, y));
+
+        while (!queue.isEmpty()) {
+            Point pt = queue.remove(queue.size() - 1);
+            int px = pt.x;
+            int py = pt.y;
+
+            if (px < 0 || px >= w || py < 0 || py >= h) continue;
+            int idx = py * w + px;
+            if (pixels[idx] != target) continue;
+
+            int lx = px;
+            while (lx >= 0 && pixels[py * w + lx] == target) lx--;
+            lx++;
+            int rx = px;
+            while (rx < w && pixels[py * w + rx] == target) rx++;
+            rx--;
+
+            for (int i = lx; i <= rx; i++) {
+                pixels[py * w + i] = newColor;
+                if (py > 0 && pixels[(py - 1) * w + i] == target) queue.add(new Point(i, py - 1));
+                if (py < h - 1 && pixels[(py + 1) * w + i] == target) queue.add(new Point(i, py + 1));
+            }
+        }
+        bmp.setPixels(pixels, 0, w, 0, 0, w, h);
+    }
+
+    // ==================== УПРАВЛЕНИЕ СЛОЯМИ UI ====================
+    private void renderLayersUI() {
+        layersListLayout.removeAllViews();
+        for (int i = layers.size() - 1; i >= 0; i--) {
+            final int index = i;
+            Layer layer = layers.get(i);
+
+            LinearLayout item = new LinearLayout(this);
+            item.setOrientation(LinearLayout.HORIZONTAL);
+            item.setPadding(10, 10, 10, 10);
+            item.setGravity(Gravity.CENTER_VERTICAL);
+            if (index == activeLayerIndex) {
+                item.setBackgroundColor(Color.parseColor("#383a40"));
+            }
+
+            TextView visBtn = new TextView(this);
+            visBtn.setText(layer.visible ? "👁" : "✖");
+            visBtn.setTextColor(Color.WHITE);
+            visBtn.setTextSize(16f);
+            visBtn.setPadding(0, 0, 15, 0);
+            visBtn.setOnClickListener(v -> {
+                layer.visible = !layer.visible;
+                renderLayersUI();
+                paintView.invalidate();
+            });
+            item.addView(visBtn);
+
+            TextView nameView = new TextView(this);
+            nameView.setText("Слой " + (index + 1));
+            nameView.setTextColor(Color.WHITE);
+            nameView.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+            item.addView(nameView);
+
+            item.setOnClickListener(v -> {
+                activeLayerIndex = index;
+                renderLayersUI();
+            });
+
+            layersListLayout.addView(item);
+        }
+    }
+
+    // ==================== ИСТОРИЯ UNDO / REDO ====================
+    private void saveStateToUndo() {
+        HistoryState state = new HistoryState();
+        state.bitmaps = new ArrayList<>();
+        for (Layer l : layers) {
+            state.bitmaps.add(l.bitmap.copy(Bitmap.Config.ARGB_8888, true));
+        }
+        state.activeIndex = activeLayerIndex;
+        undoStack.push(state);
+        if (undoStack.size() > 20) undoStack.remove(0); // Ограничение памяти
+        redoStack.clear();
+        updateUndoRedoButtons();
+    }
+
+    private void undo() {
+        if (undoStack.isEmpty()) return;
+        HistoryState currentState = new HistoryState();
+        currentState.bitmaps = new ArrayList<>();
+        for (Layer l : layers) currentState.bitmaps.add(l.bitmap.copy(Bitmap.Config.ARGB_8888, true));
+        currentState.activeIndex = activeLayerIndex;
+        redoStack.push(currentState);
+
+        HistoryState prev = undoStack.pop();
+        restoreState(prev);
+        updateUndoRedoButtons();
+    }
+
+    private void redo() {
+        if (redoStack.isEmpty()) return;
+        HistoryState currentState = new HistoryState();
+        currentState.bitmaps = new ArrayList<>();
+        for (Layer l : layers) currentState.bitmaps.add(l.bitmap.copy(Bitmap.Config.ARGB_8888, true));
+        currentState.activeIndex = activeLayerIndex;
+        undoStack.push(currentState);
+
+        HistoryState next = redoStack.pop();
+        restoreState(next);
+        updateUndoRedoButtons();
+    }
+
+    private void restoreState(HistoryState state) {
+        layers.clear();
+        for (Bitmap b : state.bitmaps) {
+            Layer l = new Layer(CANVAS_W, CANVAS_H);
+            l.canvas.drawBitmap(b, 0, 0, null);
+            layers.add(l);
+        }
+        activeLayerIndex = Math.min(state.activeIndex, layers.size() - 1);
+        renderLayersUI();
+        paintView.invalidate();
+    }
+
+    private void updateUndoRedoButtons() {
+        btnUndo.setEnabled(!undoStack.isEmpty());
+        btnRedo.setEnabled(!redoStack.isEmpty());
+    }
+
+    // ==================== СОХРАНЕНИЕ И ОТКРЫТИЕ ФАЙЛОВ ====================
+    private void saveArtworkToPhone() {
+        try {
+            Bitmap resultBitmap = Bitmap.createBitmap(CANVAS_W, CANVAS_H, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(resultBitmap);
+            canvas.drawColor(Color.WHITE); // Белый фон по умолчанию
+
+            for (Layer l : layers) {
+                if (l.visible) canvas.drawBitmap(l.bitmap, 0, 0, null);
+            }
+
+            OutputStream fos;
+            String fileName = "PaintPro_" + System.currentTimeMillis() + ".png";
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.Images.Media.DISPLAY_NAME, fileName);
+                values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
+                values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/PaintPro");
+                Uri uri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+                fos = getContentResolver().openOutputStream(uri);
+            } else {
+                java.io.File dir = new java.io.File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "PaintPro");
+                if (!dir.exists()) dir.mkdirs();
+                java.io.File file = new java.io.File(dir, fileName);
+                fos = new java.io.FileOutputStream(file);
+            }
+
+            resultBitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+            fos.flush();
+            fos.close();
+            Toast.makeText(this, "✅ Успешно сохранено в Галерею (Папка Pictures/PaintPro)!", Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "❌ Ошибка сохранения: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void openImageFromGallery() {
+        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        startActivityForResult(intent, REQUEST_CODE_OPEN_IMAGE);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_OPEN_IMAGE && resultCode == RESULT_OK && data != null) {
+            try {
+                Uri imageUri = data.getData();
+                Bitmap img = MediaStore.Images.Media.getBitmap(this.getContentResolver(), imageUri);
+                if (img != null) {
+                    saveStateToUndo();
+                    Layer newLayer = new Layer(CANVAS_W, CANVAS_H);
+                    // Центрируем и масштабируем картинку под холст
+                    float scale = Math.min((float)CANVAS_W / img.getWidth(), (float)CANVAS_H / img.getHeight());
+                    float left = (CANVAS_W - img.getWidth() * scale) / 2f;
+                    float top = (CANVAS_H - img.getHeight() * scale) / 2f;
+                    newLayer.canvas.drawBitmap(img, null, new RectF(left, top, left + img.getWidth() * scale, top + img.getHeight() * scale), null);
+                    
+                    layers.add(newLayer);
+                    activeLayerIndex = layers.size() - 1;
+                    renderLayersUI();
+                    paintView.invalidate();
+                    Toast.makeText(this, "📂 Изображение загружено на новый слой!", Toast.LENGTH_SHORT).show();
+                }
+            } catch (Exception e) {
+                Toast.makeText(this, "❌ Не удалось открыть файл", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void requestPermissionsIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE}, REQUEST_CODE_PERMISSIONS);
+            }
+        }
+    }
+
+    // ==================== ВСПОМОГАТЕЛЬНЫЕ UI КОМПОНЕНТЫ ====================
+    private interface OnProgressChanged {
+        void onProgress(int val);
+    }
+
+    private LinearLayout createControlGroup(String labelText, final TextView valView, int min, int max, int defaultVal, final OnProgressChanged callback) {
+        LinearLayout group = new LinearLayout(this);
+        group.setOrientation(LinearLayout.HORIZONTAL);
+        group.setGravity(Gravity.CENTER_VERTICAL);
+        group.setPadding(6, 2, 6, 2);
+
+        TextView label = new TextView(this);
+        label.setText(labelText);
+        label.setTextColor(Color.WHITE);
+        label.setTextSize(12f);
+        group.addView(label);
+
+        valView.setText(String.valueOf(defaultVal));
+        valView.setTextColor(Color.parseColor("#38BDF8"));
+        valView.setTextSize(12f);
+        valView.setPadding(4, 0, 4, 0);
+        group.addView(valView);
+
+        SeekBar seekBar = new SeekBar(this);
+        seekBar.setLayoutParams(new LinearLayout.LayoutParams(120, LinearLayout.LayoutParams.WRAP_CONTENT));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            seekBar.setMin(min);
+        }
+        seekBar.setMax(max);
+        seekBar.setProgress(defaultVal);
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {
+                int p = Math.max(min, progress);
+                callback.onProgress(p);
+            }
+            @Override public void onStartTrackingTouch(SeekBar sb) {}
+            @Override public void onStopTrackingTouch(SeekBar sb) {}
+        });
+        group.addView(seekBar);
+        return group;
+    }
+
+    private Button createButton(String text, View.OnClickListener listener) {
+        Button btn = new Button(this);
+        btn.setText(text);
+        btn.setTextColor(Color.WHITE);
+        btn.setBackgroundColor(Color.parseColor("#444444"));
+        btn.setOnClickListener(listener);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, 80);
+        lp.setMargins(4, 0, 4, 0);
+        btn.setLayoutParams(lp);
+        return btn;
+    }
+
+    // Кнопка выбора цвета
+    private class ColorPickerButton extends Button {
+        public ColorPickerButton(android.content.Context context) {
+            super(context);
+            setColor(Color.BLACK);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(80, 80);
+            lp.setMargins(4, 0, 4, 0);
+            setLayoutParams(lp);
+            setOnClickListener(v -> showColorPickerDialog());
+        }
+
+        public void setColor(int color) {
+            brushColor = color;
+            setBackgroundColor(color);
+        }
+
+        private void showColorPickerDialog() {
+            final String[] colorsNames = {"Черный", "Белый", "Красный", "Зеленый", "Синий", "Желтый", "Оранжевый", "Фиолетовый", "Розовый"};
+            final int[] colorsVals = {Color.BLACK, Color.WHITE, Color.RED, Color.GREEN, Color.BLUE, Color.YELLOW, Color.rgb(255,140,0), Color.PURPLE, Color.MAGENTA};
+
+            android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(MainActivity.this);
+            builder.setTitle("Выберите цвет кисти");
+            builder.setItems(colorsNames, (dialog, which) -> setColor(colorsVals[which]));
+            builder.show();
+        }
     }
 }
