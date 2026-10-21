@@ -1,7 +1,6 @@
 package com.roma.nativeapp;
 
-import android.view.*;
-import java.util.*;
+﻿package com.roma.nativeapp;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -19,13 +18,19 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.OpenableColumns;
+import android.text.Editable;
+import android.text.Spannable;
+import android.text.SpannableStringBuilder;
+import android.text.TextWatcher;
+import android.text.style.ForegroundColorSpan;
 import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -33,9 +38,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
-import java.util.ArrayDeque;
 import java.util.Date;
-import java.util.Deque;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -57,17 +60,27 @@ public class MainActivity extends Activity {
     private String packageName = "com.roma.nativeapp";
     private String currentJavaFileName = "Шаблон: Часы (MainActivity.java)";
 
+    // Настройки SDK и Java
+    private int minSdk = 24;
+    private int compileSdk = 34;
+    private String javaVersion = "17"; // "8" или "17"
+    private String activeCodeContent = "";
+
     private TextView statusTextView, infoTextView;
     private EditText logEditText;
-    private Button btnBuild, btnUploadJava, btnReset, btnTitle, btnVersion, btnIcon, btnSettings, btnCopyLogs;
-    
-    private final Handler handler = new Handler(Looper.getMainLooper());
+    private Button btnBuild, btnUploadJava, btnReset, btnTitle, btnVersion, btnIcon, btnSettings, btnCopyLogs, btnCodeEditor;
+
+    private Handler handler = new Handler(Looper.getMainLooper());
     private volatile boolean isMonitoring = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         loadSettings();
+
+        if (activeCodeContent.isEmpty()) {
+            activeCodeContent = generateMainActivity();
+        }
 
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
@@ -106,7 +119,7 @@ public class MainActivity extends Activity {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(25, 25, 25, 25);
-        
+
         GradientDrawable cardBg = new GradientDrawable();
         cardBg.setColor(Color.parseColor("#0F172A"));
         cardBg.setCornerRadius(28f);
@@ -133,12 +146,12 @@ public class MainActivity extends Activity {
         infoTextView.setTextColor(Color.parseColor("#94A3B8"));
         infoTextView.setTextSize(12f);
         infoTextView.setPadding(15, 12, 15, 12);
-        
+
         GradientDrawable infoBg = new GradientDrawable();
         infoBg.setColor(Color.parseColor("#1E293B"));
         infoBg.setCornerRadius(14f);
         infoTextView.setBackground(infoBg);
-        
+
         LinearLayout.LayoutParams infoParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
@@ -146,40 +159,44 @@ public class MainActivity extends Activity {
         infoTextView.setLayoutParams(infoParams);
         card.addView(infoTextView);
 
-        // ЛОГИЧЕСКИЙ ПОРЯДОК ИНТЕРАКТИВНЫХ КНОПОК
-        // 1. Кнопка компиляции (интерактивная с инфо о пакете)
+        // 1. Кнопка компиляции
         btnBuild = createStyledButton(getBuildButtonText(), "#2563EB");
         btnBuild.setOnClickListener(v -> triggerGitHubBuild());
         card.addView(btnBuild);
 
-        // 2. Кнопка загрузки Java файла (отображает имя загруженного файла)
-        btnUploadJava = createStyledButton("📝 Java файл: " + currentJavaFileName, "#0D9488");
+        // 2. Встроенный редактор кода
+        btnCodeEditor = createStyledButton("📝 Редактор кода (С подсказками)", "#059669");
+        btnCodeEditor.setOnClickListener(v -> openCodeEditorDialog());
+        card.addView(btnCodeEditor);
+
+        // 3. Кнопка загрузки Java / Текстового файла
+        btnUploadJava = createStyledButton("📂 Загрузить файл: " + currentJavaFileName, "#0D9488");
         btnUploadJava.setOnClickListener(v -> openJavaFilePicker());
         card.addView(btnUploadJava);
 
-        // 3. Полный сброс репозитория
+        // 4. Полный сброс репозитория
         btnReset = createStyledButton("🔄 Полный сброс (Шаблон Часы)", "#D97706");
         btnReset.setOnClickListener(v -> confirmResetProject());
         card.addView(btnReset);
 
-        // 4. Изменить имя и пакет
+        // 5. Изменить имя и пакет
         btnTitle = createStyledButton("🏷 Имя: " + appTitle + " (" + packageName + ")", "#475569");
         btnTitle.setOnClickListener(v -> showEditTitleDialog());
         card.addView(btnTitle);
 
-        // 5. Изменить версию приложения
+        // 6. Изменить версию приложения
         btnVersion = createStyledButton("📦 Версия приложения: " + appVersion, "#475569");
         btnVersion.setOnClickListener(v -> showEditVersionDialog());
         card.addView(btnVersion);
 
-        // 6. Иконка приложения (с миниатюрой)
+        // 7. Иконка приложения
         btnIcon = createStyledButton("🖼 Иконка приложения (Выбрать файл)", "#7C3AED");
         updateIconButtonPreview();
         btnIcon.setOnClickListener(v -> openIconFilePicker());
         card.addView(btnIcon);
 
-        // 7. Настройки API (GitHub & Bot)
-        btnSettings = createStyledButton("⚙️ Настройки API (GitHub & Bot)", "#334155");
+        // 8. Настройки API, SDK и Java
+        btnSettings = createStyledButton("⚙️ Настройки API, SDK и Java", "#334155");
         btnSettings.setOnClickListener(v -> showSettingsDialog());
         card.addView(btnSettings);
 
@@ -192,7 +209,7 @@ public class MainActivity extends Activity {
         statusTextView.setPadding(0, 12, 0, 8);
         card.addView(statusTextView);
 
-        // РАСШИРЕННЫЙ ТЕРМИНАЛ / ЛОГИ
+        // ЛОГИ
         TextView logLabel = new TextView(this);
         logLabel.setText("📋 Расширенный терминал / Логи:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
@@ -201,7 +218,7 @@ public class MainActivity extends Activity {
         card.addView(logLabel);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Здесь отображаются логи компиляции, поиск ошибок и статусы...");
+        logEditText.setHint("Здесь отображаются логи компиляции и ошибки GitHub Actions...");
         logEditText.setTextSize(11f);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
         logEditText.setHintTextColor(Color.parseColor("#475569"));
@@ -235,7 +252,7 @@ public class MainActivity extends Activity {
         btn.setTypeface(Typeface.DEFAULT_BOLD);
         btn.setBackgroundColor(Color.parseColor(colorHex));
         btn.setPadding(15, 15, 15, 15);
-        
+
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
@@ -268,10 +285,12 @@ public class MainActivity extends Activity {
     }
 
     private void updateInfoText() {
+        String profileType = javaVersion.equals("8") ? "⚡ Для слабых тел." : "🚀 Для мощных тел.";
         String info = "🏷 Имя: " + appTitle + "\n" +
                       "📦 Пакет: " + packageName + "\n" +
                       "🔢 Версия: " + appVersion + "\n" +
-                      "📂 Репо: " + repoOwner + "/" + repoName;
+                      "📂 Репо: " + repoOwner + "/" + repoName + "\n" +
+                      "☕ Java: " + javaVersion + " | SDK Target: " + compileSdk + " (minSdk: " + minSdk + ") [" + profileType + "]";
         if (infoTextView != null) {
             infoTextView.setText(info);
         }
@@ -297,6 +316,10 @@ public class MainActivity extends Activity {
         appVersion = sp.getString("appVersion", appVersion);
         packageName = sp.getString("packageName", packageName);
         currentJavaFileName = sp.getString("currentJavaFileName", "Шаблон: Часы (MainActivity.java)");
+        minSdk = sp.getInt("minSdk", 24);
+        compileSdk = sp.getInt("compileSdk", 34);
+        javaVersion = sp.getString("javaVersion", "17");
+        activeCodeContent = sp.getString("activeCodeContent", "");
     }
 
     private void saveSettings() {
@@ -311,6 +334,10 @@ public class MainActivity extends Activity {
         editor.putString("appVersion", appVersion);
         editor.putString("packageName", packageName);
         editor.putString("currentJavaFileName", currentJavaFileName);
+        editor.putInt("minSdk", minSdk);
+        editor.putInt("compileSdk", compileSdk);
+        editor.putString("javaVersion", javaVersion);
+        editor.putString("activeCodeContent", activeCodeContent);
         editor.apply();
         updateInfoText();
     }
@@ -321,7 +348,7 @@ public class MainActivity extends Activity {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
         intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"text/plain", "text/x-java-source", "application/octet-stream"});
-        startActivityForResult(Intent.createChooser(intent, "Выберите .java файл"), PICK_JAVA_REQUEST);
+        startActivityForResult(Intent.createChooser(intent, "Выберите .java или .txt файл"), PICK_JAVA_REQUEST);
     }
 
     private void openIconFilePicker() {
@@ -343,103 +370,13 @@ public class MainActivity extends Activity {
         }
     }
 
-    // ==================== МОЩНАЯ СИСТЕМА ПОИСКА И ПРОВЕРКИ ОШИБОК ====================
-
-    private String validateAndFixJavaCode(String code, String targetPackage) {
-        StringBuilder logReport = new StringBuilder("🔍 [АНАЛИЗАТОР ОШИБОК JAVA]\n");
-        boolean hasError = false;
-
-        // 1. Проверка на пустоту
-        if (code == null || code.trim().isEmpty()) {
-            return "ERROR: Исходный файл пуст!";
-        }
-
-        // 2. Валидация баланса скобок
-        Deque<Character> stack = new ArrayDeque<>();
-        int lineNumber = 1;
-        int errorLine = -1;
-        char expectedChar = ' ';
-
-        for (int i = 0; i < code.length(); i++) {
-            char c = code.charAt(i);
-            if (c == '\n') lineNumber++;
-
-            if (c == '{' || c == '(' || c == '[') {
-                stack.push(c);
-            } else if (c == '}' || c == ')' || c == ']') {
-                if (stack.isEmpty()) {
-                    hasError = true;
-                    errorLine = lineNumber;
-                    logReport.append("❌ Лишняя закрывающая скобка '").append(c).append("' на строке ").append(lineNumber).append("\n");
-                    break;
-                }
-                char open = stack.pop();
-                if ((c == '}' && open != '{') || (c == ')' && open != '(') || (c == ']' && open != '[')) {
-                    hasError = true;
-                    errorLine = lineNumber;
-                    expectedChar = open == '{' ? '}' : (open == '(' ? ')' : ']');
-                    logReport.append("❌ Несоответствие скобки на строке ").append(lineNumber)
-                             .append(". Ожидалось '").append(expectedChar).append("', найдено '").append(c).append("'\n");
-                    break;
-                }
-            }
-        }
-        if (!stack.isEmpty() && !hasError) {
-            hasError = true;
-            logReport.append("❌ Незакрытая скобка в конце файла! Количество незакрытых: ").append(stack.size()).append("\n");
-        }
-
-        // 3. Проверка структуры класса
-        if (!code.contains("class ")) {
-            logReport.append("⚠️ Предупреждение: В файле не обнаружено объявление 'class'.\n");
-        }
-        if (!code.contains("onCreate")) {
-            logReport.append("⚠️ Предупреждение: Метод 'onCreate' отсутствует. Это может нарушить запуск Activity.\n");
-        }
-
-        // 4. Коррекция пакета (Package matching)
-        Pattern pkgPattern = Pattern.compile("^\\s*package\\s+([a-zA-Z0-9_.]+)\\s*;", Pattern.MULTILINE);
-        Matcher matcher = pkgPattern.matcher(code);
-        if (matcher.find()) {
-            String existingPackage = matcher.group(1);
-            if (!existingPackage.equals(targetPackage)) {
-                logReport.append("🛠 Авто-фикс: Пакет '").append(existingPackage).append("' изменен на '").append(targetPackage).append("'\n");
-                code = code.replaceFirst("package\\s+" + Pattern.quote(existingPackage) + "\\s*;", "package " + targetPackage + ";");
-            } else {
-                logReport.append("✅ Имя пакета корректно: ").append(targetPackage).append("\n");
-            }
-        } else {
-            logReport.append("🛠 Авто-фикс: Добавлено объявление пакета: package ").append(targetPackage).append(";\n");
-            code = "package " + targetPackage + ";\n\n" + code;
-        }
-
-        if (hasError) {
-            logReport.append("⛔ Ошибка синтаксиса обнаружена до отправки! Сборка остановлена для предотвращения ошибки Gradle.\n");
-            return "ERROR_LOG:" + logReport.toString();
-        }
-
-        logReport.append("✅ Синтаксический анализ пройден успешно! Ошибок скобок и структуры не обнаружено.\n");
-        appendLog(logReport.toString());
-        return code;
-    }
-
-    private void appendLog(String message) {
-        handler.post(() -> {
-            if (logEditText != null) {
-                String current = logEditText.getText().toString();
-                logEditText.setText(current + (current.isEmpty() ? "" : "\n") + message);
-                logEditText.setSelection(logEditText.getText().length());
-            }
-        });
-    }
-
     private void processSelectedJavaFile(Uri uri) {
         String fileName = getFileNameFromUri(uri);
         if (fileName == null) {
             fileName = "CustomCode.java";
         }
         final String finalFileName = fileName;
-        
+
         try {
             InputStream inputStream = getContentResolver().openInputStream(uri);
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
@@ -450,35 +387,24 @@ public class MainActivity extends Activity {
             }
             reader.close();
 
-            String rawCode = stringBuilder.toString();
-            logEditText.setText(" Чтение и сканирование файла: " + finalFileName + "...\n");
-
-            // Запуск усиленного анализатора
-            String validatedCode = validateAndFixJavaCode(rawCode, packageName);
-
-            if (validatedCode.startsWith("ERROR_LOG:")) {
-                statusTextView.setText("Статус: ❌ Найдены ошибки в Java коде!");
-                logEditText.setText(validatedCode.replace("ERROR_LOG:", ""));
-                Toast.makeText(this, "⚠️ Обнаружена синтаксическая ошибка в Java коде!", Toast.LENGTH_LONG).show();
-                return;
-            }
-
+            String code = stringBuilder.toString();
+            activeCodeContent = code;
             currentJavaFileName = finalFileName;
             saveSettings();
-            btnUploadJava.setText("📝 Java файл: " + currentJavaFileName);
+            btnUploadJava.setText("📂 Файл: " + currentJavaFileName);
 
-            statusTextView.setText("Статус: ⚙️ Отправка кастомного Java кода...");
-            appendLog("Применение Anti-409 Shield и отправка в репозиторий...");
+            statusTextView.setText("Статус: ⚙️ Отправка кастомного кода...");
+            logEditText.setText("Загружен файл: " + finalFileName + "\nОтправка в репозиторий...");
 
             new Thread(() -> {
-                boolean success = pushFileToGitHub(getMainActivityPath(), validatedCode, "Upload custom Java file: " + finalFileName);
+                boolean success = pushFileToGitHub(getMainActivityPath(), activeCodeContent, "Upload code file: " + finalFileName);
                 handler.post(() -> {
                     if (success) {
-                        statusTextView.setText("Статус: ✅ Java файл успешно загружен!");
-                        appendLog("Файл " + finalFileName + " адаптирован под пакет " + packageName + " и отправлен на GitHub.");
+                        statusTextView.setText("Статус: ✅ Файл успешно загружен!");
+                        logEditText.setText("Файл " + finalFileName + " отправлен на GitHub.");
                     } else {
                         statusTextView.setText("Статус: ❌ Ошибка загрузки файла");
-                        appendLog("Не удалось отправить файл на GitHub. Проверьте токен и доступ.");
+                        logEditText.setText("Не удалось отправить файл на GitHub. Проверьте токен.");
                     }
                 });
             }).start();
@@ -492,19 +418,19 @@ public class MainActivity extends Activity {
         try {
             InputStream inputStream = getContentResolver().openInputStream(uri);
             byte[] bytes = readBytes(inputStream);
-            
+
             statusTextView.setText("Статус: ⚙️ Загрузка иконки...");
-            logEditText.setText("Отправка пользовательской иконки на GitHub...\n");
+            logEditText.setText("Отправка пользовательской иконки на GitHub...");
 
             new Thread(() -> {
                 boolean success = pushBytesToGitHub("app/src/main/res/mipmap-xxhdpi/ic_launcher.png", bytes, "Update app icon");
                 handler.post(() -> {
                     if (success) {
                         statusTextView.setText("Статус: ✅ Иконка успешно обновлена!");
-                        appendLog("Новая иконка приложения установлена в репозиторий.");
+                        logEditText.setText("Новая иконка приложения установлена в репозиторий.");
                     } else {
                         statusTextView.setText("Статус: ❌ Ошибка обновления иконки");
-                        appendLog("Не удалось загрузить иконку на GitHub.");
+                        logEditText.setText("Не удалось загрузить иконку на GitHub.");
                     }
                 });
             }).start();
@@ -514,7 +440,7 @@ public class MainActivity extends Activity {
     }
 
     private byte[] readBytes(InputStream inputStream) throws java.io.IOException {
-        ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
+        java.io.ByteArrayOutputStream byteBuffer = new java.io.ByteArrayOutputStream();
         int bufferSize = 1024;
         byte[] buffer = new byte[bufferSize];
         int len;
@@ -526,7 +452,7 @@ public class MainActivity extends Activity {
 
     private String getFileNameFromUri(Uri uri) {
         String result = null;
-        if ("content".equals(uri.getScheme())) {
+        if (uri.getScheme().equals("content")) {
             try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
                 if (cursor != null && cursor.moveToFirst()) {
                     int index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
@@ -536,12 +462,141 @@ public class MainActivity extends Activity {
         }
         if (result == null) {
             result = uri.getPath();
-            if (result != null) {
-                int cut = result.lastIndexOf('/');
-                if (cut != -1) result = result.substring(cut + 1);
-            }
+            int cut = result.lastIndexOf('/');
+            if (cut != -1) result = result.substring(cut + 1);
         }
         return result;
+    }
+
+    // ==================== ПРОДВИНУТЫЙ РЕДАКТОР КОДА ====================
+
+    private void openCodeEditorDialog() {
+        LinearLayout editorLayout = new LinearLayout(this);
+        editorLayout.setOrientation(LinearLayout.VERTICAL);
+        editorLayout.setPadding(15, 15, 15, 15);
+        editorLayout.setBackgroundColor(Color.parseColor("#090D16"));
+
+        TextView hintTitle = new TextView(this);
+        hintTitle.setText("💡 Обучающие подсказки для чайников:");
+        hintTitle.setTextColor(Color.parseColor("#F59E0B"));
+        hintTitle.setTextSize(12f);
+        hintTitle.setTypeface(Typeface.DEFAULT_BOLD);
+        editorLayout.addView(hintTitle);
+
+        TextView hintDesc = new TextView(this);
+        hintDesc.setText(
+            "• package — уникальный адрес программы.\n" +
+            "• import — подключение инструментов Android (кнопки, цвета, экраны).\n" +
+            "• onCreate() — точка старта вашего экрана.\n" +
+            "• setContentView() — вывод интерфейса на экран."
+        );
+        hintDesc.setTextColor(Color.parseColor("#94A3B8"));
+        hintDesc.setTextSize(10f);
+        hintDesc.setPadding(0, 4, 0, 10);
+        editorLayout.addView(hintDesc);
+
+        HorizontalScrollView snippetScroll = new HorizontalScrollView(this);
+        LinearLayout snippetContainer = new LinearLayout(this);
+        snippetContainer.setOrientation(LinearLayout.HORIZONTAL);
+
+        String[] snippets = {"+ TextView (Текст)", "+ Button (Кнопка)", "+ Toast (Всплывающее)", "+ Color (Цвет)"};
+        String[] codeInserts = {
+            "\nTextView tv = new TextView(this);\ntv.setText(\"Привет!\");\nlayout.addView(tv);\n",
+            "\nButton btn = new Button(this);\nbtn.setText(\"Нажми меня\");\nlayout.addView(btn);\n",
+            "\nToast.makeText(this, \"Сообщение!\", Toast.LENGTH_SHORT).show();\n",
+            "Color.parseColor(\"#FF0000\")"
+        };
+
+        final EditText codeInput = new EditText(this);
+
+        for (int i = 0; i < snippets.length; i++) {
+            final String insertText = codeInserts[i];
+            Button btnSnippet = new Button(this);
+            btnSnippet.setText(snippets[i]);
+            btnSnippet.setTextSize(10f);
+            btnSnippet.setTextColor(Color.WHITE);
+            btnSnippet.setBackgroundColor(Color.parseColor("#1E293B"));
+            btnSnippet.setOnClickListener(v -> {
+                int start = Math.max(codeInput.getSelectionStart(), 0);
+                int end = Math.max(codeInput.getSelectionEnd(), 0);
+                codeInput.getText().replace(Math.min(start, end), Math.max(start, end), insertText, 0, insertText.length());
+            });
+            snippetContainer.addView(btnSnippet);
+        }
+        snippetScroll.addView(snippetContainer);
+        editorLayout.addView(snippetScroll);
+
+        codeInput.setText(activeCodeContent);
+        codeInput.setTextSize(11f);
+        codeInput.setTypeface(Typeface.MONOSPACE);
+        codeInput.setTextColor(Color.parseColor("#E2E8F0"));
+        codeInput.setBackgroundColor(Color.parseColor("#030712"));
+        codeInput.setPadding(15, 15, 15, 15);
+        codeInput.setGravity(Gravity.TOP);
+        codeInput.setMinLines(15);
+        codeInput.setMaxLines(22);
+
+        applySyntaxHighlighting(codeInput.getText());
+        codeInput.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(Editable s) {
+                applySyntaxHighlighting(s);
+            }
+        });
+
+        editorLayout.addView(codeInput);
+
+        new AlertDialog.Builder(this)
+            .setTitle("📝 Редактор кода")
+            .setView(editorLayout)
+            .setPositiveButton("Применить и Сохранить", (dialog, which) -> {
+                activeCodeContent = codeInput.getText().toString();
+                saveSettings();
+                Toast.makeText(this, "Код успешно сохранён!", Toast.LENGTH_SHORT).show();
+            })
+            .setNeutralButton("Отправить на GitHub", (dialog, which) -> {
+                activeCodeContent = codeInput.getText().toString();
+                saveSettings();
+                statusTextView.setText("Статус: ⚙️ Отправка отредактированного кода...");
+                new Thread(() -> {
+                    boolean success = pushFileToGitHub(getMainActivityPath(), activeCodeContent, "Update Java code via Editor");
+                    handler.post(() -> {
+                        if (success) {
+                            statusTextView.setText("Статус: ✅ Код из редактора загружен на GitHub!");
+                            logEditText.setText("Код обновлён в репозитории через редактор.");
+                        } else {
+                            statusTextView.setText("Статус: ❌ Ошибка загрузки кода");
+                        }
+                    });
+                }).start();
+            })
+            .setNegativeButton("Отмена", null)
+            .show();
+    }
+
+    private void applySyntaxHighlighting(Editable editable) {
+        String text = editable.toString();
+        // Очищаем старые подцветки
+        ForegroundColorSpan[] spans = editable.getSpans(0, editable.length(), ForegroundColorSpan.class);
+        for (ForegroundColorSpan span : spans) {
+            editable.removeSpan(span);
+        }
+
+        // Подсветка ключевых слов
+        Pattern keywords = Pattern.compile("\\b(package|import|public|class|extends|protected|void|override|new|return|if|else|boolean|int|String)\\b");
+        Matcher matcher = keywords.matcher(text);
+        while (matcher.find()) {
+            editable.setSpan(new ForegroundColorSpan(Color.parseColor("#F43F5E")), matcher.start(), matcher.end(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+
+        // Подсветка строк
+        Pattern strings = Pattern.compile("\".*?\"");
+        Matcher strMatcher = strings.matcher(text);
+        while (strMatcher.find()) {
+            editable.setSpan(new ForegroundColorSpan(Color.parseColor("#10B981")), strMatcher.start(), strMatcher.end(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
     }
 
     // ==================== ANTI-409 GITHUB SHIELD ====================
@@ -571,12 +626,11 @@ public class MainActivity extends Activity {
             return;
         }
 
-        // Блокируем кнопку компиляции, меняем цвет и текст
         btnBuild.setEnabled(false);
         btnBuild.setBackgroundColor(Color.parseColor("#1E3A8A"));
         btnBuild.setText("⏳ Компиляция в процессе...\n📦 Пакет: " + packageName);
         statusTextView.setText("Статус: ⚙️ Синхронизация файлов и запуск...");
-        logEditText.setText("🚀 Запуск процесса CI/CD...\nПроверка конфигурационных файлов...");
+        logEditText.setText("Подготовка к компиляции на GitHub Actions...");
 
         new Thread(() -> {
             try {
@@ -587,7 +641,7 @@ public class MainActivity extends Activity {
                         btnBuild.setBackgroundColor(Color.parseColor("#2563EB"));
                         btnBuild.setText(getBuildButtonText());
                         statusTextView.setText("Статус: ❌ Ошибка 401/403 (Проверьте токен)");
-                        appendLog("❌ Ошибка авторизации на GitHub. Проверьте валидность токена и доступ к репозиторию.");
+                        logEditText.setText("Ошибка авторизации на GitHub. Проверьте правильность токена.");
                     });
                     return;
                 }
@@ -610,7 +664,7 @@ public class MainActivity extends Activity {
                 if (responseCode == 204 || responseCode == 201) {
                     handler.post(() -> {
                         statusTextView.setText("Статус: 🚀 Сборка запущена в GitHub Actions!");
-                        appendLog("Workflow успешно запущен. Ожидание сборки и генерации APK...");
+                        logEditText.setText("Workflow успешно запущен. Ожидание сборки...");
                         startMonitoringBuild();
                     });
                 } else {
@@ -619,7 +673,7 @@ public class MainActivity extends Activity {
                         btnBuild.setBackgroundColor(Color.parseColor("#2563EB"));
                         btnBuild.setText(getBuildButtonText());
                         statusTextView.setText("Статус: ❌ Ошибка запуска (" + responseCode + ")");
-                        appendLog("Не удалось запустить workflow. Код ответа сервера: " + responseCode);
+                        logEditText.setText("Не удалось запустить workflow. Код ответа: " + responseCode);
                     });
                 }
             } catch (final Exception e) {
@@ -628,7 +682,7 @@ public class MainActivity extends Activity {
                     btnBuild.setBackgroundColor(Color.parseColor("#2563EB"));
                     btnBuild.setText(getBuildButtonText());
                     statusTextView.setText("Статус: ❌ Ошибка сети");
-                    appendLog("Исключение сети: " + e.getMessage());
+                    logEditText.setText("Исключение: " + e.getMessage());
                 });
             }
         }).start();
@@ -640,7 +694,8 @@ public class MainActivity extends Activity {
         boolean r1 = pushFileToGitHub("app/src/main/AndroidManifest.xml", generateManifest(), "Update AndroidManifest");
         boolean r2 = pushFileToGitHub("app/build.gradle", generateAppGradle(), "Update app/build.gradle");
         boolean r3 = pushFileToGitHub(".github/workflows/build_native.yml", getWorkflowContent(), "Update workflow");
-        return r0 && r00 && r1 && r2 && r3;
+        boolean r4 = pushFileToGitHub(getMainActivityPath(), activeCodeContent, "Update MainActivity source");
+        return r0 && r00 && r1 && r2 && r3 && r4;
     }
 
     private boolean pushFileToGitHub(String path, String content, String message) {
@@ -666,7 +721,6 @@ public class MainActivity extends Activity {
                 JSONObject json = new JSONObject(sb.toString());
                 sha = json.optString("sha", null);
             } else if (getCode == 401 || getCode == 403) {
-                appendLog("❌ [GitHub API Error] Ошибка прав доступа (" + getCode + ") при получении SHA для " + path);
                 return false;
             }
 
@@ -688,13 +742,9 @@ public class MainActivity extends Activity {
                 os.write(payload.toString().getBytes(StandardCharsets.UTF_8));
             }
             int putCode = putConn.getResponseCode();
-            boolean success = putCode == 200 || putCode == 201;
-            if (!success) {
-                appendLog("❌ [GitHub API Error] Не удалось обновить файл " + path + ". Код ответа: " + putCode);
-            }
-            return success;
+            return putCode == 200 || putCode == 201;
         } catch (Exception e) {
-            appendLog("❌ [Exception] Ошибка при передаче данных на GitHub (" + path + "): " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }
@@ -718,7 +768,7 @@ public class MainActivity extends Activity {
                         StringBuilder sb = new StringBuilder();
                         String line;
                         while ((line = br.readLine()) != null) sb.append(line);
-                        
+
                         JSONObject json = new JSONObject(sb.toString());
                         JSONArray runs = json.getJSONArray("workflow_runs");
                         if (runs.length() > 0) {
@@ -736,10 +786,9 @@ public class MainActivity extends Activity {
                                     btnBuild.setText(getBuildButtonText());
                                     if ("success".equals(conclusion)) {
                                         statusTextView.setText("Статус: ✅ Сборка успешна! APK отправлен в Telegram.");
-                                        appendLog("🎉 Сборка завершена успешно! Бот автоматически отправил APK в ваш Telegram чат.");
+                                        logEditText.setText("Сборка завершена успешно! Бот автоматически отправил APK в ваш Telegram чат.");
                                     } else {
                                         statusTextView.setText("Статус: ❌ Ошибка компиляции (" + conclusion + ")");
-                                        appendLog("❌ Сборка завершилась со статусом: " + conclusion + ". Получение логов ошибок...");
                                         fetchLogsAsync(runId);
                                     }
                                 } else {
@@ -772,7 +821,7 @@ public class MainActivity extends Activity {
                     JSONArray jobs = json.getJSONArray("jobs");
                     if (jobs.length() > 0) {
                         long jobId = jobs.getJSONObject(0).getLong("id");
-                        
+
                         String logsUrl = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/actions/jobs/" + jobId + "/logs";
                         HttpURLConnection logConn = (HttpURLConnection) new URL(logsUrl).openConnection();
                         logConn.setRequestMethod("GET");
@@ -786,18 +835,17 @@ public class MainActivity extends Activity {
                             }
                             final String fullLogs = logSb.toString();
                             handler.post(() -> {
-                                appendLog("\n=== [ПОЛНЫЕ ЛОГИ ОШИБОК BUILD] ===");
                                 if (fullLogs.length() > 4000) {
-                                    appendLog(fullLogs.substring(fullLogs.length() - 4000));
+                                    logEditText.setText(fullLogs.substring(fullLogs.length() - 4000));
                                 } else {
-                                    appendLog(fullLogs);
+                                    logEditText.setText(fullLogs);
                                 }
                             });
                         }
                     }
                 }
             } catch (Exception e) {
-                appendLog("❌ Ошибка при скачивании логов: " + e.getMessage());
+                e.printStackTrace();
             }
         }).start();
     }
@@ -805,13 +853,15 @@ public class MainActivity extends Activity {
     private void confirmResetProject() {
         new AlertDialog.Builder(this)
             .setTitle("Полный сброс")
-            .setMessage("Сбросить репозиторий и установить стандартный шаблон часов?")
+            .setMessage("Сбросить репозиторий и установить шаблон часов?")
             .setPositiveButton("Сбросить", (dialog, which) -> {
                 btnReset.setEnabled(false);
                 btnReset.setBackgroundColor(Color.parseColor("#78350F"));
                 btnReset.setText("🔄 Выполняется полный сброс...");
                 statusTextView.setText("Статус: Полный сброс проекта...");
-                logEditText.setText("Очистка и установка стандартного шаблона часов (MainActivity.java)...\n");
+                logEditText.setText("Очистка и установка стандартного шаблона часов...");
+
+                activeCodeContent = generateMainActivity();
 
                 new Thread(() -> {
                     boolean r0 = pushFileToGitHub("build.gradle", getRootGradleContent(), "Reset root build.gradle");
@@ -819,8 +869,8 @@ public class MainActivity extends Activity {
                     boolean r1 = pushFileToGitHub("app/src/main/AndroidManifest.xml", generateManifest(), "Reset AndroidManifest");
                     boolean r2 = pushFileToGitHub("app/build.gradle", generateAppGradle(), "Reset app/build.gradle");
                     boolean r3 = pushFileToGitHub(".github/workflows/build_native.yml", getWorkflowContent(), "Reset workflow");
-                    boolean r4 = pushFileToGitHub(getMainActivityPath(), generateMainActivity(), "Reset default MainActivity");
-                    
+                    boolean r4 = pushFileToGitHub(getMainActivityPath(), activeCodeContent, "Reset default MainActivity");
+
                     boolean success = r0 && r00 && r1 && r2 && r3 && r4;
 
                     handler.post(() -> {
@@ -830,12 +880,12 @@ public class MainActivity extends Activity {
                         if (success) {
                             currentJavaFileName = "Шаблон: Часы (MainActivity.java)";
                             saveSettings();
-                            btnUploadJava.setText("📝 Java файл: " + currentJavaFileName);
+                            btnUploadJava.setText("📂 Файл: " + currentJavaFileName);
                             statusTextView.setText("Статус: ✅ Репозиторий сброшен к часам!");
-                            appendLog("Проект успешно сброшен к исходному шаблону часов.");
+                            logEditText.setText("Проект успешно сброшен к исходному шаблону часов.");
                         } else {
                             statusTextView.setText("Статус: ❌ Ошибка сброса (Проверьте токен)");
-                            appendLog("Не удалось сбросить проект. Проверьте правильность GitHub токена.");
+                            logEditText.setText("Не удалось сбросить проект. Проверьте правильность GitHub токена.");
                         }
                     });
                 }).start();
@@ -850,7 +900,7 @@ public class MainActivity extends Activity {
         input.setBackgroundColor(Color.WHITE);
         input.setTextColor(Color.BLACK);
         input.setPadding(30, 25, 30, 25);
-        
+
         new AlertDialog.Builder(this)
             .setTitle("Название приложения")
             .setMessage("Пакет сформируется автоматически транслитерацией.")
@@ -871,7 +921,7 @@ public class MainActivity extends Activity {
         input.setBackgroundColor(Color.WHITE);
         input.setTextColor(Color.BLACK);
         input.setPadding(30, 25, 30, 25);
-        
+
         new AlertDialog.Builder(this)
             .setTitle("Версия приложения")
             .setView(input)
@@ -889,49 +939,50 @@ public class MainActivity extends Activity {
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(30, 20, 30, 20);
 
-        final EditText inputGithub = new EditText(this);
-        inputGithub.setHint("GitHub Token (ghp_...)");
-        inputGithub.setText(githubToken);
-        inputGithub.setBackgroundColor(Color.WHITE);
-        inputGithub.setTextColor(Color.BLACK);
-        inputGithub.setHintTextColor(Color.GRAY);
-        inputGithub.setPadding(30, 20, 30, 20);
+        final EditText inputGithub = createDialogEditText("GitHub Token (ghp_...)", githubToken);
         layout.addView(inputGithub);
 
-        final EditText inputBot = new EditText(this);
-        inputBot.setHint("Telegram Bot Token");
-        inputBot.setText(botToken);
-        inputBot.setBackgroundColor(Color.WHITE);
-        inputBot.setTextColor(Color.BLACK);
-        inputBot.setHintTextColor(Color.GRAY);
-        inputBot.setPadding(30, 20, 30, 20);
+        final EditText inputBot = createDialogEditText("Telegram Bot Token", botToken);
         layout.addView(inputBot);
 
-        final EditText inputChat = new EditText(this);
-        inputChat.setHint("Chat ID");
-        inputChat.setText(chatId);
-        inputChat.setBackgroundColor(Color.WHITE);
-        inputChat.setTextColor(Color.BLACK);
-        inputChat.setHintTextColor(Color.GRAY);
-        inputChat.setPadding(30, 20, 30, 20);
+        final EditText inputChat = createDialogEditText("Chat ID", chatId);
         layout.addView(inputChat);
 
+        // Настройки SDK и версий Java
+        TextView sdkLabel = new TextView(this);
+        sdkLabel.setText("⚙️ Профиль производительности и SDK:");
+        sdkLabel.setTextColor(Color.parseColor("#38BDF8"));
+        sdkLabel.setPadding(0, 15, 0, 5);
+        layout.addView(sdkLabel);
+
+        final Spinner profileSpinner = new Spinner(this);
+        String[] profiles = {
+            "⚡ Слабые телефоны (Java 8 | minSdk 21 | compileSdk 34)",
+            "🚀 Мощные телефоны (Java 17 | minSdk 26 | compileSdk 34)"
+        };
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, profiles);
+        profileSpinner.setAdapter(adapter);
+        profileSpinner.setSelection(javaVersion.equals("8") ? 0 : 1);
+        layout.addView(profileSpinner);
+
         new AlertDialog.Builder(this)
-            .setTitle("⚙️ Настройки API и Токенов")
+            .setTitle("⚙️ Настройки API, SDK и Java")
             .setView(layout)
             .setPositiveButton("Сохранить", (dialog, which) -> {
-                String tokenCandidate = inputGithub.getText().toString().trim();
-                String botCandidate = inputBot.getText().toString().trim();
-                String chatCandidate = inputChat.getText().toString().trim();
+                githubToken = inputGithub.getText().toString().trim();
+                botToken = inputBot.getText().toString().trim();
+                chatId = inputChat.getText().toString().trim();
 
-                // Проверка токена GitHub
-                if (!tokenCandidate.isEmpty() && !tokenCandidate.startsWith("ghp_") && !tokenCandidate.startsWith("github_pat_")) {
-                    Toast.makeText(this, "⚠️ Предупреждение: Формат GitHub Token не выглядит стандартным!", Toast.LENGTH_LONG).show();
+                if (profileSpinner.getSelectedItemPosition() == 0) {
+                    javaVersion = "8";
+                    minSdk = 21;
+                    compileSdk = 34;
+                } else {
+                    javaVersion = "17";
+                    minSdk = 26;
+                    compileSdk = 34;
                 }
 
-                githubToken = tokenCandidate;
-                botToken = botCandidate;
-                chatId = chatCandidate;
                 saveSettings();
                 Toast.makeText(this, "Настройки сохранены!", Toast.LENGTH_SHORT).show();
             })
@@ -939,9 +990,25 @@ public class MainActivity extends Activity {
             .show();
     }
 
+    private EditText createDialogEditText(String hint, String value) {
+        EditText input = new EditText(this);
+        input.setHint(hint);
+        input.setText(value);
+        input.setBackgroundColor(Color.WHITE);
+        input.setTextColor(Color.BLACK);
+        input.setHintTextColor(Color.GRAY);
+        input.setPadding(25, 15, 25, 15);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.setMargins(0, 5, 0, 5);
+        input.setLayoutParams(params);
+        return input;
+    }
+
     private String transliterate(String text) {
         if (text == null || text.isEmpty()) return "com.roma.nativeapp";
-        String res = text.toLowerCase(Locale.ROOT)
+        String res = text.toLowerCase()
             .replace("а", "a").replace("б", "b").replace("в", "v").replace("г", "g")
             .replace("д", "d").replace("е", "e").replace("ё", "yo").replace("ж", "zh")
             .replace("з", "z").replace("и", "i").replace("й", "y").replace("к", "k")
@@ -985,17 +1052,18 @@ public class MainActivity extends Activity {
     }
 
     private String getWorkflowContent() {
+        String javaSetupVersion = javaVersion.equals("8") ? "8" : "17";
         return "name: Build Native Android APK (Java)\n\n" +
                "on:\n  workflow_dispatch:\n\n" +
                "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" +
                "      - uses: actions/checkout@v4\n" +
-               "      - uses: actions/setup-java@v4\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n" +
+               "      - uses: actions/setup-java@v4\n        with:\n          distribution: 'temurin'\n          java-version: '" + javaSetupVersion + "'\n" +
                "      - uses: gradle/actions/setup-gradle@v3\n        with:\n          gradle-version: '8.0'\n          cache-disabled: true\n" +
                "      - name: Setup Android SDK & Accept Licenses\n        run: |\n" +
                "          export ANDROID_HOME=/usr/local/lib/android/sdk\n" +
                "          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n" +
                "          yes | sdkmanager --licenses || true\n" +
-               "          sdkmanager \"platform-tools\" \"platforms;android-34\" \"build-tools;34.0.0\"\n" +
+               "          sdkmanager \"platform-tools\" \"platforms;android-" + compileSdk + "\" \"build-tools;34.0.0\"\n" +
                "      - name: Generate Gradle Wrapper\n        run: |\n" +
                "          gradle wrapper --gradle-version 8.0\n" +
                "      - name: Build Debug APK with Gradle Wrapper\n        run: |\n" +
@@ -1032,10 +1100,15 @@ public class MainActivity extends Activity {
     }
 
     private String generateAppGradle() {
+        String javaCompatibility = javaVersion.equals("8") ? "JavaVersion.VERSION_1_8" : "JavaVersion.VERSION_17";
         return "plugins {\n    id 'com.android.application'\n}\n\n" +
-               "android {\n    namespace '" + packageName + "'\n    compileSdk 34\n" +
+               "android {\n    namespace '" + packageName + "'\n    compileSdk " + compileSdk + "\n" +
                "    defaultConfig {\n        applicationId \"" + packageName + "\"\n" +
-               "        minSdk 24\n        targetSdk 34\n        versionCode 1\n        versionName \"" + appVersion + "\"\n    }\n}\n\n" +
+               "        minSdk " + minSdk + "\n        targetSdk " + compileSdk + "\n        versionCode 1\n        versionName \"" + appVersion + "\"\n    }\n" +
+               "    compileOptions {\n" +
+               "        sourceCompatibility " + javaCompatibility + "\n" +
+               "        targetCompatibility " + javaCompatibility + "\n" +
+               "    }\n}\n\n" +
                "dependencies {\n    implementation 'androidx.appcompat:appcompat:1.6.1'\n}\n";
     }
 
