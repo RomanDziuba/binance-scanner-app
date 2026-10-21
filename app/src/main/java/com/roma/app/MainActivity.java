@@ -1,7 +1,6 @@
 package com.roma.app;
 
-import android.view.*;
-import java.util.*;
+﻿package com.roma.nativeapp;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -579,17 +578,20 @@ public class MainActivity extends Activity {
 
     private void applySyntaxHighlighting(Editable editable) {
         String text = editable.toString();
+        // Очищаем старые подцветки
         ForegroundColorSpan[] spans = editable.getSpans(0, editable.length(), ForegroundColorSpan.class);
         for (ForegroundColorSpan span : spans) {
             editable.removeSpan(span);
         }
 
+        // Подсветка ключевых слов
         Pattern keywords = Pattern.compile("\\b(package|import|public|class|extends|protected|void|override|new|return|if|else|boolean|int|String)\\b");
         Matcher matcher = keywords.matcher(text);
         while (matcher.find()) {
             editable.setSpan(new ForegroundColorSpan(Color.parseColor("#F43F5E")), matcher.start(), matcher.end(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
 
+        // Подсветка строк
         Pattern strings = Pattern.compile("\".*?\"");
         Matcher strMatcher = strings.matcher(text);
         while (strMatcher.find()) {
@@ -832,25 +834,8 @@ public class MainActivity extends Activity {
                                 logSb.append(line).append("\n");
                             }
                             final String fullLogs = logSb.toString();
-                            
-                            // УЛУЧШЕННЫЙ ПОИСК ОШИБОК (Case-Insensitive)
-                            final StringBuilder extractedErrors = new StringBuilder();
-                            String[] logLines = fullLogs.split("\n");
-                            for (String l : logLines) {
-                                String lower = l.toLowerCase();
-                                if (lower.contains("error") || lower.contains("failed") || lower.contains("exception") || lower.contains("warning")) {
-                                    extractedErrors.append(l).append("\n");
-                                }
-                            }
-
                             handler.post(() -> {
-                                if (extractedErrors.length() > 0) {
-                                    String errText = extractedErrors.toString();
-                                    if (errText.length() > 4000) {
-                                        errText = errText.substring(errText.length() - 4000);
-                                    }
-                                    logEditText.setText("⚠️ НАЙДЕНЫ ОШИБКИ В ЛОГАХ:\n\n" + errText);
-                                } else if (fullLogs.length() > 4000) {
+                                if (fullLogs.length() > 4000) {
                                     logEditText.setText(fullLogs.substring(fullLogs.length() - 4000));
                                 } else {
                                     logEditText.setText(fullLogs);
@@ -963,6 +948,7 @@ public class MainActivity extends Activity {
         final EditText inputChat = createDialogEditText("Chat ID", chatId);
         layout.addView(inputChat);
 
+        // Настройки SDK и версий Java
         TextView sdkLabel = new TextView(this);
         sdkLabel.setText("⚙️ Профиль производительности и SDK:");
         sdkLabel.setTextColor(Color.parseColor("#38BDF8"));
