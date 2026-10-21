@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.risovanie.app'
+    namespace 'com.roma.nativeapp'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.risovanie.app"
+        applicationId "com.roma.nativeapp"
         minSdk 24
         targetSdk 34
         versionCode 1
