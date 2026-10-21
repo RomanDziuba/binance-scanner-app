@@ -1,5 +1,3 @@
-package com.kompas.app;
-
 ﻿package com.roma.nativeapp;
 
 import android.Manifest;
