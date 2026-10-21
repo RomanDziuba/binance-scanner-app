@@ -6,6 +6,7 @@ import android.content.ContentValues;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -66,7 +67,7 @@ public class MainActivity extends Activity {
         initDatabase();
         filteredDatabase.addAll(allDatabase);
 
-        // Главный контейнер (Темная тема)
+        // Главный контейнер (Темная тема Cyber Slate)
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(Color.parseColor("#0F172A")); // Slate 900
@@ -183,7 +184,7 @@ public class MainActivity extends Activity {
 
         TextView authorText = new TextView(this);
         authorText.setText("App engineering by Dziuba R.V • KNUПУ / ДСТУ Б Д.2.6");
-        authorText.setTextColor(Color.parseColor("#64748B")); // Меткий неброский цвет
+        authorText.setTextColor(Color.parseColor("#64748B"));
         authorText.setTextSize(10f);
         footer.addView(authorText);
 
@@ -193,7 +194,6 @@ public class MainActivity extends Activity {
         renderCards();
     }
 
-    // Фильтрация базы данных
     private void applyFilters() {
         String query = searchInput.getText().toString().trim().toLowerCase();
         int spinnerPos = volSpinner.getSelectedItemPosition();
@@ -234,7 +234,6 @@ public class MainActivity extends Activity {
         return false;
     }
 
-    // Отрисовка карточек
     private void renderCards() {
         containerCards.removeAllViews();
         countInfoText.setText("Відображено позицій: " + filteredDatabase.size() + " з " + allDatabase.size());
@@ -259,14 +258,13 @@ public class MainActivity extends Activity {
             lp.setMargins(0, 0, 0, 16);
             card.setLayoutParams(lp);
 
-            // Верхняя строка карточки (Шифр + Од. вим)
             LinearLayout topRow = new LinearLayout(this);
             topRow.setOrientation(LinearLayout.HORIZONTAL);
             topRow.setGravity(Gravity.CENTER_VERTICAL);
 
             TextView codeView = new TextView(this);
             codeView.setText(item.code);
-            codeView.setTextColor(Color.parseColor("#60A5FA")); // Blue 400
+            codeView.setTextColor(Color.parseColor("#60A5FA"));
             codeView.setTextSize(16f);
             codeView.setTypeface(Typeface.DEFAULT_BOLD);
             codeView.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
@@ -275,7 +273,7 @@ public class MainActivity extends Activity {
             if (item.altCode != null && !item.altCode.isEmpty()) {
                 TextView altView = new TextView(this);
                 altView.setText(" " + item.altCode + " ");
-                altView.setTextColor(Color.parseColor("#F59E0B")); // Amber
+                altView.setTextColor(Color.parseColor("#F59E0B"));
                 altView.setTextSize(11f);
                 topRow.addView(altView);
             }
@@ -288,7 +286,6 @@ public class MainActivity extends Activity {
 
             card.addView(topRow);
 
-            // Иерархия
             TextView pathView = new TextView(this);
             pathView.setText(item.volName + " / " + item.dept);
             pathView.setTextColor(Color.parseColor("#64748B"));
@@ -298,7 +295,6 @@ public class MainActivity extends Activity {
             pathView.setLayoutParams(pathLp);
             card.addView(pathView);
 
-            // Список робіт
             LinearLayout worksBox = new LinearLayout(this);
             worksBox.setOrientation(LinearLayout.VERTICAL);
             worksBox.setBackgroundColor(Color.parseColor("#0F172A"));
@@ -307,7 +303,7 @@ public class MainActivity extends Activity {
             for (String work : item.works) {
                 TextView wView = new TextView(this);
                 wView.setText("• " + work);
-                wView.setTextColor(Color.parseColor("#CBD5E1")); // Slate 300
+                wView.setTextColor(Color.parseColor("#CBD5E1"));
                 wView.setTextSize(13f);
                 LinearLayout.LayoutParams wLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
                 wLp.setMargins(0, 0, 0, 6);
@@ -320,7 +316,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // Экспорт в JSON
     private void exportJSON() {
         try {
             StringBuilder sb = new StringBuilder();
@@ -343,7 +338,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // Экспорт в CSV
     private void exportCSV() {
         try {
             StringBuilder sb = new StringBuilder();
@@ -404,9 +398,7 @@ public class MainActivity extends Activity {
         return btn;
     }
 
-    // Инициализация полной базы данных шифров ПНР (Збірники 1-10)[span_1](start_span)[span_1](end_span)
     private void initDatabase() {
-        // Збірник 1
         List<String> w1 = new ArrayList<>();
         w1.add("Вимірювання опору ізоляції обмоток мегаомметром на 2500 В та визначення коефіцієнта абсорбції.");
         w1.add("Вимірювання опору обмоток постійному струму на всіх відгалуженнях.");
@@ -448,7 +440,6 @@ public class MainActivity extends Activity {
         w8.add("Перевірка часових затримок та тестування блокувань.");
         allDatabase.add(new PnrItem("П1", "Збірник 1. Електротехнічні пристрої", "Розподільчі щити", "АВР", "Група 30", "П1-30-1", "КП1-30-1", "пристрій", w8));
 
-        // Збірник 2 (АСУ ТП та КІП)
         List<String> w9 = new ArrayList<>();
         w9.add("Датчики тиску та розрідження (тензометричні, п'єзорезистивні).");
         w9.add("Калібрування нуля, перевірка лінійності вихідного сигналу (4-20 мА).");
@@ -469,41 +460,34 @@ public class MainActivity extends Activity {
         w12.add("Налаштування устави спрацьовування та затримок часу.");
         allDatabase.add(new PnrItem("П2", "Збірник 2. Автоматизовані системи керування", "Захист та блокування", "ПАЗ", "Група 13", "П2-13-6", "КП2-13-6", "шт", w12));
 
-        // Збірник 3 (Вентиляція)
         List<String> w13 = new ArrayList<>();
         w13.add("Аеродинамічні випробування та налагодження приточної/витяжної системи.");
         w13.add("Вимірювання витрат та швидкості повітря у повітроводах.");
         allDatabase.add(new PnrItem("П3", "Збірник 3. Системи вентиляції та кондиціювання", "Вентиляційні системи", "Приточні установки", "Група 1", "П3-1-1", "КП3-1-1", "система", w13));
 
-        // Збірник 4 (Підйомно-транспортне)
         List<String> w14 = new ArrayList<>();
         w14.add("Комплексна наладка електрообладнання мостового або козлового крана.");
         w14.add("Налаштування приводів пересування та обмежувачів вантажопідйомності.");
         allDatabase.add(new PnrItem("П4", "Збірник 4. Підйомно-транспортне устаткування", "Підйомні машини", "Крани", "Група 10", "П4-10-1", "КП4-10-1", "кран", w14));
 
-        // Збірник 6 (Теплосилове)
         List<String> w15 = new ArrayList<>();
         w15.add("Пусконалагоджувальні роботи водогрійного або парового котла.");
         w15.add("Регулювання режимів горіння палива, балансування газ-повітря.");
         allDatabase.add(new PnrItem("П6", "Збірник 6. Теплосилове устаткування", "Котлоагрегати", "Котли", "Група 1", "П6-1-1", "КП6-1-1", "котлоагрегат", w15));
 
-        // Збірник 7 (Компресори)
         List<String> w16 = new ArrayList<>();
         w16.add("Пусконалагоджувальні роботи компресорної установки.");
         w16.add("Налаштування автоматики мащення та охолодження.");
         allDatabase.add(new PnrItem("П7", "Збірник 7. Компресорні установки", "Компресори", "Гвинтові компресори", "Група 1", "П7-1-1", "КП7-1-1", "установка", w16));
 
-        // Збірник 8 (Турбіни)
         List<String> w17 = new ArrayList<>();
         w17.add("Налагодження системи автоматичного регулювання та гідрозахисту парової турбіни.");
         allDatabase.add(new PnrItem("П8", "Збірник 8. Парові та газові турбіни", "Турбоагрегати", "Парові турбіни", "Група 1", "П8-1-1", "КП8-1-1", "турбіна", w17));
 
-        // Збірник 9 (Водопостачання)
         List<String> w18 = new ArrayList<>();
         w18.add("Комплексне налагодження насосного агрегату з частотно-регульованим приводом (ЧРП).");
         allDatabase.add(new PnrItem("П9", "Збірник 9. Споруди водопостачання та каналізації", "Насосні станції", "Насоси", "Група 1", "П9-1-1", "КП9-1-1", "насос", w18));
 
-        // Збірник 10 (Металургія)
         List<String> w19 = new ArrayList<>();
         w19.add("Налагодження електроприводів прокатного стану та системи синхронізації швидкостей.");
         allDatabase.add(new PnrItem("П10", "Збірник 10. Металургійне устаткування", "Доменне обладнання", "Прокатні стани", "Група 1", "П10-1-1", "КП10-1-1", "лінія", w19));
