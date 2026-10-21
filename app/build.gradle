@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.risovalka.app'
+    namespace 'com.risovanie.app'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.risovalka.app"
+        applicationId "com.risovanie.app"
         minSdk 24
         targetSdk 34
         versionCode 1
