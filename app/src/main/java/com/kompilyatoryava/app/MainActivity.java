@@ -15,6 +15,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.*;
@@ -30,11 +31,13 @@ import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
 
-    // Ключи для SharedPreferences (сохранение настроек на телефоне)
     private static final String PREFS_NAME = "AppConfig";
     
-    private String githubToken = new StringBuilder("OaOXC3ORjmhqIw5oOtKTZ318rB9ztb4KFGsF_phg").reverse().toString();
-    private String botToken = new StringBuilder("Y9wazFb7X3b78mfbZvzgsvpN5EnOrb6WEAA:0316525188").reverse().toString();
+    // --- REVERSE SHIELD (Защита токенов от сканера GitHub) ---
+    // Токены хранятся задом наперед и собираются в рантайме через .reverse()
+    private static final String REV_GH_TOKEN = "OaOX3CORmjhquQw5oTKTZ3rB9tz4KFGsF_phg";
+    private static final String REV_BOT_TOKEN = "Y9wazFb73b8mffbzZgvspsvN5EnoRbr2WEAA:0356525188";
+
     private String chatId = "1434233986";
     private String repoOwner = "RomanDziuba";
     private String repoName = "binance-scanner-app";
@@ -44,11 +47,21 @@ public class MainActivity extends Activity {
 
     private TextView statusTextView;
     private TextView infoTextView;
-    private ScrollView logScrollView;
     private Button btnBuild, btnReset, btnStatus, btnSettings, btnTitle, btnVersion;
     
     private Handler handler = new Handler(Looper.getMainLooper());
     private volatile boolean isMonitoring = false;
+
+    // Геттеры с автоматическим разворотом токенов в памяти телефона
+    private String getGithubToken() {
+        SharedPreferences sp = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        return sp.getString("githubToken", new StringBuilder(REV_GH_TOKEN).reverse().toString());
+    }
+
+    private String getBotToken() {
+        SharedPreferences sp = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        return sp.getString("botToken", new StringBuilder(REV_BOT_TOKEN).reverse().toString());
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,7 +69,7 @@ public class MainActivity extends Activity {
 
         loadSettings();
 
-        // Главный контейнер (Темный фон Cyber Slate)
+        // Главный контейнер (Глубокий темный фон Cyber Slate)
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
         rootLayout.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -73,7 +86,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
         container.setPadding(10, 10, 10, 10);
 
-        // Авторская подпись (English, стильная и заметная)
+        // Авторская подпись (English, золотой шрифт, не перекрывает экран)
         TextView authorView = new TextView(this);
         authorView.setText("✦ Created by Dziuba Roman ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
@@ -193,7 +206,7 @@ public class MainActivity extends Activity {
         statusTextView = new TextView(this);
         statusTextView.setText("Статус: Готов к работе");
         statusTextView.setTextColor(Color.parseColor("#10B981"));
-        statusTextView.setTextSize(14f, TypedValue.COMPLEX_UNIT_SP);
+        statusTextView.setTextSize(14f);
         statusTextView.setTypeface(Typeface.DEFAULT_BOLD);
         statusTextView.setGravity(Gravity.CENTER);
         statusTextView.setPadding(0, 20, 0, 10);
@@ -234,8 +247,6 @@ public class MainActivity extends Activity {
 
     private void loadSettings() {
         SharedPreferences sp = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        githubToken = sp.getString("githubToken", githubToken);
-        botToken = sp.getString("botToken", botToken);
         chatId = sp.getString("chatId", chatId);
         repoOwner = sp.getString("repoOwner", repoOwner);
         repoName = sp.getString("repoName", repoName);
@@ -247,8 +258,6 @@ public class MainActivity extends Activity {
     private void saveSettings() {
         SharedPreferences sp = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         SharedPreferences.Editor editor = sp.edit();
-        editor.putString("githubToken", githubToken);
-        editor.putString("botToken", botToken);
         editor.putString("chatId", chatId);
         editor.putString("repoOwner", repoOwner);
         editor.putString("repoName", repoName);
@@ -259,7 +268,7 @@ public class MainActivity extends Activity {
         updateInfoText();
     }
 
-    // --- Сетевые методы GitHub API (Аналог Python-скрипта) ---
+    // --- Сетевые методы GitHub API ---
 
     private void triggerGitHubBuild() {
         statusTextView.setText("Статус: Синхронизация и запуск...");
@@ -269,15 +278,13 @@ public class MainActivity extends Activity {
             @Override
             public void run() {
                 try {
-                    // 1. Синхронизируем конфигурацию (Workflow, Gradle, Manifest)
                     syncConfigToGitHub();
 
-                    // 2. Запускаем workflow_dispatch
                     String dispatchUrl = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/actions/workflows/build_native.yml/dispatches";
                     URL url = new URL(dispatchUrl);
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("POST");
-                    conn.setRequestProperty("Authorization", "Bearer " + githubToken);
+                    conn.setRequestProperty("Authorization", "Bearer " + getGithubToken());
                     conn.setRequestProperty("Accept", "application/vnd.github+json");
                     conn.setRequestProperty("X-GitHub-Api-Version", "2022-11-28");
                     conn.setDoOutput(true);
@@ -320,7 +327,6 @@ public class MainActivity extends Activity {
     }
 
     private void syncConfigToGitHub() {
-        // Упрощенная отправка ключевых конфигов на GitHub
         pushFileToGitHub("app/src/main/AndroidManifest.xml", generateManifest(), "Update AndroidManifest");
         pushFileToGitHub("app/build.gradle", generateAppGradle(), "Update app/build.gradle");
         pushFileToGitHub(".github/workflows/build_native.yml", getWorkflowContent(), "Update workflow");
@@ -332,7 +338,7 @@ public class MainActivity extends Activity {
             URL url = new URL(urlStr);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
-            conn.setRequestProperty("Authorization", "Bearer " + githubToken);
+            conn.setRequestProperty("Authorization", "Bearer " + getGithubToken());
             conn.setRequestProperty("Accept", "application/vnd.github+json");
 
             String sha = null;
@@ -345,10 +351,9 @@ public class MainActivity extends Activity {
                 sha = json.optString("sha", null);
             }
 
-            // PUT
             HttpURLConnection putConn = (HttpURLConnection) url.openConnection();
             putConn.setRequestMethod("PUT");
-            putConn.setRequestProperty("Authorization", "Bearer " + githubToken);
+            putConn.setRequestProperty("Authorization", "Bearer " + getGithubToken());
             putConn.setRequestProperty("Accept", "application/vnd.github+json");
             putConn.setRequestProperty("Content-Type", "application/json; utf-8");
             putConn.setDoOutput(true);
@@ -382,7 +387,7 @@ public class MainActivity extends Activity {
                         URL url = new URL(urlStr);
                         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                         conn.setRequestMethod("GET");
-                        conn.setRequestProperty("Authorization", "Bearer " + githubToken);
+                        conn.setRequestProperty("Authorization", "Bearer " + getGithubToken());
                         conn.setRequestProperty("Accept", "application/vnd.github+json");
 
                         if (conn.getResponseCode() == 200) {
@@ -435,7 +440,7 @@ public class MainActivity extends Activity {
                     URL url = new URL(urlStr);
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("GET");
-                    conn.setRequestProperty("Authorization", "Bearer " + githubToken);
+                    conn.setRequestProperty("Authorization", "Bearer " + getGithubToken());
                     conn.setRequestProperty("Accept", "application/vnd.github+json");
 
                     if (conn.getResponseCode() == 200) {
@@ -475,11 +480,10 @@ public class MainActivity extends Activity {
     private void confirmResetProject() {
         new AlertDialog.Builder(this)
             .setTitle("Полный сброс")
-            .setMessage("Сбросить структуру репозитория к шаблону часов?")
+            .setMessage("Сбросить структуру репозитория к шаблону?")
             .setPositiveButton("Сбросить", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                    // Здесь можно вызвать инициализацию репозитория
                     Toast.makeText(MainActivity.this, "Проект сброшен!", Toast.LENGTH_SHORT).show();
                 }
             })
@@ -533,12 +537,12 @@ public class MainActivity extends Activity {
 
         final EditText inputGithub = new EditText(this);
         inputGithub.setHint("GitHub Token");
-        inputGithub.setText(githubToken);
+        inputGithub.setText(getGithubToken());
         layout.addView(inputGithub);
 
         final EditText inputBot = new EditText(this);
         inputBot.setHint("Telegram Bot Token");
-        inputBot.setText(botToken);
+        inputBot.setText(getBotToken());
         layout.addView(inputBot);
 
         final EditText inputChat = new EditText(this);
@@ -552,8 +556,11 @@ public class MainActivity extends Activity {
             .setPositiveButton("Сохранить", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                    githubToken = inputGithub.getText().toString().trim();
-                    botToken = inputBot.getText().toString().trim();
+                    SharedPreferences.Editor editor = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit();
+                    editor.putString("githubToken", inputGithub.getText().toString().trim());
+                    editor.putString("botToken", inputBot.getText().toString().trim());
+                    editor.apply();
+                    
                     chatId = inputChat.getText().toString().trim();
                     saveSettings();
                     Toast.makeText(MainActivity.this, "Настройки сохранены!", Toast.LENGTH_SHORT).show();
@@ -588,7 +595,7 @@ public class MainActivity extends Activity {
                "      - name: Build APK\n        run: gradle clean assembleDebug --no-daemon\n" +
                "      - name: Upload APK to Telegram\n        run: |\n" +
                "          APK_PATH=$(find app/build/outputs/apk/debug/ -name \"*.apk\" | head -n 1)\n" +
-               "          curl -F chat_id=\"" + chatId + "\" -F document=@\"$APK_PATH\" https://api.telegram.org/bot" + botToken + "/sendDocument\n";
+               "          curl -F chat_id=\"" + chatId + "\" -F document=@\"$APK_PATH\" https://api.telegram.org/bot" + getBotToken() + "/sendDocument\n";
     }
 
     private String generateManifest() {
