@@ -37,7 +37,6 @@ public class MainActivity extends Activity {
 
     private static final String PREFS_NAME = "AppConfig";
 
-    // Настройки по умолчанию
     private String githubToken = "";
     private String botToken = "";
     private String chatId = "1434233986";
@@ -59,7 +58,6 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         loadSettings();
 
-        // Главный контейнер (Темный премиальный стиль)
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
         rootLayout.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -75,7 +73,7 @@ public class MainActivity extends Activity {
         container.setOrientation(LinearLayout.VERTICAL);
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
-        // 1. Авторская подпись
+        // Авторская подпись
         TextView authorView = new TextView(this);
         authorView.setText("✦ Created by Dziuba Roman ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
@@ -85,7 +83,7 @@ public class MainActivity extends Activity {
         authorView.setPadding(0, 5, 0, 15);
         container.addView(authorView);
 
-        // 2. Часы в реальном времени
+        // Живые часы
         TextClock clock = new TextClock(this);
         clock.setTextColor(Color.parseColor("#10B981"));
         clock.setTextSize(26f);
@@ -94,7 +92,6 @@ public class MainActivity extends Activity {
         clock.setPadding(0, 0, 0, 15);
         container.addView(clock);
 
-        // Главная карточка панели
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(30, 30, 30, 30);
@@ -111,7 +108,6 @@ public class MainActivity extends Activity {
         cardParams.setMargins(0, 0, 0, 20);
         card.setLayoutParams(cardParams);
 
-        // Заголовок панели
         TextView titleView = new TextView(this);
         titleView.setText("📱 Android CI/CD Controller");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
@@ -121,7 +117,6 @@ public class MainActivity extends Activity {
         titleView.setPadding(0, 0, 0, 15);
         card.addView(titleView);
 
-        // Инфо-блок проекта
         infoTextView = new TextView(this);
         updateInfoText();
         infoTextView.setTextColor(Color.parseColor("#94A3B8"));
@@ -140,7 +135,6 @@ public class MainActivity extends Activity {
         infoTextView.setLayoutParams(infoParams);
         card.addView(infoTextView);
 
-        // КНОПКИ УПРАВЛЕНИЯ
         btnBuild = createStyledButton("🚀 Скомпилировать APK (GitHub)", "#2563EB");
         btnBuild.setOnClickListener(v -> triggerGitHubBuild());
         card.addView(btnBuild);
@@ -161,18 +155,15 @@ public class MainActivity extends Activity {
         btnVersion.setOnClickListener(v -> showEditVersionDialog());
         card.addView(btnVersion);
 
-        btnIcon = createStyledButton("🖼 Иконка приложения (Загрузить)", "#7C3AED");
+        btnIcon = createStyledButton("🖼 Иконка приложения", "#7C3AED");
         setButtonIconPreview(btnIcon);
-        btnIcon.setOnClickListener(v -> {
-            Toast.makeText(this, "Поместите иконку в ic_launcher.png через сброс или кодинг", Toast.LENGTH_LONG).show();
-        });
+        btnIcon.setOnClickListener(v -> Toast.makeText(this, "Иконка активна", Toast.LENGTH_SHORT).show());
         card.addView(btnIcon);
 
         btnSettings = createStyledButton("⚙️ Настройки API (GitHub & Bot)", "#0F766E");
         btnSettings.setOnClickListener(v -> showSettingsDialog());
         card.addView(btnSettings);
 
-        // Статус строка
         statusTextView = new TextView(this);
         statusTextView.setText("Статус: Готов к работе");
         statusTextView.setTextColor(Color.parseColor("#10B981"));
@@ -182,7 +173,6 @@ public class MainActivity extends Activity {
         statusTextView.setPadding(0, 15, 0, 10);
         card.addView(statusTextView);
 
-        // БЛОК ЛОГОВ И ОШИБОК С ВОЗМОЖНОСТЬЮ КОПИРОВАНИЯ
         TextView logLabel = new TextView(this);
         logLabel.setText("📋 Терминал / Логи ошибок:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
@@ -290,19 +280,14 @@ public class MainActivity extends Activity {
         updateInfoText();
     }
 
-    // ==================== ANTI-409 GITHUB SHIELD ====================
-    // Автоматически маскирует токены в Base64 при отправке кода на GitHub,
-    // чтобы статический сканер не блокировал коммит с ошибкой 409.
     private String sanitizeAndEncodeCode(String code) {
         if (code == null) return "";
-        // Маскировка Telegram токенов
         Matcher tgMatcher = Pattern.compile("['\"](\\d{8,}:[A-Za-z0-9_-]{35})['\"]").matcher(code);
         while (tgMatcher.find()) {
             String real = tgMatcher.group(1);
             String b64 = android.util.Base64.encodeToString(real.getBytes(StandardCharsets.UTF_8), android.util.Base64.NO_WRAP);
             code = code.replace(real, "\" + new String(android.util.Base64.decode(\"" + b64 + "\", android.util.Base64.DEFAULT)) + \"");
         }
-        // Маскировка GitHub токенов
         Matcher ghMatcher = Pattern.compile("['\"](ghp_[a-zA-Z0-9]{36})['\"]").matcher(code);
         while (ghMatcher.find()) {
             String real = ghMatcher.group(1);
@@ -311,8 +296,6 @@ public class MainActivity extends Activity {
         }
         return code;
     }
-
-    // ==================== СЕТЕВЫЕ ОПЕРАЦИИ С GITHUB ====================
 
     private void triggerGitHubBuild() {
         if (githubToken.isEmpty()) {
@@ -332,7 +315,7 @@ public class MainActivity extends Activity {
                     handler.post(() -> {
                         btnBuild.setEnabled(true);
                         statusTextView.setText("Статус: ❌ Ошибка 401/403 (Проверьте токен!)");
-                        logEditText.setText("Ошибка авторизации на GitHub. Проверите правильность токена и права доступа (repo, workflow).");
+                        logEditText.setText("Ошибка авторизации на GitHub. Проверьте правильность токена и права доступа.");
                     });
                     return;
                 }
@@ -503,7 +486,6 @@ public class MainActivity extends Activity {
                     if (jobs.length() > 0) {
                         long jobId = jobs.getJSONObject(0).getLong("id");
                         
-                        // Получаем логи джобы
                         String logsUrl = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/actions/jobs/" + jobId + "/logs";
                         HttpURLConnection logConn = (HttpURLConnection) new URL(logsUrl).openConnection();
                         logConn.setRequestMethod("GET");
@@ -518,7 +500,7 @@ public class MainActivity extends Activity {
                             final String fullLogs = logSb.toString();
                             handler.post(() -> {
                                 if (fullLogs.length() > 3000) {
-                                    logEditText.setText(fullLogs.substring(fullLogs.length() - 3000)); // последние 3000 символов логов
+                                    logEditText.setText(fullLogs.substring(fullLogs.length() - 3000));
                                 } else {
                                     logEditText.setText(fullLogs);
                                 }
@@ -712,11 +694,27 @@ public class MainActivity extends Activity {
                "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" +
                "      - uses: actions/checkout@v4\n" +
                "      - uses: actions/setup-java@v4\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n" +
-               "      - uses: gradle/actions/setup-gradle@v3\n        with:\n          gradle-version: '8.5'\n          cache-disabled: true\n" +
-               "      - name: Build APK\n        run: gradle clean assembleDebug --no-daemon\n" +
-               "      - name: Upload APK to Telegram\n        run: |\n" +
+               "      - name: Install Gradle\n        run: sudo apt-get update && sudo apt-get install -y gradle\n" +
+               "      - name: Setup Android SDK & Accept Licenses\n        run: |\n" +
+               "          export ANDROID_HOME=/usr/local/lib/android/sdk\n" +
+               "          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n" +
+               "          yes | sdkmanager --licenses || true\n" +
+               "          sdkmanager \"platform-tools\" \"platforms;android-34\" \"build-tools;34.0.0\"\n" +
+               "      - name: Build Debug APK with Gradle\n        run: |\n" +
+               "          export ANDROID_HOME=/usr/local/lib/android/sdk\n" +
+               "          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n" +
+               "          gradle clean assembleDebug --stacktrace --no-daemon\n" +
+               "      - name: Upload APK to Telegram Bot\n        if: success()\n        run: |\n" +
                "          APK_PATH=$(find app/build/outputs/apk/debug/ -name \"*.apk\" | head -n 1)\n" +
-               "          curl -F chat_id=\"" + chatId + "\" -F document=@\"$APK_PATH\" https://api.telegram.org/bot" + botToken + "/sendDocument\n";
+               "          if [ -n \"$APK_PATH\" ]; then\n" +
+               "            APP_TITLE=\"" + appTitle + "\"\n" +
+               "            RENAMED_PATH=\"/tmp/$APP_TITLE.apk\"\n" +
+               "            cp \"$APK_PATH\" \"$RENAMED_PATH\"\n" +
+               "            curl -F chat_id=\"" + chatId + "\" -F document=@\"$RENAMED_PATH\" https://api.telegram.org/bot" + botToken + "/sendDocument\n" +
+               "          else\n" +
+               "            echo \"❌ Ошибка: APK файл не найден!\"\n" +
+               "            exit 1\n" +
+               "          fi\n";
     }
 
     private String generateManifest() {
