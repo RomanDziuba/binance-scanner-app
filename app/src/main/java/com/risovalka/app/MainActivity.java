@@ -56,7 +56,7 @@ public class MainActivity extends Activity {
     private LinearLayout layersListLayout;
     private TextView sizeValText, opacValText;
 
-    // История для Undo / Redo (храним снимки слоев в памяти)
+    // История для Undo / Redo
     private static class HistoryState {
         List<Bitmap> bitmaps;
         int activeIndex;
@@ -295,7 +295,6 @@ public class MainActivity extends Activity {
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
             
-            // Масштабирование под экран с сохранением пропорций 4:3
             float scaleX = (float) getWidth() / CANVAS_W;
             float scaleY = (float) getHeight() / CANVAS_H;
             float scale = Math.min(scaleX, scaleY);
@@ -307,24 +306,19 @@ public class MainActivity extends Activity {
             canvas.translate(offsetX, offsetY);
             canvas.scale(scale, scale);
 
-            // Шахматный фон холста
             Paint bgPaint = new Paint();
             bgPaint.setColor(Color.WHITE);
             canvas.drawRect(0, 0, CANVAS_W, CANVAS_H, bgPaint);
 
-            // Отрисовка всех видимых слоев
             for (Layer layer : layers) {
                 if (layer.visible) {
                     canvas.drawBitmap(layer.bitmap, 0, 0, null);
                 }
             }
 
-            // Отрисовка временного слоя предпросмотра (например, при рисовании круга)
             canvas.drawBitmap(previewBitmap, 0, 0, null);
-
             canvas.restore();
 
-            // Линия симметрии
             if (isSymmetry) {
                 Paint linePaint = new Paint();
                 linePaint.setColor(Color.RED);
@@ -490,7 +484,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // Алгоритм заливки (Flood Fill)
     private void floodFill(Bitmap bmp, int x, int y, int newColor) {
         if (x < 0 || x >= bmp.getWidth() || y < 0 || y >= bmp.getHeight()) return;
         int targetColor = bmp.getPixel(x, y);
@@ -530,7 +523,6 @@ public class MainActivity extends Activity {
         bmp.setPixels(pixels, 0, w, 0, 0, w, h);
     }
 
-    // ==================== УПРАВЛЕНИЕ СЛОЯМИ UI ====================
     private void renderLayersUI() {
         layersListLayout.removeAllViews();
         for (int i = layers.size() - 1; i >= 0; i--) {
@@ -572,7 +564,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // ==================== ИСТОРИЯ UNDO / REDO ====================
     private void saveStateToUndo() {
         HistoryState state = new HistoryState();
         state.bitmaps = new ArrayList<>();
@@ -581,7 +572,7 @@ public class MainActivity extends Activity {
         }
         state.activeIndex = activeLayerIndex;
         undoStack.push(state);
-        if (undoStack.size() > 20) undoStack.remove(0); // Ограничение памяти
+        if (undoStack.size() > 20) undoStack.remove(0);
         redoStack.clear();
         updateUndoRedoButtons();
     }
@@ -629,12 +620,11 @@ public class MainActivity extends Activity {
         btnRedo.setEnabled(!redoStack.isEmpty());
     }
 
-    // ==================== СОХРАНЕНИЕ И ОТКРЫТИЕ ФАЙЛОВ ====================
     private void saveArtworkToPhone() {
         try {
             Bitmap resultBitmap = Bitmap.createBitmap(CANVAS_W, CANVAS_H, Bitmap.Config.ARGB_8888);
             Canvas canvas = new Canvas(resultBitmap);
-            canvas.drawColor(Color.WHITE); // Белый фон по умолчанию
+            canvas.drawColor(Color.WHITE);
 
             for (Layer l : layers) {
                 if (l.visible) canvas.drawBitmap(l.bitmap, 0, 0, null);
@@ -660,7 +650,7 @@ public class MainActivity extends Activity {
             resultBitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
             fos.flush();
             fos.close();
-            Toast.makeText(this, "✅ Успешно сохранено в Галерею (Папка Pictures/PaintPro)!", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "✅ Успешно сохранено в Галерею (Pictures/PaintPro)!", Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             Toast.makeText(this, "❌ Ошибка сохранения: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
@@ -681,7 +671,6 @@ public class MainActivity extends Activity {
                 if (img != null) {
                     saveStateToUndo();
                     Layer newLayer = new Layer(CANVAS_W, CANVAS_H);
-                    // Центрируем и масштабируем картинку под холст
                     float scale = Math.min((float)CANVAS_W / img.getWidth(), (float)CANVAS_H / img.getHeight());
                     float left = (CANVAS_W - img.getWidth() * scale) / 2f;
                     float top = (CANVAS_H - img.getHeight() * scale) / 2f;
@@ -707,7 +696,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // ==================== ВСПОМОГАТЕЛЬНЫЕ UI КОМПОНЕНТЫ ====================
     private interface OnProgressChanged {
         void onProgress(int val);
     }
@@ -761,7 +749,6 @@ public class MainActivity extends Activity {
         return btn;
     }
 
-    // Кнопка выбора цвета
     private class ColorPickerButton extends Button {
         public ColorPickerButton(android.content.Context context) {
             super(context);
@@ -779,7 +766,8 @@ public class MainActivity extends Activity {
 
         private void showColorPickerDialog() {
             final String[] colorsNames = {"Черный", "Белый", "Красный", "Зеленый", "Синий", "Желтый", "Оранжевый", "Фиолетовый", "Розовый"};
-            final int[] colorsVals = {Color.BLACK, Color.WHITE, Color.RED, Color.GREEN, Color.BLUE, Color.YELLOW, Color.rgb(255,140,0), Color.PURPLE, Color.MAGENTA};
+            // Чистый массив без Color.PURPLE
+            final int[] colorsVals = {Color.BLACK, Color.WHITE, Color.RED, Color.GREEN, Color.BLUE, Color.YELLOW, Color.rgb(255,140,0), Color.rgb(128, 0, 128), Color.MAGENTA};
 
             android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(MainActivity.this);
             builder.setTitle("Выберите цвет кисти");
