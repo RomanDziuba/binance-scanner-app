@@ -3,6 +3,7 @@ package com.kompas.app;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.*;
+import android.graphics.drawable.GradientDrawable;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
