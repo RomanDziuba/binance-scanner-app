@@ -169,9 +169,9 @@ public class MainActivity extends Activity {
         btnCodeEditor.setOnClickListener(v -> openAdvancedCodeEditor());
         card.addView(btnCodeEditor);
 
-        // Поддержка любых файлов (.java, .txt, .kt и др.)
-        btnUploadJava = createStyledButton("📝 Загрузить файл (.java, .txt): " + currentJavaFileName, "#0D9488");
-        btnUploadJava.setOnClickListener(v -> openJavaFilePicker());
+        // Кнопка загрузки/вставки кода с выбором метода
+        btnUploadJava = createStyledButton("📝 Код: " + currentJavaFileName, "#0D9488");
+        btnUploadJava.setOnClickListener(v -> showCodeSourceChooserDialog());
         card.addView(btnUploadJava);
 
         btnReset = createStyledButton("🔄 Полный сброс (Шаблон Часы)", "#D97706");
@@ -338,11 +338,95 @@ public class MainActivity extends Activity {
         updateInfoText();
     }
 
-    // ==================== ВСЕЯДНЫЙ ВЫБОР ФАЙЛОВ (.JAVA, .TXT И ДР.) ====================
+    // ==================== ВЫБОР СПОСОБА ЗАГРУЗКИ КОДА (ФАЙЛ ИЛИ ВСТАВКА ТЕКСТА) ====================
+
+    private void showCodeSourceChooserDialog() {
+        CharSequence[] options = new CharSequence[]{
+            "📂 Выбрать файл с телефона (.java / .txt / .kt)",
+            "✍️ Вставить текст кода вручную"
+        };
+
+        new AlertDialog.Builder(this)
+            .setTitle("📝 Выберите способ загрузки кода")
+            .setItems(options, (dialog, which) -> {
+                if (which == 0) {
+                    openJavaFilePicker();
+                } else {
+                    showTextPasteDialog();
+                }
+            })
+            .setNegativeButton("Отмена", null)
+            .show();
+    }
+
+    private void showTextPasteDialog() {
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(30, 20, 30, 20);
+
+        TextView tip = new TextView(this);
+        tip.setText("Вставьте или напишите готовый Java-код MainActivity:");
+        tip.setTextColor(Color.parseColor("#38BDF8"));
+        tip.setTextSize(12f);
+        tip.setPadding(0, 0, 0, 10);
+        layout.addView(tip);
+
+        final EditText inputCode = new EditText(this);
+        inputCode.setText(currentJavaCode);
+        inputCode.setTextSize(11f);
+        inputCode.setTypeface(Typeface.MONOSPACE);
+        inputCode.setTextColor(Color.BLACK);
+        inputCode.setBackgroundColor(Color.WHITE);
+        inputCode.setPadding(20, 20, 20, 20);
+        inputCode.setGravity(Gravity.TOP);
+        inputCode.setMinLines(15);
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(inputCode);
+        
+        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 700
+        );
+        scroll.setLayoutParams(scrollParams);
+        layout.addView(scroll);
+
+        new AlertDialog.Builder(this)
+            .setTitle("✍️ Ручной ввод / Вставка кода")
+            .setView(layout)
+            .setPositiveButton("Применить и отправить", (dialog, which) -> {
+                String code = inputCode.getText().toString();
+                if (code.trim().isEmpty()) {
+                    Toast.makeText(this, "Код не может быть пустым!", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                currentJavaCode = code;
+                currentJavaFileName = "Вставленный текст (MainActivity.java)";
+                saveSettings();
+                btnUploadJava.setText("📝 Код: " + currentJavaFileName);
+
+                statusTextView.setText("Статус: ⚙️ Отправка вставленного кода на GitHub...");
+                logEditText.setText("Вставленный код адаптируется и отправляется в репозиторий...");
+
+                new Thread(() -> {
+                    boolean success = pushFileToGitHub(getMainActivityPath(), currentJavaCode, "Upload pasted manual source code");
+                    handler.post(() -> {
+                        if (success) {
+                            statusTextView.setText("Статус: ✅ Код успешно отправлен!");
+                            logEditText.setText("Вставленный код успешно загружен в репозиторий под пакет " + packageName + ".");
+                        } else {
+                            statusTextView.setText("Статус: ❌ Ошибка отправки кода");
+                            logEditText.setText("Не удалось отправить код на GitHub. Проверьте токен в настройках.");
+                        }
+                    });
+                }).start();
+            })
+            .setNegativeButton("Отмена", null)
+            .show();
+    }
 
     private void openJavaFilePicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-        // Разрешаем любые текстовые и исходные файлы (.java, .txt, .kt, etc.)
         intent.setType("*/*");
         intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
             "text/plain", 
@@ -379,7 +463,6 @@ public class MainActivity extends Activity {
             fileName = "CustomCode.java";
         }
         
-        // Автоматическая адаптация: если файл загружен как .txt, сохраняем расширение .java для компилятора
         if (fileName.endsWith(".txt")) {
             fileName = fileName.substring(0, fileName.length() - 4) + ".java";
         }
@@ -400,7 +483,7 @@ public class MainActivity extends Activity {
             currentJavaCode = code;
             currentJavaFileName = finalFileName;
             saveSettings();
-            btnUploadJava.setText("📝 Файл: " + currentJavaFileName);
+            btnUploadJava.setText("📝 Код: " + currentJavaFileName);
 
             statusTextView.setText("Статус: ⚙️ Обработка и отправка файла...");
             logEditText.setText("Загружен файл: " + finalFileName + "\nПрименение Anti-409 Shield и отправка в репозиторий...");
@@ -517,7 +600,7 @@ public class MainActivity extends Activity {
                     handler.post(() -> {
                         btnBuild.setEnabled(true);
                         btnBuild.setBackgroundColor(Color.parseColor("#2563EB"));
-                        btnBuild.setText(getBuildButtonText());
+                        btnBuild.setText(getButtonText());
                         statusTextView.setText("Статус: ❌ Ошибка 401/403 (Проверьте токен)");
                         logEditText.setText("Ошибка авторизации на GitHub. Проверьте правильность токена.");
                     });
@@ -667,7 +750,6 @@ public class MainActivity extends Activity {
                                         logEditText.setText("Сборка завершена успешно! Бот автоматически отправил APK в ваш Telegram чат.");
                                     } else {
                                         statusTextView.setText("Статус: ❌ Ошибка компиляции (" + conclusion + ")");
-                                        // Запускаем расширенный интеллектуальный парсинг логов
                                         fetchLogsAsync(runId);
                                     }
                                 } else {
@@ -683,7 +765,7 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    // ==================== РАСШИРЕННЫЙ И ИНТЕЛЛЕКТУАЛЬНЫЙ ПАРСИНГ ЛОГОВ ====================
+    // ==================== ИСПРАВЛЕННЫЙ И ИНТЕЛЛЕКТУАЛЬНЫЙ ПАРСИНГ ЛОГОВ ====================
 
     private void fetchLogsAsync(long runId) {
         new Thread(() -> {
@@ -710,14 +792,6 @@ public class MainActivity extends Activity {
 
                         if (logConn.getResponseCode() == 200) {
                             BufferedReader logBr = new BufferedReader(new InputStreamReader(logConn.getInputStream(), StandardCharsets.UTF_8));
-                            StringBuilder logSb = new StringBuilder();
-                            while ((line = logBr.readLine()) != logBr.readLine()) { // считываем построчно
-                                // Обрабатываем считывание
-                                String l = logBr.readLine();
-                                if (l == null) break;
-                                logSb.append(l).append("\n");
-                            }
-                            // Более надежное считывание всех логов
                             StringBuilder fullLogBuilder = new StringBuilder();
                             String currentLine;
                             while ((currentLine = logBr.readLine()) != null) {
@@ -725,20 +799,17 @@ public class MainActivity extends Activity {
                             }
                             logBr.close();
                             
-                            final String rawLogs = fullLogBuilder.length() > 0 ? fullLogBuilder.toString() : logSb.toString();
-                            
-                            // УМНЫЙ АНАЛИЗАТОР ОШИБОК (Парсинг ключевых проблем компиляции)
+                            final String rawLogs = fullLogBuilder.toString();
                             final String parsedSummary = parseAndHighlightErrors(rawLogs);
 
                             handler.post(() -> {
-                                // Выводим структурированный отчет об ошибке
                                 logEditText.setText(parsedSummary);
                             });
                         }
                     }
                 }
             } catch (Exception e) {
-                handler.printStackTrace();
+                e.printStackTrace();
                 handler.post(() -> logEditText.setText("Ошибка при загрузке логов: " + e.getMessage()));
             }
         }).start();
@@ -752,14 +823,12 @@ public class MainActivity extends Activity {
         StringBuilder report = new StringBuilder();
         report.append("=== 🔍 УМНЫЙ ОТЧЕТ ОБ ОШИБКЕ СБОРКИ ===\n\n");
 
-        // Ищем строки с ошибками компилятора Java/Gradle
         String[] lines = fullLogs.split("\n");
         boolean foundSpecificError = false;
 
         for (String line : lines) {
             String lower = line.toLowerCase();
             if (lower.contains("error:") || lower.contains("fail") || lower.contains("exception") || lower.contains("cannot find symbol")) {
-                // Очищаем от таймстампов GitHub Actions для читаемости
                 String cleanLine = line.replaceAll("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d+Z\\s+", "");
                 report.append("❌ ").append(cleanLine).append("\n");
                 foundSpecificError = true;
@@ -777,7 +846,6 @@ public class MainActivity extends Activity {
             report.append("💡 Совет: Проверьте правильность написания классов, импортов и синтаксиса в редакторе кода.");
         }
 
-        // Ограничиваем длину для удобного отображения в EditText
         String result = report.toString();
         if (result.length() > 4500) {
             return result.substring(result.length() - 4500);
@@ -815,7 +883,7 @@ public class MainActivity extends Activity {
                         if (success) {
                             currentJavaFileName = "Шаблон: Часы (MainActivity.java)";
                             saveSettings();
-                            btnUploadJava.setText("📝 Файл: " + currentJavaFileName);
+                            btnUploadJava.setText("📝 Код: " + currentJavaFileName);
                             statusTextView.setText("Статус: ✅ Репозиторий сброшен к часам!");
                             logEditText.setText("Проект успешно сброшен к исходному шаблону часов.");
                         } else {
