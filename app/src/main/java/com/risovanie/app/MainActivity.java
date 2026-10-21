@@ -24,11 +24,9 @@ public class MainActivity extends Activity {
     private static final int REQUEST_CODE_PERMISSIONS = 100;
     private static final int REQUEST_CODE_OPEN_IMAGE = 101;
 
-    // Внутреннее разрешение холста
     private static final int CANVAS_W = 800;
     private static final int CANVAS_H = 600;
 
-    // Модель слоя
     public static class Layer {
         public Bitmap bitmap;
         public Canvas canvas;
@@ -47,7 +45,7 @@ public class MainActivity extends Activity {
     private String currentTool = "brush";
     private int brushColor = Color.BLACK;
     private int brushSize = 5;
-    private int brushOpacity = 255; // 0 - 255
+    private int brushOpacity = 255;
 
     private boolean isSymmetry = false;
     private boolean isStabilized = false;
@@ -56,7 +54,6 @@ public class MainActivity extends Activity {
     private LinearLayout layersListLayout;
     private TextView sizeValText, opacValText;
 
-    // История для Undo / Redo
     private static class HistoryState {
         List<Bitmap> bitmaps;
         int activeIndex;
@@ -70,7 +67,6 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         requestPermissionsIfNeeded();
 
-        // Главный контейнер (Темная тема в стиле редактора)
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
         rootLayout.setBackgroundColor(Color.parseColor("#1e1e1e"));
@@ -81,7 +77,7 @@ public class MainActivity extends Activity {
         topBarScroll.setBackgroundColor(Color.parseColor("#2d2d2d"));
         LinearLayout topBar = new LinearLayout(this);
         topBar.setOrientation(LinearLayout.HORIZONTAL);
-        topBar.setPadding(10, 10, 10, 10);
+        topBar.setPadding(12, 12, 12, 12);
         topBar.setGravity(Gravity.CENTER_VERTICAL);
         topBarScroll.addView(topBar);
 
@@ -89,52 +85,48 @@ public class MainActivity extends Activity {
         final ColorPickerButton colorPicker = new ColorPickerButton(this);
         topBar.addView(colorPicker);
 
-        // Размер кисти
-        LinearLayout sizeGroup = createControlGroup("Размер:", sizeValText = new TextView(this), 1, 100, 5, new OnProgressChanged() {
-            @Override
-            public void onProgress(int val) {
-                brushSize = val;
-                sizeValText.setText(String.valueOf(val));
-            }
+        // Размер кисти (увеличена шкала)
+        LinearLayout sizeGroup = createControlGroup(" Размер:", sizeValText = new TextView(this), 1, 100, 5, val -> {
+            brushSize = val;
+            sizeValText.setText(String.valueOf(val));
         });
         topBar.addView(sizeGroup);
 
-        // Прозрачность
-        LinearLayout opacGroup = createControlGroup("Прозр.%:", opacValText = new TextView(this), 1, 100, 100, new OnProgressChanged() {
-            @Override
-            public void onProgress(int val) {
-                brushOpacity = (int) (val * 255.0 / 100.0);
-                opacValText.setText(String.valueOf(val));
-            }
+        // Прозрачность (увеличена шкала)
+        LinearLayout opacGroup = createControlGroup(" Прозр.%:", opacValText = new TextView(this), 1, 100, 100, val -> {
+            brushOpacity = (int) (val * 255.0 / 100.0);
+            opacValText.setText(String.valueOf(val));
         });
         topBar.addView(opacGroup);
 
-        // Чекбокс Симметрия
+        // Симметрия
         CheckBox symCheck = new CheckBox(this);
         symCheck.setText("🪞 Симметрия");
         symCheck.setTextColor(Color.WHITE);
+        symCheck.setTextSize(13f);
         symCheck.setOnCheckedChangeListener((buttonView, isChecked) -> {
             isSymmetry = isChecked;
             paintView.invalidate();
         });
         topBar.addView(symCheck);
 
-        // Чекбокс Стабилизация
+        // Стабилизация
         CheckBox stabCheck = new CheckBox(this);
         stabCheck.setText("📈 Стаб.");
         stabCheck.setTextColor(Color.WHITE);
+        stabCheck.setTextSize(13f);
         stabCheck.setOnCheckedChangeListener((buttonView, isChecked) -> isStabilized = isChecked);
         topBar.addView(stabCheck);
 
-        // Кнопки Undo / Redo
-        btnUndo = createButton("↩", v -> undo());
-        btnRedo = createButton("↪", v -> redo());
+        // Заметные кнопки Undo / Redo с текстом
+        btnUndo = createButton("↩ Назад", v -> undo());
+        btnRedo = createButton("↪ Повтор", v -> redo());
         btnUndo.setEnabled(false);
         btnRedo.setEnabled(false);
         topBar.addView(btnUndo);
         topBar.addView(btnRedo);
 
-        // Кнопки Открыть / Сохранить
+        // Открыть / Сохранить
         Button btnOpen = createButton("📂 Открыть", v -> openImageFromGallery());
         Button btnSave = createButton("💾 Сохранить", v -> saveArtworkToPhone());
         topBar.addView(btnOpen);
@@ -142,7 +134,7 @@ public class MainActivity extends Activity {
 
         rootLayout.addView(topBarScroll);
 
-        // ==================== ОСНОВНАЯ РАБОЧАЯ ОБЛАСТЬ ====================
+        // ==================== ОСНОВНАЯ ОБЛАСТЬ ====================
         LinearLayout mainArea = new LinearLayout(this);
         mainArea.setOrientation(LinearLayout.HORIZONTAL);
         mainArea.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f));
@@ -192,7 +184,7 @@ public class MainActivity extends Activity {
         }
         mainArea.addView(toolsScroll);
 
-        // 2. Центр: Холст
+        // 2. Центр: Холст с поддержкой зума и панорамирования
         FrameLayout workspace = new FrameLayout(this);
         workspace.setBackgroundColor(Color.parseColor("#252525"));
         LinearLayout.LayoutParams wsParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1.0f);
@@ -208,7 +200,6 @@ public class MainActivity extends Activity {
         layersPanel.setBackgroundColor(Color.parseColor("#2d2d2d"));
         layersPanel.setLayoutParams(new LinearLayout.LayoutParams(260, LinearLayout.LayoutParams.MATCH_PARENT));
 
-        // Шапка слоев
         LinearLayout layersHeader = new LinearLayout(this);
         layersHeader.setOrientation(LinearLayout.HORIZONTAL);
         layersHeader.setPadding(10, 10, 10, 10);
@@ -231,7 +222,6 @@ public class MainActivity extends Activity {
         layersHeader.addView(btnAddLayer);
         layersPanel.addView(layersHeader);
 
-        // Список слоев
         ScrollView layersScroll = new ScrollView(this);
         layersListLayout = new LinearLayout(this);
         layersListLayout.setOrientation(LinearLayout.VERTICAL);
@@ -239,7 +229,6 @@ public class MainActivity extends Activity {
         layersScroll.addView(layersListLayout);
         layersPanel.addView(layersScroll);
 
-        // Кнопки очистки/удаления слоя
         LinearLayout layerActions = new LinearLayout(this);
         layerActions.setOrientation(LinearLayout.HORIZONTAL);
         layerActions.setPadding(8, 8, 8, 8);
@@ -272,12 +261,11 @@ public class MainActivity extends Activity {
 
         setContentView(rootLayout);
 
-        // Создаем первый стартовый слой
         layers.add(new Layer(CANVAS_W, CANVAS_H));
         renderLayersUI();
     }
 
-    // ==================== КАСТОМНЫЙ ВИД РИСОВАНИЯ ====================
+    // ==================== ХОЛСТ С ЗУМОМ И ПАНОРАМИРОВАНИЕМ ====================
     private class PaintView extends View {
         private float lastX, lastY, startX, startY;
         private float smoothX, smoothY;
@@ -285,26 +273,30 @@ public class MainActivity extends Activity {
         private Bitmap previewBitmap;
         private Canvas previewCanvas;
 
+        private Matrix matrix = new Matrix();
+        private ScaleGestureDetector scaleDetector;
+        private float lastTouchX, lastTouchY;
+
         public PaintView(android.content.Context context) {
             super(context);
             previewBitmap = Bitmap.createBitmap(CANVAS_W, CANVAS_H, Bitmap.Config.ARGB_8888);
             previewCanvas = new Canvas(previewBitmap);
+
+            scaleDetector = new ScaleGestureDetector(context, new ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                @Override
+                public boolean onScale(ScaleGestureDetector detector) {
+                    matrix.postScale(detector.getScaleFactor(), detector.getScaleFactor(), detector.getFocusX(), detector.getFocusY());
+                    invalidate();
+                    return true;
+                }
+            });
         }
 
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            
-            float scaleX = (float) getWidth() / CANVAS_W;
-            float scaleY = (float) getHeight() / CANVAS_H;
-            float scale = Math.min(scaleX, scaleY);
-            
-            float offsetX = (getWidth() - CANVAS_W * scale) / 2f;
-            float offsetY = (getHeight() - CANVAS_H * scale) / 2f;
-
             canvas.save();
-            canvas.translate(offsetX, offsetY);
-            canvas.scale(scale, scale);
+            canvas.concat(matrix);
 
             Paint bgPaint = new Paint();
             bgPaint.setColor(Color.WHITE);
@@ -324,26 +316,44 @@ public class MainActivity extends Activity {
                 linePaint.setColor(Color.RED);
                 linePaint.setStrokeWidth(2f);
                 linePaint.setStyle(Paint.Style.STROKE);
-                float symScreenX = offsetX + (CANVAS_W / 2f) * scale;
-                canvas.drawLine(symScreenX, offsetY, symScreenX, offsetY + CANVAS_H * scale, linePaint);
+                
+                float[] symPoint = new float[]{CANVAS_W / 2f, 0};
+                matrix.mapPoints(symPoint);
+                canvas.drawLine(symPoint[0], 0, symPoint[0], getHeight(), linePaint);
             }
         }
 
         private float[] getCanvasCoords(float screenX, float screenY) {
-            float scaleX = (float) getWidth() / CANVAS_W;
-            float scaleY = (float) getHeight() / CANVAS_H;
-            float scale = Math.min(scaleX, scaleY);
-            
-            float offsetX = (getWidth() - CANVAS_W * scale) / 2f;
-            float offsetY = (getHeight() - CANVAS_H * scale) / 2f;
-
-            float x = (screenX - offsetX) / scale;
-            float y = (screenY - offsetY) / scale;
-            return new float[]{x, y};
+            float[] pts = new float[]{screenX, screenY};
+            Matrix inverse = new Matrix();
+            matrix.invert(inverse);
+            inverse.mapPoints(pts);
+            return pts;
         }
 
         @Override
         public boolean onTouchEvent(MotionEvent event) {
+            scaleDetector.onTouchEvent(event);
+
+            // Двумя пальцами перемещаем (панорамируем) холст
+            if (event.getPointerCount() > 1) {
+                isDrawing = false;
+                if (event.getAction() == MotionEvent.ACTION_MOVE) {
+                    float currentX = (event.getX(0) + event.getX(1)) / 2f;
+                    float currentY = (event.getY(0) + event.getY(1)) / 2f;
+                    float dx = currentX - lastTouchX;
+                    float dy = currentY - lastTouchY;
+                    matrix.postTranslate(dx, dy);
+                    invalidate();
+                    lastTouchX = currentX;
+                    lastTouchY = currentY;
+                } else if (event.getAction() == MotionEvent.ACTION_DOWN || event.getAction() == MotionEvent.ACTION_POINTER_DOWN) {
+                    lastTouchX = (event.getX(0) + event.getX(1)) / 2f;
+                    lastTouchY = (event.getY(0) + event.getY(1)) / 2f;
+                }
+                return true;
+            }
+
             if (layers.isEmpty() || !layers.get(activeLayerIndex).visible) return true;
 
             float[] coords = getCanvasCoords(event.getX(), event.getY());
@@ -384,8 +394,8 @@ public class MainActivity extends Activity {
                         drawShapeCircle(previewCanvas, startX, startY, x, y, p);
                         if (isSymmetry) drawShapeCircle(previewCanvas, CANVAS_W - startX, startY, CANVAS_W - x, y, p);
                     } else if (currentTool.equals("airbrush")) {
-                        drawAirbrush(canvas, x, y);
-                        if (isSymmetry) drawAirbrush(canvas, CANVAS_W - x, y);
+                        drawAirbrush(canvas, lastX, lastY, x, y);
+                        if (isSymmetry) drawAirbrush(canvas, CANVAS_W - lastX, lastY, CANVAS_W - x, y);
                     } else {
                         Paint p = createToolPaint();
                         drawToolPath(canvas, lastX, lastY, x, y, p);
@@ -413,7 +423,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // ==================== НАСТРОЙКА ИНСТРУМЕНТОВ ====================
     private Paint createToolPaint() {
         Paint p = new Paint();
         p.setAntiAlias(true);
@@ -470,17 +479,24 @@ public class MainActivity extends Activity {
         canvas.drawCircle(x1, y1, radius, paint);
     }
 
-    private void drawAirbrush(Canvas canvas, float cx, float cy) {
+    // Исправленный распылитель, рисующий облако точек по всей траектории
+    private void drawAirbrush(Canvas canvas, float x1, float y1, float x2, float y2) {
         Paint p = new Paint();
         p.setColor(brushColor);
         p.setAlpha((int)(brushOpacity * 0.3));
-        int density = brushSize * 2;
-        for (int i = 0; i < density; i++) {
-            double r = Math.random() * brushSize;
-            double angle = Math.random() * Math.PI * 2;
-            float px = (float)(cx + r * Math.cos(angle));
-            float py = (float)(cy + r * Math.sin(angle));
-            canvas.drawPoint(px, py, p);
+        float dist = (float) Math.hypot(x2 - x1, y2 - y1);
+        int steps = Math.max(1, (int)(dist / 5));
+        for (int s = 0; s <= steps; s++) {
+            float cx = x1 + (x2 - x1) * (s / (float)steps);
+            float cy = y1 + (y2 - y1) * (s / (float)steps);
+            int density = brushSize * 3;
+            for (int i = 0; i < density; i++) {
+                double r = Math.random() * brushSize;
+                double angle = Math.random() * Math.PI * 2;
+                float px = (float)(cx + r * Math.cos(angle));
+                float py = (float)(cy + r * Math.sin(angle));
+                canvas.drawPoint(px, py, p);
+            }
         }
     }
 
@@ -650,7 +666,7 @@ public class MainActivity extends Activity {
             resultBitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
             fos.flush();
             fos.close();
-            Toast.makeText(this, "✅ Успешно сохранено в Галерею (Pictures/PaintPro)!", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "✅ Сохранено в Галерею (Pictures/PaintPro)!", Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             Toast.makeText(this, "❌ Ошибка сохранения: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
@@ -704,22 +720,23 @@ public class MainActivity extends Activity {
         LinearLayout group = new LinearLayout(this);
         group.setOrientation(LinearLayout.HORIZONTAL);
         group.setGravity(Gravity.CENTER_VERTICAL);
-        group.setPadding(6, 2, 6, 2);
+        group.setPadding(8, 4, 8, 4);
 
         TextView label = new TextView(this);
         label.setText(labelText);
         label.setTextColor(Color.WHITE);
-        label.setTextSize(12f);
+        label.setTextSize(13f);
         group.addView(label);
 
         valView.setText(String.valueOf(defaultVal));
         valView.setTextColor(Color.parseColor("#38BDF8"));
-        valView.setTextSize(12f);
+        valView.setTextSize(13f);
         valView.setPadding(4, 0, 4, 0);
         group.addView(valView);
 
+        // Увеличена ширина SeekBar для комфортного использования пальцами
         SeekBar seekBar = new SeekBar(this);
-        seekBar.setLayoutParams(new LinearLayout.LayoutParams(120, LinearLayout.LayoutParams.WRAP_CONTENT));
+        seekBar.setLayoutParams(new LinearLayout.LayoutParams(180, LinearLayout.LayoutParams.WRAP_CONTENT));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             seekBar.setMin(min);
         }
@@ -743,8 +760,8 @@ public class MainActivity extends Activity {
         btn.setTextColor(Color.WHITE);
         btn.setBackgroundColor(Color.parseColor("#444444"));
         btn.setOnClickListener(listener);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, 80);
-        lp.setMargins(4, 0, 4, 0);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, 85);
+        lp.setMargins(6, 0, 6, 0);
         btn.setLayoutParams(lp);
         return btn;
     }
@@ -753,8 +770,8 @@ public class MainActivity extends Activity {
         public ColorPickerButton(android.content.Context context) {
             super(context);
             setColor(Color.BLACK);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(80, 80);
-            lp.setMargins(4, 0, 4, 0);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(85, 85);
+            lp.setMargins(6, 0, 6, 0);
             setLayoutParams(lp);
             setOnClickListener(v -> showColorPickerDialog());
         }
@@ -766,7 +783,6 @@ public class MainActivity extends Activity {
 
         private void showColorPickerDialog() {
             final String[] colorsNames = {"Черный", "Белый", "Красный", "Зеленый", "Синий", "Желтый", "Оранжевый", "Фиолетовый", "Розовый"};
-            // Чистый массив без Color.PURPLE
             final int[] colorsVals = {Color.BLACK, Color.WHITE, Color.RED, Color.GREEN, Color.BLUE, Color.YELLOW, Color.rgb(255,140,0), Color.rgb(128, 0, 128), Color.MAGENTA};
 
             android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(MainActivity.this);
