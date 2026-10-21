@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.kompas.app'
+    namespace 'com.risovalka.app'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.kompas.app"
+        applicationId "com.risovalka.app"
         minSdk 24
         targetSdk 34
         versionCode 1
