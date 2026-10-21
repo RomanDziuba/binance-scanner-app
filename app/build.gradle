@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.roma2.app'
+    namespace 'com.kompas.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roma2.app"
+        applicationId "com.kompas.app"
         minSdk 24
         targetSdk 34
         versionCode 1
-        versionName "1.2"
+        versionName "1.3"
     }
 }
 
