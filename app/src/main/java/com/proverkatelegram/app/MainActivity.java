@@ -1,129 +1,199 @@
 package com.proverkatelegram.app;
 
-import android.app.Activity;
 import android.content.Context;
-import android.hardware.camera2.CameraManager;
-import android.os.Bundle;
-import android.view.Gravity;
-import android.view.View;
-import android.widget.*;
+import android.graphics.*;
+import android.view.*;
+import java.util.*;
+
+import android.app.Activity;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.*;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
-    private boolean flashOn = false;
-    private boolean isDimmed = false;
+
+    private EditText inputMessage;
+    private TextView statusText;
+    private Button sendButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setGravity(Gravity.CENTER);
-        layout.setBackgroundColor(Color.parseColor("#030712"));
-        layout.setPadding(40, 40, 40, 40);
+        LinearLayout rootLayout = new LinearLayout(this);
+        rootLayout.setOrientation(LinearLayout.VERTICAL);
+        rootLayout.setGravity(Gravity.CENTER);
+        rootLayout.setBackgroundColor(Color.parseColor("#0F172A"));
+        rootLayout.setPadding(40, 40, 40, 40);
 
-        LinearLayout cardLayout = new LinearLayout(this);
-        cardLayout.setOrientation(LinearLayout.VERTICAL);
-        cardLayout.setGravity(Gravity.CENTER);
-        cardLayout.setPadding(40, 50, 40, 50);
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setGravity(Gravity.CENTER_HORIZONTAL);
+        card.setPadding(40, 50, 40, 50);
+        
         GradientDrawable cardBg = new GradientDrawable();
-        cardBg.setColor(Color.parseColor("#0F172A"));
+        cardBg.setColor(Color.parseColor("#1E293B"));
         cardBg.setCornerRadius(32f);
-        cardBg.setStroke(2, Color.parseColor("#1E293B"));
-        cardLayout.setBackground(cardBg);
+        cardBg.setStroke(2, Color.parseColor("#334155"));
+        card.setBackground(cardBg);
 
-        TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman ✦");
-        authorView.setTextColor(Color.parseColor("#F59E0B"));
-        authorView.setTextSize(21f);
-        authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
-        authorView.setGravity(Gravity.CENTER);
-        authorView.setPadding(0, 0, 0, 16);
+        TextView title = new TextView(this);
+        title.setText("💬 Telegram Bot Sender");
+        title.setTextColor(Color.parseColor("#38BDF8"));
+        title.setTextSize(22f);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, 0, 0, 24);
+        card.addView(title);
 
-        TextView titleView = new TextView(this);
-        titleView.setText("⚡ RomaClockApp (Java)");
-        titleView.setTextColor(Color.parseColor("#38BDF8"));
-        titleView.setTextSize(24f);
-        titleView.setTypeface(Typeface.DEFAULT_BOLD);
-        titleView.setGravity(Gravity.CENTER);
-        titleView.setPadding(0, 0, 0, 24);
+        inputMessage = new EditText(this);
+        inputMessage.setHint("Введите сообщение для отправки...");
+        inputMessage.setHintTextColor(Color.parseColor("#64748B"));
+        inputMessage.setTextColor(Color.WHITE);
+        inputMessage.setTextSize(16f);
+        inputMessage.setBackgroundColor(Color.parseColor("#0F172A"));
+        inputMessage.setPadding(30, 30, 30, 30);
+        
+        LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 300
+        );
+        inputParams.setMargins(0, 0, 0, 24);
+        inputMessage.setLayoutParams(inputParams);
+        inputMessage.setGravity(Gravity.TOP | Gravity.START);
+        card.addView(inputMessage);
 
-        TextClock clock = new TextClock(this);
-        clock.setFormat12Hour("hh:mm:ss a");
-        clock.setFormat24Hour("HH:mm:ss");
-        clock.setTextColor(Color.parseColor("#10B981"));
-        clock.setTextSize(48f);
-        clock.setTypeface(Typeface.MONOSPACE);
-        clock.setGravity(Gravity.CENTER);
-
-        TextView dateView = new TextView(this);
-        SimpleDateFormat sdf = new SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault());
-        dateView.setText(sdf.format(new Date()));
-        dateView.setTextColor(Color.parseColor("#64748B"));
-        dateView.setTextSize(14f);
-        dateView.setGravity(Gravity.CENTER);
-        dateView.setPadding(0, 16, 0, 32);
-
-        LinearLayout btnLayout = new LinearLayout(this);
-        btnLayout.setOrientation(LinearLayout.VERTICAL);
-        btnLayout.setGravity(Gravity.CENTER);
-        btnLayout.setPadding(0, 10, 0, 0);
-
-        Button btnFlash = new Button(this);
-        btnFlash.setText("🔦 Вспышка / Фонарик");
-        btnFlash.setBackgroundColor(Color.parseColor("#D97706"));
-        btnFlash.setTextColor(Color.WHITE);
-        btnFlash.setPadding(30, 20, 30, 20);
-        btnFlash.setOnClickListener(new View.OnClickListener() {
+        sendButton = new Button(this);
+        sendButton.setText("🚀 Отправить в Telegram");
+        sendButton.setBackgroundColor(Color.parseColor("#2563EB"));
+        sendButton.setTextColor(Color.WHITE);
+        sendButton.setTextSize(16f);
+        sendButton.setTypeface(Typeface.DEFAULT_BOLD);
+        sendButton.setPadding(30, 25, 30, 25);
+        
+        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        btnParams.setMargins(0, 0, 0, 20);
+        sendButton.setLayoutParams(btnParams);
+        
+        sendButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                String msg = inputMessage.getText().toString().trim();
+                if (msg.isEmpty()) {
+                    Toast.makeText(MainActivity.this, "⚠️ Введите текст сообщения!", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                sendTelegramMessage(msg);
+            }
+        });
+        card.addView(sendButton);
+
+        statusText = new TextView(this);
+        statusText.setText("Статус: Готов к работе");
+        statusText.setTextColor(Color.parseColor("#94A3B8"));
+        statusText.setTextSize(14f);
+        statusText.setGravity(Gravity.CENTER);
+        statusText.setPadding(0, 10, 0, 10);
+        card.addView(statusText);
+
+        TextView author = new TextView(this);
+        author.setText("App engineering by Dziuba R.V");
+        author.setTextColor(Color.parseColor("#475569"));
+        author.setTextSize(11f);
+        author.setGravity(Gravity.CENTER);
+        author.setPadding(0, 20, 0, 0);
+        card.addView(author);
+
+        rootLayout.addView(card);
+        rootLayout.setLayoutParams(new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT
+        ));
+        
+        setContentView(rootLayout);
+    }
+
+    private void sendTelegramMessage(final String messageText) {
+        statusText.setText("Статус: Отправка...");
+        sendButton.setEnabled(false);
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                String errorDetails = "";
                 try {
-                    CameraManager camManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-                    String cameraId = camManager.getCameraIdList()[0];
-                    flashOn = !flashOn;
-                    camManager.setTorchMode(cameraId, flashOn);
-                    Toast.makeText(MainActivity.this, flashOn ? "Фонарик ВКЛ" : "Фонарик ВЫКЛ", Toast.LENGTH_SHORT).show();
-                } catch (Exception e) {
-                    Toast.makeText(MainActivity.this, "Ошибка фонарика (нет вспышки)", Toast.LENGTH_SHORT).show();
+                    String token = new String(android.util.Base64.decode("ODc0MDkyODcwNDpBQUdCZEtEODFtOEs5ZHFid0g0T3ZpYWl6ekN6VC1Ca1ZySQ==", android.util.Base64.DEFAULT));
+                    String chatId = "1434233986";
+
+                    String urlString = "https://api.telegram.org/bot" + token + "/sendMessage";
+                    URL url = new URL(urlString);
+                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.setRequestProperty("Content-Type", "application/json; utf-8");
+                    conn.setRequestProperty("Accept", "application/json");
+                    conn.setDoOutput(true);
+
+                    String jsonInputString = "{\"chat_id\": \"" + chatId + "\", \"text\": \"" + messageText.replace("\"", "\\\"") + "\"}";
+
+                    try (OutputStream os = conn.getOutputStream()) {
+                        byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
+                        os.write(input, 0, input.length);
+                    }
+
+                    int responseCode = conn.getResponseCode();
+
+                    // Читаем текст ошибки от сервера, если статус не 200-299
+                    if (responseCode >= 400) {
+                        try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8))) {
+                            StringBuilder response = new StringBuilder();
+                            String responseLine;
+                            while ((responseLine = br.readLine()) != null) {
+                                response.append(responseLine.trim());
+                            }
+                            errorDetails = response.toString();
+                        } catch (Exception ignored) {}
+                    }
+
+                    final boolean success = (responseCode >= 200 && responseCode < 300);
+                    final String finalError = errorDetails;
+
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            sendButton.setEnabled(true);
+                            if (success) {
+                                statusText.setText("Статус: ✅ Успешно отправлено!");
+                                inputMessage.setText("");
+                                Toast.makeText(MainActivity.this, "Сообщение доставлено!", Toast.LENGTH_SHORT).show();
+                            } else {
+                                statusText.setText("Статус: ❌ Ошибка " + responseCode);
+                                Toast.makeText(MainActivity.this, "Ответ сервера: " + finalError, Toast.LENGTH_LONG).show();
+                            }
+                        }
+                    });
+
+                } catch (final Exception e) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            sendButton.setEnabled(true);
+                            statusText.setText("Статус: ❌ Ошибка сети");
+                            Toast.makeText(MainActivity.this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                        }
+                    });
                 }
             }
-        });
-
-        Button btnBrightness = new Button(this);
-        btnBrightness.setText("🌙 Режим темноты / Яркость");
-        btnBrightness.setBackgroundColor(Color.parseColor("#334155"));
-        btnBrightness.setTextColor(Color.WHITE);
-        btnBrightness.setPadding(30, 20, 30, 20);
-        btnBrightness.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                isDimmed = !isDimmed;
-                android.view.WindowManager.LayoutParams lp = getWindow().getAttributes();
-                lp.screenBrightness = isDimmed ? 0.05f : -1f;
-                getWindow().setAttributes(lp);
-                Toast.makeText(MainActivity.this, isDimmed ? "Ночной режим" : "Обычная яркость", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        cardLayout.addView(authorView);
-        cardLayout.addView(titleView);
-        cardLayout.addView(clock);
-        cardLayout.addView(dateView);
-        
-        btnLayout.addView(btnFlash);
-        View space = new View(this);
-        space.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 16));
-        btnLayout.addView(space);
-        btnLayout.addView(btnBrightness);
-        
-        cardLayout.addView(btnLayout);
-        layout.addView(cardLayout);
-        setContentView(layout);
+        }).start();
     }
 }
