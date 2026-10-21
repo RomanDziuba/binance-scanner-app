@@ -328,7 +328,10 @@ public class MainActivity extends Activity {
 
     private void processSelectedJavaFile(Uri uri) {
         String fileName = getFileNameFromUri(uri);
-        if (fileName == null) fileName = "CustomCode.java";
+        if (fileName == null) {
+            fileName = "CustomCode.java";
+        }
+        final String finalFileName = fileName;
         
         try {
             InputStream inputStream = getContentResolver().openInputStream(uri);
@@ -341,19 +344,19 @@ public class MainActivity extends Activity {
             reader.close();
 
             String code = stringBuilder.toString();
-            currentJavaFileName = fileName;
+            currentJavaFileName = finalFileName;
             saveSettings();
             btnUploadJava.setText("📝 Java файл: " + currentJavaFileName);
 
             statusTextView.setText("Статус: ⚙️ Отправка кастомного Java кода...");
-            logEditText.setText("Загружен файл: " + fileName + "\nПрименение Anti-409 Shield и отправка в репозиторий...");
+            logEditText.setText("Загружен файл: " + finalFileName + "\nПрименение Anti-409 Shield и отправка в репозиторий...");
 
             new Thread(() -> {
-                boolean success = pushFileToGitHub(getMainActivityPath(), code, "Upload custom Java file: " + fileName);
+                boolean success = pushFileToGitHub(getMainActivityPath(), code, "Upload custom Java file: " + finalFileName);
                 handler.post(() -> {
                     if (success) {
                         statusTextView.setText("Статус: ✅ Java файл успешно загружен!");
-                        logEditText.setText("Файл " + fileName + " успешно адаптирован под пакет " + packageName + " и отправлен на GitHub.");
+                        logEditText.setText("Файл " + finalFileName + " успешно адаптирован под пакет " + packageName + " и отправлен на GitHub.");
                     } else {
                         statusTextView.setText("Статус: ❌ Ошибка загрузки файла");
                         logEditText.setText("Не удалось отправить файл на GitHub. Проверьте токен.");
