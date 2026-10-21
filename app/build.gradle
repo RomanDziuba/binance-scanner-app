@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.javaapkpro.app'
+    namespace 'com.kompas.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.javaapkpro.app"
+        applicationId "com.kompas.app"
         minSdk 24
         targetSdk 34
         versionCode 1
