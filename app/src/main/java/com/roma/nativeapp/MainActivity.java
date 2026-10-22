@@ -254,12 +254,12 @@ public class MainActivity extends Activity {
                 notification = new Notification.Builder(this, "walkie_channel")
                     .setContentTitle("Wi-Fi Рация активна")
                     .setContentText("Прием и передача голоса в фоновом режиме")
-                    .setSmallIcon(android.R.drawable.stat_sys_head_set)
+                    .setSmallIcon(android.R.drawable.ic_menu_call)
                     .build();
             } else {
                 notification = new Notification.Builder(this)
                     .setContentTitle("Wi-Fi Рация активна")
-                    .setSmallIcon(android.R.drawable.stat_sys_head_set)
+                    .setSmallIcon(android.R.drawable.ic_menu_call)
                     .build();
             }
             startForeground(1, notification);
