@@ -3,22 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.kompilyatsiya.app'
+    namespace 'com.roma.nativeapp'
     compileSdk 34
-
     defaultConfig {
-        applicationId "com.kompilyatsiya.app"
-        minSdk 24
+        applicationId "com.roma.nativeapp"
+        minSdk 26
         targetSdk 34
         versionCode 1
         versionName "1.0"
-    }
-
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -28,5 +20,4 @@ android {
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.11.0'
 }
