@@ -8,21 +8,19 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
-import android.os.Environment;
 import android.util.Base64;
 import android.view.Gravity;
 import android.widget.*;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.KeyStore;
-import java.security.cert.X509Certificate;
-import java.math.BigInteger;
-import java.util.Date;
-import javax.security.auth.x500.X500Principal;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
 
 public class MainActivity extends Activity {
 
@@ -125,28 +123,31 @@ public class MainActivity extends Activity {
         String password = "password123";
 
         try {
-            // Сохраняем во внутреннюю директорию приложения, куда гарантированно есть доступ
             File keystoreFile = new File(getFilesDir(), "release.keystore");
-            
-            // Если файл уже есть — удаляем перед созданием нового
             if (keystoreFile.exists()) keystoreFile.delete();
 
-            // Создаем стандартный Keystore через стандартные Java API для Android
-            KeyStore keyStore = KeyStore.getInstance("BKS");
-            keyStore.load(null, null);
-
+            // Генерация ключей RSA
             KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
             keyGen.initialize(2048);
             KeyPair keyPair = keyGen.generateKeyPair();
 
-            // Простейшая запись ключа без заморочек с сертификатами X.509
-            keyStore.setKeyEntry(alias, keyPair.getPrivate(), password.toCharArray(), new java.security.cert.Certificate[0]);
+            // Создаем правильный сертификат X.509 из публичного ключа через фабрику
+            CertificateFactory cf = CertificateFactory.getInstance("X.509");
+            byte[] pubBytes = keyPair.getPublic().getEncoded();
+            Certificate cert = cf.generateCertificate(new ByteArrayInputStream(pubBytes));
+
+            // Создаем хранилище PKCS12
+            KeyStore keyStore = KeyStore.getInstance("PKCS12");
+            keyStore.load(null, null);
+            
+            // Сохраняем пару с полноценной цепочкой сертификатов
+            keyStore.setKeyEntry(alias, keyPair.getPrivate(), password.toCharArray(), new Certificate[]{cert});
 
             FileOutputStream fos = new FileOutputStream(keystoreFile);
             keyStore.store(fos, password.toCharArray());
             fos.close();
 
-            // Читаем файл в Base64
+            // Читаем в Base64
             FileInputStream fis = new FileInputStream(keystoreFile);
             byte[] bytes = new byte[(int) keystoreFile.length()];
             fis.read(bytes);
@@ -158,42 +159,9 @@ public class MainActivity extends Activity {
             Toast.makeText(this, "✅ Ключ успешно создан!", Toast.LENGTH_LONG).show();
 
         } catch (Exception e) {
-            // Запасной вариант через PKCS12 на случай особенностей провайдера
-            try {
-                generatePKCS12Fallback(alias, password);
-            } catch (Exception ex) {
-                Toast.makeText(this, "❌ Ошибка: " + ex.getMessage(), Toast.LENGTH_LONG).show();
-            }
+            Toast.makeText(this, "❌ Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            e.printStackTrace();
         }
-    }
-
-    private void generatePKCS12Fallback(String alias, String password) throws Exception {
-        File keystoreFile = new File(getFilesDir(), "release.keystore");
-        if (keystoreFile.exists()) keystoreFile.delete();
-
-        KeyStore keyStore = KeyStore.getInstance("PKCS12");
-        keyStore.load(null, null);
-
-        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
-        keyGen.initialize(2048);
-        KeyPair keyPair = keyGen.generateKeyPair();
-
-        // Добавляем пустой массив сертификатов
-        keyStore.setKeyEntry(alias, keyPair.getPrivate(), password.toCharArray(), new java.security.cert.Certificate[0]);
-
-        FileOutputStream fos = new FileOutputStream(keystoreFile);
-        keyStore.store(fos, password.toCharArray());
-        fos.close();
-
-        FileInputStream fis = new FileInputStream(keystoreFile);
-        byte[] bytes = new byte[(int) keystoreFile.length()];
-        fis.read(bytes);
-        fis.close();
-        String base64Str = Base64.encodeToString(bytes, Base64.NO_WRAP);
-
-        tvBase64Result.setText(base64Str);
-        updateStatusText();
-        Toast.makeText(this, "✅ Ключ создан (PKCS12)!", Toast.LENGTH_LONG).show();
     }
 
     private void deleteKeyFile() {
