@@ -12,7 +12,6 @@ import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaRecorder;
-import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -23,6 +22,8 @@ import android.widget.*;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.util.Enumeration;
 import java.util.Locale;
 
 public class MainActivity extends Activity {
@@ -90,11 +91,12 @@ public class MainActivity extends Activity {
         title.setPadding(0, 0, 0, 15);
         card.addView(title);
 
-        // Индикатор IP текущего телефона
+        // Индикатор IP текущего телефона (исправленный метод)
         localIpView = new TextView(this);
         localIpView.setText("Мой IP в сети: " + getLocalIpAddress());
-        localIpView.setTextColor(Color.parseColor("#94A3B8"));
-        localIpView.setTextSize(12f);
+        localIpView.setTextColor(Color.parseColor("#10B981"));
+        localIpView.setTextSize(13f);
+        localIpView.setTypeface(Typeface.DEFAULT_BOLD);
         localIpView.setGravity(Gravity.CENTER);
         localIpView.setPadding(0, 0, 0, 20);
         card.addView(localIpView);
@@ -118,9 +120,8 @@ public class MainActivity extends Activity {
         // СТАТУС
         statusView = new TextView(this);
         statusView.setText("Статус: Готов к связи (Слушаю эфир)");
-        statusView.setTextColor(Color.parseColor("#10B981"));
+        statusView.setTextColor(Color.parseColor("#38BDF8"));
         statusView.setTextSize(14f);
-        statusView.setTypeface(Typeface.DEFAULT_BOLD);
         statusView.setGravity(Gravity.CENTER);
         statusView.setPadding(0, 0, 0, 25);
         card.addView(statusView);
@@ -168,16 +169,24 @@ public class MainActivity extends Activity {
         startListening();
     }
 
-    // Получение IP-адреса устройства в Wi-Fi сети
+    // Надежное определение локального IP-адреса через сетевые интерфейсы (работает на всех Android)
     private String getLocalIpAddress() {
         try {
-            WifiManager wm = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-            int ip = wm.getConnectionInfo().getIpAddress();
-            return String.format(Locale.getDefault(), "%d.%d.%d.%d",
-                (ip & 0xff), (ip >> 8 & 0xff), (ip >> 16 & 0xff), (ip >> 24 & 0xff));
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface intf = interfaces.nextElement();
+                Enumeration<InetAddress> addrs = intf.getInetAddresses();
+                while (addrs.hasMoreElements()) {
+                    InetAddress addr = addrs.nextElement();
+                    if (!addr.isLoopbackAddress() && addr instanceof java.net.Inet4Address) {
+                        return addr.getHostAddress();
+                    }
+                }
+            }
         } catch (Exception e) {
-            return "Неизвестно (Включите Wi-Fi)";
+            e.printStackTrace();
         }
+        return "Не удалось определить IP (Проверьте Wi-Fi)";
     }
 
     // Начало передачи голоса (нажали кнопку)
