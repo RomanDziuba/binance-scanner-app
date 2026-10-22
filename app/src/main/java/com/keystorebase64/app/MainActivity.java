@@ -9,7 +9,6 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
-import android.os.Environment;
 import android.util.Base64;
 import android.view.Gravity;
 import android.widget.*;
@@ -168,18 +167,17 @@ public class MainActivity extends Activity {
             KeyStore keyStore = KeyStore.getInstance("PKCS12");
             keyStore.load(null, null);
 
-            // Создаем надежный самоподписанный объект сертификата-обертки
             Certificate cert = new SelfSignedCert(keyPair.getPublic());
             keyStore.setKeyEntry(alias, keyPair.getPrivate(), keyPass.toCharArray(), new Certificate[]{cert});
 
-            File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-            if (!downloadDir.exists()) downloadDir.mkdirs();
-            File keystoreFile = new File(downloadDir, "release.keystore");
+            // Сохраняем во внутреннюю защищенную директорию приложения
+            File keystoreFile = new File(getFilesDir(), "release.keystore");
 
             FileOutputStream fos = new FileOutputStream(keystoreFile);
             keyStore.store(fos, storePass.toCharArray());
             fos.close();
 
+            // Переводим в Base64 для GitHub Secrets
             FileInputStream fis = new FileInputStream(keystoreFile);
             byte[] bytes = new byte[(int) keystoreFile.length()];
             fis.read(bytes);
@@ -188,7 +186,7 @@ public class MainActivity extends Activity {
 
             tvBase64Result.setText(base64Str);
             updateStatusText();
-            Toast.makeText(this, "✅ Успешно! Ключ создан в Загрузках", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "✅ Успешно! Ключ создан", Toast.LENGTH_LONG).show();
 
         } catch (Exception e) {
             Toast.makeText(this, "❌ Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
@@ -197,8 +195,7 @@ public class MainActivity extends Activity {
     }
 
     private void deleteKeyFile() {
-        File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-        File keystoreFile = new File(downloadDir, "release.keystore");
+        File keystoreFile = new File(getFilesDir(), "release.keystore");
         if (keystoreFile.exists()) {
             boolean deleted = keystoreFile.delete();
             if (deleted) {
@@ -214,16 +211,14 @@ public class MainActivity extends Activity {
     }
 
     private void updateStatusText() {
-        File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-        File keystoreFile = new File(downloadDir, "release.keystore");
+        File keystoreFile = new File(getFilesDir(), "release.keystore");
         if (keystoreFile.exists()) {
-            tvStatus.setText("Статус: Файл 'release.keystore' готов в Загрузках ✅");
+            tvStatus.setText("Статус: Файл 'release.keystore' готов ✅");
         } else {
             tvStatus.setText("Статус: Ключ еще не создан ⚠️");
         }
     }
 
-    // Внутренний класс для совместимости сертификатов PKCS12 на Android
     private static class SelfSignedCert extends Certificate {
         private final PublicKey pubKey;
 
