@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.javaapkpro.app'
+    namespace 'com.roma.nativeapp'
     compileSdk 34
     defaultConfig {
-        applicationId "com.javaapkpro.app"
+        applicationId "com.roma.nativeapp"
         minSdk 26
         targetSdk 34
         versionCode 1
