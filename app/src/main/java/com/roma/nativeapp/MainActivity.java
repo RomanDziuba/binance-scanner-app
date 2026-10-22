@@ -49,7 +49,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Запрос разрешений (микрофон и уведомления для Android 13+)
+        // Запрос разрешений для микрофона и фоновой службы
         String[] perms = {
             Manifest.permission.RECORD_AUDIO,
             "android.permission.FOREGROUND_SERVICE",
@@ -164,11 +164,9 @@ public class MainActivity extends Activity {
         layout.addView(card);
         setContentView(layout);
 
-        // Запуск фоновой службы при старте приложения
         startWalkieService();
     }
 
-    // Универсальный метод поиска IP-адреса устройства в локальной сети
     private String getLocalIpAddress() {
         try {
             for (Enumeration<NetworkInterface> enNet = NetworkInterface.getNetworkInterfaces(); enNet.hasMoreElements(); ) {
@@ -240,7 +238,6 @@ public class MainActivity extends Activity {
         statusView.setText("Статус: Фоновая служба активна (Слушаю)");
     }
 
-    // Фоновая служба для непрерывной работы сети и звука в фоне
     public static class WalkieService extends Service {
         private boolean isRunning = false;
         private Thread listenThread;
@@ -333,5 +330,26 @@ public class MainActivity extends Activity {
         public IBinder onBind(Intent intent) {
             return null;
         }
+    }
+
+    // ИСПРАВЛЕННЫЙ МЕТОД ГЕНЕРАЦИИ МАНИФЕСТА СО ВСЕМИ РАЗРЕШЕНИЯМИ И СЛУЖБОЙ
+    private String generateManifest() {
+        return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
+               "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n" +
+               "    <uses-permission android:name=\"android.permission.INTERNET\" />\n" +
+               "    <uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.RECORD_AUDIO\" />\n" +
+               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MICROPHONE\" />\n" +
+               "    <application android:allowBackup=\"true\" android:icon=\"@mipmap/ic_launcher\" android:label=\"" + appTitle + "\" android:supportsRtl=\"true\" android:theme=\"@android:style/Theme.Material.Light.NoActionBar\">\n" +
+               "        <activity android:name=\".MainActivity\" android:exported=\"true\">\n" +
+               "            <intent-filter>\n" +
+               "                <action android:name=\"android.intent.action.MAIN\" />\n" +
+               "                <category android:name=\"android.intent.category.LAUNCHER\" />\n" +
+               "            </intent-filter>\n" +
+               "        </activity>\n" +
+               "        <service android:name=\".MainActivity$WalkieService\" android:foregroundServiceType=\"microphone\" android:exported=\"false\" />\n" +
+               "    </application>\n" +
+               "</manifest>";
     }
 }
