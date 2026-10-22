@@ -6,46 +6,43 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-
-      - name: Setup Gradle 8.5
-        uses: gradle/actions/setup-gradle@v3
+      - uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: '8.5'
+          gradle-version: '8.0'
           cache-disabled: true
-
       - name: Setup Android SDK & Accept Licenses
         run: |
           export ANDROID_HOME=/usr/local/lib/android/sdk
+          mkdir -p $ANDROID_HOME/licenses
+          echo "24333f8a0b361816648716f45c0d2f0f0b1c1c1c" > $ANDROID_HOME/licenses/android-sdk-license
+          echo "84831b9409646a918e30573bab4c9c91346d8abd" >> $ANDROID_HOME/licenses/android-sdk-license
+          echo "d975f751678a77b8301015f3e979a05b331005a8" > $ANDROID_HOME/licenses/android-sdk-preview-license
+          echo "5046671c400fa653155dcfbfc8838505537fb883" >> $ANDROID_HOME/licenses/android-sdk-preview-license
           export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
-          
-          yes | sdkmanager --licenses || true
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-
-      - name: Build Debug APK with Gradle (Clean Cache)
+      - name: Generate Gradle Wrapper
+        run: |
+          gradle wrapper --gradle-version 8.0
+      - name: Build Debug APK with Gradle Wrapper
         run: |
           export ANDROID_HOME=/usr/local/lib/android/sdk
           export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
-          gradle clean assembleDebug --stacktrace --no-daemon
-
+          ./gradlew clean assembleDebug --stacktrace --no-daemon
       - name: Upload APK to Telegram Bot
         if: success()
         run: |
           APK_PATH=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
           if [ -n "$APK_PATH" ]; then
-            APP_TITLE="Компилятор 6"
+            APP_TITLE="телега"
             RENAMED_PATH="/tmp/$APP_TITLE.apk"
             cp "$APK_PATH" "$RENAMED_PATH"
-            curl -F chat_id="1434233986" -F document=@"$RENAMED_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
+            curl -F chat_id="1434233986" -F document=@"$RENAMED_PATH" https://api.telegram.org/bot7262209303:AAEpsNDB8fjyazFMBTOL5-ufN1-tTjHtprk/sendDocument
           else
             echo "❌ Ошибка: APK файл не найден!"
             exit 1
