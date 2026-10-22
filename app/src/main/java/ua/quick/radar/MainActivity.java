@@ -21,7 +21,21 @@ public class MainActivity extends Activity {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setGravity(Gravity.CENTER);
-        layout.setBackgroundColor(Color.parseColor("#030712"));
+       
+TextView tv = new TextView(this);
+
+Toast.makeText(this, "Привет!", Toast.LENGTH_SHORT).show();
+tv.setText("Привет!");
+layout.addView(tv);
+
+TextView tv = new TextView(this);
+tv.setText("Привет Ромка!");
+layout.addView(tv);
+
+Button btn = new Button(this);
+btn.setText("Нажми шо нибудь");
+layout.addView(btn);
+ layout.setBackgroundColor(Color.parseColor("#030712"));
         layout.setPadding(40, 40, 40, 40);
 
         TextView tv = new TextView(this);
