@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.keystorebase64.app'
+    namespace 'com.pianino.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.keystorebase64.app"
+        applicationId "com.pianino.app"
         minSdk 26
         targetSdk 34
         versionCode 1
