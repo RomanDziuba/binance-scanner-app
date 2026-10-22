@@ -1,2 +1,2 @@
-rootProject.name = "РАЦИЯ"
+rootProject.name = "RomaClockApp"
 include ':app'
