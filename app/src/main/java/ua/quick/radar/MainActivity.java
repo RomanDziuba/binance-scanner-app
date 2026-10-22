@@ -1,9 +1,3 @@
-
-Button btn = new Button(this);
-btn.setText("Нажми");
-layout.addView(btn);
-
-Toast.makeText(this, "Привет Ромка!", Toast.LENGTH_SHORT).show();
 package ua.quick.radar;
 
 import android.app.Activity;
@@ -12,13 +6,7 @@ import android.view.Gravity;
 import android.widget.*;
 import android.graphics.Color;
 import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
 
-/* 
- * Декомпилировано из APK: base.apk
- * Определенный пакет: ua.quick.radar
- * Вы можете изменять этот код в редакторе перед компиляцией!
- */
 public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,9 +19,9 @@ public class MainActivity extends Activity {
         layout.setPadding(40, 40, 40, 40);
 
         TextView tv = new TextView(this);
-        tv.setText("📦 APK успешно декомпилирован!\nПакет: ua.quick.radar");
+        tv.setText("⚡ Моё приложение работает!");
         tv.setTextColor(Color.parseColor("#38BDF8"));
-        tv.setTextSize(18f);
+        tv.setTextSize(20f);
         tv.setGravity(Gravity.CENTER);
         layout.addView(tv);
 
