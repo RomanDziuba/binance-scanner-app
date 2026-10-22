@@ -2,69 +2,38 @@ package com.roma.nativeapp;
 
 import android.Manifest;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
-import android.content.ClipData;
-import android.content.ClipboardManager;
-import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.database.Cursor;
 import android.graphics.*;
-import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaRecorder;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-import android.provider.OpenableColumns;
 import android.view.Gravity;
 import android.view.MotionEvent;
-import android.view.View;
 import android.widget.*;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.Enumeration;
-import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 
 public class MainActivity extends Activity {
 
     private static final String PREFS_NAME = "AppConfig";
-    private static final int PICK_ICON_REQUEST = 1001;
-    private static final int PICK_JAVA_REQUEST = 1002;
-    private static final int PICK_APK_REQUEST = 1003;
-
-    // Системные переменные CI/CD и проекта (восстановлены!)
     private String githubToken = "";
     private String botToken = "" + new String(android.util.Base64.decode("ODgxNTI1NjEzMDpBQUVXNmJyT25FNU5wdnNnenZaYmZtODdiM1g3YkZ6YXc5WQ==", android.util.Base64.DEFAULT)) + "";
     private String chatId = "1434233986";
@@ -74,8 +43,6 @@ public class MainActivity extends Activity {
     private String appTitle = "WiFiWalkieTalkie";
     private String appVersion = "1.0";
     private String packageName = "com.roma.nativeapp";
-    private String currentJavaFileName = "Wi-Fi Рация (MainActivity.java)";
-    private boolean iconCustomized = true;
 
     private int minSdk = 24;
     private int compileSdk = 34;
@@ -98,16 +65,6 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         loadSettings();
-
-        // Запрос разрешений для микрофона и фоновых служб
-        String[] perms = {
-            Manifest.permission.RECORD_AUDIO,
-            "android.permission.FOREGROUND_SERVICE",
-            "android.permission.FOREGROUND_SERVICE_MICROPHONE"
-        };
-        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(perms, 100);
-        }
 
         // Интерфейс приложения
         LinearLayout layout = new LinearLayout(this);
@@ -170,7 +127,7 @@ public class MainActivity extends Activity {
         card.addView(ipInput);
 
         statusView = new TextView(this);
-        statusView.setText("Статус: Фоновая служба активна");
+        statusView.setText("Статус: Нажмите кнопку для запроса микрофона");
         statusView.setTextColor(Color.parseColor("#94A3B8"));
         statusView.setTextSize(13f);
         statusView.setGravity(Gravity.CENTER);
@@ -193,16 +150,31 @@ public class MainActivity extends Activity {
         );
         pttButton.setLayoutParams(btnParams);
 
+        // УМНАЯ ПРОВЕРКА И ЗАПРОС РАЗРЕШЕНИЯ ПРИ НАЖАТИИ КНОПКИ
         pttButton.setOnTouchListener((v, event) -> {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
+                    // Если разрешение на микрофон еще не дали — приложение САМО вызовет системный запрос!
+                    if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                        requestPermissions(new String[]{
+                            Manifest.permission.RECORD_AUDIO,
+                            "android.permission.FOREGROUND_SERVICE",
+                            "android.permission.FOREGROUND_SERVICE_MICROPHONE"
+                        }, 100);
+                        Toast.makeText(this, "⚠️ Подтвердите разрешение на микрофон в окне телефона!", Toast.LENGTH_LONG).show();
+                        return true;
+                    }
+
                     startTransmitting();
                     btnBg.setColor(Color.parseColor("#DC2626"));
                     pttButton.setText("🔴 ИДЕТ ПЕРЕДАЧА...");
                     return true;
+
                 case MotionEvent.ACTION_UP:
                 case MotionEvent.ACTION_CANCEL:
-                    stopTransmitting();
+                    if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                        stopTransmitting();
+                    }
                     btnBg.setColor(Color.parseColor("#2563EB"));
                     pttButton.setText("🎙 ЗАЖМИ И ГОВОРИ");
                     return true;
@@ -300,7 +272,6 @@ public class MainActivity extends Activity {
         packageName = sp.getString("packageName", packageName);
     }
 
-    // Фоновая служба для непрерывной работы сети и звука в фоне
     public static class WalkieService extends Service {
         private boolean isRunning = false;
         private Thread listenThread;
@@ -395,15 +366,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    private String sanitizeAndInjectJavaCode(String code, String pkg) {
-        code = code.replace('\u00A0', ' ').replace("\r\n", "\n").replace("\r", "\n");
-        code = code.replaceAll("package\\s+[a-zA-Z0-9_.]+;", "package " + pkg + ";");
-        if (!code.contains("package ")) {
-            code = "package " + pkg + ";\n\n" + code;
-        }
-        return code;
-    }
-
     private String getRootGradleContent() {
         return "buildscript {\n    repositories {\n        google()\n        mavenCentral()\n    }\n    dependencies {\n        classpath 'com.android.tools.build:gradle:8.2.2'\n    }\n}\nallprojects {\n    repositories {\n        google()\n        mavenCentral()\n    }\n}\n";
     }
@@ -413,10 +375,9 @@ public class MainActivity extends Activity {
     }
 
     private String getWorkflowContent() {
-        return "name: Build Native Android APK (Java)\n\non:\n  workflow_dispatch:\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Checkout repository\n        uses: actions/checkout@v4\n      - name: Set up JDK 17\n        uses: actions/setup-java@v5\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n      - name: Setup Gradle 8.5\n        uses: gradle/actions/setup-gradle@v3\n        with:\n          gradle-version: '8.5'\n          cache-disabled: true\n      - name: Setup Android SDK & Accept Licenses\n        run: |\n          export ANDROID_HOME=/usr/local/lib/android/sdk\n          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n          yes | sdkmanager --licenses || true\n          sdkmanager \"platform-tools\" \"platforms;android-" + compileSdk + "\" \"build-tools;34.0.0\"\n      - name: Build Debug APK with Gradle (Clean Cache)\n        run: |\n          export ANDROID_HOME=/usr/local/lib/android/sdk\n          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n          gradle clean assembleDebug --stacktrace --no-daemon\n      - name: Upload APK to Telegram Bot\n        if: success()\n        run: |\n          APK_PATH=$(find app/build/outputs/apk/debug/ -name \"*.apk\" | head -n 1)\n          if [ -n \"$APK_PATH\" ]; then\n            APP_TITLE=\"" + appTitle + "\"\n            RENAMED_PATH=\"/tmp/$APP_TITLE.apk\"\n            cp \"$APK_PATH\" \"$RENAMED_PATH\"\n            curl -F chat_id=\"" + chatId + "\" -F document=@\"$RENAMED_PATH\" https://api.telegram.org/bot" + botToken + "/sendDocument\n          else\n            echo \"❌ Ошибка: APK файл не найден!\"\n            exit 1\n          fi\n";
+        return "name: Build Native Android APK (Java)\n\non:\n  workflow_dispatch:\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Checkout repository\n        uses: actions/checkout@v4\n      - name: Set up JDK 17\n        uses: actions/setup-java@v5\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n      - name: Setup Gradle 8.5\n        uses: gradle/actions/setup-gradle@v3\n        with:\n          gradle-version: '8.5'\n          cache-disabled: true\n      - name: Setup Android SDK & Accept Licenses\n        run: |\n          export ANDROID_HOME=/usr/local/lib/android/sdk\n          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n          yes | sdkmanager --licenses || true\n          sdkmanager \"platform-tools\" \"platforms;android-" + compileSdk + "\" \"build-tools;34.0.0\"\n      - name: Build Debug APK withGradle (Clean Cache)\n        run: |\n          export ANDROID_HOME=/usr/local/lib/android/sdk\n          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n          gradle clean assembleDebug --stacktrace --no-daemon\n      - name: Upload APK to Telegram Bot\n        if: success()\n        run: |\n          `find app/build/outputs/apk/debug/ -name \"*.apk\" | head -n 1`\n";
     }
 
-    // Манифест со всеми разрешениями и фоновой службой
     private String generateManifest() {
         return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
                "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n" +
@@ -427,6 +388,7 @@ public class MainActivity extends Activity {
                "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MICROPHONE\" />\n" +
                "    <application android:allowBackup=\"true\" android:icon=\"@mipmap/ic_launcher\" android:label=\"" + appTitle + "\" android:supportsRtl=\"true\" android:theme=\"@android:style/Theme.Material.Light.NoActionBar\">\n" +
                "        <activity android:name=\".MainActivity\" android:exported=\"true\">\n" +
+               "            <intent-filter>\n" +
                "            <intent-filter>\n" +
                "                <action android:name=\"android.intent.action.MAIN\" />\n" +
                "                <category android:name=\"android.intent.category.LAUNCHER\" />\n" +
@@ -439,6 +401,7 @@ public class MainActivity extends Activity {
 
     private String generateAppGradle() {
         return "plugins {\n    id 'com.android.application'\n}\n\n" +
+               "plugins {\n    id 'com.android.application'\n}\n\n" +
                "android {\n    namespace '" + packageName + "'\n    compileSdk " + compileSdk + "\n" +
                "    defaultConfig {\n        applicationId \"" + packageName + "\"\n" +
                "        minSdk " + minSdk + "\n        targetSdk " + compileSdk + "\n        versionCode 1\n        versionName \"" + appVersion + "\"\n    }\n" +
