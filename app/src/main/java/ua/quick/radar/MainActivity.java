@@ -1,3 +1,9 @@
+
+Button btn = new Button(this);
+btn.setText("Нажми");
+layout.addView(btn);
+
+Toast.makeText(this, "Привет Ромка!", Toast.LENGTH_SHORT).show();
 package ua.quick.radar;
 
 import android.app.Activity;
