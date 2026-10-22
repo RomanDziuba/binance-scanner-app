@@ -6,6 +6,7 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -14,6 +15,7 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.media.AudioAttributes;
 import android.media.AudioFormat;
+import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaRecorder;
@@ -51,10 +53,11 @@ public class MainActivity extends Activity {
     private int compileSdk = 34;
 
     private EditText ipInput;
-    private Button pttButton;
+    private Button pttButton, lockIpButton;
     private TextView statusView, localIpView;
     
     private static boolean isTransmitting = false;
+    private boolean isIpEditable = false;
     private static final int PORT = 50005;
     private static final int SAMPLE_RATE = 8000;
     
@@ -110,20 +113,46 @@ public class MainActivity extends Activity {
         localIpView.setPadding(0, 0, 0, 20);
         card.addView(localIpView);
 
+        // Панель IP с кнопкой блокировки от случайных нажатий
+        LinearLayout ipLayout = new LinearLayout(this);
+        ipLayout.setOrientation(LinearLayout.HORIZONTAL);
+        ipLayout.setGravity(Gravity.CENTER_VERTICAL);
+
         ipInput = new EditText(this);
-        ipInput.setHint("IP собеседника (например, 192.168.1.50)");
+        ipInput.setHint("IP собеседника (напр. 192.168.1.50)");
         ipInput.setTextColor(Color.WHITE);
         ipInput.setHintTextColor(Color.parseColor("#64748B"));
         ipInput.setTextSize(13f);
         ipInput.setBackgroundColor(Color.parseColor("#1E293B"));
         ipInput.setPadding(20, 20, 20, 20);
+        ipInput.setEnabled(false); // Заблокирован по умолчанию!
         
         LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(
+            0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f
+        );
+        inputParams.setMargins(0, 0, 10, 0);
+        ipInput.setLayoutParams(inputParams);
+        ipLayout.addView(ipInput);
+
+        lockIpButton = new Button(this);
+        lockIpButton.setText("🔓");
+        lockIpButton.setTextColor(Color.WHITE);
+        lockIpButton.setTextSize(14f);
+        lockIpButton.setBackgroundColor(Color.parseColor("#334155"));
+        lockIpButton.setOnClickListener(v -> {
+            isIpEditable = !isIpEditable;
+            ipInput.setEnabled(isIpEditable);
+            lockIpButton.setText(isIpEditable ? "🔒" : "🔓");
+            Toast.makeText(this, isIpEditable ? "IP разблокирован для ввода" : "IP заблокирован от изменений", Toast.LENGTH_SHORT).show();
+        });
+        ipLayout.addView(lockIpButton);
+
+        LinearLayout.LayoutParams ipLayoutPar = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        inputParams.setMargins(0, 0, 0, 25);
-        ipInput.setLayoutParams(inputParams);
-        card.addView(ipInput);
+        ipLayoutPar.setMargins(0, 0, 0, 25);
+        ipLayout.setLayoutParams(ipLayoutPar);
+        card.addView(ipLayout);
 
         statusView = new TextView(this);
         statusView.setText("Статус: Готов к связи");
@@ -179,7 +208,6 @@ public class MainActivity extends Activity {
         layout.addView(card);
         setContentView(layout);
 
-        // Запрос разрешения при старте приложения
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestMicPermission();
         } else {
@@ -332,13 +360,20 @@ public class MainActivity extends Activity {
         private void startReceiverServer() {
             listenThread = new Thread(() -> {
                 try {
+                    // Принудительно направляем звук на основной громкий динамик (Громкая связь)
+                    AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+                    if (audioManager != null) {
+                        audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+                        audioManager.setSpeakerphoneOn(true);
+                    }
+
                     DatagramSocket socket = new DatagramSocket(PORT);
                     int playBufferSize = AudioTrack.getMinBufferSize(SAMPLE_RATE, 
                         AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
                     
                     AudioTrack audioTrack = new AudioTrack(
                         new AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
                             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                             .build(),
                         new AudioFormat.Builder()
@@ -348,7 +383,7 @@ public class MainActivity extends Activity {
                             .build(),
                         playBufferSize,
                         AudioTrack.MODE_STREAM,
-                        android.media.AudioManager.AUDIO_SESSION_ID_GENERATE
+                        AudioManager.AUDIO_SESSION_ID_GENERATE
                     );
                     
                     audioTrack.play();
@@ -408,10 +443,34 @@ public class MainActivity extends Activity {
                "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n" +
                "    <uses-permission android:name=\"android.permission.INTERNET\" />\n" +
                "    <uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.CHANGE_WIFI_STATE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.CHANGE_WIFI_MULTICAST_STATE\" />\n" +
                "    <uses-permission android:name=\"android.permission.RECORD_AUDIO\" />\n" +
+               "    <uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\" />\n" +
+               "    <uses-permission android:name=\"android.permission.CAMERA\" />\n" +
+               "    <uses-permission android:name=\"android.permission.FLASHLIGHT\" />\n" +
+               "    <uses-permission android:name=\"android.permission.BLUETOOTH\" />\n" +
+               "    <uses-permission android:name=\"android.permission.BLUETOOTH_ADMIN\" />\n" +
+               "    <uses-permission android:name=\"android.permission.BLUETOOTH_CONNECT\" />\n" +
+               "    <uses-permission android:name=\"android.permission.BLUETOOTH_SCAN\" />\n" +
+               "    <uses-permission android:name=\"android.permission.ACCESS_FINE_LOCATION\" />\n" +
+               "    <uses-permission android:name=\"android.permission.ACCESS_COARSE_LOCATION\" />\n" +
                "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\" />\n" +
                "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MICROPHONE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_CAMERA\" />\n" +
+               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_LOCATION\" />\n" +
+               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE\" />\n" +
                "    <uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\" />\n" +
+               "    <uses-permission android:name=\"android.permission.WAKE_LOCK\" />\n" +
+               "    <uses-permission android:name=\"android.permission.VIBRATE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.RECEIVE_BOOT_COMPLETED\" />\n" +
+               "    <uses-permission android:name=\"com.android.vending.BILLING\" />\n" +
+               "    <uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\" android:maxSdkVersion=\"32\" />\n" +
+               "    <uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\" android:maxSdkVersion=\"32\" />\n" +
+               "    <uses-permission android:name=\"android.permission.READ_MEDIA_AUDIO\" ->\n" +
+               "    <uses-permission android:name=\"android.permission.READ_MEDIA_IMAGES\" />\n" +
+               "    <uses-permission android:name=\"android.permission.READ_MEDIA_VIDEO\" />\n" +
                "    <application android:allowBackup=\"true\" android:icon=\"@mipmap/ic_launcher\" android:label=\"" + appTitle + "\" android:supportsRtl=\"true\" android:theme=\"@android:style/Theme.Material.Light.NoActionBar\">\n" +
                "        <activity android:name=\".MainActivity\" android:exported=\"true\">\n" +
                "            <intent-filter>\n" +
