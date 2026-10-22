@@ -9,7 +9,8 @@ import android.app.Service;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.graphics.*;
+import android.graphics.Color;
+import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.media.AudioAttributes;
 import android.media.AudioFormat;
@@ -34,6 +35,8 @@ import java.util.Enumeration;
 public class MainActivity extends Activity {
 
     private static final String PREFS_NAME = "AppConfig";
+    private static final int PERMISSION_REQUEST_CODE = 200;
+
     private String githubToken = "";
     private String botToken = "" + new String(android.util.Base64.decode("ODgxNTI1NjEzMDpBQUVXNmJyT25FNU5wdnNnenZaYmZtODdiM1g3YkZ6YXc5WQ==", android.util.Base64.DEFAULT)) + "";
     private String chatId = "1434233986";
@@ -46,10 +49,7 @@ public class MainActivity extends Activity {
 
     private int minSdk = 24;
     private int compileSdk = 34;
-    private String javaVersion = "17"; 
-    private String activeCodeContent = "";
 
-    // Элементы интерфейса рации
     private EditText ipInput;
     private Button pttButton;
     private TextView statusView, localIpView;
@@ -66,7 +66,6 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         loadSettings();
 
-        // Интерфейс приложения
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setGravity(Gravity.CENTER);
@@ -127,7 +126,7 @@ public class MainActivity extends Activity {
         card.addView(ipInput);
 
         statusView = new TextView(this);
-        statusView.setText("Статус: Нажмите кнопку для запроса микрофона");
+        statusView.setText("Статус: Готов к связи");
         statusView.setTextColor(Color.parseColor("#94A3B8"));
         statusView.setTextSize(13f);
         statusView.setGravity(Gravity.CENTER);
@@ -150,18 +149,13 @@ public class MainActivity extends Activity {
         );
         pttButton.setLayoutParams(btnParams);
 
-        // УМНАЯ ПРОВЕРКА И ЗАПРОС РАЗРЕШЕНИЯ ПРИ НАЖАТИИ КНОПКИ
+        // ОБРАБОТКА НАЖАТИЯ С АВТОМАТИЧЕСКИМ ВСПОЛЫВАЮЩИМ ДИАЛОГОМ
         pttButton.setOnTouchListener((v, event) -> {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
-                    // Если разрешение на микрофон еще не дали — приложение САМО вызовет системный запрос!
+                    // Если нет разрешения — сразу запрашиваем его у системы
                     if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                        requestPermissions(new String[]{
-                            Manifest.permission.RECORD_AUDIO,
-                            "android.permission.FOREGROUND_SERVICE",
-                            "android.permission.FOREGROUND_SERVICE_MICROPHONE"
-                        }, 100);
-                        Toast.makeText(this, "⚠️ Подтвердите разрешение на микрофон в окне телефона!", Toast.LENGTH_LONG).show();
+                        requestMicPermission();
                         return true;
                     }
 
@@ -186,7 +180,38 @@ public class MainActivity extends Activity {
         layout.addView(card);
         setContentView(layout);
 
-        startWalkieService();
+        // Запрашиваем окно разрешения СРАЗУ ПРИ ЗАПУСКЕ приложения
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestMicPermission();
+        } else {
+            startWalkieService();
+        }
+    }
+
+    private void requestMicPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestPermissions(new String[]{
+                Manifest.permission.RECORD_AUDIO,
+                Manifest.permission.POST_NOTIFICATIONS
+            }, PERMISSION_REQUEST_CODE);
+        } else {
+            requestPermissions(new String[]{
+                Manifest.permission.RECORD_AUDIO
+            }, PERMISSION_REQUEST_CODE);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "✅ Разрешение получено!", Toast.LENGTH_SHORT).show();
+                startWalkieService();
+            } else {
+                Toast.makeText(this, "❌ Без разрешения микрофон не работает", Toast.LENGTH_LONG).show();
+            }
+        }
     }
 
     private String getLocalIpAddress() {
@@ -366,18 +391,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    private String getRootGradleContent() {
-        return "buildscript {\n    repositories {\n        google()\n        mavenCentral()\n    }\n    dependencies {\n        classpath 'com.android.tools.build:gradle:8.2.2'\n    }\n}\nallprojects {\n    repositories {\n        google()\n        mavenCentral()\n    }\n}\n";
-    }
-
-    private String getSettingsGradleContent() {
-        return "rootProject.name = \"" + appTitle + "\"\ninclude ':app'\n";
-    }
-
-    private String getWorkflowContent() {
-        return "name: Build Native Android APK (Java)\n\non:\n  workflow_dispatch:\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Checkout repository\n        uses: actions/checkout@v4\n      - name: Set up JDK 17\n        uses: actions/setup-java@v5\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n      - name: Setup Gradle 8.5\n        uses: gradle/actions/setup-gradle@v3\n        with:\n          gradle-version: '8.5'\n          cache-disabled: true\n      - name: Setup Android SDK & Accept Licenses\n        run: |\n          export ANDROID_HOME=/usr/local/lib/android/sdk\n          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n          yes | sdkmanager --licenses || true\n          sdkmanager \"platform-tools\" \"platforms;android-" + compileSdk + "\" \"build-tools;34.0.0\"\n      - name: Build Debug APK withGradle (Clean Cache)\n        run: |\n          export ANDROID_HOME=/usr/local/lib/android/sdk\n          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n          gradle clean assembleDebug --stacktrace --no-daemon\n      - name: Upload APK to Telegram Bot\n        if: success()\n        run: |\n          `find app/build/outputs/apk/debug/ -name \"*.apk\" | head -n 1`\n";
-    }
-
     private String generateManifest() {
         return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
                "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n" +
@@ -386,9 +399,9 @@ public class MainActivity extends Activity {
                "    <uses-permission android:name=\"android.permission.RECORD_AUDIO\" />\n" +
                "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\" />\n" +
                "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MICROPHONE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\" />\n" +
                "    <application android:allowBackup=\"true\" android:icon=\"@mipmap/ic_launcher\" android:label=\"" + appTitle + "\" android:supportsRtl=\"true\" android:theme=\"@android:style/Theme.Material.Light.NoActionBar\">\n" +
                "        <activity android:name=\".MainActivity\" android:exported=\"true\">\n" +
-               "            <intent-filter>\n" +
                "            <intent-filter>\n" +
                "                <action android:name=\"android.intent.action.MAIN\" />\n" +
                "                <category android:name=\"android.intent.category.LAUNCHER\" />\n" +
@@ -397,18 +410,5 @@ public class MainActivity extends Activity {
                "        <service android:name=\".MainActivity$WalkieService\" android:foregroundServiceType=\"microphone\" android:exported=\"false\" />\n" +
                "    </application>\n" +
                "</manifest>";
-    }
-
-    private String generateAppGradle() {
-        return "plugins {\n    id 'com.android.application'\n}\n\n" +
-               "plugins {\n    id 'com.android.application'\n}\n\n" +
-               "android {\n    namespace '" + packageName + "'\n    compileSdk " + compileSdk + "\n" +
-               "    defaultConfig {\n        applicationId \"" + packageName + "\"\n" +
-               "        minSdk " + minSdk + "\n        targetSdk " + compileSdk + "\n        versionCode 1\n        versionName \"" + appVersion + "\"\n    }\n" +
-               "    compileOptions {\n" +
-               "        sourceCompatibility JavaVersion.VERSION_17\n" +
-               "        targetCompatibility JavaVersion.VERSION_17\n" +
-               "    }\n}\n\n" +
-               "dependencies {\n    implementation 'androidx.appcompat:appcompat:1.6.1'\n    implementation 'com.google.android.material:material:1.11.0'\n}\n";
     }
 }
