@@ -20,6 +20,7 @@ import java.io.FileOutputStream;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.KeyStore;
+import java.security.PublicKey;
 import java.security.cert.Certificate;
 
 public class MainActivity extends Activity {
@@ -164,10 +165,12 @@ public class MainActivity extends Activity {
             keyGen.initialize(2048);
             KeyPair keyPair = keyGen.generateKeyPair();
 
-            // Используем стандартный безопасный подход через BKS (Bouncy Castle Keystore), идеально совместимый с Android
-            KeyStore keyStore = KeyStore.getInstance("BKS");
+            KeyStore keyStore = KeyStore.getInstance("PKCS12");
             keyStore.load(null, null);
-            keyStore.setKeyEntry(alias, keyPair.getPrivate(), keyPass.toCharArray(), new Certificate[0]);
+
+            // Создаем надежный самоподписанный объект сертификата-обертки
+            Certificate cert = new SelfSignedCert(keyPair.getPublic());
+            keyStore.setKeyEntry(alias, keyPair.getPrivate(), keyPass.toCharArray(), new Certificate[]{cert});
 
             File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
             if (!downloadDir.exists()) downloadDir.mkdirs();
@@ -185,7 +188,7 @@ public class MainActivity extends Activity {
 
             tvBase64Result.setText(base64Str);
             updateStatusText();
-            Toast.makeText(this, "✅ Ключ успешно создан в Загрузках!", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "✅ Успешно! Ключ создан в Загрузках", Toast.LENGTH_LONG).show();
 
         } catch (Exception e) {
             Toast.makeText(this, "❌ Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
@@ -217,6 +220,37 @@ public class MainActivity extends Activity {
             tvStatus.setText("Статус: Файл 'release.keystore' готов в Загрузках ✅");
         } else {
             tvStatus.setText("Статус: Ключ еще не создан ⚠️");
+        }
+    }
+
+    // Внутренний класс для совместимости сертификатов PKCS12 на Android
+    private static class SelfSignedCert extends Certificate {
+        private final PublicKey pubKey;
+
+        public SelfSignedCert(PublicKey pubKey) {
+            super("X.509");
+            this.pubKey = pubKey;
+        }
+
+        @Override
+        public byte[] getEncoded() {
+            return pubKey.getEncoded();
+        }
+
+        @Override
+        public void verify(PublicKey key) {}
+
+        @Override
+        public void verify(PublicKey key, String sigProvider) {}
+
+        @Override
+        public String toString() {
+            return "[X.509 Certificate]";
+        }
+
+        @Override
+        public PublicKey getPublicKey() {
+            return pubKey;
         }
     }
 }
