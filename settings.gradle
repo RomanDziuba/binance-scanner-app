@@ -1,2 +1,2 @@
-rootProject.name = "JAVA_APK"
+rootProject.name = "RomaClockApp"
 include ':app'
