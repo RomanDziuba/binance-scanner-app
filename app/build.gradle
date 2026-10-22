@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.javaapkjava.app'
+    namespace 'ua.quick.radar'
     compileSdk 34
     defaultConfig {
-        applicationId "com.javaapkjava.app"
+        applicationId "ua.quick.radar"
         minSdk 26
         targetSdk 34
         versionCode 1
