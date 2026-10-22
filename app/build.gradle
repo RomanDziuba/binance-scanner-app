@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.etn.app'
+    namespace 'com.binans.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.etn.app"
+        applicationId "com.binans.app"
         minSdk 24
         targetSdk 34
         versionCode 1
