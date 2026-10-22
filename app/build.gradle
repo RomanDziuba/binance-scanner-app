@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.ratsiya.app'
+    namespace 'com.pianino.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.ratsiya.app"
+        applicationId "com.pianino.app"
         minSdk 26
         targetSdk 34
         versionCode 1
