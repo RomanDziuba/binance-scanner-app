@@ -59,7 +59,7 @@ public class MainActivity extends Activity {
     private static boolean isTransmitting = false;
     private boolean isIpEditable = false;
     private static final int PORT = 50005;
-    private static final int SAMPLE_RATE = 8000;
+    private static final int SAMPLE_RATE = 16000; // Повышено качество звука (16 kHz)
     
     private static AudioRecord audioRecord;
     private static Handler handler = new Handler(Looper.getMainLooper());
@@ -113,19 +113,18 @@ public class MainActivity extends Activity {
         localIpView.setPadding(0, 0, 0, 20);
         card.addView(localIpView);
 
-        // Панель IP с кнопкой блокировки от случайных нажатий
         LinearLayout ipLayout = new LinearLayout(this);
         ipLayout.setOrientation(LinearLayout.HORIZONTAL);
         ipLayout.setGravity(Gravity.CENTER_VERTICAL);
 
         ipInput = new EditText(this);
-        ipInput.setHint("IP собеседника (напр. 192.168.1.50)");
+        ipInput.setHint("IP собеседника (напр. 192.168.0.7)");
         ipInput.setTextColor(Color.WHITE);
         ipInput.setHintTextColor(Color.parseColor("#64748B"));
         ipInput.setTextSize(13f);
         ipInput.setBackgroundColor(Color.parseColor("#1E293B"));
         ipInput.setPadding(20, 20, 20, 20);
-        ipInput.setEnabled(false); // Заблокирован по умолчанию!
+        ipInput.setEnabled(false);
         
         LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(
             0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f
@@ -240,7 +239,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // Улучшенный поиск локального Wi-Fi IP (приоритет 192.168...)
     private String getLocalIpAddress() {
         try {
             String fallbackIp = "";
@@ -250,8 +248,8 @@ public class MainActivity extends Activity {
                     InetAddress inetAddress = enumIpAddr.nextElement();
                     if (!inetAddress.isLoopbackAddress() && inetAddress instanceof java.net.Inet4Address) {
                         String ip = inetAddress.getHostAddress();
-                        if (ip.startsWith("192.168.") || ip.startsWith("10.")) {
-                            return ip; // Нашли локальный IP роутера
+                        if (ip.startsWith("192.168.")) {
+                            return ip;
                         }
                         if (fallbackIp.isEmpty()) {
                             fallbackIp = ip;
@@ -289,8 +287,10 @@ public class MainActivity extends Activity {
             try {
                 DatagramSocket socket = new DatagramSocket();
                 InetAddress address = InetAddress.getByName(targetIp);
-                int bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, 
+                
+                int minBufSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, 
                     AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+                int bufferSize = Math.max(minBufSize, 2048);
                 
                 audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, 
                     SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufferSize);
@@ -367,43 +367,55 @@ public class MainActivity extends Activity {
 
         private void startReceiverServer() {
             listenThread = new Thread(() -> {
+                DatagramSocket socket = null;
+                AudioTrack audioTrack = null;
                 try {
-                    AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-                    if (audioManager != null) {
-                        audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
-                        audioManager.setSpeakerphoneOn(true);
-                    }
-
-                    DatagramSocket socket = new DatagramSocket(PORT);
-                    int playBufferSize = AudioTrack.getMinBufferSize(SAMPLE_RATE, 
+                    int minBufSize = AudioTrack.getMinBufferSize(SAMPLE_RATE, 
                         AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
-                    
-                    AudioTrack audioTrack = new AudioTrack(
-                        new AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                    int playBufferSize = Math.max(minBufSize, 4096);
+
+                    // Гарантируем вывод звука через главный динамик (Мультимедиа)
+                    audioTrack = new AudioTrack.Builder()
+                        .setAudioAttributes(new AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
                             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                            .build(),
-                        new AudioFormat.Builder()
+                            .build())
+                        .setAudioFormat(new AudioFormat.Builder()
                             .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                             .setSampleRate(SAMPLE_RATE)
                             .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                            .build(),
-                        playBufferSize,
-                        AudioTrack.MODE_STREAM,
-                        AudioManager.AUDIO_SESSION_ID_GENERATE
-                    );
-                    
+                            .build())
+                        .setBufferSizeInBytes(playBufferSize)
+                        .setTransferMode(AudioTrack.MODE_STREAM)
+                        .build();
+
                     audioTrack.play();
+
+                    socket = new DatagramSocket(null);
+                    socket.setReuseAddress(true);
+                    socket.bind(new java.net.InetSocketAddress(PORT));
+
                     byte[] buffer = new byte[playBufferSize];
 
                     while (isRunning) {
                         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                         socket.receive(packet);
-                        audioTrack.write(packet.getData(), 0, packet.getLength());
+                        if (packet.getLength() > 0) {
+                            audioTrack.write(packet.getData(), 0, packet.getLength());
+                        }
                     }
-                    socket.close();
                 } catch (Exception e) {
                     e.printStackTrace();
+                } finally {
+                    if (audioTrack != null) {
+                        try {
+                            audioTrack.stop();
+                            audioTrack.release();
+                        } catch (Exception ignored) {}
+                    }
+                    if (socket != null && !socket.isClosed()) {
+                        socket.close();
+                    }
                 }
             });
             listenThread.start();
@@ -430,74 +442,5 @@ public class MainActivity extends Activity {
         public IBinder onBind(Intent intent) {
             return null;
         }
-    }
-
-    private String getRootGradleContent() {
-        return "buildscript {\n    repositories {\n        google()\n        mavenCentral()\n    }\n    dependencies {\n        classpath 'com.android.tools.build:gradle:8.2.2'\n    }\n}\nallprojects {\n    repositories {\n        google()\n        mavenCentral()\n    }\n}\n";
-    }
-
-    private String getSettingsGradleContent() {
-        return "rootProject.name = \"" + appTitle + "\"\ninclude ':app'\n";
-    }
-
-    private String getWorkflowContent() {
-        return "name: Build Native Android APK (Java)\n\non:\n  workflow_dispatch:\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Checkout repository\n        uses: actions/checkout@v4\n      - name: Set up JDK 17\n        uses: actions/setup-java@v5\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n      - name: Setup Gradle 8.5\n        uses: gradle/actions/setup-gradle@v3\n        with:\n          gradle-version: '8.5'\n          cache-disabled: true\n      - name: Setup Android SDK & Accept Licenses\n        run: |\n          export ANDROID_HOME=/usr/local/lib/android/sdk\n          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n          yes | sdkmanager --licenses || true\n          sdkmanager \"platform-tools\" \"platforms;android-" + compileSdk + "\" \"build-tools;34.0.0\"\n      - name: Build Debug APK with Gradle (Clean Cache)\n        run: |\n          export ANDROID_HOME=/usr/local/lib/android/sdk\n          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n          gradle clean assembleDebug --stacktrace --no-daemon\n      - name: Upload APK to Telegram Bot\n        if: success()\n        run: |\n          APK_PATH=$(find app/build/outputs/apk/debug/ -name \"*.apk\" | head -n 1)\n          if [ -n \"$APK_PATH\" ]; then\n            APP_TITLE=\"" + appTitle + "\"\n            RENAMED_PATH=\"/tmp/$APP_TITLE.apk\"\n            cp \"$APK_PATH\" \"$RENAMED_PATH\"\n            curl -F chat_id=\"" + chatId + "\" -F document=@\"$RENAMED_PATH\" https://api.telegram.org/bot" + botToken + "/sendDocument\n          else\n            echo \"❌ Ошибка: APK файл не найден!\"\n            exit 1\n          fi\n";
-    }
-
-    private String generateManifest() {
-        return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
-               "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n" +
-               "    <uses-permission android:name=\"android.permission.INTERNET\" />\n" +
-               "    <uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\" />\n" +
-               "    <uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\" />\n" +
-               "    <uses-permission android:name=\"android.permission.CHANGE_WIFI_STATE\" />\n" +
-               "    <uses-permission android:name=\"android.permission.CHANGE_WIFI_MULTICAST_STATE\" />\n" +
-               "    <uses-permission android:name=\"android.permission.RECORD_AUDIO\" />\n" +
-               "    <uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\" />\n" +
-               "    <uses-permission android:name=\"android.permission.CAMERA\" />\n" +
-               "    <uses-permission android:name=\"android.permission.FLASHLIGHT\" />\n" +
-               "    <uses-permission android:name=\"android.permission.BLUETOOTH\" />\n" +
-               "    <uses-permission android:name=\"android.permission.BLUETOOTH_ADMIN\" />\n" +
-               "    <uses-permission android:name=\"android.permission.BLUETOOTH_CONNECT\" />\n" +
-               "    <uses-permission android:name=\"android.permission.BLUETOOTH_SCAN\" />\n" +
-               "    <uses-permission android:name=\"android.permission.ACCESS_FINE_LOCATION\" />\n" +
-               "    <uses-permission android:name=\"android.permission.ACCESS_COARSE_LOCATION\" />\n" +
-               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\" />\n" +
-               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MICROPHONE\" />\n" +
-               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_CAMERA\" />\n" +
-               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_LOCATION\" />\n" +
-               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE\" />\n" +
-               "    <uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\" />\n" +
-               "    <uses-permission android:name=\"android.permission.WAKE_LOCK\" />\n" +
-               "    <uses-permission android:name=\"android.permission.VIBRATE\" />\n" +
-               "    <uses-permission android:name=\"android.permission.RECEIVE_BOOT_COMPLETED\" />\n" +
-               "    <uses-permission android:name=\"com.android.vending.BILLING\" />\n" +
-               "    <uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\" android:maxSdkVersion=\"32\" />\n" +
-               "    <uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\" android:maxSdkVersion=\"32\" />\n" +
-               "    <uses-permission android:name=\"android.permission.READ_MEDIA_AUDIO\" />\n" +
-               "    <uses-permission android:name=\"android.permission.READ_MEDIA_IMAGES\" />\n" +
-               "    <uses-permission android:name=\"android.permission.READ_MEDIA_VIDEO\" />\n" +
-               "    <application android:allowBackup=\"true\" android:icon=\"@mipmap/ic_launcher\" android:label=\"" + appTitle + "\" android:supportsRtl=\"true\" android:theme=\"@android:style/Theme.Material.Light.NoActionBar\">\n" +
-               "        <activity android:name=\".MainActivity\" android:exported=\"true\">\n" +
-               "            <intent-filter>\n" +
-               "                <action android:name=\"android.intent.action.MAIN\" />\n" +
-               "                <category android:name=\"android.intent.category.LAUNCHER\" />\n" +
-               "            </intent-filter>\n" +
-               "        </activity>\n" +
-               "        <service android:name=\".MainActivity$WalkieService\" android:foregroundServiceType=\"microphone\" android:exported=\"false\" />\n" +
-               "    </application>\n" +
-               "</manifest>";
-    }
-
-    private String generateAppGradle() {
-        return "plugins {\n    id 'com.android.application'\n}\n\n" +
-               "android {\n    namespace '" + packageName + "'\n    compileSdk " + compileSdk + "\n" +
-               "    defaultConfig {\n        applicationId \"" + packageName + "\"\n" +
-               "        minSdk " + minSdk + "\n        targetSdk " + compileSdk + "\n        versionCode 1\n        versionName \"" + appVersion + "\"\n    }\n" +
-               "    compileOptions {\n" +
-               "        sourceCompatibility JavaVersion.VERSION_17\n" +
-               "        targetCompatibility JavaVersion.VERSION_17\n" +
-               "    }\n}\n\n" +
-               "dependencies {\n    implementation 'androidx.appcompat:appcompat:1.6.1'\n    implementation 'com.google.android.material:material:1.11.0'\n}\n";
     }
 }
