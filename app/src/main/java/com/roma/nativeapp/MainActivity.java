@@ -2,38 +2,87 @@ package com.roma.nativeapp;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
-import android.graphics.Typeface;
+import android.database.Cursor;
+import android.graphics.*;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaRecorder;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.provider.OpenableColumns;
 import android.view.Gravity;
 import android.view.MotionEvent;
+import android.view.View;
 import android.widget.*;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 public class MainActivity extends Activity {
 
+    private static final String PREFS_NAME = "AppConfig";
+    private static final int PICK_ICON_REQUEST = 1001;
+    private static final int PICK_JAVA_REQUEST = 1002;
+    private static final int PICK_APK_REQUEST = 1003;
+
+    // Системные переменные CI/CD и проекта (восстановлены!)
+    private String githubToken = "";
+    private String botToken = "" + new String(android.util.Base64.decode("ODgxNTI1NjEzMDpBQUVXNmJyT25FNU5wdnNnenZaYmZtODdiM1g3YkZ6YXc5WQ==", android.util.Base64.DEFAULT)) + "";
+    private String chatId = "1434233986";
+    private String repoOwner = "RomanDziuba";
+    private String repoName = "binance-scanner-app";
+    
+    private String appTitle = "WiFiWalkieTalkie";
+    private String appVersion = "1.0";
+    private String packageName = "com.roma.nativeapp";
+    private String currentJavaFileName = "Wi-Fi Рация (MainActivity.java)";
+    private boolean iconCustomized = true;
+
+    private int minSdk = 24;
+    private int compileSdk = 34;
+    private String javaVersion = "17"; 
+    private String activeCodeContent = "";
+
+    // Элементы интерфейса рации
     private EditText ipInput;
     private Button pttButton;
     private TextView statusView, localIpView;
@@ -48,8 +97,9 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        loadSettings();
 
-        // Запрос разрешений для микрофона и фоновой службы
+        // Запрос разрешений для микрофона и фоновых служб
         String[] perms = {
             Manifest.permission.RECORD_AUDIO,
             "android.permission.FOREGROUND_SERVICE",
@@ -238,6 +288,19 @@ public class MainActivity extends Activity {
         statusView.setText("Статус: Фоновая служба активна (Слушаю)");
     }
 
+    private void loadSettings() {
+        SharedPreferences sp = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        githubToken = sp.getString("githubToken", "");
+        botToken = sp.getString("botToken", botToken);
+        chatId = sp.getString("chatId", chatId);
+        repoOwner = sp.getString("repoOwner", repoOwner);
+        repoName = sp.getString("repoName", repoName);
+        appTitle = sp.getString("appTitle", appTitle);
+        appVersion = sp.getString("appVersion", appVersion);
+        packageName = sp.getString("packageName", packageName);
+    }
+
+    // Фоновая служба для непрерывной работы сети и звука в фоне
     public static class WalkieService extends Service {
         private boolean isRunning = false;
         private Thread listenThread;
@@ -332,7 +395,28 @@ public class MainActivity extends Activity {
         }
     }
 
-    // ИСПРАВЛЕННЫЙ МЕТОД ГЕНЕРАЦИИ МАНИФЕСТА СО ВСЕМИ РАЗРЕШЕНИЯМИ И СЛУЖБОЙ
+    private String sanitizeAndInjectJavaCode(String code, String pkg) {
+        code = code.replace('\u00A0', ' ').replace("\r\n", "\n").replace("\r", "\n");
+        code = code.replaceAll("package\\s+[a-zA-Z0-9_.]+;", "package " + pkg + ";");
+        if (!code.contains("package ")) {
+            code = "package " + pkg + ";\n\n" + code;
+        }
+        return code;
+    }
+
+    private String getRootGradleContent() {
+        return "buildscript {\n    repositories {\n        google()\n        mavenCentral()\n    }\n    dependencies {\n        classpath 'com.android.tools.build:gradle:8.2.2'\n    }\n}\nallprojects {\n    repositories {\n        google()\n        mavenCentral()\n    }\n}\n";
+    }
+
+    private String getSettingsGradleContent() {
+        return "rootProject.name = \"" + appTitle + "\"\ninclude ':app'\n";
+    }
+
+    private String getWorkflowContent() {
+        return "name: Build Native Android APK (Java)\n\non:\n  workflow_dispatch:\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Checkout repository\n        uses: actions/checkout@v4\n      - name: Set up JDK 17\n        uses: actions/setup-java@v5\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n      - name: Setup Gradle 8.5\n        uses: gradle/actions/setup-gradle@v3\n        with:\n          gradle-version: '8.5'\n          cache-disabled: true\n      - name: Setup Android SDK & Accept Licenses\n        run: |\n          export ANDROID_HOME=/usr/local/lib/android/sdk\n          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n          yes | sdkmanager --licenses || true\n          sdkmanager \"platform-tools\" \"platforms;android-" + compileSdk + "\" \"build-tools;34.0.0\"\n      - name: Build Debug APK with Gradle (Clean Cache)\n        run: |\n          export ANDROID_HOME=/usr/local/lib/android/sdk\n          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n          gradle clean assembleDebug --stacktrace --no-daemon\n      - name: Upload APK to Telegram Bot\n        if: success()\n        run: |\n          APK_PATH=$(find app/build/outputs/apk/debug/ -name \"*.apk\" | head -n 1)\n          if [ -n \"$APK_PATH\" ]; then\n            APP_TITLE=\"" + appTitle + "\"\n            RENAMED_PATH=\"/tmp/$APP_TITLE.apk\"\n            cp \"$APK_PATH\" \"$RENAMED_PATH\"\n            curl -F chat_id=\"" + chatId + "\" -F document=@\"$RENAMED_PATH\" https://api.telegram.org/bot" + botToken + "/sendDocument\n          else\n            echo \"❌ Ошибка: APK файл не найден!\"\n            exit 1\n          fi\n";
+    }
+
+    // Манифест со всеми разрешениями и фоновой службой
     private String generateManifest() {
         return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
                "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n" +
@@ -351,5 +435,17 @@ public class MainActivity extends Activity {
                "        <service android:name=\".MainActivity$WalkieService\" android:foregroundServiceType=\"microphone\" android:exported=\"false\" />\n" +
                "    </application>\n" +
                "</manifest>";
+    }
+
+    private String generateAppGradle() {
+        return "plugins {\n    id 'com.android.application'\n}\n\n" +
+               "android {\n    namespace '" + packageName + "'\n    compileSdk " + compileSdk + "\n" +
+               "    defaultConfig {\n        applicationId \"" + packageName + "\"\n" +
+               "        minSdk " + minSdk + "\n        targetSdk " + compileSdk + "\n        versionCode 1\n        versionName \"" + appVersion + "\"\n    }\n" +
+               "    compileOptions {\n" +
+               "        sourceCompatibility JavaVersion.VERSION_17\n" +
+               "        targetCompatibility JavaVersion.VERSION_17\n" +
+               "    }\n}\n\n" +
+               "dependencies {\n    implementation 'androidx.appcompat:appcompat:1.6.1'\n    implementation 'com.google.android.material:material:1.11.0'\n}\n";
     }
 }
