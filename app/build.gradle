@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.roma.nativeapp'
+    namespace 'ua.quick.radar'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roma.nativeapp"
+        applicationId "ua.quick.radar"
         minSdk 26
         targetSdk 34
         versionCode 1
