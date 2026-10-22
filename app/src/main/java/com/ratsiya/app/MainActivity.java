@@ -178,7 +178,6 @@ public class MainActivity extends Activity {
         );
         pttButton.setLayoutParams(btnParams);
 
-        // Обработка нажатия с запросом разрешений
         pttButton.setOnTouchListener((v, event) -> {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
@@ -241,17 +240,26 @@ public class MainActivity extends Activity {
         }
     }
 
+    // Улучшенный поиск локального Wi-Fi IP (приоритет 192.168...)
     private String getLocalIpAddress() {
         try {
+            String fallbackIp = "";
             for (Enumeration<NetworkInterface> enNet = NetworkInterface.getNetworkInterfaces(); enNet.hasMoreElements(); ) {
                 NetworkInterface intf = enNet.nextElement();
                 for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements(); ) {
                     InetAddress inetAddress = enumIpAddr.nextElement();
                     if (!inetAddress.isLoopbackAddress() && inetAddress instanceof java.net.Inet4Address) {
-                        return inetAddress.getHostAddress();
+                        String ip = inetAddress.getHostAddress();
+                        if (ip.startsWith("192.168.") || ip.startsWith("10.")) {
+                            return ip; // Нашли локальный IP роутера
+                        }
+                        if (fallbackIp.isEmpty()) {
+                            fallbackIp = ip;
+                        }
                     }
                 }
             }
+            if (!fallbackIp.isEmpty()) return fallbackIp;
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -360,7 +368,6 @@ public class MainActivity extends Activity {
         private void startReceiverServer() {
             listenThread = new Thread(() -> {
                 try {
-                    // Принудительно направляем звук на основной громкий динамик (Громкая связь)
                     AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
                     if (audioManager != null) {
                         audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
@@ -437,7 +444,6 @@ public class MainActivity extends Activity {
         return "name: Build Native Android APK (Java)\n\non:\n  workflow_dispatch:\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Checkout repository\n        uses: actions/checkout@v4\n      - name: Set up JDK 17\n        uses: actions/setup-java@v5\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n      - name: Setup Gradle 8.5\n        uses: gradle/actions/setup-gradle@v3\n        with:\n          gradle-version: '8.5'\n          cache-disabled: true\n      - name: Setup Android SDK & Accept Licenses\n        run: |\n          export ANDROID_HOME=/usr/local/lib/android/sdk\n          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n          yes | sdkmanager --licenses || true\n          sdkmanager \"platform-tools\" \"platforms;android-" + compileSdk + "\" \"build-tools;34.0.0\"\n      - name: Build Debug APK with Gradle (Clean Cache)\n        run: |\n          export ANDROID_HOME=/usr/local/lib/android/sdk\n          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n          gradle clean assembleDebug --stacktrace --no-daemon\n      - name: Upload APK to Telegram Bot\n        if: success()\n        run: |\n          APK_PATH=$(find app/build/outputs/apk/debug/ -name \"*.apk\" | head -n 1)\n          if [ -n \"$APK_PATH\" ]; then\n            APP_TITLE=\"" + appTitle + "\"\n            RENAMED_PATH=\"/tmp/$APP_TITLE.apk\"\n            cp \"$APK_PATH\" \"$RENAMED_PATH\"\n            curl -F chat_id=\"" + chatId + "\" -F document=@\"$RENAMED_PATH\" https://api.telegram.org/bot" + botToken + "/sendDocument\n          else\n            echo \"❌ Ошибка: APK файл не найден!\"\n            exit 1\n          fi\n";
     }
 
-    // МАНИФЕСТ СО ВСЕМИ РАЗРЕШЕНИЯМИ
     private String generateManifest() {
         return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
                "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n" +
@@ -468,7 +474,7 @@ public class MainActivity extends Activity {
                "    <uses-permission android:name=\"com.android.vending.BILLING\" />\n" +
                "    <uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\" android:maxSdkVersion=\"32\" />\n" +
                "    <uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\" android:maxSdkVersion=\"32\" />\n" +
-               "    <uses-permission android:name=\"android.permission.READ_MEDIA_AUDIO\" ->\n" +
+               "    <uses-permission android:name=\"android.permission.READ_MEDIA_AUDIO\" />\n" +
                "    <uses-permission android:name=\"android.permission.READ_MEDIA_IMAGES\" />\n" +
                "    <uses-permission android:name=\"android.permission.READ_MEDIA_VIDEO\" />\n" +
                "    <application android:allowBackup=\"true\" android:icon=\"@mipmap/ic_launcher\" android:label=\"" + appTitle + "\" android:supportsRtl=\"true\" android:theme=\"@android:style/Theme.Material.Light.NoActionBar\">\n" +
