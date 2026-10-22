@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.ratsiyadrv.app'
+    namespace 'com.roma.nativeapp'
     compileSdk 34
     defaultConfig {
-        applicationId "com.ratsiyadrv.app"
+        applicationId "com.roma.nativeapp"
         minSdk 26
         targetSdk 34
         versionCode 1
