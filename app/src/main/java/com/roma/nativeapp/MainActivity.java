@@ -1277,7 +1277,7 @@ public class MainActivity extends Activity {
                "    <uses-permission android:name=\"android.permission.RECEIVE_BOOT_COMPLETED\" />\n" +
                "    <uses-permission android:name=\"com.android.vending.BILLING\" />\n" +
                "    <uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\" android:maxSdkVersion=\"32\" />\n" +
-               "    <uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\" android:maxSdkVersion="32\" />\n" +
+               "    <uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\" android:maxSdkVersion=\"32\" />\n" +
                "    <uses-permission android:name=\"android.permission.READ_MEDIA_AUDIO\" />\n" +
                "    <uses-permission android:name=\"android.permission.READ_MEDIA_IMAGES\" />\n" +
                "    <uses-permission android:name=\"android.permission.READ_MEDIA_VIDEO\" />\n" +
