@@ -15,6 +15,7 @@ public class MainActivity {
     private MediaRecorder mediaRecorder;
     private String filePath;
 
+    // Имя конструктора совпадает с именем класса!
     public AudioRecorder(String filePath) {
         this.filePath = filePath;
     }
