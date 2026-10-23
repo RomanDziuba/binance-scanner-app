@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.roma.nativeapp'
+    namespace 'com.peredacha.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roma.nativeapp"
+        applicationId "com.peredacha.app"
         minSdk 26
         targetSdk 34
         versionCode 1
