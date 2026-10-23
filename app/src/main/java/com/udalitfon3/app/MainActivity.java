@@ -1,7 +1,7 @@
 package com.udalitfon3.app;
 
 import android.app.Activity;
-import android.app.Dialog;
+import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.ContentValues;
@@ -9,7 +9,6 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.*;
 import android.graphics.drawable.GradientDrawable;
-import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -23,7 +22,6 @@ import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.Window;
 import android.widget.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -541,20 +539,17 @@ public class MainActivity extends Activity {
     }
 
     private void showDirectoryBrowser(String currentDir, java.util.List<RepoItem> allItems) {
-        Dialog dialog = new Dialog(this);
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-
         LinearLayout dialogLayout = new LinearLayout(this);
         dialogLayout.setOrientation(LinearLayout.VERTICAL);
-        dialogLayout.setPadding(25, 25, 25, 25);
+        dialogLayout.setPadding(20, 20, 20, 20);
         dialogLayout.setBackgroundColor(Color.parseColor("#090D16"));
 
         TextView pathTitle = new TextView(this);
         pathTitle.setText("📂 Путь: /" + (currentDir.isEmpty() ? "(корень)" : currentDir));
         pathTitle.setTextColor(Color.parseColor("#38BDF8"));
-        pathTitle.setTextSize(14f);
+        pathTitle.setTextSize(13f);
         pathTitle.setTypeface(Typeface.DEFAULT_BOLD);
-        pathTitle.setPadding(0, 0, 0, 15);
+        pathTitle.setPadding(0, 0, 0, 10);
         dialogLayout.addView(pathTitle);
 
         java.util.Set<String> subFolders = new java.util.TreeSet<>();
@@ -635,7 +630,7 @@ public class MainActivity extends Activity {
         listView.setAdapter(adapter);
         
         LinearLayout.LayoutParams listParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 650
+            LinearLayout.LayoutParams.MATCH_PARENT, 600
         );
         listView.setLayoutParams(listParams);
 
@@ -645,7 +640,6 @@ public class MainActivity extends Activity {
                 String selectedPath = itemPaths.get(position);
                 boolean isFolder = isFolderList.get(position);
 
-                dialog.dismiss();
                 if (selectedPath.equals("..")) {
                     int lastSlash = currentDir.lastIndexOf('/');
                     String parentDir = lastSlash == -1 ? "" : currentDir.substring(0, lastSlash);
@@ -664,7 +658,6 @@ public class MainActivity extends Activity {
         btnUploadHere.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                dialog.dismiss();
                 openFilePickerForFolder(currentDir);
             }
         });
@@ -675,83 +668,38 @@ public class MainActivity extends Activity {
             btnDeleteFolderContent.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    dialog.dismiss();
                     confirmDeleteFolderContents(currentDir, allItems);
                 }
             });
             dialogLayout.addView(btnDeleteFolderContent);
         }
 
-        Button btnClose = createStyledButton("❌ Закрыть", "#334155");
-        btnClose.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-            }
-        });
-        dialogLayout.addView(btnClose);
-
-        dialog.setContentView(dialogLayout);
-        dialog.show();
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        }
+        new AlertDialog.Builder(this)
+            .setTitle("📁 Файловый менеджер")
+            .setView(dialogLayout)
+            .setPositiveButton("Закрыть", null)
+            .show();
     }
 
-    private void showFileOptionsDialog(final String filePath, final java.util.List<RepoItem> allItems) {
-        final Dialog dialog = new Dialog(this);
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(30, 30, 30, 30);
-        layout.setBackgroundColor(Color.parseColor("#090D16"));
-
-        TextView title = new TextView(this);
-        title.setText("⚙️ Файл: " + filePath);
-        title.setTextColor(Color.parseColor("#38BDF8"));
-        title.setTextSize(14f);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        title.setPadding(0, 0, 0, 15);
-        layout.addView(title);
-
-        Button btnEdit = createStyledButton("📝 Редактировать файл", "#059669");
-        btnEdit.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-                openFileEditorForPath(filePath);
-            }
-        });
-        layout.addView(btnEdit);
-
-        Button btnDelete = createStyledButton("🗑 Удалить файл", "#DC2626");
-        btnDelete.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-                confirmDeleteSingleFile(filePath);
-            }
-        });
-        layout.addView(btnDelete);
-
-        Button btnCancel = createStyledButton("Отмена", "#334155");
-        btnCancel.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-            }
-        });
-        layout.addView(btnCancel);
-
-        dialog.setContentView(layout);
-        dialog.show();
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        }
+    private void showFileOptionsDialog(String filePath, java.util.List<RepoItem> allItems) {
+        CharSequence[] options = {"📝 Редактировать файл", "🗑 Удалить файл"};
+        new AlertDialog.Builder(this)
+            .setTitle("Файл: " + filePath)
+            .setItems(options, new android.content.DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(android.content.DialogInterface dialog, int which) {
+                    if (which == 0) {
+                        openFileEditorForPath(filePath);
+                    } else if (which == 1) {
+                        confirmDeleteSingleFile(filePath);
+                    }
+                }
+            })
+            .setNegativeButton("Отмена", null)
+            .show();
     }
 
-    private void openFileEditorForPath(final String filePath) {
+    private void openFileEditorForPath(String filePath) {
         statusTextView.setText("Статус: 🔄 Загрузка файла " + filePath + "...");
         new Thread(new Runnable() {
             @Override
@@ -801,20 +749,16 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    private void showCodeEditorDialogForPath(final String filePath, String initialContent) {
-        final Dialog dialog = new Dialog(this);
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-
+    private void showCodeEditorDialogForPath(String filePath, String initialContent) {
         LinearLayout editorLayout = new LinearLayout(this);
         editorLayout.setOrientation(LinearLayout.VERTICAL);
-        editorLayout.setPadding(20, 20, 20, 20);
+        editorLayout.setPadding(15, 15, 15, 15);
         editorLayout.setBackgroundColor(Color.parseColor("#090D16"));
 
         TextView title = new TextView(this);
         title.setText("Редактирование: " + filePath);
         title.setTextColor(Color.parseColor("#F59E0B"));
-        title.setTextSize(13f);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setTextSize(12f);
         editorLayout.addView(title);
 
         final EditText codeInput = new EditText(this);
@@ -825,174 +769,105 @@ public class MainActivity extends Activity {
         codeInput.setBackgroundColor(Color.parseColor("#030712"));
         codeInput.setPadding(15, 15, 15, 15);
         codeInput.setGravity(Gravity.TOP);
-        codeInput.setMinLines(16);
+        codeInput.setMinLines(15);
         codeInput.setMaxLines(22);
         editorLayout.addView(codeInput);
 
-        Button btnSaveGH = createStyledButton("💾 Сохранить на GitHub", "#2563EB");
-        btnSaveGH.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-                final String newContent = cleanInvisibleCharacters(codeInput.getText().toString());
-                statusTextView.setText("Статус: ⚙️ Сохранение файла " + filePath + "...");
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        boolean success = pushFileToGitHub(filePath, newContent, "Update file via File Manager: " + filePath);
-                        handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (success) {
-                                    statusTextView.setText("Статус: ✅ Файл успешно сохранен!");
-                                    Toast.makeText(MainActivity.this, "Файл обновлен на GitHub", Toast.LENGTH_SHORT).show();
-                                } else {
-                                    statusTextView.setText("Статус: ❌ Ошибка сохранения");
+        new AlertDialog.Builder(this)
+            .setTitle("📝 Редактор файла")
+            .setView(editorLayout)
+            .setPositiveButton("Сохранить на GitHub", new android.content.DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(android.content.DialogInterface dialog, int which) {
+                    final String newContent = cleanInvisibleCharacters(codeInput.getText().toString());
+                    statusTextView.setText("Статус: ⚙️ Сохранение файла " + filePath + "...");
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            boolean success = pushFileToGitHub(filePath, newContent, "Update file via File Manager: " + filePath);
+                            handler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (success) {
+                                        statusTextView.setText("Статус: ✅ Файл успешно сохранен!");
+                                        Toast.makeText(MainActivity.this, "Файл обновлен на GitHub", Toast.LENGTH_SHORT).show();
+                                    } else {
+                                        statusTextView.setText("Статус: ❌ Ошибка сохранения");
+                                    }
+                                }
+                            });
+                        }
+                    }).start();
+                }
+            })
+            .setNegativeButton("Отмена", null)
+            .show();
+    }
+
+    private void confirmDeleteSingleFile(String filePath) {
+        new AlertDialog.Builder(this)
+            .setTitle("🗑 Удаление файла")
+            .setMessage("Удалить файл " + filePath + "?")
+            .setPositiveButton("Удалить", new android.content.DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(android.content.DialogInterface dialog, int which) {
+                    statusTextView.setText("Статус: 🔄 Удаление файла...");
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            deleteGitHubFile(filePath, "Delete file via File Manager: " + filePath);
+                            handler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    statusTextView.setText("Статус: ✅ Файл удален!");
+                                    Toast.makeText(MainActivity.this, "Файл удален", Toast.LENGTH_SHORT).show();
+                                    openRepositoryFileManager();
+                                }
+                            });
+                        }
+                    }).start();
+                }
+            })
+            .setNegativeButton("Отмена", null)
+            .show();
+    }
+
+    private void confirmDeleteFolderContents(String dirPath, java.util.List<RepoItem> allItems) {
+        if (dirPath.isEmpty()) return;
+        new AlertDialog.Builder(this)
+            .setTitle("🗑 Полное очищение папки")
+            .setMessage("Вы уверены, что хотите полностью удалить все файлы внутри папки \"" + dirPath + "\"?")
+            .setPositiveButton("Удалить всё содержимое", new android.content.DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(android.content.DialogInterface dialog, int which) {
+                    statusTextView.setText("Статус: 🔄 Очистка папки " + dirPath + "...");
+                    logEditText.setText("Удаление содержимого папки: " + dirPath);
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            String prefix = dirPath + "/";
+                            int deletedCount = 0;
+                            for (RepoItem item : allItems) {
+                                if (item.path.startsWith(prefix) && item.type.equals("blob")) {
+                                    deleteGitHubFile(item.path, "Delete folder contents in " + dirPath);
+                                    deletedCount++;
                                 }
                             }
-                        });
-                    }
-                }).start();
-            }
-        });
-        editorLayout.addView(btnSaveGH);
-
-        Button btnClose = createStyledButton("Отмена", "#334155");
-        btnClose.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-            }
-        });
-        editorLayout.addView(btnClose);
-
-        dialog.setContentView(editorLayout);
-        dialog.show();
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        }
-    }
-
-    private void confirmDeleteSingleFile(final String filePath) {
-        final Dialog dialog = new Dialog(this);
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(30, 30, 30, 30);
-        layout.setBackgroundColor(Color.parseColor("#090D16"));
-
-        TextView msg = new TextView(this);
-        msg.setText("🗑 Удалить файл " + filePath + "?");
-        msg.setTextColor(Color.parseColor("#E2E8F0"));
-        msg.setTextSize(14f);
-        msg.setPadding(0, 0, 0, 20);
-        layout.addView(msg);
-
-        Button btnYes = createStyledButton("Удалить", "#DC2626");
-        btnYes.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-                statusTextView.setText("Статус: 🔄 Удаление файла...");
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        deleteGitHubFile(filePath, "Delete file via File Manager: " + filePath);
-                        handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                statusTextView.setText("Статус: ✅ Файл удален!");
-                                Toast.makeText(MainActivity.this, "Файл удален", Toast.LENGTH_SHORT).show();
-                                openRepositoryFileManager();
-                            }
-                        });
-                    }
-                }).start();
-            }
-        });
-        layout.addView(btnYes);
-
-        Button btnCancel = createStyledButton("Отмена", "#334155");
-        btnCancel.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-            }
-        });
-        layout.addView(btnCancel);
-
-        dialog.setContentView(layout);
-        dialog.show();
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        }
-    }
-
-    private void confirmDeleteFolderContents(final String dirPath, final java.util.List<RepoItem> allItems) {
-        if (dirPath.isEmpty()) return;
-        final Dialog dialog = new Dialog(this);
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(30, 30, 30, 30);
-        layout.setBackgroundColor(Color.parseColor("#090D16"));
-
-        TextView msg = new TextView(this);
-        msg.setText("🗑 Вы уверены, что хотите полностью удалить все файлы внутри папки \"" + dirPath + "\"?");
-        msg.setTextColor(Color.parseColor("#E2E8F0"));
-        msg.setTextSize(14f);
-        msg.setPadding(0, 0, 0, 20);
-        layout.addView(msg);
-
-        Button btnYes = createStyledButton("Удалить всё содержимое", "#DC2626");
-        btnYes.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-                statusTextView.setText("Статус: 🔄 Очистка папки " + dirPath + "...");
-                logEditText.setText("Удаление содержимого папки: " + dirPath);
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        String prefix = dirPath + "/";
-                        int deletedCount = 0;
-                        for (RepoItem item : allItems) {
-                            if (item.path.startsWith(prefix) && item.type.equals("blob")) {
-                                deleteGitHubFile(item.path, "Delete folder contents in " + dirPath);
-                                deletedCount++;
-                            }
+                            final int count = deletedCount;
+                            handler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    statusTextView.setText("Статус: ✅ Содержимое папки удалено (" + count + " файлов)");
+                                    Toast.makeText(MainActivity.this, "Удалено файлов: " + count, Toast.LENGTH_SHORT).show();
+                                    openRepositoryFileManager();
+                                }
+                            });
                         }
-                        final int count = deletedCount;
-                        handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                statusTextView.setText("Статус: ✅ Содержимое папки удалено (" + count + " файлов)");
-                                Toast.makeText(MainActivity.this, "Удалено файлов: " + count, Toast.LENGTH_SHORT).show();
-                                openRepositoryFileManager();
-                            }
-                        });
-                    }
-                }).start();
-            }
-        });
-        layout.addView(btnYes);
-
-        Button btnCancel = createStyledButton("Отмена", "#334155");
-        btnCancel.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-            }
-        });
-        layout.addView(btnCancel);
-
-        dialog.setContentView(layout);
-        dialog.show();
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        }
+                    }).start();
+                }
+            })
+            .setNegativeButton("Отмена", null)
+            .show();
     }
 
     private void openFilePickerForFolder(String folderPath) {
@@ -1495,12 +1370,9 @@ public class MainActivity extends Activity {
     }
 
     private void openCodeEditorDialog() {
-        final Dialog dialog = new Dialog(this);
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-
         LinearLayout editorLayout = new LinearLayout(this);
         editorLayout.setOrientation(LinearLayout.VERTICAL);
-        editorLayout.setPadding(20, 20, 20, 20);
+        editorLayout.setPadding(15, 15, 15, 15);
         editorLayout.setBackgroundColor(Color.parseColor("#090D16"));
 
         TextView hintTitle = new TextView(this);
@@ -1555,59 +1427,42 @@ public class MainActivity extends Activity {
         codeInput.setMaxLines(22);
         editorLayout.addView(codeInput);
 
-        Button btnSaveLocal = createStyledButton("💾 Сохранить локально", "#059669");
-        btnSaveLocal.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-                activeCodeContent = cleanInvisibleCharacters(codeInput.getText().toString());
-                saveSettings();
-                Toast.makeText(MainActivity.this, "Сохранено и очищено от невидимых символов!", Toast.LENGTH_SHORT).show();
-            }
-        });
-        editorLayout.addView(btnSaveLocal);
-
-        Button btnSendGH = createStyledButton("🚀 Отправить на GitHub", "#2563EB");
-        btnSendGH.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-                activeCodeContent = cleanInvisibleCharacters(codeInput.getText().toString());
-                activeCodeContent = sanitizeAndInjectJavaCode(activeCodeContent, packageName);
-                saveSettings();
-                statusTextView.setText("Статус: ⚙️ Очистка и отправка кода...");
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        removeAllExistingMainActivities(getMainActivityPath());
-                        boolean success = pushFileToGitHub(getMainActivityPath(), activeCodeContent, "Update via Editor");
-                        handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (success) statusTextView.setText("Статус: ✅ Код загружен на GitHub!");
-                                else statusTextView.setText("Статус: ❌ Ошибка загрузки");
-                            }
-                        });
-                    }
-                }).start();
-            }
-        });
-        editorLayout.addView(btnSendGH);
-
-        Button btnClose = createStyledButton("Отмена", "#334155");
-        btnClose.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-            }
-        });
-        editorLayout.addView(btnClose);
-
-        dialog.setContentView(editorLayout);
-        dialog.show();
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        }
+        new AlertDialog.Builder(this)
+            .setTitle("📝 Редактор кода")
+            .setView(editorLayout)
+            .setPositiveButton("Сохранить", new android.content.DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(android.content.DialogInterface dialog, int which) {
+                    activeCodeContent = cleanInvisibleCharacters(codeInput.getText().toString());
+                    saveSettings();
+                    Toast.makeText(MainActivity.this, "Сохранено и очищено от невидимых символов!", Toast.LENGTH_SHORT).show();
+                }
+            })
+            .setNeutralButton("Отправить на GitHub", new android.content.DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(android.content.DialogInterface dialog, int which) {
+                    activeCodeContent = cleanInvisibleCharacters(codeInput.getText().toString());
+                    activeCodeContent = sanitizeAndInjectJavaCode(activeCodeContent, packageName);
+                    saveSettings();
+                    statusTextView.setText("Статус: ⚙️ Очистка и отправка кода...");
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            removeAllExistingMainActivities(getMainActivityPath());
+                            boolean success = pushFileToGitHub(getMainActivityPath(), activeCodeContent, "Update via Editor");
+                            handler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (success) statusTextView.setText("Статус: ✅ Код загружен на GitHub!");
+                                    else statusTextView.setText("Статус: ❌ Ошибка загрузки");
+                                }
+                            });
+                        }
+                    }).start();
+                }
+            })
+            .setNegativeButton("Отмена", null)
+            .show();
     }
 
     private void triggerGitHubBuild() {
@@ -1914,223 +1769,117 @@ public class MainActivity extends Activity {
     }
 
     private void confirmResetProject() {
-        final Dialog dialog = new Dialog(this);
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        new AlertDialog.Builder(this)
+            .setTitle("Полный сброс")
+            .setMessage("Сбросить репозиторий, удалить старые файлы и установить продвинутый шаблон умного удаления фона?")
+            .setPositiveButton("Сбросить", new android.content.DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(android.content.DialogInterface dialog, int which) {
+                    isMonitoring = false;
+                    btnReset.setEnabled(false);
+                    btnReset.setBackgroundColor(Color.parseColor("#78350F"));
+                    btnReset.setText("🔄 Выполняется полный сброс...");
+                    statusTextView.setText("Статус: Полный сброс проекта...");
+                    logEditText.setText("Очистка и установка шаблона умного удаления фона...");
 
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(30, 30, 30, 30);
-        layout.setBackgroundColor(Color.parseColor("#090D16"));
+                    appTitle = "RomaStickerApp";
+                    packageName = "com.udalitfon3.app";
+                    appVersion = "1.0";
+                    iconCustomized = true;
+                    activeCodeContent = generateMainActivity();
+                    currentJavaFileName = "Шаблон: Умное удаление фона (MainActivity.java)";
+                    saveSettings();
 
-        TextView msg = new TextView(this);
-        msg.setText("Сбросить репозиторий, удалить старые файлы и установить продвинутый шаблон умного удаления фона?");
-        msg.setTextColor(Color.parseColor("#E2E8F0"));
-        msg.setTextSize(14f);
-        msg.setPadding(0, 0, 0, 20);
-        layout.addView(msg);
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            removeAllExistingMainActivities(getMainActivityPath());
+                            byte[] iconBytes = generateClockIconBytes();
+                            pushBytesToGitHub("app/src/main/res/mipmap-xxhdpi/ic_launcher.png", iconBytes, "Reset app icon");
 
-        Button btnYes = createStyledButton("Сбросить", "#D97706");
-        btnYes.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-                isMonitoring = false;
-                btnReset.setEnabled(false);
-                btnReset.setBackgroundColor(Color.parseColor("#78350F"));
-                btnReset.setText("🔄 Выполняется полный сброс...");
-                statusTextView.setText("Статус: Полный сброс проекта...");
-                logEditText.setText("Очистка и установка шаблона умного удаления фона...");
+                            boolean r0 = pushFileToGitHub("build.gradle", getRootGradleContent(), "Reset root build.gradle");
+                            boolean r00 = pushFileToGitHub("settings.gradle", getSettingsGradleContent(), "Reset settings.gradle");
+                            boolean r1 = pushFileToGitHub("app/src/main/AndroidManifest.xml", generateManifest(), "Reset AndroidManifest");
+                            boolean r2 = pushFileToGitHub("app/build.gradle", generateAppGradle(), "Reset app/build.gradle");
+                            boolean r3 = pushFileToGitHub(".github/workflows/build_native.yml", getWorkflowContent(), "Reset workflow");
+                            boolean r4 = pushFileToGitHub(getMainActivityPath(), activeCodeContent, "Reset default MainActivity");
 
-                appTitle = "RomaStickerApp";
-                packageName = "com.udalitfon3.app";
-                appVersion = "1.0";
-                iconCustomized = true;
-                activeCodeContent = generateMainActivity();
-                currentJavaFileName = "Шаблон: Умное удаление фона (MainActivity.java)";
-                saveSettings();
+                            final boolean success = r0 && r00 && r1 && r2 && r3 && r4;
 
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        removeAllExistingMainActivities(getMainActivityPath());
-                        byte[] iconBytes = generateClockIconBytes();
-                        pushBytesToGitHub("app/src/main/res/mipmap-xxhdpi/ic_launcher.png", iconBytes, "Reset app icon");
-
-                        boolean r0 = pushFileToGitHub("build.gradle", getRootGradleContent(), "Reset root build.gradle");
-                        boolean r00 = pushFileToGitHub("settings.gradle", getSettingsGradleContent(), "Reset settings.gradle");
-                        boolean r1 = pushFileToGitHub("app/src/main/AndroidManifest.xml", generateManifest(), "Reset AndroidManifest");
-                        boolean r2 = pushFileToGitHub("app/build.gradle", generateAppGradle(), "Reset app/build.gradle");
-                        boolean r3 = pushFileToGitHub(".github/workflows/build_native.yml", getWorkflowContent(), "Reset workflow");
-                        boolean r4 = pushFileToGitHub(getMainActivityPath(), activeCodeContent, "Reset default MainActivity");
-
-                        final boolean success = r0 && r00 && r1 && r2 && r3 && r4;
-
-                        handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                btnReset.setEnabled(true);
-                                btnReset.setBackgroundColor(Color.parseColor("#D97706"));
-                                btnReset.setText("🔄 Полный сброс (Очистка + Шаблон)");
-                                if (success) {
-                                    statusTextView.setText("Статус: ✅ Репозиторий полностью сброшен!");
-                                    logEditText.setText("Проект сброшен к исходному шаблону умного удаления фона.");
-                                    updateInfoText();
-                                } else {
-                                    statusTextView.setText("Статус: ❌ Ошибка сброса (Проверьте токен)");
+                            handler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    btnReset.setEnabled(true);
+                                    btnReset.setBackgroundColor(Color.parseColor("#D97706"));
+                                    btnReset.setText("🔄 Полный сброс (Очистка + Шаблон)");
+                                    if (success) {
+                                        statusTextView.setText("Статус: ✅ Репозиторий полностью сброшен!");
+                                        logEditText.setText("Проект сброшен к исходному шаблону умного удаления фона.");
+                                        updateInfoText();
+                                    } else {
+                                        statusTextView.setText("Статус: ❌ Ошибка сброса (Проверьте токен)");
+                                    }
                                 }
-                            }
-                        });
-                    }
-                }).start();
-            }
-        });
-        layout.addView(btnYes);
-
-        Button btnCancel = createStyledButton("Отмена", "#334155");
-        btnCancel.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-            }
-        });
-        layout.addView(btnCancel);
-
-        dialog.setContentView(layout);
-        dialog.show();
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        }
+                            });
+                        }
+                    }).start();
+                }
+            })
+            .setNegativeButton("Отмена", null)
+            .show();
     }
 
     private void showEditTitleDialog() {
-        final Dialog dialog = new Dialog(this);
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(30, 30, 30, 30);
-        layout.setBackgroundColor(Color.parseColor("#090D16"));
-
-        TextView title = new TextView(this);
-        title.setText("Название приложения");
-        title.setTextColor(Color.parseColor("#38BDF8"));
-        title.setTextSize(14f);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        title.setPadding(0, 0, 0, 10);
-        layout.addView(title);
-
-        TextView sub = new TextView(this);
-        sub.setText("Пакет сформируется автоматически транслитерацией.");
-        sub.setTextColor(Color.parseColor("#94A3B8"));
-        sub.setTextSize(11f);
-        sub.setPadding(0, 0, 0, 15);
-        layout.addView(sub);
-
         final EditText input = new EditText(this);
         input.setText(appTitle);
         input.setBackgroundColor(Color.WHITE);
         input.setTextColor(Color.BLACK);
-        input.setPadding(25, 15, 25, 15);
-        layout.addView(input);
+        input.setPadding(30, 25, 30, 25);
 
-        Button btnSave = createStyledButton("Сохранить", "#2563EB");
-        btnSave.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-                appTitle = input.getText().toString().trim();
-                packageName = transliterate(appTitle);
-                activeCodeContent = sanitizeAndInjectJavaCode(activeCodeContent, packageName);
-                saveSettings();
-                Toast.makeText(MainActivity.this, "Сохранено! Пакет: " + packageName, Toast.LENGTH_SHORT).show();
-            }
-        });
-        layout.addView(btnSave);
-
-        Button btnCancel = createStyledButton("Отмена", "#334155");
-        btnCancel.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-            }
-        });
-        layout.addView(btnCancel);
-
-        dialog.setContentView(layout);
-        dialog.show();
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        }
+        new AlertDialog.Builder(this)
+            .setTitle("Название приложения")
+            .setMessage("Пакет сформируется автоматически транслитерацией.")
+            .setView(input)
+            .setPositiveButton("Сохранить", new android.content.DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(android.content.DialogInterface dialog, int which) {
+                    appTitle = input.getText().toString().trim();
+                    packageName = transliterate(appTitle);
+                    activeCodeContent = sanitizeAndInjectJavaCode(activeCodeContent, packageName);
+                    saveSettings();
+                    Toast.makeText(MainActivity.this, "Сохранено! Пакет: " + packageName, Toast.LENGTH_SHORT).show();
+                }
+            })
+            .setNegativeButton("Отмена", null)
+            .show();
     }
 
     private void showEditVersionDialog() {
-        final Dialog dialog = new Dialog(this);
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(30, 30, 30, 30);
-        layout.setBackgroundColor(Color.parseColor("#090D16"));
-
-        TextView title = new TextView(this);
-        title.setText("Версия приложения");
-        title.setTextColor(Color.parseColor("#38BDF8"));
-        title.setTextSize(14f);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        title.setPadding(0, 0, 0, 15);
-        layout.addView(title);
-
         final EditText input = new EditText(this);
         input.setText(appVersion);
         input.setBackgroundColor(Color.WHITE);
         input.setTextColor(Color.BLACK);
-        input.setPadding(25, 15, 25, 15);
-        layout.addView(input);
+        input.setPadding(30, 25, 30, 25);
 
-        Button btnSave = createStyledButton("Сохранить", "#2563EB");
-        btnSave.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-                appVersion = input.getText().toString().trim();
-                saveSettings();
-                Toast.makeText(MainActivity.this, "Версия обновлена!", Toast.LENGTH_SHORT).show();
-            }
-        });
-        layout.addView(btnSave);
-
-        Button btnCancel = createStyledButton("Отмена", "#334155");
-        btnCancel.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-            }
-        });
-        layout.addView(btnCancel);
-
-        dialog.setContentView(layout);
-        dialog.show();
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        }
+        new AlertDialog.Builder(this)
+            .setTitle("Версия приложения")
+            .setView(input)
+            .setPositiveButton("Сохранить", new android.content.DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(android.content.DialogInterface dialog, int which) {
+                    appVersion = input.getText().toString().trim();
+                    saveSettings();
+                    Toast.makeText(MainActivity.this, "Версия обновлена!", Toast.LENGTH_SHORT).show();
+                }
+            })
+            .setNegativeButton("Отмена", null)
+            .show();
     }
 
     private void showSettingsDialog() {
-        final Dialog dialog = new Dialog(this);
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(30, 30, 30, 30);
-        layout.setBackgroundColor(Color.parseColor("#090D16"));
-
-        TextView title = new TextView(this);
-        title.setText("⚙️ Настройки API, SDK и Java");
-        title.setTextColor(Color.parseColor("#38BDF8"));
-        title.setTextSize(14f);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        title.setPadding(0, 0, 0, 15);
-        layout.addView(title);
+        layout.setPadding(30, 20, 30, 20);
 
         final EditText inputGithub = createDialogEditText("GitHub Token (ghp_...)", githubToken);
         layout.addView(inputGithub);
@@ -2157,45 +1906,32 @@ public class MainActivity extends Activity {
         profileSpinner.setSelection(javaVersion.equals("8") ? 0 : 1);
         layout.addView(profileSpinner);
 
-        Button btnSave = createStyledButton("Сохранить", "#2563EB");
-        btnSave.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-                githubToken = inputGithub.getText().toString().trim();
-                botToken = inputBot.getText().toString().trim();
-                chatId = inputChat.getText().toString().trim();
+        new AlertDialog.Builder(this)
+            .setTitle("⚙️ Настройки API, SDK и Java")
+            .setView(layout)
+            .setPositiveButton("Сохранить", new android.content.DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(android.content.DialogInterface dialog, int which) {
+                    githubToken = inputGithub.getText().toString().trim();
+                    botToken = inputBot.getText().toString().trim();
+                    chatId = inputChat.getText().toString().trim();
 
-                if (profileSpinner.getSelectedItemPosition() == 0) {
-                    javaVersion = "8";
-                    minSdk = 21;
-                    compileSdk = 34;
-                } else {
-                    javaVersion = "17";
-                    minSdk = 26;
-                    compileSdk = 34;
+                    if (profileSpinner.getSelectedItemPosition() == 0) {
+                        javaVersion = "8";
+                        minSdk = 21;
+                        compileSdk = 34;
+                    } else {
+                        javaVersion = "17";
+                        minSdk = 26;
+                        compileSdk = 34;
+                    }
+
+                    saveSettings();
+                    Toast.makeText(MainActivity.this, "Настройки сохранены!", Toast.LENGTH_SHORT).show();
                 }
-
-                saveSettings();
-                Toast.makeText(MainActivity.this, "Настройки сохранены!", Toast.LENGTH_SHORT).show();
-            }
-        });
-        layout.addView(btnSave);
-
-        Button btnCancel = createStyledButton("Отмена", "#334155");
-        btnCancel.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-            }
-        });
-        layout.addView(btnCancel);
-
-        dialog.setContentView(layout);
-        dialog.show();
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        }
+            })
+            .setNegativeButton("Отмена", null)
+            .show();
     }
 
     private EditText createDialogEditText(String hint, String value) {
@@ -2305,7 +2041,7 @@ public class MainActivity extends Activity {
                "dependencies {\n    implementation 'androidx.appcompat:appcompat:1.6.1'\n    implementation 'com.google.android.material:material:1.11.0'\n}\n";
     }
 
-    // --- ШАБЛОН УМНОГО УДАЛЕНИЯ ФОНА (Java 8 / 17 compatible, без AlertDialog) ---
+    // --- ИСПРАВЛЕННЫЙ ШАБЛОН ПРИЛОЖЕНИЯ УМНОГО УДАЛЕНИЯ ФОНА (100% СОВМЕСТИМЫЙ С JAVA 8/17) ---
     private String generateMainActivity() {
         return "package " + packageName + ";\n\n" +
                "import android.app.Activity;\n" +
@@ -2463,7 +2199,7 @@ public class MainActivity extends Activity {
                "        container.addView(btnRow);\n\n" +
                "        tvThresholdVal = createTextView(\"🎚 Чувствительность вырезки: \" + thresholdValue);\n" +
                "        container.addView(tvThresholdVal);\n" +
-               "        seekThreshold = createFullSeekBar(100, thresholdValue, new OnSeekBarChangeListener() {\n" +
+               "        seekThreshold = createFullSeekBar(100, thresholdValue, new CustomSeekBarListener() {\n" +
                "            @Override\n" +
                "            public void onProgressChanged(SeekBar seekBar, int p) {\n" +
                "                thresholdValue = p;\n" +
@@ -2474,7 +2210,7 @@ public class MainActivity extends Activity {
                "        container.addView(seekThreshold);\n\n" +
                "        tvToleranceVal = createTextView(\"🎨 Допуск оттенков фона: \" + toleranceValue);\n" +
                "        container.addView(tvToleranceVal);\n" +
-               "        seekTolerance = createFullSeekBar(100, toleranceValue, new OnSeekBarChangeListener() {\n" +
+               "        seekTolerance = createFullSeekBar(100, toleranceValue, new CustomSeekBarListener() {\n" +
                "            @Override\n" +
                "            public void onProgressChanged(SeekBar seekBar, int p) {\n" +
                "                toleranceValue = p;\n" +
@@ -2485,7 +2221,7 @@ public class MainActivity extends Activity {
                "        container.addView(seekTolerance);\n\n" +
                "        tvSmoothVal = createTextView(\"✨ Смягчение краев: \" + smoothValue);\n" +
                "        container.addView(tvSmoothVal);\n" +
-               "        seekSmooth = createFullSeekBar(50, smoothValue, new OnSeekBarChangeListener() {\n" +
+               "        seekSmooth = createFullSeekBar(50, smoothValue, new CustomSeekBarListener() {\n" +
                "            @Override\n" +
                "            public void onProgressChanged(SeekBar seekBar, int p) {\n" +
                "                smoothValue = p;\n" +
@@ -2528,7 +2264,7 @@ public class MainActivity extends Activity {
                "        tv.setPadding(0, 6, 0, 2);\n" +
                "        return tv;\n" +
                "    }\n\n" +
-               "    private SeekBar createFullSeekBar(int max, int progress, final OnSeekBarChangeListener listener) {\n" +
+               "    private SeekBar createFullSeekBar(int max, int progress, final CustomSeekBarListener listener) {\n" +
                "        SeekBar sb = new SeekBar(this);\n" +
                "        sb.setMax(max);\n" +
                "        sb.setProgress(progress);\n" +
@@ -2546,7 +2282,7 @@ public class MainActivity extends Activity {
                "        });\n" +
                "        return sb;\n" +
                "    }\n\n" +
-               "    interface OnSeekBarChangeListener {\n" +
+               "    interface CustomSeekBarListener {\n" +
                "        void onProgressChanged(SeekBar seekBar, int progress);\n" +
                "    }\n\n" +
                "    private void openGallery(int requestCode) {\n" +
@@ -2600,6 +2336,7 @@ public class MainActivity extends Activity {
                "            bSum += (p1 & 0xFF) + (p2 & 0xFF);\n" +
                "            count += 2;\n" +
                "        }\n" +
+               "        if (count <= 0) count = 1;\n" +
                "        int bgR = rSum / count;\n" +
                "        int bgG = gSum / count;\n" +
                "        int bgB = bSum / count;\n\n" +
