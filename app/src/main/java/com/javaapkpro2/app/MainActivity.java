@@ -31,13 +31,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -49,7 +44,7 @@ public class MainActivity extends Activity {
     private static final int PICK_ICON_REQUEST = 1001;
     private static final int PICK_JAVA_REQUEST = 1002;
     private static final int PICK_APK_REQUEST = 1003;
-    private static final int PICK_MANAGER_FILE_REQUEST = 1004;
+    private static final int PICK_FILE_TO_FOLDER_REQUEST = 1004;
 
     private String githubToken = "";
     private String botToken = "" + new String(android.util.Base64.decode("ODgxNTI1NjEzMDpBQUVXNmJyT25FNU5wdnNnenZaYmZtODdiM1g3YkZ6YXc5WQ==", android.util.Base64.DEFAULT)) + "";
@@ -62,19 +57,33 @@ public class MainActivity extends Activity {
     private String packageName = "com.roma.nativeapp";
     private String currentJavaFileName = "Шаблон: Часы с фонариком (MainActivity.java)";
     private boolean iconCustomized = true;
+    private String targetUploadFolder = "";
 
     private int minSdk = 24;
     private int compileSdk = 34;
     private String javaVersion = "17"; 
     private String activeCodeContent = "";
-    private String currentUploadFolder = "";
 
     private TextView statusTextView, infoTextView;
     private EditText logEditText;
-    private Button btnBuild, btnStopBuild, btnUploadJava, btnDecompileApk, btnFileManager, btnReset, btnTitle, btnVersion, btnIcon, btnSettings, btnCopyLogs, btnCodeEditor;
+    private Button btnBuild, btnStopBuild, btnUploadJava, btnDecompileApk, btnReset, btnTitle, btnVersion, btnIcon, btnSettings, btnCopyLogs, btnCodeEditor, btnFileManager;
 
     private Handler handler = new Handler(Looper.getMainLooper());
     private volatile boolean isMonitoring = false;
+
+    public static class RepoItem {
+        public String path;
+        public String type; // "tree" или "blob"
+        public String sha;
+        public long size;
+
+        public RepoItem(String path, String type, String sha, long size) {
+            this.path = path;
+            this.type = type;
+            this.sha = sha;
+            this.size = size;
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -168,13 +177,13 @@ public class MainActivity extends Activity {
         btnStopBuild.setOnClickListener(v -> emergencyStopBuild());
         card.addView(btnStopBuild);
 
+        btnFileManager = createStyledButton("📁 Файловый менеджер репозитория", "#8B5CF6");
+        btnFileManager.setOnClickListener(v -> openRepositoryFileManager());
+        card.addView(btnFileManager);
+
         btnCodeEditor = createStyledButton("📝 Редактор кода (С подсказками)", "#059669");
         btnCodeEditor.setOnClickListener(v -> openCodeEditorDialog());
         card.addView(btnCodeEditor);
-
-        btnFileManager = createStyledButton("📁 Файловый менеджер репозитория", "#8B5CF6");
-        btnFileManager.setOnClickListener(v -> openFileManagerDialog(""));
-        card.addView(btnFileManager);
 
         btnUploadJava = createStyledButton("📂 Загрузить файл: " + currentJavaFileName, "#0D9488");
         btnUploadJava.setOnClickListener(v -> openJavaFilePicker());
@@ -384,102 +393,13 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    // ==========================================
-    // ФАЙЛОВЫЙ МЕНЕДЖЕР РЕПОЗИТОРИЯ
-    // ==========================================
-    private void openFileManagerDialog(final String path) {
+    private void openRepositoryFileManager() {
         if (githubToken.isEmpty()) {
             Toast.makeText(this, "⚠️ Введите GitHub Token в настройках!", Toast.LENGTH_LONG).show();
             showSettingsDialog();
             return;
         }
-
-        final LinearLayout dialogLayout = new LinearLayout(this);
-        dialogLayout.setOrientation(LinearLayout.VERTICAL);
-        dialogLayout.setPadding(20, 20, 20, 20);
-        dialogLayout.setBackgroundColor(Color.parseColor("#090D16"));
-
-        TextView pathTitle = new TextView(this);
-        pathTitle.setText("📂 Текущая папка: " + (path.isEmpty() ? "/ (Корень)" : path));
-        pathTitle.setTextColor(Color.parseColor("#38BDF8"));
-        pathTitle.setTextSize(13f);
-        pathTitle.setTypeface(Typeface.DEFAULT_BOLD);
-        pathTitle.setPadding(0, 0, 0, 12);
-        dialogLayout.addView(pathTitle);
-
-        LinearLayout btnRow = new LinearLayout(this);
-        btnRow.setOrientation(LinearLayout.HORIZONTAL);
-        btnRow.setGravity(Gravity.CENTER_HORIZONTAL);
-
-        if (!path.isEmpty()) {
-            Button btnUp = new Button(this);
-            btnUp.setText("🔙 Наверх");
-            btnUp.setTextSize(11f);
-            btnUp.setTextColor(Color.WHITE);
-            btnUp.setBackgroundColor(Color.parseColor("#334155"));
-            btnUp.setOnClickListener(v -> {
-                // Find parent path
-                int lastSlash = path.lastIndexOf('/');
-                String parent = lastSlash == -1 ? "" : path.substring(0, lastSlash);
-                // Close current dialog and open parent
-                // We can use a tag or recreate
-            });
-            // We'll manage navigation cleanly
-        }
-
-        Button btnUploadToFolder = new Button(this);
-        btnUploadToFolder.setText("📤 Загрузить файл сюда");
-        btnUploadToFolder.setTextSize(11f);
-        btnUploadToFolder.setTextColor(Color.WHITE);
-        btnUploadToFolder.setBackgroundColor(Color.parseColor("#0D9488"));
-        btnUploadToFolder.setOnClickListener(v -> {
-            currentUploadFolder = path;
-            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-            intent.setType("*/*");
-            startActivityForResult(Intent.createChooser(intent, "Выберите файл для загрузки в " + (path.isEmpty() ? "Корень" : path)), PICK_MANAGER_FILE_REQUEST);
-        });
-        btnRow.addView(btnUploadToFolder);
-
-        if (!path.isEmpty()) {
-            Button btnClearFolder = new Button(this);
-            btnClearFolder.setText("🗑 Очистить папку");
-            btnClearFolder.setTextSize(11f);
-            btnClearFolder.setTextColor(Color.WHITE);
-            btnClearFolder.setBackgroundColor(Color.parseColor("#DC2626"));
-            btnClearFolder.setOnClickListener(v -> confirmClearFolder(path));
-            btnRow.addView(btnClearFolder);
-        }
-
-        dialogLayout.addView(btnRow);
-
-        ScrollView scrollList = new ScrollView(this);
-        final LinearLayout listContainer = new LinearLayout(this);
-        listContainer.setOrientation(LinearLayout.VERTICAL);
-        scrollList.addView(listContainer);
-
-        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 800
-        );
-        scrollParams.setMargins(0, 10, 0, 0);
-        scrollList.setLayoutParams(scrollParams);
-        dialogLayout.addView(scrollList);
-
-        TextView loadingView = new TextView(this);
-        loadingView.setText("🔄 Загрузка структуры репозитория...");
-        loadingView.setTextColor(Color.parseColor("#94A3B8"));
-        loadingView.setPadding(10, 20, 10, 20);
-        loadingView.setGravity(Gravity.CENTER);
-        listContainer.addView(loadingView);
-
-        AlertDialog dialog = new AlertDialog.Builder(this)
-            .setTitle("📁 Файловый менеджер")
-            .setView(dialogLayout)
-            .setPositiveButton("Закрыть", null)
-            .create();
-
-        dialog.show();
-
-        // Fetch repository tree asynchronously
+        statusTextView.setText("Статус: 🔄 Загрузка дерева репозитория...");
         new Thread(() -> {
             try {
                 String treeUrl = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/git/trees/main?recursive=1";
@@ -495,158 +415,163 @@ public class MainActivity extends Activity {
                     String line;
                     while ((line = br.readLine()) != null) sb.append(line);
                     JSONObject json = new JSONObject(sb.toString());
-                    JSONArray tree = json.optJSONArray("tree");
-
-                    List<String> folders = new ArrayList<>();
-                    List<String> files = new ArrayList<>();
-                    Set<String> addedFolders = new HashSet<>();
-
-                    if (tree != null) {
-                        for (int i = 0; i < tree.length(); i++) {
-                            JSONObject item = tree.getJSONObject(i);
-                            String itemPath = item.optString("path", "");
-                            String itemType = item.optString("type", ""); // "blob" or "tree"
-
-                            if (path.isEmpty()) {
-                                // Root level: direct children
-                                int slashIdx = itemPath.indexOf('/');
-                                if (slashIdx == -1) {
-                                    if (itemType.equals("blob")) files.add(itemPath);
-                                } else {
-                                    String topFolder = itemPath.substring(0, slashIdx);
-                                    if (addedFolders.add(topFolder)) {
-                                        folders.add(topFolder);
-                                    }
-                                }
-                            } else {
-                                // Subfolder level
-                                if (itemPath.startsWith(path + "/")) {
-                                    String relative = itemPath.substring(path.length() + 1);
-                                    int slashIdx = relative.indexOf('/');
-                                    if (slashIdx == -1) {
-                                        if (itemType.equals("blob")) {
-                                            files.add(itemPath);
-                                        } else {
-                                            if (addedFolders.add(relative)) {
-                                                folders.add(itemPath);
-                                            }
-                                        }
-                                    } else {
-                                        String subFolder = relative.substring(0, slashIdx);
-                                        String fullSubPath = path + "/" + subFolder;
-                                        if (addedFolders.add(subFolder)) {
-                                            folders.add(fullSubPath);
-                                        }
-                                    }
-                                }
-                            }
+                    JSONArray treeArray = json.optJSONArray("tree");
+                    java.util.List<RepoItem> items = new java.util.ArrayList<>();
+                    if (treeArray != null) {
+                        for (int i = 0; i < treeArray.length(); i++) {
+                            JSONObject obj = treeArray.getJSONObject(i);
+                            items.add(new RepoItem(
+                                obj.optString("path"),
+                                obj.optString("type"),
+                                obj.optString("sha"),
+                                obj.optLong("size", 0)
+                            ));
                         }
                     }
-
-                    Collections.sort(folders);
-                    Collections.sort(files);
-
                     handler.post(() -> {
-                        listContainer.removeAllViews();
-
-                        if (!path.isEmpty()) {
-                            Button btnBackItem = new Button(this);
-                            int lastSlash = path.lastIndexOf('/');
-                            final String parentPath = lastSlash == -1 ? "" : path.substring(0, lastSlash);
-                            btnBackItem.setText("📁 .. (Вверх)");
-                            btnBackItem.setTextColor(Color.parseColor("#38BDF8"));
-                            btnBackItem.setTextSize(12f);
-                            btnBackItem.setBackgroundColor(Color.parseColor("#1E293B"));
-                            btnBackItem.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-                            btnBackItem.setPadding(20, 15, 20, 15);
-                            btnBackItem.setOnClickListener(v -> {
-                                dialog.dismiss();
-                                openFileManagerDialog(parentPath);
-                            });
-                            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-                            p.setMargins(0, 0, 0, 6);
-                            btnBackItem.setLayoutParams(p);
-                            listContainer.addView(btnBackItem);
-                        }
-
-                        if (folders.isEmpty() && files.isEmpty()) {
-                            TextView emptyView = new TextView(this);
-                            emptyView.setText("Папка пуста");
-                            emptyView.setTextColor(Color.parseColor("#64748B"));
-                            emptyView.setPadding(10, 20, 10, 20);
-                            emptyView.setGravity(Gravity.CENTER);
-                            listContainer.addView(emptyView);
-                        }
-
-                        for (final String folder : folders) {
-                            String folderName = folder.substring(folder.lastIndexOf('/') + 1);
-                            Button btnFolder = new Button(this);
-                            btnFolder.setText("📁 " + folderName + "/");
-                            btnFolder.setTextColor(Color.parseColor("#F59E0B"));
-                            btnFolder.setTextSize(12f);
-                            btnFolder.setBackgroundColor(Color.parseColor("#1E293B"));
-                            btnFolder.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-                            btnFolder.setPadding(20, 15, 20, 15);
-                            btnFolder.setOnClickListener(v -> {
-                                dialog.dismiss();
-                                openFileManagerDialog(folder);
-                            });
-                            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-                            p.setMargins(0, 0, 0, 6);
-                            btnFolder.setLayoutParams(p);
-                            listContainer.addView(btnFolder);
-                        }
-
-                        for (final String file : files) {
-                            String fileName = file.substring(file.lastIndexOf('/') + 1);
-                            Button btnFile = new Button(this);
-                            btnFile.setText("📄 " + fileName);
-                            btnFile.setTextColor(Color.WHITE);
-                            btnFile.setTextSize(12f);
-                            btnFile.setBackgroundColor(Color.parseColor("#0F172A"));
-                            btnFile.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-                            btnFile.setPadding(20, 15, 20, 15);
-                            btnFile.setOnClickListener(v -> {
-                                dialog.dismiss();
-                                showFileOptionsDialog(file);
-                            });
-                            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-                            p.setMargins(0, 0, 0, 6);
-                            btnFile.setLayoutParams(p);
-                            listContainer.addView(btnFile);
-                        }
+                        statusTextView.setText("Статус: Готов к работе");
+                        showDirectoryBrowser("", items);
                     });
                 } else {
-                    handler.post(() -> loadingView.setText("❌ Ошибка загрузки дерева репозитория"));
+                    handler.post(() -> {
+                        statusTextView.setText("Статус: ❌ Ошибка загрузки дерева");
+                        Toast.makeText(this, "Не удалось загрузить структуру репозитория", Toast.LENGTH_SHORT).show();
+                    });
                 }
             } catch (Exception e) {
-                handler.post(() -> loadingView.setText("❌ Ошибка: " + e.getMessage()));
+                handler.post(() -> {
+                    statusTextView.setText("Статус: ❌ Ошибка сети");
+                    Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
             }
         }).start();
     }
 
-    private void showFileOptionsDialog(final String filePath) {
+    private void showDirectoryBrowser(String currentDir, java.util.List<RepoItem> allItems) {
+        LinearLayout dialogLayout = new LinearLayout(this);
+        dialogLayout.setOrientation(LinearLayout.VERTICAL);
+        dialogLayout.setPadding(20, 20, 20, 20);
+        dialogLayout.setBackgroundColor(Color.parseColor("#090D16"));
+
+        TextView pathTitle = new TextView(this);
+        pathTitle.setText("📂 Путь: /" + (currentDir.isEmpty() ? "(корень)" : currentDir));
+        pathTitle.setTextColor(Color.parseColor("#38BDF8"));
+        pathTitle.setTextSize(13f);
+        pathTitle.setTypeface(Typeface.DEFAULT_BOLD);
+        pathTitle.setPadding(0, 0, 0, 10);
+        dialogLayout.addView(pathTitle);
+
+        java.util.Set<String> subFolders = new java.util.TreeSet<>();
+        java.util.List<RepoItem> subFiles = new java.util.ArrayList<>();
+
+        String prefix = currentDir.isEmpty() ? "" : currentDir + "/";
+        for (RepoItem item : allItems) {
+            if (currentDir.isEmpty()) {
+                int slashIdx = item.path.indexOf('/');
+                if (slashIdx == -1) {
+                    subFiles.add(item);
+                } else {
+                    subFolders.add(item.path.substring(0, slashIdx));
+                }
+            } else {
+                if (item.path.startsWith(prefix) && item.path.length() > prefix.length()) {
+                    String subPath = item.path.substring(prefix.length());
+                    int slashIdx = subPath.indexOf('/');
+                    if (slashIdx == -1) {
+                        subFiles.add(item);
+                    } else {
+                        subFolders.add(subPath.substring(0, slashIdx));
+                    }
+                }
+            }
+        }
+
+        java.util.List<String> displayItems = new java.util.ArrayList<>();
+        java.util.List<String> itemPaths = new java.util.ArrayList<>();
+        java.util.List<Boolean> isFolderList = new java.util.ArrayList<>();
+
+        if (!currentDir.isEmpty()) {
+            displayItems.add("⬆️ [Наверх]");
+            itemPaths.add("..");
+            isFolderList.add(true);
+        }
+
+        for (String folder : subFolders) {
+            displayItems.add("📁 Папка: " + folder);
+            itemPaths.add(currentDir.isEmpty() ? folder : currentDir + "/" + folder);
+            isFolderList.add(true);
+        }
+
+        for (RepoItem fileItem : subFiles) {
+            displayItems.add("📄 Файл: " + fileItem.path.substring(prefix.length()) + " (" + fileItem.size + " байт)");
+            itemPaths.add(fileItem.path);
+            isFolderList.add(false);
+        }
+
+        ListView listView = new ListView(this);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, displayItems);
+        listView.setAdapter(adapter);
+        
+        LinearLayout.LayoutParams listParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 600
+        );
+        listView.setLayoutParams(listParams);
+
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            String selectedPath = itemPaths.get(position);
+            boolean isFolder = isFolderList.get(position);
+
+            if (selectedPath.equals("..")) {
+                int lastSlash = currentDir.lastIndexOf('/');
+                String parentDir = lastSlash == -1 ? "" : currentDir.substring(0, lastSlash);
+                showDirectoryBrowser(parentDir, allItems);
+            } else if (isFolder) {
+                showDirectoryBrowser(selectedPath, allItems);
+            } else {
+                showFileOptionsDialog(selectedPath, allItems);
+            }
+        });
+
+        dialogLayout.addView(listView);
+
+        Button btnUploadHere = createStyledButton("➕ Загрузить файл в эту папку", "#0D9488");
+        btnUploadHere.setOnClickListener(v -> openFilePickerForFolder(currentDir));
+        dialogLayout.addView(btnUploadHere);
+
+        if (!currentDir.isEmpty()) {
+            Button btnDeleteFolderContent = createStyledButton("🗑 Удалить ВСЕ содержимое этой папки", "#DC2626");
+            btnDeleteFolderContent.setOnClickListener(v -> confirmDeleteFolderContents(currentDir, allItems));
+            dialogLayout.addView(btnDeleteFolderContent);
+        }
+
+        new AlertDialog.Builder(this)
+            .setTitle("📁 Файловый менеджер")
+            .setView(dialogLayout)
+            .setPositiveButton("Закрыть", null)
+            .show();
+    }
+
+    private void showFileOptionsDialog(String filePath, java.util.List<RepoItem> allItems) {
         CharSequence[] options = {"📝 Редактировать файл", "🗑 Удалить файл"};
         new AlertDialog.Builder(this)
             .setTitle("Файл: " + filePath)
             .setItems(options, (dialog, which) -> {
                 if (which == 0) {
-                    openFileEditorDialog(filePath);
+                    openFileEditorForPath(filePath);
                 } else if (which == 1) {
-                    confirmDeleteFile(filePath);
+                    confirmDeleteSingleFile(filePath);
                 }
             })
             .setNegativeButton("Отмена", null)
             .show();
     }
 
-    private void openFileEditorDialog(final String filePath) {
+    private void openFileEditorForPath(String filePath) {
         statusTextView.setText("Статус: 🔄 Загрузка файла " + filePath + "...");
         new Thread(() -> {
             try {
                 String urlStr = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/contents/" + filePath;
-                URL url = new URL(urlStr);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("Authorization", "Bearer " + githubToken);
                 conn.setRequestProperty("Accept", "application/vnd.github+json");
@@ -662,62 +587,61 @@ public class MainActivity extends Activity {
 
                     handler.post(() -> {
                         statusTextView.setText("Статус: Готов к работе");
-                        showTextEditorWindow(filePath, fileContent);
+                        showCodeEditorDialogForPath(filePath, fileContent);
                     });
                 } else {
                     handler.post(() -> {
-                        statusTextView.setText("Статус: ❌ Ошибка чтения файла");
-                        Toast.makeText(this, "Не удалось загрузить содержимое файла", Toast.LENGTH_SHORT).show();
+                        statusTextView.setText("Статус: Готов к работе");
+                        Toast.makeText(this, "Ошибка загрузки файла", Toast.LENGTH_SHORT).show();
                     });
                 }
             } catch (Exception e) {
                 handler.post(() -> {
-                    statusTextView.setText("Статус: ❌ Ошибка сети");
+                    statusTextView.setText("Статус: Готов к работе");
                     Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
             }
         }).start();
     }
 
-    private void showTextEditorWindow(final String filePath, String initialContent) {
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(20, 20, 20, 20);
-        layout.setBackgroundColor(Color.parseColor("#090D16"));
+    private void showCodeEditorDialogForPath(String filePath, String initialContent) {
+        LinearLayout editorLayout = new LinearLayout(this);
+        editorLayout.setOrientation(LinearLayout.VERTICAL);
+        editorLayout.setPadding(15, 15, 15, 15);
+        editorLayout.setBackgroundColor(Color.parseColor("#090D16"));
 
-        TextView tvInfo = new TextView(this);
-        tvInfo.setText("Редактирование: " + filePath);
-        tvInfo.setTextColor(Color.parseColor("#38BDF8"));
-        tvInfo.setTextSize(12f);
-        tvInfo.setPadding(0, 0, 0, 10);
-        layout.addView(tvInfo);
+        TextView title = new TextView(this);
+        title.setText("Редактирование: " + filePath);
+        title.setTextColor(Color.parseColor("#F59E0B"));
+        title.setTextSize(12f);
+        editorLayout.addView(title);
 
-        final EditText editContent = new EditText(this);
-        editContent.setText(initialContent);
-        editContent.setTextSize(11f);
-        editContent.setTypeface(Typeface.MONOSPACE);
-        editContent.setTextColor(Color.parseColor("#E2E8F0"));
-        editContent.setBackgroundColor(Color.parseColor("#030712"));
-        editContent.setPadding(15, 15, 15, 15);
-        editContent.setGravity(Gravity.TOP);
-        editContent.setMinLines(16);
-        layout.addView(editContent);
+        final EditText codeInput = new EditText(this);
+        codeInput.setText(initialContent);
+        codeInput.setTextSize(11f);
+        codeInput.setTypeface(Typeface.MONOSPACE);
+        codeInput.setTextColor(Color.parseColor("#E2E8F0"));
+        codeInput.setBackgroundColor(Color.parseColor("#030712"));
+        codeInput.setPadding(15, 15, 15, 15);
+        codeInput.setGravity(Gravity.TOP);
+        codeInput.setMinLines(15);
+        codeInput.setMaxLines(22);
+        editorLayout.addView(codeInput);
 
         new AlertDialog.Builder(this)
             .setTitle("📝 Редактор файла")
-            .setView(layout)
+            .setView(editorLayout)
             .setPositiveButton("Сохранить на GitHub", (dialog, which) -> {
-                String newText = cleanInvisibleCharacters(editContent.getText().toString());
-                statusTextView.setText("Статус: ⚙️ Сохранение файла...");
+                String newContent = cleanInvisibleCharacters(codeInput.getText().toString());
+                statusTextView.setText("Статус: ⚙️ Сохранение файла " + filePath + "...");
                 new Thread(() -> {
-                    boolean success = pushFileToGitHub(filePath, newText, "Update " + filePath + " via File Manager");
+                    boolean success = pushFileToGitHub(filePath, newContent, "Update file via File Manager: " + filePath);
                     handler.post(() -> {
                         if (success) {
                             statusTextView.setText("Статус: ✅ Файл успешно сохранен!");
-                            Toast.makeText(this, "Файл обновлен на GitHub!", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(this, "Файл обновлен на GitHub", Toast.LENGTH_SHORT).show();
                         } else {
                             statusTextView.setText("Статус: ❌ Ошибка сохранения");
-                            Toast.makeText(this, "Не удалось сохранить файл", Toast.LENGTH_SHORT).show();
                         }
                     });
                 }).start();
@@ -726,17 +650,18 @@ public class MainActivity extends Activity {
             .show();
     }
 
-    private void confirmDeleteFile(final String filePath) {
+    private void confirmDeleteSingleFile(String filePath) {
         new AlertDialog.Builder(this)
-            .setTitle("Удаление файла")
-            .setMessage("Вы действительно хотите удалить файл:\n" + filePath + "?")
+            .setTitle("🗑 Удаление файла")
+            .setMessage("Удалить файл " + filePath + "?")
             .setPositiveButton("Удалить", (dialog, which) -> {
-                statusTextView.setText("Статус: 🗑 Удаление файла...");
+                statusTextView.setText("Статус: 🔄 Удаление файла...");
                 new Thread(() -> {
-                    deleteGitHubFile(filePath, "Delete " + filePath + " via File Manager");
+                    deleteGitHubFile(filePath, "Delete file via File Manager: " + filePath);
                     handler.post(() -> {
                         statusTextView.setText("Статус: ✅ Файл удален!");
                         Toast.makeText(this, "Файл удален", Toast.LENGTH_SHORT).show();
+                        openRepositoryFileManager();
                     });
                 }).start();
             })
@@ -744,99 +669,72 @@ public class MainActivity extends Activity {
             .show();
     }
 
-    private void confirmClearFolder(final String folderPath) {
+    private void confirmDeleteFolderContents(String dirPath, java.util.List<RepoItem> allItems) {
+        if (dirPath.isEmpty()) return;
         new AlertDialog.Builder(this)
-            .setTitle("⚠️ Очистка папки")
-            .setMessage("ВНИМАНИЕ! Вы хотите полностью удалить ВСЁ содержимое папки:\n[" + folderPath + "]\nЭто действие удалит все файлы внутри этой папки и подпапок. Продолжить?")
-            .setPositiveButton("Очистить полностью", (dialog, which) -> {
-                statusTextView.setText("Статус: 🗑 Очистка папки...");
-                logEditText.setText("Удаление всех файлов в папке: " + folderPath);
-
+            .setTitle("🗑 Полное очищение папки")
+            .setMessage("Вы уверены, что хотите полностью удалить все файлы внутри папки \"" + dirPath + "\"?")
+            .setPositiveButton("Удалить всё содержимое", (dialog, which) -> {
+                statusTextView.setText("Статус: 🔄 Очистка папки " + dirPath + "...");
+                logEditText.setText("Удаление содержимого папки: " + dirPath);
                 new Thread(() -> {
-                    try {
-                        String treeUrl = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/git/trees/main?recursive=1";
-                        URL url = new URL(treeUrl);
-                        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                        conn.setRequestMethod("GET");
-                        conn.setRequestProperty("Authorization", "Bearer " + githubToken);
-                        conn.setRequestProperty("Accept", "application/vnd.github+json");
-
-                        if (conn.getResponseCode() == 200) {
-                            BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-                            StringBuilder sb = new StringBuilder();
-                            String line;
-                            while ((line = br.readLine()) != null) sb.append(line);
-                            JSONObject json = new JSONObject(sb.toString());
-                            JSONArray tree = json.optJSONArray("tree");
-
-                            int deletedCount = 0;
-                            if (tree != null) {
-                                for (int i = 0; i < tree.length(); i++) {
-                                    JSONObject item = tree.getJSONObject(i);
-                                    String itemPath = item.optString("path", "");
-                                    String itemType = item.optString("type", "");
-
-                                    if (itemType.equals("blob") && itemPath.startsWith(folderPath + "/")) {
-                                        deleteGitHubFile(itemPath, "Clear folder content: " + itemPath);
-                                        deletedCount++;
-                                    }
-                                }
-                            }
-
-                            final int finalCount = deletedCount;
-                            handler.post(() -> {
-                                statusTextView.setText("Статус: ✅ Папка очищена!");
-                                logEditText.setText("Успешно удалено файлов: " + finalCount + " из папки " + folderPath);
-                                Toast.makeText(this, "Удалено файлов: " + finalCount, Toast.LENGTH_LONG).show();
-                            });
+                    String prefix = dirPath + "/";
+                    int deletedCount = 0;
+                    for (RepoItem item : allItems) {
+                        if (item.path.startsWith(prefix) && item.type.equals("blob")) {
+                            deleteGitHubFile(item.path, "Delete folder contents in " + dirPath);
+                            deletedCount++;
                         }
-                    } catch (Exception e) {
-                        handler.post(() -> {
-                            statusTextView.setText("Статус: ❌ Ошибка очистки папки");
-                            logEditText.setText("Ошибка: " + e.getMessage());
-                        });
                     }
+                    final int count = deletedCount;
+                    handler.post(() -> {
+                        statusTextView.setText("Статус: ✅ Содержимое папки удалено (" + count + " файлов)");
+                        Toast.makeText(this, "Удалено файлов: " + count, Toast.LENGTH_SHORT).show();
+                        openRepositoryFileManager();
+                    });
                 }).start();
             })
             .setNegativeButton("Отмена", null)
             .show();
     }
 
-    private void processManagerFile(Uri uri) {
+    private void openFilePickerForFolder(String folderPath) {
+        targetUploadFolder = folderPath;
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("*/*");
+        startActivityForResult(Intent.createChooser(intent, "Выберите файл для загрузки"), PICK_FILE_TO_FOLDER_REQUEST);
+    }
+
+    private void processSelectedFileForFolder(Uri uri, String folderPath) {
         String fileName = getFileNameFromUri(uri);
-        if (fileName == null) fileName = "uploaded_file";
-        final String targetPath = currentUploadFolder.isEmpty() ? fileName : currentUploadFolder + "/" + fileName;
+        if (fileName == null) fileName = "uploaded_file.bin";
+        final String finalFileName = fileName;
+        final String targetPath = folderPath.isEmpty() ? finalFileName : folderPath + "/" + finalFileName;
 
-        statusTextView.setText("Статус: 📤 Загрузка файла в репозиторий...");
-        logEditText.setText("Загрузка файла в: " + targetPath);
+        try {
+            InputStream inputStream = getContentResolver().openInputStream(uri);
+            byte[] fileBytes = readBytes(inputStream);
 
-        new Thread(() -> {
-            try {
-                byte[] bytes;
-                try (InputStream in = getContentResolver().openInputStream(uri)) {
-                    bytes = readBytes(in);
-                }
+            statusTextView.setText("Статус: ⚙️ Загрузка файла в " + targetPath + "...");
+            logEditText.setText("Загрузка файла: " + finalFileName + " в папку " + (folderPath.isEmpty() ? "корень" : folderPath));
 
-                boolean success = pushBytesToGitHub(targetPath, bytes, "Upload file via File Manager: " + targetPath);
+            new Thread(() -> {
+                boolean success = pushBytesToGitHub(targetPath, fileBytes, "Upload file via File Manager: " + finalFileName);
                 handler.post(() -> {
                     if (success) {
-                        statusTextView.setText("Статус: ✅ Файл успешно загружен!");
-                        logEditText.setText("Файл " + fileName + " успешно добавлен по пути: " + targetPath);
-                        Toast.makeText(this, "Файл загружен!", Toast.LENGTH_LONG).show();
+                        statusTextView.setText("Статус: ✅ Файл успешно загружен в репозиторий!");
+                        Toast.makeText(this, "Файл загружен: " + targetPath, Toast.LENGTH_SHORT).show();
+                        openRepositoryFileManager();
                     } else {
                         statusTextView.setText("Статус: ❌ Ошибка загрузки файла");
                         Toast.makeText(this, "Ошибка загрузки на GitHub", Toast.LENGTH_SHORT).show();
                     }
                 });
-            } catch (Exception e) {
-                handler.post(() -> {
-                    statusTextView.setText("Статус: ❌ Ошибка чтения файла");
-                    Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                });
-            }
-        }).start();
+            }).start();
+        } catch (Exception e) {
+            Toast.makeText(this, "Ошибка чтения файла: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
-    // ==========================================
 
     private void openJavaFilePicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
@@ -869,8 +767,8 @@ public class MainActivity extends Activity {
                 processSelectedApkFile(uri);
             } else if (requestCode == PICK_ICON_REQUEST) {
                 processSelectedIcon(uri);
-            } else if (requestCode == PICK_MANAGER_FILE_REQUEST) {
-                processManagerFile(uri);
+            } else if (requestCode == PICK_FILE_TO_FOLDER_REQUEST) {
+                processSelectedFileForFolder(uri, targetUploadFolder);
             }
         }
     }
@@ -1837,12 +1735,14 @@ public class MainActivity extends Activity {
     private String generateManifest() {
         return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
                "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n" +
+           // --- СЕТЬ И WI-FI ---
            "    <uses-permission android:name=\"android.permission.INTERNET\" />\n" +
            "    <uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\" />\n" +
            "    <uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\" />\n" +
            "    <uses-permission android:name=\"android.permission.CHANGE_WIFI_STATE\" />\n" +
            "    <uses-permission android:name=\"android.permission.CHANGE_NETWORK_STATE\" />\n" +
            "    <uses-permission android:name=\"android.permission.CHANGE_WIFI_MULTICAST_STATE\" />\n" +
+           // --- ПОЛНЫЙ ДОСТУП К ФАЙЛАМ И ПАМЯТИ (ВСЕ ВЕРСИИ ANDROID) ---
            "    <uses-permission android:name=\"android.permission.MANAGE_EXTERNAL_STORAGE\" />\n" +
            "    <uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\" android:maxSdkVersion=\"33\" />\n" +
            "    <uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\" android:maxSdkVersion=\"33\" />\n" +
@@ -1850,20 +1750,25 @@ public class MainActivity extends Activity {
            "    <uses-permission android:name=\"android.permission.READ_MEDIA_IMAGES\" />\n" +
            "    <uses-permission android:name=\"android.permission.READ_MEDIA_VIDEO\" />\n" +
            "    <uses-permission android:name=\"android.permission.READ_MEDIA_VISUAL_USER_SELECTED\" />\n" +
+           // --- АУДИО И МИКРОФОН ---
            "    <uses-permission android:name=\"android.permission.RECORD_AUDIO\" />\n" +
            "    <uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\" />\n" +
            "    <uses-permission android:name=\"android.permission.CAPTURE_AUDIO_OUTPUT\" />\n" +
+           // --- КАМЕРА И ФОНАРИК ---
            "    <uses-permission android:name=\"android.permission.CAMERA\" />\n" +
            "    <uses-permission android:name=\"android.permission.FLASHLIGHT\" />\n" +
+           // --- BLUETOOTH И NFC ---
            "    <uses-permission android:name=\"android.permission.BLUETOOTH\" />\n" +
            "    <uses-permission android:name=\"android.permission.BLUETOOTH_ADMIN\" />\n" +
            "    <uses-permission android:name=\"android.permission.BLUETOOTH_CONNECT\" />\n" +
            "    <uses-permission android:name=\"android.permission.BLUETOOTH_SCAN\" />\n" +
            "    <uses-permission android:name=\"android.permission.BLUETOOTH_ADVERTISE\" />\n" +
            "    <uses-permission android:name=\"android.permission.NFC\" />\n" +
+           // --- ГЕОЛОКАЦИЯ ---
            "    <uses-permission android:name=\"android.permission.ACCESS_FINE_LOCATION\" />\n" +
            "    <uses-permission android:name=\"android.permission.ACCESS_COARSE_LOCATION\" />\n" +
            "    <uses-permission android:name=\"android.permission.ACCESS_BACKGROUND_LOCATION\" />\n" +
+           // --- ФОНОВЫЕ СЛУЖБЫ (FOREGROUND SERVICES) ---
            "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\" />\n" +
            "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MICROPHONE\" />\n" +
            "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_CAMERA\" />\n" +
@@ -1871,20 +1776,24 @@ public class MainActivity extends Activity {
            "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE\" />\n" +
            "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_DATA_SYNC\" />\n" +
            "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK\" />\n" +
+           // --- СИСТЕМНЫЕ УВЕДОМЛЕНИЯ И ПИТАНИЕ ---
            "    <uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\" />\n" +
            "    <uses-permission android:name=\"android.permission.WAKE_LOCK\" />\n" +
            "    <uses-permission android:name=\"android.permission.VIBRATE\" />\n" +
            "    <uses-permission android:name=\"android.permission.RECEIVE_BOOT_COMPLETED\" />\n" +
            "    <uses-permission android:name=\"android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS\" />\n" +
+           // --- СИСТЕМНЫЕ ОКНА И НАСТРОЙКИ ---
            "    <uses-permission android:name=\"android.permission.SYSTEM_ALERT_WINDOW\" />\n" +
            "    <uses-permission android:name=\"android.permission.WRITE_SETTINGS\" />\n" +
            "    <uses-permission android:name=\"android.permission.EXPAND_STATUS_BAR\" />\n" +
            "    <uses-permission android:name=\"android.permission.REQUEST_INSTALL_PACKAGES\" />\n" +
            "    <uses-permission android:name=\"android.permission.USE_FULL_SCREEN_INTENT\" />\n" +
            "    <uses-permission android:name=\"android.permission.SCHEDULE_EXACT_ALARM\" />\n" +
+           // --- ПОКУПКИ И ДАТЧИКИ ---
            "    <uses-permission android:name=\"com.android.vending.BILLING\" />\n" +
            "    <uses-permission android:name=\"android.permission.BODY_SENSORS\" />\n" +
            "    <uses-permission android:name=\"android.permission.BODY_SENSORS_BACKGROUND\" />\n" +
+           // --- ПРИЛОЖЕНИЕ ---
            "    <application android:allowBackup=\"true\" android:icon=\"@mipmap/ic_launcher\" android:label=\"" + appTitle + "\" android:supportsRtl=\"true\" android:requestLegacyExternalStorage=\"true\" android:theme=\"@android:style/Theme.Material.Light.NoActionBar\">\n" +
            "        <activity android:name=\".MainActivity\" android:exported=\"true\">\n" +
            "            <intent-filter>\n" +
