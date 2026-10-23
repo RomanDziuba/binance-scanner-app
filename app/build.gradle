@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.javaapkpro2.app'
+    namespace 'com.udalitfon.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.javaapkpro2.app"
-        minSdk 26
+        applicationId "com.udalitfon.app"
+        minSdk 21
         targetSdk 34
         versionCode 1
         versionName "1.1"
