@@ -13,7 +13,6 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 import android.view.ViewGroup;
-import androidx.core.content.FileProvider;
 import java.io.File;
 import java.io.IOException;
 
@@ -105,7 +104,7 @@ public class MainActivity extends Activity {
             isRecording = true;
             btnRecord.setText("Остановить запись");
             btnShare.setEnabled(false);
-            Toast.DIRECTORY_WINDOWS: // заглушка
+            
             Toast.makeText(this, "Идет запись...", Toast.LENGTH_SHORT).show();
         } catch (IOException e) {
             Log.e(TAG, "Ошибка подготовки MediaRecorder: " + e.getMessage());
