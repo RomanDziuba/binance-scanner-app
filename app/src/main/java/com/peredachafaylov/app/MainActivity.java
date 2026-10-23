@@ -8,7 +8,6 @@ import android.Manifest;
 import android.graphics.*;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
-import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -27,25 +26,24 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URLDecoder;
 import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
 
 public class MainActivity extends Activity {
 
-    private TextView statusView, linkView, infoView;
-    private Button btnToggleServer, btnPermissions;
-    private boolean isServerRunning = false;
-    private ServerSocket serverSocket;
-    private Thread serverThread;
-    private Handler handler = new Handler(Looper.getMainLooper());
+    TextView statusView, linkView, infoView;
+    Button btnToggleServer, btnPermissions;
+    boolean isServerRunning = false;
+    ServerSocket serverSocket;
+    Thread serverThread;
+    Handler handler = new Handler(Looper.getMainLooper());
     
-    private static final int PORT = 8080;
+    // Корневая директория изменена на /storage/, чтобы видеть ВСЕ диски (внутреннюю память и SD-карты)
+    static final File ROOT_DIR = new File("/storage/");
+    static final int PORT = 8080;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Интерфейс в фирменном темном стиле
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(Color.parseColor("#030712"));
@@ -56,16 +54,16 @@ public class MainActivity extends Activity {
         ));
 
         TextView title = new TextView(this);
-        title.setText("📡 Wi-Fi File Server (Телефон ➔ ПК)");
+        title.setText("📡 Wi-Fi All-Files Server (Телефон ➔ ПК)");
         title.setTextColor(Color.parseColor("#38BDF8"));
-        title.setTextSize(18f);
+        title.setTextSize(17f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setGravity(Gravity.CENTER);
         title.setPadding(0, 10, 0, 20);
         root.addView(title);
 
         infoView = new TextView(this);
-        infoView.setText("Инструкция:\n1. Включите точку доступа Wi-Fi на телефоне.\n2. Подключите к ней компьютер.\n3. Запустите сервер и откройте ссылку на ПК.");
+        infoView.setText("Инструкция:\n1. Включите точку доступа Wi-Fi, подключите ПК.\n2. Нажмите «Разрешить доступ» (обязательно для Android 11+).\n3. Запустите сервер и откройте ссылку на ПК.");
         infoView.setTextColor(Color.parseColor("#94A3B8"));
         infoView.setTextSize(13f);
         infoView.setPadding(20, 20, 20, 20);
@@ -119,7 +117,7 @@ public class MainActivity extends Activity {
         root.addView(statusView);
 
         btnPermissions = new Button(this);
-        btnPermissions.setText("📂 Разрешить доступ ко всем файлам");
+        btnPermissions.setText("📂 Дать полный доступ ко всем файлам");
         btnPermissions.setTextColor(Color.WHITE);
         btnPermissions.setTextSize(12f);
         btnPermissions.setBackgroundColor(Color.parseColor("#D97706"));
@@ -131,7 +129,7 @@ public class MainActivity extends Activity {
         checkPermissions();
     }
 
-    private void checkPermissions() {
+    void checkPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
                 btnPermissions.setVisibility(View.VISIBLE);
@@ -140,14 +138,14 @@ public class MainActivity extends Activity {
             }
         } else {
             if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 100);
+                requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE}, 100);
             } else {
                 btnPermissions.setVisibility(View.GONE);
             }
         }
     }
 
-    private void requestFilePermissions() {
+    void requestFilePermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             try {
                 Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
@@ -158,7 +156,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void startFileServer() {
+    void startFileServer() {
         try {
             serverSocket = new ServerSocket(PORT);
             isServerRunning = true;
@@ -187,7 +185,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void stopFileServer() {
+    void stopFileServer() {
         isServerRunning = false;
         try {
             if (serverSocket != null) serverSocket.close();
@@ -199,7 +197,7 @@ public class MainActivity extends Activity {
         statusView.setText("Статус: Сервер остановлен");
     }
 
-    private String getLocalIpAddress() {
+    String getLocalIpAddress() {
         try {
             for (NetworkInterface intf : Collections.list(NetworkInterface.getNetworkInterfaces())) {
                 for (InetAddress addr : Collections.list(intf.getInetAddresses())) {
@@ -215,7 +213,7 @@ public class MainActivity extends Activity {
         return "192.168.43.1";
     }
 
-    private void handleClient(Socket client) {
+    void handleClient(Socket client) {
         try {
             BufferedReader reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
             String requestLine = reader.readLine();
@@ -223,12 +221,17 @@ public class MainActivity extends Activity {
 
             String[] parts = requestLine.split(" ");
             if (parts.length < 2) return;
-            String path = URLDecoder.decode(parts[1], "UTF-8");
+            String reqPath = URLDecoder.decode(parts[1], "UTF-8");
 
             OutputStream out = client.getOutputStream();
 
-            File rootDir = Environment.getExternalStorageDirectory();
-            File targetFile = new File(rootDir, path);
+            // Безопасное сопоставление путей относительно /storage/
+            File targetFile;
+            if (reqPath.equals("/") || reqPath.isEmpty()) {
+                targetFile = ROOT_DIR;
+            } else {
+                targetFile = new File(ROOT_DIR, reqPath);
+            }
 
             if (!targetFile.exists()) {
                 String response = "HTTP/1.1 404 Not Found\r\n\r\nFile Not Found";
@@ -240,34 +243,39 @@ public class MainActivity extends Activity {
 
             if (targetFile.isDirectory()) {
                 StringBuilder html = new StringBuilder();
-                html.append("<html><head><meta charset='utf-8'><title>Phone File Explorer</title>");
+                html.append("<html><head><meta charset='utf-8'><title>All Files Explorer</title>");
                 html.append("<style>body{font-family:sans-serif;background:#030712;color:#E2E8F0;padding:20px;}");
                 html.append("a{color:#38BDF8;text-decoration:none;display:block;padding:8px 0;border-bottom:1px solid #1E293B;}");
                 html.append("a:hover{color:#10B981;}</style></head><body>");
-                html.append("<h2>📂 Папка: ").append(targetFile.getAbsolutePath()).append("</h2>");
+                html.append("<h2>📂 Путь: ").append(targetFile.getAbsolutePath()).append("</h2>");
 
-                if (!targetFile.equals(rootDir)) {
+                if (!targetFile.equals(ROOT_DIR)) {
                     File parent = targetFile.getParentFile();
-                    String parentPath = parent.getAbsolutePath().replace(rootDir.getAbsolutePath(), "");
-                    html.append("<a href='").append(parentPath.isEmpty() ? "/" : parentPath).append("'>⬅️ [Наверх]</a>");
+                    if (parent != null) {
+                        String parentRel = parent.getAbsolutePath().replace(ROOT_DIR.getAbsolutePath(), "");
+                        html.append("<a href='").append(parentRel.isEmpty() ? "/" : parentRel).append("'>⬅️ [Наверх]</a>");
+                    }
                 }
 
                 File[] files = targetFile.listFiles();
                 if (files != null) {
                     for (File f : files) {
-                        String relPath = f.getAbsolutePath().replace(rootDir.getAbsolutePath(), "");
+                        String relPath = f.getAbsolutePath().replace(ROOT_DIR.getAbsolutePath(), "");
                         if (f.isDirectory()) {
                             html.append("<a href='").append(relPath).append("'>📁 <b>").append(f.getName()).append("</b></a>");
                         } else {
                             html.append("<a href='").append(relPath).append("'>📄 ").append(f.getName()).append(" (").append(f.length() / 1024).append(" KB)</a>");
                         }
                     }
+                } else {
+                    html.append("<p style='color:#EF4444;'>❌ Нет доступа к содержимому папки или папка пуста.</p>");
                 }
                 html.append("</body></html>");
 
                 String httpResponse = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n\r\n" + html.toString();
                 out.write(httpResponse.getBytes("UTF-8"));
             } else {
+                // Отправка файла любого типа на компьютер для скачивания
                 String mime = "application/octet-stream";
                 String header = "HTTP/1.1 200 OK\r\nContent-Type: " + mime + "\r\nContent-Length: " + targetFile.length() + "\r\nContent-Disposition: attachment; filename=\"" + targetFile.getName() + "\"\r\n\r\n";
                 out.write(header.getBytes());
