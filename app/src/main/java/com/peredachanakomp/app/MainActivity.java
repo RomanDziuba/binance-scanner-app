@@ -195,12 +195,10 @@ public class MainActivity extends Activity {
         statusView.setText("Статус: Сервер остановлен");
     }
 
-    // Умный поиск IP: игнорирует мобильный интернет и ищет локальную сеть Wi-Fi / Точки доступа
     private String getLocalIpAddress() {
         try {
             for (NetworkInterface intf : Collections.list(NetworkInterface.getNetworkInterfaces())) {
                 String name = intf.getName().toLowerCase();
-                // Пропускаем интерфейсы сотовой связи (rmnet, ccmni и т.д.)
                 if (name.contains("rmnet") || name.contains("ccmni") || name.contains("pdp") || name.contains("wwan")) {
                     continue;
                 }
@@ -208,7 +206,6 @@ public class MainActivity extends Activity {
                     if (!addr.isLoopbackAddress()) {
                         String sAddr = addr.getHostAddress();
                         if (sAddr != null && sAddr.indexOf(':') < 0) {
-                            // Ищем стандартные локальные IP (192.168.x.x или 10.x.x.x в локальной сети)
                             if (sAddr.startsWith("192.168.") || sAddr.startsWith("10.") || sAddr.startsWith("172.")) {
                                 return sAddr;
                             }
@@ -290,7 +287,8 @@ public class MainActivity extends Activity {
                 out.write(httpResponse.getBytes("UTF-8"));
             } else {
                 String mime = "application/octet-stream";
-                String header = "HTTP/1.1 200 OK\r\nContent-Type: " + mime + "\r\nContent-Length: " + targetFile.length() + "\r\nContent-Disposition: attachment; filename=\"" + target.getName() + "\"\r\n\r\n";
+                // ИСПРАВЛЕНИЕ: заменено с target.getName() на targetFile.getName()
+                String header = "HTTP/1.1 200 OK\r\nContent-Type: " + mime + "\r\nContent-Length: " + targetFile.length() + "\r\nContent-Disposition: attachment; filename=\"" + targetFile.getName() + "\"\r\n\r\n";
                 out.write(header.getBytes());
 
                 FileInputStream fis = new FileInputStream(targetFile);
