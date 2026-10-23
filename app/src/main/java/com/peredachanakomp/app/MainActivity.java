@@ -140,12 +140,13 @@ public class MainActivity extends Activity {
     private void requestAllFilesPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             try {
+                // ПРАВИЛЬНАЯ КОНСТАНТА ДЛЯ УПРАВЛЕНИЯ ВСЕМИ ФАЙЛАМИ
                 Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
                 intent.setData(Uri.parse("package:" + getPackageName()));
                 startActivity(intent);
             } catch (Exception e) {
                 try {
-                    Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_APPS_ACCESS_PERMISSION);
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
                     startActivity(intent);
                 } catch (Exception ignored) {
                     Toast.makeText(this, "Откройте Настройки -> Приложения -> Доступ к файлам", Toast.LENGTH_LONG).show();
@@ -223,7 +224,6 @@ public class MainActivity extends Activity {
 
             OutputStream out = client.getOutputStream();
 
-            // КОРНЕВАЯ ПАПКА /storage/ (включает и память телефона, и SD-карты)
             File rootDir = new File("/storage/");
             if (!rootDir.exists()) {
                 rootDir = Environment.getExternalStorageDirectory();
