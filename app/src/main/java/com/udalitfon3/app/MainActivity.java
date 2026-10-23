@@ -6,6 +6,7 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.ContentValues;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.*;
 import android.graphics.drawable.GradientDrawable;
@@ -2447,5 +2448,3 @@ public class MainActivity extends Activity {
                "        }).start();\n" +
                "    }\n" +
                "}\n";
-    }
-}
