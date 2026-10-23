@@ -65,7 +65,7 @@ public class MainActivity extends Activity {
         root.addView(title);
 
         infoView = new TextView(this);
-        infoView.setText("Инструкция:\n1. Включите точку доступа Wi-Fi на телефоне.\n2. Подключите к ней компьютер.\n3. Запустите сервер и откройте ссылку на ПК.\n(Корень '/' открывает доступ абсолютно ко всем файлам и памяти).");
+        infoView.setText("Инструкция:\n1. Включите точку доступа Wi-Fi на телефоне.\n2. Подключите к ней компьютер.\n3. Запустите сервер и откройте ссылку на ПК.");
         infoView.setTextColor(Color.parseColor("#94A3B8"));
         infoView.setTextSize(13f);
         infoView.setPadding(20, 20, 20, 20);
@@ -199,7 +199,6 @@ public class MainActivity extends Activity {
         statusView.setText("Статус: Сервер остановлен");
     }
 
-    // Тот самый рабочий метод определения IP из вашего проверенного скрипта
     private String getLocalIpAddress() {
         try {
             for (NetworkInterface intf : Collections.list(NetworkInterface.getNetworkInterfaces())) {
@@ -228,23 +227,11 @@ public class MainActivity extends Activity {
 
             OutputStream out = client.getOutputStream();
 
-            // АБСОЛЮТНЫЙ КОРЕНЬ ВСЕГО ТЕЛЕФОНА (включает /storage/ с внутренней памятью и картами)
-            File rootDir = new File("/");
-            
-            // Исправление пути для корректного чтения навигации
-            if (path.startsWith("/")) {
-                path = path.substring(1);
-            }
-            
-            File targetFile;
-            if (path.isEmpty()) {
-                targetFile = rootDir;
-            } else {
-                targetFile = new File(rootDir, path);
-            }
+            File rootDir = Environment.getExternalStorageDirectory();
+            File targetFile = new File(rootDir, path);
 
             if (!targetFile.exists()) {
-                String response = "HTTP/1.1 404 Not Found\r\n\r\nFile Not Found: " + targetFile.getAbsolutePath();
+                String response = "HTTP/1.1 404 Not Found\r\n\r\nFile Not Found";
                 out.write(response.getBytes());
                 out.flush();
                 client.close();
@@ -257,32 +244,24 @@ public class MainActivity extends Activity {
                 html.append("<style>body{font-family:sans-serif;background:#030712;color:#E2E8F0;padding:20px;}");
                 html.append("a{color:#38BDF8;text-decoration:none;display:block;padding:8px 0;border-bottom:1px solid #1E293B;}");
                 html.append("a:hover{color:#10B981;}</style></head><body>");
-                html.append("<h2>📂 Путь: ").append(targetFile.getAbsolutePath()).append("</h2>");
+                html.append("<h2>📂 Папка: ").append(targetFile.getAbsolutePath()).append("</h2>");
 
-                // Кнопка "Наверх" (если мы не в корне '/')
                 if (!targetFile.equals(rootDir)) {
                     File parent = targetFile.getParentFile();
-                    if (parent != null && parent.exists()) {
-                        String parentPath = parent.getAbsolutePath();
-                        if (parentPath.equals("/")) parentPath = "";
-                        html.append("<a href='").append(parentPath.isEmpty() ? "/" : parentPath).append("'>⬅️ [Наверх]</a>");
-                    }
+                    String parentPath = parent.getAbsolutePath().replace(rootDir.getAbsolutePath(), "");
+                    html.append("<a href='").append(parentPath.isEmpty() ? "/" : parentPath).append("'>⬅️ [Наверх]</a>");
                 }
 
                 File[] files = targetFile.listFiles();
                 if (files != null) {
                     for (File f : files) {
-                        String fPath = f.getAbsolutePath();
-                        if (fPath.startsWith("/")) fPath = fPath.substring(1);
-
+                        String relPath = f.getAbsolutePath().replace(rootDir.getAbsolutePath(), "");
                         if (f.isDirectory()) {
-                            html.append("<a href='/").append(fPath).append("'>📁 <b>").append(f.getName()).append("</b></a>");
+                            html.append("<a href='").append(relPath).append("'>📁 <b>").append(f.getName()).append("</b></a>");
                         } else {
-                            html.append("<a href='/").append(fPath).append("'>📄 ").append(f.getName()).append(" (").append(f.length() / 1024).append(" KB)</a>");
+                            html.append("<a href='").append(relPath).append("'>📄 ").append(f.getName()).append(" (").append(f.length() / 1024).append(" KB)</a>");
                         }
                     }
-                } else {
-                    html.append("<p style='color:#EF4444;'>⚠️ Не удалось прочитать содержимое (ограничение прав доступа)</p>");
                 }
                 html.append("</body></html>");
 
