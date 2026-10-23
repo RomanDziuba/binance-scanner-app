@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.Manifest;
 import android.graphics.*;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.Build;
@@ -204,7 +205,6 @@ public class MainActivity extends Activity {
                 for (InetAddress addr : Collections.list(intf.getInetAddresses())) {
                     if (!addr.isLoopbackAddress()) {
                         String sAddr = addr.getHostAddress();
-                        // Ищем IPv4 адрес точки доступа (обычно начинается с 192.168...)
                         if (sAddr != null && sAddr.indexOf(':') < 0) {
                             return sAddr;
                         }
@@ -212,7 +212,7 @@ public class MainActivity extends Activity {
                 }
             }
         } catch (Exception ignored) {}
-        return "192.168.43.1"; // Дефолтный шлюз точки доступа Android
+        return "192.168.43.1";
     }
 
     private void handleClient(Socket client) {
@@ -227,7 +227,6 @@ public class MainActivity extends Activity {
 
             OutputStream out = client.getOutputStream();
 
-            // Корневая папка телефона для отображения
             File rootDir = Environment.getExternalStorageDirectory();
             File targetFile = new File(rootDir, path);
 
@@ -240,7 +239,6 @@ public class MainActivity extends Activity {
             }
 
             if (targetFile.isDirectory()) {
-                // Выводим HTML-список файлов и папок
                 StringBuilder html = new StringBuilder();
                 html.append("<html><head><meta charset='utf-8'><title>Phone File Explorer</title>");
                 html.append("<style>body{font-family:sans-serif;background:#030712;color:#E2E8F0;padding:20px;}");
@@ -270,7 +268,6 @@ public class MainActivity extends Activity {
                 String httpResponse = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n\r\n" + html.toString();
                 out.write(httpResponse.getBytes("UTF-8"));
             } else {
-                // Скачивание файла на компьютер
                 String mime = "application/octet-stream";
                 String header = "HTTP/1.1 200 OK\r\nContent-Type: " + mime + "\r\nContent-Length: " + targetFile.length() + "\r\nContent-Disposition: attachment; filename=\"" + targetFile.getName() + "\"\r\n\r\n";
                 out.write(header.getBytes());
