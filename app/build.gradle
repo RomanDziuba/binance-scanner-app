@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.udalitfon2.app'
+    namespace 'com.udalitfon3.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.udalitfon2.app"
+        applicationId "com.udalitfon3.app"
         minSdk 26
         targetSdk 34
         versionCode 1
