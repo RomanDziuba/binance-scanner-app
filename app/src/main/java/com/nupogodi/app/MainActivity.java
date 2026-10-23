@@ -7,7 +7,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -26,7 +25,6 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Главный контейнер
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
         rootLayout.setBackgroundColor(Color.parseColor("#030712"));
@@ -35,7 +33,7 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT
         ));
 
-        // Верхняя панель с информацией (Счет и Жизни)
+        // Верхняя панель (Счет и Жизни)
         LinearLayout topPanel = new LinearLayout(this);
         topPanel.setOrientation(LinearLayout.HORIZONTAL);
         topPanel.setGravity(Gravity.CENTER);
@@ -46,12 +44,11 @@ public class MainActivity extends Activity {
         ));
 
         final TextView scoreText = new TextView(this);
-        scoreText.setText("Счет: 0");
+        scoreText.setText("СЧЕТ: 0");
         scoreText.setTextColor(Color.parseColor("#10B981"));
         scoreText.setTextSize(18f);
         scoreText.setTypeface(Typeface.MONOSPACE);
         scoreText.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        scoreText.setGravity(Gravity.START);
 
         final TextView livesText = new TextView(this);
         livesText.setText("❤️❤️❤️");
@@ -63,7 +60,7 @@ public class MainActivity extends Activity {
         topPanel.addView(livesText);
         rootLayout.addView(topPanel);
 
-        // Игровое поле (Canvas View)
+        // Игровой холст
         gameView = new GameView(this, scoreText, livesText);
         LinearLayout.LayoutParams gameParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
@@ -71,15 +68,11 @@ public class MainActivity extends Activity {
         gameView.setLayoutParams(gameParams);
         rootLayout.addView(gameView);
 
-        // Панель управления (4 кнопки: TL, BL, TR, BR)
+        // Панель управления (4 позиции)
         LinearLayout controlPanel = new LinearLayout(this);
         controlPanel.setOrientation(LinearLayout.HORIZONTAL);
         controlPanel.setGravity(Gravity.CENTER);
         controlPanel.setPadding(10, 10, 10, 20);
-        controlPanel.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        ));
 
         Button btnTL = createControlBtn("↖ Верх Л");
         Button btnBL = createControlBtn("↙ Низ Л");
@@ -107,9 +100,7 @@ public class MainActivity extends Activity {
         btn.setTextSize(12f);
         btn.setTypeface(Typeface.DEFAULT_BOLD);
         btn.setBackgroundColor(Color.parseColor("#1E293B"));
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                0, 130, 1f
-        );
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, 130, 1f);
         params.setMargins(5, 0, 5, 0);
         btn.setLayoutParams(params);
         return btn;
@@ -127,7 +118,7 @@ public class MainActivity extends Activity {
         gameView.resumeGame();
     }
 
-    // --- ВНУТРЕННИЙ КЛАСС ИГРОВОГО ПОЛЯ ---
+    // Игровой класс с прорисовкой
     private static class GameView extends View implements Runnable {
         private Thread gameThread = null;
         private volatile boolean playing = false;
@@ -144,7 +135,7 @@ public class MainActivity extends Activity {
         private ArrayList<Egg> eggs;
         private Random random;
         private long lastEggTime = 0;
-        private long eggSpawnInterval = 2500; // мс между яйцами
+        private long eggSpawnInterval = 2300;
 
         private boolean isGameOver = false;
 
@@ -172,9 +163,7 @@ public class MainActivity extends Activity {
         public void pauseGame() {
             playing = false;
             try {
-                if (gameThread != null) {
-                    gameThread.join();
-                }
+                if (gameThread != null) gameThread.join();
             } catch (InterruptedException ignored) {}
         }
 
@@ -189,7 +178,7 @@ public class MainActivity extends Activity {
             lives = 3;
             eggs.clear();
             isGameOver = false;
-            eggSpawnInterval = 2500;
+            eggSpawnInterval = 2300;
             updateUI();
         }
 
@@ -199,7 +188,7 @@ public class MainActivity extends Activity {
                 updateGame();
                 handler.post(this::invalidate);
                 try {
-                    Thread.sleep(30); // ~33 FPS
+                    Thread.sleep(30);
                 } catch (InterruptedException ignored) {}
             }
         }
@@ -209,30 +198,22 @@ public class MainActivity extends Activity {
 
             long currentTime = System.currentTimeMillis();
             if (currentTime - lastEggTime > eggSpawnInterval) {
-                int lane = random.nextInt(4); // 0, 1, 2, 3
-                eggs.add(new Egg(lane));
+                eggs.add(new Egg(random.nextInt(4)));
                 lastEggTime = currentTime;
-                // Ускорение со временем
-                if (eggSpawnInterval > 900) {
-                    eggSpawnInterval -= 40;
-                }
+                if (eggSpawnInterval > 800) eggSpawnInterval -= 35;
             }
 
             Iterator<Egg> iterator = eggs.iterator();
             while (iterator.hasNext()) {
                 Egg egg = iterator.next();
-                egg.progress += 0.015f + (score * 0.0005f); // скорость движения яйца по желобу
+                egg.progress += 0.016f + (score * 0.0004f);
 
                 if (egg.progress >= 1.0f) {
-                    // Яйцо докатилось до конца желоба
                     if (egg.lane == basketPos) {
                         score += 10;
-                        // Звуковой эффект можно добавить через SoundPool если нужно
                     } else {
                         lives--;
-                        if (lives <= 0) {
-                            isGameOver = true;
-                        }
+                        if (lives <= 0) isGameOver = true;
                     }
                     iterator.remove();
                     updateUI();
@@ -242,7 +223,7 @@ public class MainActivity extends Activity {
 
         private void updateUI() {
             handler.post(() -> {
-                scoreTextView.setText("Счет: " + score);
+                scoreTextView.setText("СЧЕТ: " + score);
                 StringBuilder sb = new StringBuilder();
                 for (int i = 0; i < lives; i++) sb.append("❤️");
                 for (int i = lives; i < 3; i++) sb.append("🖤");
@@ -258,118 +239,157 @@ public class MainActivity extends Activity {
             int height = getHeight();
             if (width == 0 || height == 0) return;
 
-            // 1. Рисуем фоновые желоба (4 линии от куриц к центру)
-            paint.setStrokeWidth(4);
+            // 1. Отрисовка желобов
+            paint.setStrokeWidth(6);
             paint.setColor(Color.parseColor("#334155"));
+            canvas.drawLine(width * 0.22f, height * 0.18f, width * 0.40f, height * 0.42f, paint); // ВЛ
+            canvas.drawLine(width * 0.12f, height * 0.38f, width * 0.40f, height * 0.58f, paint); // НЛ
+            canvas.drawLine(width * 0.78f, height * 0.18f, width * 0.60f, height * 0.42f, paint); // ВП
+            canvas.drawLine(width * 0.88f, height * 0.38f, width * 0.60f, height * 0.58f, paint); // НП
 
-            // Левый верхний желоб
-            canvas.drawLine(width * 0.25f, height * 0.15f, width * 0.4f, height * 0.45f, paint);
-            // Левый нижний желоб
-            canvas.drawLine(width * 0.15f, height * 0.35f, width * 0.4f, height * 0.55f, paint);
-            // Правый верхний желоб
-            canvas.drawLine(width * 0.75f, height * 0.15f, width * 0.6f, height * 0.45f, paint);
-            // Правый нижний желоб
-            canvas.drawLine(width * 0.85f, height * 0.35f, width * 0.6f, height * 0.55f, paint);
+            // 2. Отрисовка куриц
+            paint.setTextSize(40f);
+            canvas.drawText("🐔", width * 0.18f, height * 0.16f, paint);
+            canvas.drawText("🐔", width * 0.08f, height * 0.36f, paint);
+            canvas.drawText("🐔", width * 0.78f, height * 0.16f, paint);
+            canvas.drawText("🐔", width * 0.88f, height * 0.36f, paint);
 
-            // 2. Рисуем курочек по углам верха
-            paint.setTextSize(36f);
-            canvas.drawText("🐔", width * 0.22f, height * 0.13f, paint);
-            canvas.drawText("🐔", width * 0.12f, height * 0.33f, paint);
-            canvas.drawText("🐔", width * 0.72f, height * 0.13f, paint);
-            canvas.drawText("🐔", width * 0.82f, height * 0.33f, paint);
+            // 3. Отрисовка персонажа Романа (с портретными деталями)
+            drawRomanCharacter(canvas, width, height, basketPos);
 
-            // 3. Рисуем персонажа (Романа) в центре с корзиной в текущей позиции
-            drawCharacter(canvas, width, height, basketPos);
-
-            // 4. Рисуем катящиеся яйца
+            // 4. Отрисовка яиц
             for (Egg egg : eggs) {
                 float startX = 0, startY = 0, endX = 0, endY = 0;
-                if (egg.lane == 0) { // Верх-Лево
-                    startX = width * 0.25f; startY = height * 0.15f;
-                    endX = width * 0.4f; endY = height * 0.45f;
-                } else if (egg.lane == 1) { // Низ-Лево
-                    startX = width * 0.15f; startY = height * 0.35f;
-                    endX = width * 0.4f; endY = height * 0.55f;
-                } else if (egg.lane == 2) { // Верх-Право
-                    startX = width * 0.75f; startY = height * 0.15f;
-                    endX = width * 0.6f; endY = height * 0.45f;
-                } else if (egg.lane == 3) { // Низ-Право
-                    startX = width * 0.85f; startY = height * 0.35f;
-                    endX = width * 0.6f; endY = height * 0.55f;
+                if (egg.lane == 0) {
+                    startX = width * 0.22f; startY = height * 0.18f; endX = width * 0.40f; endY = height * 0.42f;
+                } else if (egg.lane == 1) {
+                    startX = width * 0.12f; startY = height * 0.38f; endX = width * 0.40f; endY = height * 0.58f;
+                } else if (egg.lane == 2) {
+                    startX = width * 0.78f; startY = height * 0.18f; endX = width * 0.60f; endY = height * 0.42f;
+                } else if (egg.lane == 3) {
+                    startX = width * 0.88f; startY = height * 0.38f; endX = width * 0.60f; endY = height * 0.58f;
                 }
 
                 float currX = startX + (endX - startX) * egg.progress;
                 float currY = startY + (endY - startY) * egg.progress;
 
+                paint.setStyle(Paint.Style.FILL);
                 paint.setColor(Color.WHITE);
-                canvas.drawCircle(currX, currY, 14f, paint);
+                canvas.drawCircle(currX, currY, 13f, paint);
                 paint.setColor(Color.parseColor("#F59E0B"));
-                canvas.drawCircle(currX, currY, 10f, paint);
+                canvas.drawCircle(currX, currY, 9f, paint);
             }
 
-            // 5. Экран окончания игры
+            // 5. Game Over экран
             if (isGameOver) {
-                paint.setColor(Color.parseColor("#CC030712"));
+                paint.setColor(Color.parseColor("#E6030712"));
                 canvas.drawRect(0, 0, width, height, paint);
 
                 paint.setColor(Color.parseColor("#EF4444"));
-                paint.setTextSize(48f);
+                paint.setTextSize(46f);
                 paint.setTypeface(Typeface.DEFAULT_BOLD);
                 paint.setTextAlign(Paint.Align.CENTER);
-                canvas.drawText("ИГРА ОКОНЧЕНА", width / 2f, height / 2f - 40f, paint);
+                canvas.drawText("ИГРА ОКОНЧЕНА", width / 2f, height / 2f - 30f, paint);
 
                 paint.setColor(Color.WHITE);
                 paint.setTextSize(20f);
-                canvas.drawText("Нажмите любую кнопку управления", width / 2f, height / 2f + 20f, paint);
-                paint.setTextAlign(Paint.Align.LEFT); // сброс выравнивания
+                canvas.drawText("Нажмите любую кнопку для старта", width / 2f, height / 2f + 30f, paint);
+                paint.setTextAlign(Paint.Align.LEFT);
             }
         }
 
-        private void drawCharacter(Canvas canvas, int width, int height, int pos) {
-            float centerX = width / 2f;
-            float centerY = height * 0.52f;
+        // Отрисовка детализированного атлетичного персонажа Романа
+        private void drawRomanCharacter(Canvas canvas, int width, int height, int pos) {
+            float cx = width / 2f;
+            float cy = height * 0.50f;
 
-            // Тело и голова персонажа (Роман)
-            paint.setColor(Color.parseColor("#38BDF8"));
-            canvas.drawCircle(centerX, centerY - 20f, 30f, paint); // Голова
-            paint.setColor(Color.parseColor("#F59E0B"));
-            canvas.drawRect(centerX - 25f, centerY, centerX + 25f, centerY + 80f, paint); // Торс
+            boolean isLeft = (pos == 0 || pos == 1);
+            boolean isTop = (pos == 0 || pos == 2);
 
-            // Координаты корзины в зависимости от выбранной позиции
-            float basketX = centerX;
-            float basketY = centerY + 20f;
+            // Координаты корзины
+            float basketX = isLeft ? (width * 0.40f - 15f) : (width * 0.60f + 15f);
+            float basketY = isTop ? (height * 0.42f) : (height * 0.58f);
 
-            if (pos == 0) { // Верх-Лево
-                basketX = width * 0.4f - 20f;
-                basketY = height * 0.45f;
-            } else if (pos == 1) { // Низ-Лево
-                basketX = width * 0.4f - 20f;
-                basketY = height * 0.55f;
-            } else if (pos == 2) { // Верх-Право
-                basketX = width * 0.6f + 20f;
-                basketY = height * 0.45f;
-            } else if (pos == 3) { // Низ-Право
-                basketX = width * 0.6f + 20f;
-                basketY = height * 0.55f;
-            }
-
-            // Рисуем руки к корзине
-            paint.setStrokeWidth(6);
-            paint.setColor(Color.parseColor("#CBD5E1"));
-            canvas.drawLine(centerX, centerY + 20f, basketX, basketY, paint);
-
-            // Сама корзина для ловли яиц
             paint.setStyle(Paint.Style.FILL);
-            paint.setColor(Color.parseColor("#D97706"));
-            canvas.drawRect(basketX - 25f, basketY - 15f, basketX + 25f, basketY + 15f, paint);
+
+            // 1. Шорты (темно-синие, спортивные с белыми шнурками)
+            paint.setColor(Color.parseColor("#1E3A8A")); // Синий
+            RectF shorts = new RectF(cx - 30f, cy + 50f, cx + 30f, cy + 120f);
+            canvas.drawRoundRect(shorts, 10f, 10f, paint);
+
+            // Белая полоска шнурка
+            paint.setColor(Color.WHITE);
+            paint.setStrokeWidth(4);
+            canvas.drawLine(cx - 5f, cy + 55f, cx + 5f, cy + 55f, paint);
+            canvas.drawLine(cx, cy + 55f, cx - 4f, cy + 70f, paint);
+            canvas.drawLine(cx, cy + 55f, cx + 4f, cy + 70f, paint);
+
+            // 2. Атлетичный торс (кожа / загар)
+            paint.setColor(Color.parseColor("#E0A96D")); // Оттенок кожи
+            Path torso = new Path();
+            torso.moveTo(cx - 38f, cy - 20f); // Плечи
+            torso.lineTo(cx + 38f, cy - 20f);
+            torso.lineTo(cx + 26f, cy + 50f); // Талия
+            torso.lineTo(cx - 26f, cy + 50f);
+            torso.close();
+            canvas.drawPath(torso, paint);
+
+            // Рельеф пресса / груди (контурные линии)
+            paint.setColor(Color.parseColor("#C68B45"));
+            paint.setStrokeWidth(3);
+            paint.setStyle(Paint.Style.STROKE);
+            canvas.drawLine(cx - 20f, cy, cx + 20f, cy, paint); // Грудь
+            canvas.drawLine(cx, cy - 10f, cx, cy + 45f, paint); // Пресс (вертикаль)
+            canvas.drawLine(cx - 15f, cy + 15f, cx + 15f, cy + 15f, paint);
+            canvas.drawLine(cx - 12f, cy + 30f, cx + 12f, cy + 30f, paint);
+
+            // 3. Голова (Форма + Стрижка под ноль / Лысина)
             paint.setStyle(Paint.Style.FILL);
+            paint.setColor(Color.parseColor("#E0A96D"));
+            canvas.drawCircle(cx, cy - 50f, 24f, paint); // Голова
+
+            // Лицо (глаза, легкая щетина)
+            float faceLookX = isLeft ? -5f : 5f;
+            paint.setColor(Color.parseColor("#27272A"));
+            canvas.drawCircle(cx + faceLookX - 6f, cy - 54f, 3f, paint); // Левый глаз
+            canvas.drawCircle(cx + faceLookX + 6f, cy - 54f, 3f, paint); // Правый глаз
+
+            // Легкая аккуратная бородка / щетина
+            paint.setColor(Color.parseColor("#B48148"));
+            RectF beard = new RectF(cx - 14f, cy - 48f, cx + 14f, cy - 32f);
+            canvas.drawArc(beard, 0, 180, true, paint);
+
+            // 4. Руки и Ловля (вытянуты к корзине)
+            paint.setColor(Color.parseColor("#E0A96D"));
+            paint.setStyle(Paint.Style.FILL);
+
+            // Плечи/Мускулы
+            float shoulderX = isLeft ? (cx - 30f) : (cx + 30f);
+            canvas.drawCircle(shoulderX, cy - 15f, 12f, paint); // Дельтаплан / Бицепс
+
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(12);
+            paint.setStrokeCap(Paint.Cap.ROUND);
+
+            // Рука, ведущая к корзине
+            canvas.drawLine(shoulderX, cy - 15f, basketX, basketY, paint);
+
+            // 5. Сама Корзина
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(Color.parseColor("#D97706")); // Дерево
+            RectF basketRect = new RectF(basketX - 28f, basketY - 12f, basketX + 28f, basketY + 12f);
+            canvas.drawRoundRect(basketRect, 6f, 6f, paint);
+
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setColor(Color.parseColor("#78350F"));
+            paint.setStrokeWidth(3);
+            canvas.drawRoundRect(basketRect, 6f, 6f, paint);
         }
     }
 
-    // Класс для представления яйца
     private static class Egg {
-        int lane; // 0, 1, 2, 3
-        float progress = 0.0f; // от 0.0 до 1.0
+        int lane;
+        float progress = 0.0f;
 
         public Egg(int lane) {
             this.lane = lane;
