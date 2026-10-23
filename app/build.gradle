@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.diktofon.app'
+    namespace 'com.nupogodi.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.diktofon.app"
+        applicationId "com.nupogodi.app"
         minSdk 26
         targetSdk 34
         versionCode 1
