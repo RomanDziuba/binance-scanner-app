@@ -2041,7 +2041,7 @@ public class MainActivity extends Activity {
                "dependencies {\n    implementation 'androidx.appcompat:appcompat:1.6.1'\n    implementation 'com.google.android.material:material:1.11.0'\n}\n";
     }
 
-    // --- ИСПРАВЛЕННЫЙ ШАБЛОН ПРИЛОЖЕНИЯ УМНОГО УДАЛЕНИЯ ФОНА (100% СОВМЕСТИМЫЙ С JAVA 8/17) ---
+    // --- ФИНАЛЬНЫЙ ШАБЛОН УДАЛЕНИЯ ФОНА (100% JAVA 8 / 17 COMPATIBLE) ---
     private String generateMainActivity() {
         return "package " + packageName + ";\n\n" +
                "import android.app.Activity;\n" +
