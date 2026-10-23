@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.roma.nativeapp'
+    namespace 'com.peredachanakomp.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roma.nativeapp"
+        applicationId "com.peredachanakomp.app"
         minSdk 26
         targetSdk 34
         versionCode 1
-        versionName "1.0"
+        versionName "1.1"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
