@@ -1976,7 +1976,7 @@ public class MainActivity extends Activity {
                "      - name: Build Debug APK with Gradle (Clean Cache)\n        run: |\n" +
                "          export ANDROID_HOME=/usr/local/lib/android/sdk\n" +
                "          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n" +
-               "          gradle clean assembleDebug --stacktrace --no-daemon\n" +
+               "          gradle clean assembleDebug --stacktrace --info --no-daemon\n" +
                "      - name: Upload APK to Telegram Bot\n        if: success()\n        run: |\n" +
                "          APK_PATH=$(find app/build/outputs/apk/debug/ -name \"*.apk\" | head -n 1)\n" +
                "          if [ -n \"$APK_PATH\" ]; then\n" +
@@ -2378,6 +2378,7 @@ public class MainActivity extends Activity {
                "    }\n\n" +
                "    private void drawPhoto(Canvas canvas, Bitmap source, int viewWidth, int viewHeight) {\n" +
                "        photoMatrix.reset();\n" +
+               "        photoScale = Math.max(0.1f, Math.min(photoScale, 10.0f));\n" +
                "        photoMatrix.postScale(photoScale, photoScale);\n" +
                "        photoMatrix.postTranslate(photoTransX + (viewWidth - source.getWidth()) / 2f,\n" +
                "                photoTransY + (viewHeight - source.getHeight()) / 2f);\n" +
@@ -2448,3 +2449,5 @@ public class MainActivity extends Activity {
                "        }).start();\n" +
                "    }\n" +
                "}\n";
+    }
+}
