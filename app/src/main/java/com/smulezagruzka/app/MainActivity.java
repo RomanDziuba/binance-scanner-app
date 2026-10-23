@@ -160,7 +160,7 @@ public class MainActivity extends Activity {
         }
 
         btnDownload.setEnabled(false);
-        statusText.setText("Статус: 🔄 Подключение к Smule...");
+        statusText.setText("Статус: 🔄 Подключение к Smule и анализ данных...");
 
         new Thread(() -> {
             try {
@@ -170,6 +170,7 @@ public class MainActivity extends Activity {
                 String mediaUrl = null;
                 String trackTitle = "Smule_Track_" + System.currentTimeMillis();
 
+                // 1. Пробуем официальный JSON API Smule по ключу записи
                 if (recordingKey != null && !recordingKey.isEmpty()) {
                     try {
                         String apiUrl = "https://www.smule.com/api/show/recording/" + recordingKey;
@@ -183,17 +184,23 @@ public class MainActivity extends Activity {
                             while ((line = br.readLine()) != null) apiSb.append(line);
                             br.close();
 
-                            JSONObject json = new JSONObject(apiSb.toString());
+                            String jsonStr = apiSb.toString().replace("\\/", "/");
+                            JSONObject json = new JSONObject(jsonStr);
+                            
                             if (json.has("media_url")) {
                                 mediaUrl = json.optString("media_url");
+                            } else if (json.has("perf_url")) {
+                                mediaUrl = json.optString("perf_url");
                             }
+                            
                             if (json.has("title")) {
-                                trackTitle = json.optString("title").replaceAll("[^a-zA-Z0-9_-]", "_");
+                                trackTitle = json.optString("title").replaceAll("[^a-zA-Z0-9А-Яа-я_-]", "_");
                             }
                         }
                     } catch (Exception ignored) {}
                 }
 
+                // 2. Если через API не вышло, парсим HTML-страницу с раэкранированием
                 if (mediaUrl == null || mediaUrl.isEmpty()) {
                     HttpURLConnection conn = (HttpURLConnection) new URL(finalUrlStr).openConnection();
                     setupBrowserHeaders(conn);
@@ -202,7 +209,7 @@ public class MainActivity extends Activity {
                     if (responseCode != 200) {
                         handler.post(() -> {
                             btnDownload.setEnabled(true);
-                            statusText.setText("Статус: ❌ Защита Smule заблокировала запрос (Код: " + responseCode + ")");
+                            statusText.setText("Статус: ❌ Ошибка соединения (Код: " + responseCode + ")");
                         });
                         return;
                     }
@@ -213,13 +220,16 @@ public class MainActivity extends Activity {
                     while ((line = reader.readLine()) != null) html.append(line).append("\n");
                     reader.close();
 
-                    String htmlContent = html.toString();
+                    // Главный трюк: убираем экранирование слешей в JSON-данных страницы
+                    String htmlContent = html.toString().replace("\\/", "/");
 
-                    Matcher ogMatcher = Pattern.compile("<meta\\s+property=\"og:audio\"\\s+content=\"([^\"]+)\"").matcher(htmlContent);
-                    if (ogMatcher.find()) {
-                        mediaUrl = ogMatcher.group(1);
+                    // Ищем поля в JSON внутри скриптов (perf_url, media_url, audio_url)
+                    Matcher jsonMatcher = Pattern.compile("\"(?:perf_url|media_url|audio_url|secure_url)\"\\s*:\\s*\"([^\"]+\\.(m4a|mp3|mp4)[^\"]*)\"").matcher(htmlContent);
+                    if (jsonMatcher.find()) {
+                        mediaUrl = jsonMatcher.group(1);
                     }
 
+                    // Если в JSON не нашли, ищем стандартным регулярным выражением
                     if (mediaUrl == null || mediaUrl.isEmpty()) {
                         Matcher streamMatcher = Pattern.compile("https?://[^\"]+\\.(m4a|mp3|mp4)(\\?[^\"]*)?").matcher(htmlContent);
                         if (streamMatcher.find()) {
@@ -231,7 +241,7 @@ public class MainActivity extends Activity {
                 if (mediaUrl == null || mediaUrl.isEmpty()) {
                     handler.post(() -> {
                         btnDownload.setEnabled(true);
-                        statusText.setText("Статус: ❌ Не удалось извлечь медиафайл.\nВозможно, запись приватная.");
+                        statusText.setText("Статус: ❌ Не удалось извлечь медиафайл.\nВозможно, ссылка не содержит аудио.");
                     });
                     return;
                 }
@@ -240,8 +250,9 @@ public class MainActivity extends Activity {
                 final String downloadMediaUrl = mediaUrl;
                 final String fileName = trackTitle + ".m4a";
 
-                handler.post(() -> statusText.setText("Статус: 📥 Найдена прямая ссылка! Скачивание..."));
+                handler.post(() -> statusText.setText("Статус: 📥 Ссылка получена! Скачивание аудио..."));
 
+                // 3. Скачиваем аудиофайл
                 HttpURLConnection audioConn = (HttpURLConnection) new URL(downloadMediaUrl).openConnection();
                 setupBrowserHeaders(audioConn);
 
@@ -262,8 +273,8 @@ public class MainActivity extends Activity {
                 handler.post(() -> {
                     btnDownload.setEnabled(true);
                     btnPlay.setVisibility(View.VISIBLE);
-                    statusText.setText("Статус: ✅ Трек скачан!\nФайл: " + fileName);
-                    Toast.makeText(MainActivity.this, "Песня успешно сохранена!", Toast.LENGTH_LONG).show();
+                    statusText.setText("Статус: ✅ Трек успешно скачан!\nФайл: " + fileName);
+                    Toast.makeText(MainActivity.this, "Песня сохранена!", Toast.LENGTH_LONG).show();
                 });
 
             } catch (final Exception e) {
