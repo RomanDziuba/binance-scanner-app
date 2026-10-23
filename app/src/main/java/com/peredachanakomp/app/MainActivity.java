@@ -52,7 +52,7 @@ public class MainActivity extends Activity {
         ));
 
         TextView title = new TextView(this);
-        title.setText("📡 Полный Wi-Fi Доступ к Файлам");
+        title.setText("📡 Wi-Fi Сервер (Память + SD-карты)");
         title.setTextColor(Color.parseColor("#38BDF8"));
         title.setTextSize(18f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
@@ -61,7 +61,7 @@ public class MainActivity extends Activity {
         root.addView(title);
 
         infoView = new TextView(this);
-        infoView.setText("Инструкция:\n1. Включите точку доступа Wi-Fi (моб. интернет можно не выключать, IP определится правильно).\n2. Подключите ПК к точке доступа.\n3. Запустите сервер и введите ссылку в браузере ПК.");
+        infoView.setText("Инструкция:\n1. Включите точку доступа Wi-Fi на телефоне.\n2. Подключите к ней компьютер.\n3. Запустите сервер и откройте ссылку в браузере ПК.");
         infoView.setTextColor(Color.parseColor("#94A3B8"));
         infoView.setTextSize(13f);
         infoView.setPadding(20, 20, 20, 20);
@@ -195,39 +195,15 @@ public class MainActivity extends Activity {
         statusView.setText("Статус: Сервер остановлен");
     }
 
-    // ИСПРАВЛЕННЫЙ ПОИСК IP: Приоритет сети 192.168. (точка доступа Wi-Fi) с отсечением мобильного интернета
+    // ТОЧНЫЙ МЕТОД ПОИСКА IP ИЗ САМОГО ПЕРВОГО РАБОЧЕГО СКРИПТА
     private String getLocalIpAddress() {
         try {
-            // Шаг 1: Ищем строго подсеть 192.168. (стандарт для точки доступа Android)
             for (NetworkInterface intf : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-                String name = intf.getName().toLowerCase();
-                if (name.contains("rmnet") || name.contains("ccmni") || name.contains("pdp") || name.contains("wwan") || name.contains("tun")) {
-                    continue;
-                }
                 for (InetAddress addr : Collections.list(intf.getInetAddresses())) {
                     if (!addr.isLoopbackAddress()) {
                         String sAddr = addr.getHostAddress();
                         if (sAddr != null && sAddr.indexOf(':') < 0) {
-                            if (sAddr.startsWith("192.168.")) {
-                                return sAddr;
-                            }
-                        }
-                    }
-                }
-            }
-            // Шаг 2: Если 192.168 не найдено, берем любой не-loopback IPv4, кроме мобильных
-            for (NetworkInterface intf : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-                String name = intf.getName().toLowerCase();
-                if (name.contains("rmnet") || name.contains("ccmni") || name.contains("pdp") || name.contains("wwan")) {
-                    continue;
-                }
-                for (InetAddress addr : Collections.list(intf.getInetAddresses())) {
-                    if (!addr.isLoopbackAddress()) {
-                        String sAddr = addr.getHostAddress();
-                        if (sAddr != null && sAddr.indexOf(':') < 0) {
-                            if (!sAddr.startsWith("127.")) {
-                                return sAddr;
-                            }
+                            return sAddr;
                         }
                     }
                 }
@@ -244,21 +220,53 @@ public class MainActivity extends Activity {
 
             String[] parts = requestLine.split(" ");
             if (parts.length < 2) return;
-            String path = URLDecoder.decode(parts[1], "UTF-8");
+            String rawUri = URLDecoder.decode(parts[1], "UTF-8");
 
             OutputStream out = client.getOutputStream();
 
-            File rootDir = new File("/storage/");
-            if (!rootDir.exists()) {
+            // Главная страница (Меню выбора: Внутренняя память или Все диски)
+            if (rawUri.equals("/") || rawUri.equals("/index.html")) {
+                StringBuilder html = new StringBuilder();
+                html.append("<html><head><meta charset='utf-8'><title>Phone File Explorer</title>");
+                html.append("<style>body{font-family:sans-serif;background:#030712;color:#E2E8F0;padding:30px;}");
+                html.append("h2{color:#38BDF8;border-bottom:2px solid #1E293B;padding-bottom:10px;}");
+                html.append(".card{background:#0F172A;border:1px solid #1E293B;padding:20px;margin:15px 0;border-radius:12px;font-size:18px;}");
+                html.append("a{color:#38BDF8;text-decoration:none;display:block;}");
+                html.append("a:hover{color:#10B981;}</style></head><body>");
+                html.append("<h2>📂 Выберите хранилище для просмотра:</h2>");
+                html.append("<div class='card'><a href='/internal/'>📁 Внутренняя память телефона (Основная)</a></div>");
+                html.append("<div class='card'><a href='/storage/'>📁 Все диски и SD-карты (/storage/)</a></div>");
+                html.append("</body></html>");
+
+                String httpResponse = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n\r\n" + html.toString();
+                out.write(httpResponse.getBytes("UTF-8"));
+                out.flush();
+                client.close();
+                return;
+            }
+
+            File rootDir;
+            String subPath = "";
+
+            if (rawUri.startsWith("/internal")) {
                 rootDir = Environment.getExternalStorageDirectory();
+                subPath = rawUri.substring("/internal".length());
+            } else if (rawUri.startsWith("/storage")) {
+                rootDir = new File("/storage/");
+                subPath = rawUri.substring("/storage".length());
+            } else {
+                String response = "HTTP/1.1 404 Not Found\r\n\r\nNot Found";
+                out.write(response.getBytes());
+                out.flush();
+                client.close();
+                return;
             }
-            
-            String relPath = path;
-            if (relPath.startsWith("/")) {
-                relPath = relPath.substring(1);
+
+            if (subPath.startsWith("/")) {
+                subPath = subPath.substring(1);
             }
-            
-            File targetFile = new File(rootDir, relPath);
+
+            File targetFile = new File(rootDir, subPath);
 
             if (!targetFile.exists()) {
                 String response = "HTTP/1.1 404 Not Found\r\n\r\nFile Not Found: " + targetFile.getAbsolutePath();
@@ -270,35 +278,42 @@ public class MainActivity extends Activity {
 
             if (targetFile.isDirectory()) {
                 StringBuilder html = new StringBuilder();
-                html.append("<html><head><meta charset='utf-8'><title>Total Storage Explorer</title>");
+                html.append("<html><head><meta charset='utf-8'><title>Storage Explorer</title>");
                 html.append("<style>body{font-family:sans-serif;background:#030712;color:#E2E8F0;padding:20px;}");
                 html.append("a{color:#38BDF8;text-decoration:none;display:block;padding:8px 0;border-bottom:1px solid #1E293B;}");
                 html.append("a:hover{color:#10B981;}</style></head><body>");
                 html.append("<h2>📂 Путь: ").append(targetFile.getAbsolutePath()).append("</h2>");
 
-                if (!targetFile.equals(rootDir)) {
+                String prefix = rawUri.startsWith("/internal") ? "/internal" : "/storage";
+
+                // Кнопка наверх или в главное меню
+                if (targetFile.equals(rootDir)) {
+                    html.append("<a href='/'>🏠 [Вернуться в главное меню]</a>");
+                } else {
                     File parent = targetFile.getParentFile();
                     if (parent != null && parent.exists() && parent.getAbsolutePath().startsWith(rootDir.getAbsolutePath())) {
-                        String parentPath = parent.getAbsolutePath().replace(rootDir.getAbsolutePath(), "");
-                        if (!parentPath.startsWith("/")) parentPath = "/" + parentPath;
-                        html.append("<a href='").append(parentPath.isEmpty() ? "/" : parentPath).append("'>⬅️ [Наверх]</a>");
+                        String parentRel = parent.getAbsolutePath().replace(rootDir.getAbsolutePath(), "");
+                        if (!parentRel.startsWith("/")) parentRel = "/" + parentRel;
+                        html.append("<a href='").append(prefix).append(parentRel).append("'>⬅️ [Наверх]</a>");
+                    } else {
+                        html.append("<a href='/'>🏠 [В главное меню]</a>");
                     }
                 }
 
                 File[] files = targetFile.listFiles();
                 if (files != null) {
                     for (File f : files) {
-                        String fRelPath = f.getAbsolutePath().replace(rootDir.getAbsolutePath(), "");
-                        if (!fRelPath.startsWith("/")) fRelPath = "/" + fRelPath;
-                        
+                        String fRel = f.getAbsolutePath().replace(rootDir.getAbsolutePath(), "");
+                        if (!fRel.startsWith("/")) fRel = "/" + fRel;
+
                         if (f.isDirectory()) {
-                            html.append("<a href='").append(fRelPath).append("'>📁 <b>").append(f.getName()).append("</b></a>");
+                            html.append("<a href='").append(prefix).append(fRel).append("'>📁 <b>").append(f.getName()).append("</b></a>");
                         } else {
-                            html.append("<a href='").append(fRelPath).append("'>📄 ").append(f.getName()).append(" (").append(f.length() / 1024).append(" KB)</a>");
+                            html.append("<a href='").append(prefix).append(fRel).append("'>📄 ").append(f.getName()).append(" (").append(f.length() / 1024).append(" KB)</a>");
                         }
                     }
                 } else {
-                    html.append("<p style='color:#EF4444;'>⚠️ Не удалось прочитать содержимое папки (нужны разрешения)</p>");
+                    html.append("<p style='color:#EF4444;'>⚠️ Не удалось прочитать папку (проверьте разрешения доступа)</p>");
                 }
                 html.append("</body></html>");
 
