@@ -164,28 +164,57 @@ public class MainActivity extends Activity {
 
         new Thread(() -> {
             try {
-                String finalUrlStr = getFinalRedirectUrl(trackUrl);
-                String recordingKey = extractRecordingKey(finalUrlStr);
+                // 1. Загружаем HTML страницы (включая короткую ссылку /c/)
+                HttpURLConnection conn = (HttpURLConnection) new URL(trackUrl).openConnection();
+                setupBrowserHeaders(conn);
+
+                int responseCode = conn.getResponseCode();
+                if (responseCode != 200) {
+                    handler.post(() -> {
+                        btnDownload.setEnabled(true);
+                        statusText.setText("Статус: ❌ Ошибка соединения (Код: " + responseCode + ")");
+                    });
+                    return;
+                }
+
+                BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                StringBuilder html = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) html.append(line).append("\n");
+                reader.close();
+
+                String htmlContent = html.toString().replace("\\/", "/");
+
+                // 2. Ищем каноническую ссылку на запись в HTML (там всегда содержится точный ID)
+                String recordingId = null;
+                Matcher canonicalMatcher = Pattern.compile("<link\\s+rel=\"canonical\"\\s+href=\"([^\"]+)\"").matcher(htmlContent);
+                if (canonicalMatcher.find()) {
+                    String canonicalUrl = canonicalMatcher.group(1);
+                    recordingId = extractRecordingKey(canonicalUrl);
+                }
+
+                // Если в canonical не нашли, ищем напрямую из введенной ссылки
+                if (recordingId == null || recordingId.isEmpty()) {
+                    recordingId = extractRecordingKey(trackUrl);
+                }
 
                 String mediaUrl = null;
                 String trackTitle = "Smule_Track_" + System.currentTimeMillis();
 
-                // 1. Пробуем официальный JSON API Smule по ключу записи
-                if (recordingKey != null && !recordingKey.isEmpty()) {
+                // 3. Запрос к официальному JSON API Smule по чистому ID записи
+                if (recordingId != null && !recordingId.isEmpty()) {
                     try {
-                        String apiUrl = "https://www.smule.com/api/show/recording/" + recordingKey;
+                        String apiUrl = "https://www.smule.com/api/show/recording/" + recordingId;
                         HttpURLConnection apiConn = (HttpURLConnection) new URL(apiUrl).openConnection();
                         setupBrowserHeaders(apiConn);
 
                         if (apiConn.getResponseCode() == 200) {
                             BufferedReader br = new BufferedReader(new InputStreamReader(apiConn.getInputStream(), StandardCharsets.UTF_8));
                             StringBuilder apiSb = new StringBuilder();
-                            String line;
                             while ((line = br.readLine()) != null) apiSb.append(line);
                             br.close();
 
-                            String jsonStr = apiSb.toString().replace("\\/", "/");
-                            JSONObject json = new JSONObject(jsonStr);
+                            JSONObject json = new JSONObject(apiSb.toString().replace("\\/", "/"));
                             
                             if (json.has("media_url")) {
                                 mediaUrl = json.optString("media_url");
@@ -200,36 +229,20 @@ public class MainActivity extends Activity {
                     } catch (Exception ignored) {}
                 }
 
-                // 2. Если через API не вышло, парсим HTML-страницу с раэкранированием
+                // 4. Запасной вариант: парсим теги og:audio прямо из HTML страницы
                 if (mediaUrl == null || mediaUrl.isEmpty()) {
-                    HttpURLConnection conn = (HttpURLConnection) new URL(finalUrlStr).openConnection();
-                    setupBrowserHeaders(conn);
-
-                    int responseCode = conn.getResponseCode();
-                    if (responseCode != 200) {
-                        handler.post(() -> {
-                            btnDownload.setEnabled(true);
-                            statusText.setText("Статус: ❌ Ошибка соединения (Код: " + responseCode + ")");
-                        });
-                        return;
+                    Matcher ogMatcher = Pattern.compile("<meta\\s+property=\"og:audio\"\\s+content=\"([^\"]+)\"").matcher(htmlContent);
+                    if (ogMatcher.find()) {
+                        mediaUrl = ogMatcher.group(1);
                     }
 
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-                    StringBuilder html = new StringBuilder();
-                    String line;
-                    while ((line = reader.readLine()) != null) html.append(line).append("\n");
-                    reader.close();
-
-                    // Главный трюк: убираем экранирование слешей в JSON-данных страницы
-                    String htmlContent = html.toString().replace("\\/", "/");
-
-                    // Ищем поля в JSON внутри скриптов (perf_url, media_url, audio_url)
-                    Matcher jsonMatcher = Pattern.compile("\"(?:perf_url|media_url|audio_url|secure_url)\"\\s*:\\s*\"([^\"]+\\.(m4a|mp3|mp4)[^\"]*)\"").matcher(htmlContent);
-                    if (jsonMatcher.find()) {
-                        mediaUrl = jsonMatcher.group(1);
+                    if (mediaUrl == null || mediaUrl.isEmpty()) {
+                        Matcher jsonMatcher = Pattern.compile("\"(?:perf_url|media_url|audio_url|secure_url)\"\\s*:\\s*\"([^\"]+\\.(m4a|mp3|mp4)[^\"]*)\"").matcher(htmlContent);
+                        if (jsonMatcher.find()) {
+                            mediaUrl = jsonMatcher.group(1);
+                        }
                     }
 
-                    // Если в JSON не нашли, ищем стандартным регулярным выражением
                     if (mediaUrl == null || mediaUrl.isEmpty()) {
                         Matcher streamMatcher = Pattern.compile("https?://[^\"]+\\.(m4a|mp3|mp4)(\\?[^\"]*)?").matcher(htmlContent);
                         if (streamMatcher.find()) {
@@ -241,7 +254,7 @@ public class MainActivity extends Activity {
                 if (mediaUrl == null || mediaUrl.isEmpty()) {
                     handler.post(() -> {
                         btnDownload.setEnabled(true);
-                        statusText.setText("Статус: ❌ Не удалось извлечь медиафайл.\nВозможно, ссылка не содержит аудио.");
+                        statusText.setText("Статус: ❌ Не удалось извлечь медиафайл.\nПроверьте правильность ссылки.");
                     });
                     return;
                 }
@@ -252,7 +265,7 @@ public class MainActivity extends Activity {
 
                 handler.post(() -> statusText.setText("Статус: 📥 Ссылка получена! Скачивание аудио..."));
 
-                // 3. Скачиваем аудиофайл
+                // 5. Скачивание аудиофайла
                 HttpURLConnection audioConn = (HttpURLConnection) new URL(downloadMediaUrl).openConnection();
                 setupBrowserHeaders(audioConn);
 
@@ -294,33 +307,21 @@ public class MainActivity extends Activity {
         conn.setRequestProperty("Sec-Fetch-Mode", "navigate");
         conn.setRequestProperty("Sec-Fetch-Site", "none");
         conn.setRequestProperty("Sec-Fetch-User", "?1");
-        conn.setConnectTimeout(12000);
-        conn.setReadTimeout(12000);
-    }
-
-    private String getFinalRedirectUrl(String urlStr) {
-        try {
-            HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
-            conn.setInstanceFollowRedirects(false);
-            setupBrowserHeaders(conn);
-            int status = conn.getResponseCode();
-
-            if (status == HttpURLConnection.HTTP_MOVED_TEMP || 
-                status == HttpURLConnection.HTTP_MOVED_PERM || 
-                status == HttpURLConnection.HTTP_SEE_OTHER) {
-                String redirectUrl = conn.getHeaderField("Location");
-                if (redirectUrl != null && !redirectUrl.isEmpty()) {
-                    return getFinalRedirectUrl(redirectUrl);
-                }
-            }
-        } catch (Exception ignored) {}
-        return urlStr;
+        conn.setConnectTimeout(15000);
+        conn.setReadTimeout(15000);
     }
 
     private String extractRecordingKey(String url) {
+        // Ищем паттерн записи в URL (например /recording/... или /c/...)
         Matcher matcher = Pattern.compile("(?:recording/|c/|p/)([a-zA-Z0-9_-]+)").matcher(url);
         if (matcher.find()) {
-            return matcher.group(1);
+            String fullKey = matcher.group(1);
+            // Если ключ содержит подчеркивание (например userId_recordingId), берем правую часть (ID записи)
+            if (fullKey.contains("_")) {
+                String[] parts = fullKey.split("_");
+                return parts[parts.length - 1];
+            }
+            return fullKey;
         }
         return null;
     }
