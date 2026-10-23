@@ -140,7 +140,6 @@ public class MainActivity extends Activity {
     private void requestAllFilesPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             try {
-                // ПРАВИЛЬНАЯ КОНСТАНТА ДЛЯ УПРАВЛЕНИЯ ВСЕМИ ФАЙЛАМИ
                 Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
                 intent.setData(Uri.parse("package:" + getPackageName()));
                 startActivity(intent);
@@ -229,10 +228,15 @@ public class MainActivity extends Activity {
                 rootDir = Environment.getExternalStorageDirectory();
             }
             
-            File targetFile = new File(rootDir, path);
+            String relPath = path;
+            if (relPath.startsWith("/")) {
+                relPath = relPath.substring(1);
+            }
+            
+            File targetFile = new File(rootDir, relPath);
 
             if (!targetFile.exists()) {
-                String response = "HTTP/1.1 404 Not Found\r\n\r\nFile Not Found";
+                String response = "HTTP/1.1 404 Not Found\r\n\r\nFile Not Found: " + targetFile.getAbsolutePath();
                 out.write(response.getBytes());
                 out.flush();
                 client.close();
@@ -249,8 +253,9 @@ public class MainActivity extends Activity {
 
                 if (!targetFile.equals(rootDir)) {
                     File parent = targetFile.getParentFile();
-                    if (parent != null && parent.exists()) {
+                    if (parent != null && parent.exists() && parent.getAbsolutePath().startsWith(rootDir.getAbsolutePath())) {
                         String parentPath = parent.getAbsolutePath().replace(rootDir.getAbsolutePath(), "");
+                        if (!parentPath.startsWith("/")) parentPath = "/" + parentPath;
                         html.append("<a href='").append(parentPath.isEmpty() ? "/" : parentPath).append("'>⬅️ [Наверх]</a>");
                     }
                 }
@@ -258,13 +263,17 @@ public class MainActivity extends Activity {
                 File[] files = targetFile.listFiles();
                 if (files != null) {
                     for (File f : files) {
-                        String relPath = f.getAbsolutePath().replace(rootDir.getAbsolutePath(), "");
+                        String fRelPath = f.getAbsolutePath().replace(rootDir.getAbsolutePath(), "");
+                        if (!fRelPath.startsWith("/")) fRelPath = "/" + fRelPath;
+                        
                         if (f.isDirectory()) {
-                            html.append("<a href='").append(relPath).append("'>📁 <b>").append(f.getName()).append("</b></a>");
+                            html.append("<a href='").append(fRelPath).append("'>📁 <b>").append(f.getName()).append("</b></a>");
                         } else {
-                            html.append("<a href='").append(relPath).append("'>📄 ").append(f.getName()).append(" (").append(f.length() / 1024).append(" KB)</a>");
+                            html.append("<a href='").append(fRelPath).append("'>📄 ").append(f.getName()).append(" (").append(f.length() / 1024).append(" KB)</a>");
                         }
                     }
+                } else {
+                    html.append("<p style='color:#EF4444;'>⚠️ Не удалось прочитать содержимое папки (нужны разрешения)</p>");
                 }
                 html.append("</body></html>");
 
