@@ -61,7 +61,7 @@ public class MainActivity extends Activity {
         root.addView(title);
 
         infoView = new TextView(this);
-        infoView.setText("Инструкция:\n1. Выключите мобильный интернет (оставьте только точку доступа Wi-Fi).\n2. Подключите ПК к точке доступа.\n3. Запустите сервер и введите ссылку в браузере ПК.");
+        infoView.setText("Инструкция:\n1. Включите точку доступа Wi-Fi (моб. интернет можно не выключать, IP определится правильно).\n2. Подключите ПК к точке доступа.\n3. Запустите сервер и введите ссылку в браузере ПК.");
         infoView.setTextColor(Color.parseColor("#94A3B8"));
         infoView.setTextSize(13f);
         infoView.setPadding(20, 20, 20, 20);
@@ -195,8 +195,27 @@ public class MainActivity extends Activity {
         statusView.setText("Статус: Сервер остановлен");
     }
 
+    // ИСПРАВЛЕННЫЙ ПОИСК IP: Приоритет сети 192.168. (точка доступа Wi-Fi) с отсечением мобильного интернета
     private String getLocalIpAddress() {
         try {
+            // Шаг 1: Ищем строго подсеть 192.168. (стандарт для точки доступа Android)
+            for (NetworkInterface intf : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+                String name = intf.getName().toLowerCase();
+                if (name.contains("rmnet") || name.contains("ccmni") || name.contains("pdp") || name.contains("wwan") || name.contains("tun")) {
+                    continue;
+                }
+                for (InetAddress addr : Collections.list(intf.getInetAddresses())) {
+                    if (!addr.isLoopbackAddress()) {
+                        String sAddr = addr.getHostAddress();
+                        if (sAddr != null && sAddr.indexOf(':') < 0) {
+                            if (sAddr.startsWith("192.168.")) {
+                                return sAddr;
+                            }
+                        }
+                    }
+                }
+            }
+            // Шаг 2: Если 192.168 не найдено, берем любой не-loopback IPv4, кроме мобильных
             for (NetworkInterface intf : Collections.list(NetworkInterface.getNetworkInterfaces())) {
                 String name = intf.getName().toLowerCase();
                 if (name.contains("rmnet") || name.contains("ccmni") || name.contains("pdp") || name.contains("wwan")) {
@@ -206,7 +225,7 @@ public class MainActivity extends Activity {
                     if (!addr.isLoopbackAddress()) {
                         String sAddr = addr.getHostAddress();
                         if (sAddr != null && sAddr.indexOf(':') < 0) {
-                            if (sAddr.startsWith("192.168.") || sAddr.startsWith("10.") || sAddr.startsWith("172.")) {
+                            if (!sAddr.startsWith("127.")) {
                                 return sAddr;
                             }
                         }
@@ -287,7 +306,6 @@ public class MainActivity extends Activity {
                 out.write(httpResponse.getBytes("UTF-8"));
             } else {
                 String mime = "application/octet-stream";
-                // ИСПРАВЛЕНИЕ: заменено с target.getName() на targetFile.getName()
                 String header = "HTTP/1.1 200 OK\r\nContent-Type: " + mime + "\r\nContent-Length: " + targetFile.length() + "\r\nContent-Disposition: attachment; filename=\"" + targetFile.getName() + "\"\r\n\r\n";
                 out.write(header.getBytes());
 
