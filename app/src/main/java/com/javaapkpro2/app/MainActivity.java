@@ -18,6 +18,7 @@ import android.os.Looper;
 import android.provider.OpenableColumns;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -465,22 +466,35 @@ public class MainActivity extends Activity {
         java.util.List<RepoItem> subFiles = new java.util.ArrayList<>();
 
         String prefix = currentDir.isEmpty() ? "" : currentDir + "/";
+        int prefixLen = prefix.length();
+
         for (RepoItem item : allItems) {
             if (currentDir.isEmpty()) {
+                if (item.path.equals(currentDir)) continue;
                 int slashIdx = item.path.indexOf('/');
                 if (slashIdx == -1) {
-                    subFiles.add(item);
+                    if ("tree".equals(item.type)) {
+                        subFolders.add(item.path);
+                    } else if ("blob".equals(item.type)) {
+                        subFiles.add(item);
+                    }
                 } else {
-                    subFolders.add(item.path.substring(0, slashIdx));
+                    String topFolder = item.path.substring(0, slashIdx);
+                    subFolders.add(topFolder);
                 }
             } else {
-                if (item.path.startsWith(prefix) && item.path.length() > prefix.length()) {
-                    String subPath = item.path.substring(prefix.length());
+                if (item.path.startsWith(prefix) && item.path.length() > prefixLen) {
+                    String subPath = item.path.substring(prefixLen);
                     int slashIdx = subPath.indexOf('/');
                     if (slashIdx == -1) {
-                        subFiles.add(item);
+                        if ("tree".equals(item.type)) {
+                            subFolders.add(subPath);
+                        } else if ("blob".equals(item.type)) {
+                            subFiles.add(item);
+                        }
                     } else {
-                        subFolders.add(subPath.substring(0, slashIdx));
+                        String subFolder = subPath.substring(0, slashIdx);
+                        subFolders.add(subFolder);
                     }
                 }
             }
@@ -503,13 +517,26 @@ public class MainActivity extends Activity {
         }
 
         for (RepoItem fileItem : subFiles) {
-            displayItems.add("📄 Файл: " + fileItem.path.substring(prefix.length()) + " (" + fileItem.size + " байт)");
+            displayItems.add("📄 Файл: " + fileItem.path.substring(prefixLen) + " (" + fileItem.size + " байт)");
             itemPaths.add(fileItem.path);
             isFolderList.add(false);
         }
 
         ListView listView = new ListView(this);
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, displayItems);
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, displayItems) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                View view = super.getView(position, convertView, parent);
+                TextView tv = view.findViewById(android.R.id.text1);
+                if (tv != null) {
+                    tv.setTextColor(Color.parseColor("#E2E8F0"));
+                    tv.setTextSize(13f);
+                    tv.setPadding(15, 12, 15, 12);
+                }
+                view.setBackgroundColor(Color.parseColor("#0F172A"));
+                return view;
+            }
+        };
         listView.setAdapter(adapter);
         
         LinearLayout.LayoutParams listParams = new LinearLayout.LayoutParams(
