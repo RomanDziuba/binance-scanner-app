@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.roma.nativeapp'
+    namespace 'com.smulezagruzka.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roma.nativeapp"
+        applicationId "com.smulezagruzka.app"
         minSdk 26
         targetSdk 34
         versionCode 1
