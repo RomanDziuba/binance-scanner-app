@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.smuledrv.app'
+    namespace 'com.roma.nativeapp'
     compileSdk 34
     defaultConfig {
-        applicationId "com.smuledrv.app"
+        applicationId "com.roma.nativeapp"
         minSdk 26
         targetSdk 34
         versionCode 1
-        versionName "1.1"
+        versionName "1.0"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
