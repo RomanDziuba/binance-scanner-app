@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v4.7 ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v4.8 ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -133,7 +133,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🚀 Android Monster Compiler (Gradle 8.5 Fixed)");
+        titleView.setText("🚀 Android Monster Compiler (AAPT2 Fixed)");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -773,7 +773,7 @@ public class MainActivity extends Activity {
                         Toast.makeText(MainActivity.this, "Иконка обновлена!", Toast.LENGTH_SHORT).show();
                     }
                 });
-            }).start();
+            }.start();
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка иконки", Toast.LENGTH_SHORT).show();
         }
@@ -797,7 +797,13 @@ public class MainActivity extends Activity {
                 boolean repaired = false;
                 StringBuilder diagnosticReport = new StringBuilder("=== 🤖 SMART AI-ДОКТОР: ОТЧЕТ АНАЛИЗА ===\n\n");
 
-                // 1. Анализ пропущенных импортов WebKit
+                // 1. Анализ ошибок AAPT2 / Ресурсов
+                if (lastErrorLog.contains("AAPT2") || lastErrorLog.contains("aapt2") || lastErrorLog.contains("resource") || lastErrorLog.contains("failed linking")) {
+                    diagnosticReport.append("🔍 Обнаружено: Ошибка компиляции ресурсов AAPT2.\n");
+                    diagnosticReport.append("💡 Рекомендация: Проверьте имена файлов в res/ и корректность манифеста.\n");
+                }
+
+                // 2. Анализ пропущенных импортов WebKit
                 if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("WebView") || lastErrorLog.contains("WebSettings") || lastErrorLog.contains("WebViewClient"))) {
                     diagnosticReport.append("🔍 Обнаружено: Использование WebView без импортов.\n");
                     if (!fixedCode.contains("import android.webkit.WebView;")) {
@@ -807,7 +813,7 @@ public class MainActivity extends Activity {
                     }
                 }
 
-                // 2. Анализ пропущенных AppCompat импортов
+                // 3. Анализ пропущенных AppCompat импортов
                 if (lastErrorLog.contains("AppCompatActivity") || lastErrorLog.contains("androidx.")) {
                     diagnosticReport.append("🔍 Обнаружено: Использование компонентов AndroidX / AppCompat.\n");
                     if (!fixedCode.contains("import androidx.appcompat.app.AppCompatActivity;")) {
@@ -817,7 +823,7 @@ public class MainActivity extends Activity {
                     }
                 }
 
-                // 3. Анализ отсутствующих коллекций и утилит (List, Set, Pattern, Matcher)
+                // 4. Анализ отсутствующих коллекций и утилит (List, Set, Pattern, Matcher)
                 if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("List") || lastErrorLog.contains("Pattern") || lastErrorLog.contains("Matcher") || lastErrorLog.contains("Set"))) {
                     diagnosticReport.append("🔍 Обнаружено: Пропущены импорты Java Util или Regex.\n");
                     if (!fixedCode.contains("import java.util.*;")) {
@@ -827,25 +833,11 @@ public class MainActivity extends Activity {
                     }
                 }
 
-                // 4. Анализ ошибок ресурсов R
-                if (lastErrorLog.contains("R cannot be resolved") || lastErrorLog.contains("error: cannot find symbol variable R")) {
-                    diagnosticReport.append("🔍 Обнаружено: Неверная или неразрешенная ссылка на ресурсы (R.id / R.layout).\n");
-                    fixedCode = fixedCode.replaceAll("R\\.[a-z]+\\.[a-zA-Z0-9_]+", "/* Авто-заглушка сомнительного ресурса */ View.VISIBLE");
-                    repaired = true;
-                    diagnosticReport.append("✅ Исправление: Заменены неразрешенные R-ссылки для предотвращения краша компилятора.\n");
-                }
-
-                // 5. Анализ проблем с синтаксисом (отсутствующие точки с запятой или скобки)
-                if (lastErrorLog.contains("error: ';' expected") || lastErrorLog.contains("error: reached end of file while parsing")) {
-                    diagnosticReport.append("🔍 Обнаружено: Синтаксическая ошибка (пропущена ';' или фигурная скобка '}')\n");
-                    diagnosticReport.append("💡 Рекомендация: Откройте встроенный Редактор кода и проверьте последние добавленные строки.\n");
-                }
-
                 if (!repaired) {
-                    diagnosticReport.append("⚠️ Автоматический паттерн для данной ошибки не найден.\n");
-                    diagnosticReport.append("💡 Рекомендуем проверить логи ниже или отредактировать код вручную в редакторе.");
+                    diagnosticReport.append("⚠️ Автоматический паттерн для данной ошибки не найден в коде.\n");
+                    diagnosticReport.append("💡 Ошибка связана с ресурсами или конфигурацией сборки. Проверьте лог выше.");
                 } else {
-                    diagnosticReport.append("\n🎉 Все найденные автоматические ошибки успешно исправлены! Нажмите кнопку компиляции заново.");
+                    diagnosticReport.append("\n🎉 Исправления применены! Запустите сборку заново.");
                 }
 
                 final boolean success = repaired;
@@ -856,9 +848,9 @@ public class MainActivity extends Activity {
                     if (success) {
                         activeCodeContent = newCode;
                         saveSettings();
-                        statusTextView.setText("Статус: ✅ AI-Доктор успешно применил патчи!");
+                        statusTextView.setText("Статус: ✅ AI-Доктор применил патчи!");
                     } else {
-                        statusTextView.setText("Статус: ⚠️ Требуется ручная проверка кода");
+                        statusTextView.setText("Статус: ⚠️ Требуется проверка ресурсов");
                     }
                     logEditText.setText(reportStr);
                 });
@@ -1167,9 +1159,6 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    // ==========================================
-    // 🔍 ПРОФЕССИОНАЛЬНЫЙ АНАЛИЗАТОР ЛОГОВ (PRO)
-    // ==========================================
     private void fetchLogsAsync(long runId) {
         new Thread(() -> {
             try {
@@ -1202,7 +1191,7 @@ public class MainActivity extends Activity {
                             
                             String[] lines = lastErrorLog.split("\n");
                             for (String logLine : lines) {
-                                if (logLine.contains("error:") || logLine.contains("FAILED") || logLine.contains("Exception") || logLine.contains("* What went wrong:")) {
+                                if (logLine.contains("error:") || logLine.contains("FAILED") || logLine.contains("Exception") || logLine.contains("AAPT2") || logLine.contains("* What went wrong:")) {
                                     professionalReport.append("❌ ").append(logLine.trim()).append("\n");
                                     foundErrorBlock = true;
                                 }
@@ -1211,7 +1200,7 @@ public class MainActivity extends Activity {
                             if (!foundErrorBlock) {
                                 professionalReport.append(lastErrorLog.length() > 2500 ? lastErrorLog.substring(lastErrorLog.length() - 2500) : lastErrorLog);
                             } else {
-                                professionalReport.append("\n💡 Совет: Нажмите кнопку 'Smart AI-Доктор' выше, чтобы попытаться автоматически исправить эти ошибки в коде!");
+                                professionalReport.append("\n💡 Совет: Нажмите кнопку 'Smart AI-Доктор' выше для автоматического анализа!");
                             }
 
                             handler.post(() -> {
@@ -1356,7 +1345,7 @@ public class MainActivity extends Activity {
                "          echo \"y\" | sdkmanager --licenses || true\n" +
                "          sdkmanager \"platform-tools\" \"platforms;android-" + compileSdk + "\" \"build-tools;34.0.0\"\n" +
                "      - name: Build APK\n        run: |\n" +
-               "          gradle clean assembleDebug --info --stacktrace --no-daemon\n" +
+               "          gradle clean assembleDebug --stacktrace --no-daemon\n" +
                "      - name: Send to Telegram\n        if: success()\n        run: |\n" +
                "          APK_PATH=$(find app/build/outputs/apk/debug/ -name \"*.apk\" | head -n 1)\n" +
                "          echo \"Found APK: $APK_PATH\"\n" +
