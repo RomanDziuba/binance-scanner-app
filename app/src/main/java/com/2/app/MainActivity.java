@@ -14,6 +14,7 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.webkit.WebResourceRequest;
@@ -132,7 +133,7 @@ public class MainActivity extends Activity {
         card.addView(statusText);
 
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Консоль отладки этапов дешифрования:");
+        logLabel.setText("📋 Консоль отладки этапов дешифрования (Real-time):");
         logLabel.setTextColor(Color.parseColor("#64748B"));
         logLabel.setTextSize(11f);
         card.addView(logLabel);
@@ -148,6 +149,7 @@ public class MainActivity extends Activity {
         logEditText.setGravity(Gravity.TOP);
         logEditText.setMinLines(10);
         logEditText.setMaxLines(16);
+        logEditText.setFocusable(true);
         card.addView(logEditText);
 
         btnCopyLogs = createStyledButton("📋 Скопировать лог отладки", "#475569");
@@ -237,6 +239,7 @@ public class MainActivity extends Activity {
         interceptedMediaUrls.clear();
         downloadButtonsLayout.removeAllViews();
         debugLogBuilder.setLength(0);
+        logEditText.setText(""); // Очищаем поле логов перед запуском
 
         appendLog("=== [ЭТАП 1] ЗАПУСК УНИВЕРСАЛЬНОГО ПАРСЕРА ===");
         appendLog("Цель: " + targetUrl);
@@ -255,7 +258,9 @@ public class MainActivity extends Activity {
                 // УНИВЕРСАЛЬНЫЙ ФИЛЬТР: ловит любые видео, аудио, картинки и документы с любого сайта
                 if (reqUrl.matches(".*\\.(mp4|m4a|mp3|wav|aac|ogg|flac|m3u8|ts|jpg|jpeg|png|webp|gif|svg|pdf|txt|doc|docx)(\\?.*)?$")) {
                     synchronized (interceptedMediaUrls) {
-                        interceptedMediaUrls.add(reqUrl);
+                        if (interceptedMediaUrls.add(reqUrl)) {
+                            appendLog("🔗 Перехвачен файл: " + reqUrl);
+                        }
                     }
                 }
                 return super.shouldInterceptRequest(view, request);
@@ -264,7 +269,7 @@ public class MainActivity extends Activity {
             @Override
             public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
                 super.onReceivedError(view, errorCode, description, failingUrl);
-                appendLog("❌ Ошибка загрузки страницы: " + description);
+                appendLog("❌ Ошибка загрузки страницы [Код " + errorCode + "]: " + description);
             }
 
             @Override
@@ -309,7 +314,6 @@ public class MainActivity extends Activity {
             if (!TextUtils.isEmpty(cleanText)) {
                 String normalizedText = cleanText.replaceAll("[\\t\\r]+", " ").replaceAll("\\n\\s*\n", "\n").trim();
                 
-                // ИСПРАВЛЕНО: добавлено .length() вместо .length
                 if (normalizedText.length() > 600) {
                     normalizedText = normalizedText.substring(0, 600) + "... [текст обрезано для читаемости]";
                 }
@@ -323,13 +327,22 @@ public class MainActivity extends Activity {
                 buildDownloadButtons();
                 btnDebug.setEnabled(true);
                 statusText.setText("Статус: ✅ Успешно обработано!");
-                logEditText.setText(debugLogBuilder.toString());
             });
         }
     }
 
+    // Явный вывод логов в реальном времени в UI консоль и в Logcat
     private void appendLog(String message) {
         debugLogBuilder.append(message).append("\n");
+        Log.d("RomaExtractor", message); // Дублируем в системный Logcat Android
+
+        handler.post(() -> {
+            if (logEditText != null) {
+                logEditText.append(message + "\n");
+                // Автоматическая прокрутка к концу логов
+                logEditText.setSelection(logEditText.getText().length());
+            }
+        });
     }
 
     private void buildDownloadButtons() {
@@ -391,9 +404,11 @@ public class MainActivity extends Activity {
             if (manager != null) {
                 manager.enqueue(request);
                 Toast.makeText(this, "Загрузка началась! Проверьте шторку уведомлений.", Toast.LENGTH_LONG).show();
+                appendLog("📥 Запуск скачивания файла: " + fileName);
             }
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка загрузки: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            appendLog("❌ Ошибка загрузки файла: " + e.getMessage());
         }
     }
 }
