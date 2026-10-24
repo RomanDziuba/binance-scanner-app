@@ -48,7 +48,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Player JS Decoder Hunter ✦");
+        authorView.setText("✦ Dziuba Roman — JS Player Source Hunter ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(14f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🛠️ Поиск алгоритма расшифровки во фрейме");
+        titleView.setText("🛠️ Скачивание и анализ плеера Smule JS");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(17f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -94,12 +94,12 @@ public class MainActivity extends Activity {
         urlInput.setLayoutParams(inputParams);
         card.addView(urlInput);
 
-        btnDebug = createStyledButton("🔍 Сканировать JS-скрипты фрейма", "#2563EB");
-        btnDebug.setOnClickListener(v -> runJsHunter());
+        btnDebug = createStyledButton("🔍 Скачать player_frame.js и искать декодер", "#2563EB");
+        btnDebug.setOnClickListener(v -> downloadAndAnalyzePlayerJs());
         card.addView(btnDebug);
 
         statusText = new TextView(this);
-        statusText.setText("Статус: Готов к анализу скриптов...");
+        statusText.setText("Статус: Готов к загрузке JS плеера...");
         statusText.setTextColor(Color.parseColor("#10B981"));
         statusText.setTextSize(12f);
         statusText.setPadding(12, 10, 12, 10);
@@ -113,17 +113,18 @@ public class MainActivity extends Activity {
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
         statusParams.setMargins(0, 10, 0, 10);
+        statusText.setTextSize(12f);
         statusText.setLayoutParams(statusParams);
         card.addView(statusText);
 
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Скрипты и функции расшифровки:");
+        logLabel.setText("📋 Результаты поиска в JS-коде плеера:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
         logLabel.setTextSize(11f);
         card.addView(logLabel);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Здесь появятся JS-ссылки и вызовы функций...");
+        logEditText.setHint("Здесь появятся фрагменты кода декодера из JS...");
         logEditText.setTextSize(10f);
         logEditText.setTypeface(Typeface.MONOSPACE);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
@@ -138,7 +139,7 @@ public class MainActivity extends Activity {
         btnCopyLogs = createStyledButton("📋 Скопировать лог в буфер", "#475569");
         btnCopyLogs.setOnClickListener(v -> {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("Smule JS Debug", logEditText.getText().toString());
+            ClipData clip = ClipData.newPlainText("Smule JS Analysis", logEditText.getText().toString());
             clipboard.setPrimaryClip(clip);
             Toast.makeText(this, "Отчет скопирован!", Toast.LENGTH_SHORT).show();
         });
@@ -167,75 +168,59 @@ public class MainActivity extends Activity {
         return btn;
     }
 
-    private void runJsHunter() {
-        String urlStr = urlInput.getText().toString().trim();
-        if (urlStr.isEmpty()) {
-            Toast.makeText(this, "Введите URL", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
+    private void downloadAndAnalyzePlayerJs() {
         btnDebug.setEnabled(false);
-        statusText.setText("Статус: ⚙️ Поиск JS скриптов во фрейме...");
-        logEditText.setText("=== ПОИСК АЛГОРИТМА РАСШИФРОВКИ ===\n");
+        statusText.setText("Статус: ⚙️ Скачивание JS файла плеера...");
+        logEditText.setText("=== АНАЛИЗ player_frame.js ===\n");
 
         new Thread(() -> {
             StringBuilder logs = new StringBuilder();
             try {
-                // 1. Получаем og:video с главной
-                HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
+                // Ссылка на найденный JS плеер
+                String jsUrl = "https://w1-fa.cdn.smule.com/assets/community/player_frame-9b1955254fd1f0d9007c7112263408c9.js";
+                logs.append("Запрос к: ").append(jsUrl).append("\n\n");
+
+                HttpURLConnection conn = (HttpURLConnection) new URL(jsUrl).openConnection();
+                conn.setRequestMethod("GET");
                 setupBrowserHeaders(conn);
 
-                if (conn.getResponseCode() == 200) {
+                int code = conn.getResponseCode();
+                logs.append("HTTP Код JS файла: ").append(code).append("\n");
+
+                if (code == 200) {
                     BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-                    StringBuilder html = new StringBuilder();
+                    StringBuilder jsContent = new StringBuilder();
                     String line;
-                    while ((line = br.readLine()) != null) html.append(line).append("\n");
+                    while ((line = br.readLine()) != null) {
+                        jsContent.append(line).append("\n");
+                    }
                     br.close();
 
-                    String mainPage = html.toString().replace("\\/", "/");
-                    String realFrameUrl = null;
-                    Matcher ogMatcher = Pattern.compile("<meta\\s+property=\"og:video\"\\s+content=\"([^\"]+)\"").matcher(mainPage);
-                    if (ogMatcher.find()) realFrameUrl = ogMatcher.group(1);
+                    String jsText = jsContent.toString();
+                    logs.append("Размер JS файла: ").append(jsText.length()).append(" символов\n\n");
 
-                    if (realFrameUrl == null) realFrameUrl = urlStr + "/frame/box";
-
-                    // 2. Загружаем сам фрейм
-                    HttpURLConnection frameConn = (HttpURLConnection) new URL(realFrameUrl).openConnection();
-                    setupBrowserHeaders(frameConn);
-
-                    if (frameConn.getResponseCode() == 200) {
-                        BufferedReader fBr = new BufferedReader(new InputStreamReader(frameConn.getInputStream(), StandardCharsets.UTF_8));
-                        StringBuilder fHtml = new StringBuilder();
-                        while ((line = fBr.readLine()) != null) fHtml.append(line).append("\n");
-                        fBr.close();
-
-                        String fContent = fHtml.toString().replace("\\/", "/");
-
-                        // 3. Вытягиваем все внешние JS скрипты из фрейма (<script src="...">)
-                        logs.append("--- Внешние JS скрипты во фрейме ---\n");
-                        Matcher jsSrcMatcher = Pattern.compile("<script[^>]+src=\"([^\"]+)\"").matcher(fContent);
-                        boolean foundJs = false;
-                        while (jsSrcMatcher.find()) {
-                            foundJs = true;
-                            logs.append("📜 ").append(jsSrcMatcher.group(1)).append("\n");
+                    // Ищем функции расшифровки или работы со строкой 'e:'
+                    logs.append("--- Строки с функциями расшифровки / обработки URL ---\n");
+                    String[] rows = jsText.split("[;\\n]");
+                    int foundCount = 0;
+                    for (String r : rows) {
+                        if ((r.contains("atob") || r.contains("charCodeAt") || r.contains("media_url") || r.contains("decrypt") || r.contains(".substring(2)")) && r.length() < 300) {
+                            logs.append("🔍 ").append(r.trim()).append("\n\n");
+                            foundCount++;
+                            if (foundCount >= 20) {
+                                logs.append("... (показано первые 20 совпадений)\n");
+                                break;
+                            }
                         }
-                        if (!foundJs) logs.append("Внешние JS-скрипты не найдены.\n");
+                    }
 
-                        // 4. Показываем конец кода фрейма (символы с 2000 по 4000)
-                        logs.append("\n--- Код фрейма (символы 2000 - 4500) ---\n");
-                        if (fContent.length() > 2000) {
-                            int end = Math.min(fContent.length(), 4500);
-                            logs.append(fContent.substring(2000, end));
-                        } else {
-                            logs.append("Длина фрейма меньше 2000 символов.");
-                        }
-
-                    } else {
-                        logs.append("Ошибка фрейма: ").append(frameConn.getResponseCode());
+                    if (foundCount == 0) {
+                        logs.append("Прямых совпадений по ключевым словам не найдено. Выводим фрагмент кода:\n");
+                        logs.append(jsText.length() > 1000 ? jsText.substring(0, 1000) : jsText);
                     }
 
                 } else {
-                    logs.append("Ошибка основной страницы: ").append(conn.getResponseCode());
+                    logs.append("Ошибка скачивания JS. Код: ").append(code);
                 }
 
             } catch (Exception e) {
@@ -245,7 +230,7 @@ public class MainActivity extends Activity {
             final String finalLogs = logs.toString();
             handler.post(() -> {
                 btnDebug.setEnabled(true);
-                statusText.setText("Статус: ✅ Поиск завершен!");
+                statusText.setText("Статус: ✅ Анализ JS завершен!");
                 logEditText.setText(finalLogs);
             });
         }).start();
@@ -253,7 +238,8 @@ public class MainActivity extends Activity {
 
     private void setupBrowserHeaders(HttpURLConnection conn) {
         conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
-        conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
+        conn.setRequestProperty("Accept", "*/*");
+        conn.setRequestProperty("Referer", "https://www.smule.com/");
         conn.setConnectTimeout(15000);
         conn.setReadTimeout(15000);
     }
