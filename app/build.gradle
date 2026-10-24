@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.monster.clock'
+    namespace 'com.vzlom.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.monster.clock"
+        applicationId "com.vzlom.app"
         minSdk 21
         targetSdk 34
         versionCode 1
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "Monster Clock-v1.0-" + variant.name + ".apk"
+            outputFileName = "vzlom-v1.0-" + variant.name + ".apk"
         }
     }
 }
