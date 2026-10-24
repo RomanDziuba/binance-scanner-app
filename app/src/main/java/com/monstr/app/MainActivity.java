@@ -32,7 +32,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 import java.util.zip.ZipFile;
 
 public class MainActivity extends Activity {
@@ -109,7 +108,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v4.6 ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v4.7 ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -171,7 +170,7 @@ public class MainActivity extends Activity {
         btnFileManager.setOnClickListener(v -> openRepositoryFileManager());
         card.addView(btnFileManager);
 
-        // Кнопка редактора кода с измененным темно-синим (почти черным) фоном и без слова "с подсказками"
+        // Кнопка редактора кода (темно-синий/почти черный фон, без слова "с подсказками")
         btnCodeEditor = createStyledButton("📝 Редактор кода", "#0A0F1D");
         btnCodeEditor.setOnClickListener(v -> openCodeEditorDialog());
         card.addView(btnCodeEditor);
@@ -188,12 +187,12 @@ public class MainActivity extends Activity {
         btnDecompileApk.setOnClickListener(v -> openUniversalFilePicker());
         card.addView(btnDecompileApk);
 
-        // Разделенная кнопка сброса (Часть 1: Сброс часов)
+        // Часть 1 сброса: Сброс часов
         btnResetClock = createStyledButton("🔄 Сбросить к часам (Monster Clock)", "#B45309");
         btnResetClock.setOnClickListener(v -> confirmResetProject());
         card.addView(btnResetClock);
 
-        // Разделенная кнопка сброса (Часть 2: Полная очистка репозитория и восстановление часов)
+        // Часть 2 сброса: Полная очистка репозитория и часов
         btnFullRepoClean = createStyledButton("🗑 Полная очистка репозитория и часов", "#991B1B");
         btnFullRepoClean.setOnClickListener(v -> confirmFullRepositoryClean());
         card.addView(btnFullRepoClean);
@@ -703,8 +702,8 @@ public class MainActivity extends Activity {
     }
 
     private void processSelectedJavaFile(Uri uri) {
-        String fileName = getFileNameFromUri(uri);
-        if (fileName == null) fileName = "Custom.java";
+        String rawName = getFileNameFromUri(uri);
+        final String fileName = (rawName != null) ? rawName : "Custom.java";
         try {
             InputStream is = getContentResolver().openInputStream(uri);
             BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
@@ -720,17 +719,19 @@ public class MainActivity extends Activity {
             activeCodeContent = sanitizeAndInjectJavaCode(code, packageName);
             currentJavaFileName = fileName;
             saveSettings();
-            Toast.makeText(this, "Java файл загружен в редактор: " + fileName, Toast.LENGTH_SHORT).show();
-            logEditText.setText("=== 📂 ФАЙЛ ЗАГРУЖЕН ===\n• Имя: " + fileName + "\n• Откройте Редактор кода, чтобы просмотреть или изменить содержимое.");
+            
+            handler.post(() -> {
+                Toast.makeText(this, "Java файл загружен в редактор: " + fileName, Toast.LENGTH_SHORT).show();
+                logEditText.setText("=== 📂 ФАЙЛ УСПЕШНО ЗАГРУЖЕН ===\n• Имя: " + fileName + "\n• Загружен в редактор кода.");
+            });
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка чтения: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
-    // Универсальный обработчик декомпиляции и распаковки любых файлов (apk, zip, rar, java)
     private void processUniversalFileForDecompilation(Uri uri) {
-        String fileName = getFileNameFromUri(uri);
-        if (fileName == null) fileName = "archive.file";
+        String rawName = getFileNameFromUri(uri);
+        final String fileName = (rawName != null) ? rawName : "archive.file";
         final String lowerName = fileName.toLowerCase();
 
         statusTextView.setText("Статус: 🔄 Обработка и декомпиляция файла...");
@@ -745,7 +746,6 @@ public class MainActivity extends Activity {
                 }
 
                 if (lowerName.endsWith(".apk") || lowerName.endsWith(".zip") || lowerName.endsWith(".rar")) {
-                    // Обработка архивов/APK
                     try {
                         ZipFile zip = new ZipFile(tempFile);
                         ZipEntry dex = zip.getEntry("classes.dex");
@@ -763,12 +763,11 @@ public class MainActivity extends Activity {
                     tempFile.delete();
                     handler.post(() -> {
                         statusTextView.setText("Статус: ✅ Файл успешно распакован/декомпилирован!");
-                        Toast.makeText(this, "Архив/APK обработан. Пакет: " + packageName, Toast.LENGTH_LONG).show();
-                        logEditText.setText("=== 📦 ДЕКОМПИЛЯЦИЯ УСПЕШНА ===\n• Файл: " + fileName + "\n• Определенный пакет: " + packageName + "\n• Вы можете просмотреть файлы через Файловый менеджер репозитория.");
+                        Toast.makeText(MainActivity.this, "Архив/APK обработан. Пакет: " + packageName, Toast.LENGTH_LONG).show();
+                        logEditText.setText("=== 📦 ДЕКОМПИЛЯЦИЯ УСПЕШНА ===\n• Файл: " + fileName + "\n• Определенный пакет: " + packageName);
                         updateAllButtonLabels();
                     });
                 } else {
-                    // Текстовый / Java файл
                     InputStream is = getContentResolver().openInputStream(uri);
                     BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
                     StringBuilder sb = new StringBuilder();
@@ -787,8 +786,8 @@ public class MainActivity extends Activity {
                     handler.post(() -> {
                         saveSettings();
                         statusTextView.setText("Статус: ✅ Файл загружен в редактор!");
-                        Toast.makeText(this, "Файл загружен: " + fileName, Toast.LENGTH_SHORT).show();
-                        logEditText.setText("=== 📝 ФАЙЛ ЗАГРУЖЕН В РЕДАКТОР ===\n• Имя: " + fileName + "\n• Теперь он доступен в редакторе кода.");
+                        Toast.makeText(MainActivity.this, "Файл загружен: " + fileName, Toast.LENGTH_SHORT).show();
+                        logEditText.setText("=== 📄 ФАЙЛ УСПЕШНО ЗАГРУЖЕН ===\n• Имя: " + fileName + "\n• Загружен в редактор кода.");
                         updateAllButtonLabels();
                     });
                 }
@@ -826,9 +825,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // ==========================================
-    // 🧠 УМНЫЙ СТАТИЧЕСКИЙ AI-ДОКТОР & ПАРСЕР ЛОГОВ (PRO)
-    // ==========================================
     private void runAiCodeDoctor() {
         if (lastErrorLog.isEmpty()) {
             Toast.makeText(this, "ℹ️ Нет ошибок для анализа. Сначала запустите сборку!", Toast.LENGTH_LONG).show();
@@ -1197,9 +1193,6 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    // ==========================================
-    // 🔍 ПРОФЕССИОНАЛЬНЫЙ АНАЛИЗАТОР ЛОГОВ (PRO С УКАЗАНИЕМ СТРОК)
-    // ==========================================
     private void fetchLogsAsync(long runId) {
         new Thread(() -> {
             try {
@@ -1277,12 +1270,11 @@ public class MainActivity extends Activity {
             .show();
     }
 
-    // Часть 2 сброса: Полная очистка репозитория и восстановление часов
     private void confirmFullRepositoryClean() {
         new AlertDialog.Builder(this)
             .setTitle("🗑 Полная очистка репозитория")
-            .setMessage("ВНИМАНИЕ: Это полностью очистит репозиторий на GitHub (удалит старые файлы/мусор) и восстановит стандартные часы по умолчанию. Продолжить?")
-            .setYesButton("Очистить все", (dialog, which) -> performFullRepositoryCleanAndReset())
+            .setMessage("ВНИМАНИЕ: Это полностью очистит репозиторий на GitHub и восстановит стандартные часы по умолчанию. Продолжить?")
+            .setPositiveButton("Очистить все", (dialog, which) -> performFullRepositoryCleanAndReset())
             .setNegativeButton("Отмена", null)
             .show();
     }
@@ -1299,7 +1291,6 @@ public class MainActivity extends Activity {
 
         new Thread(() -> {
             try {
-                // Сначала сбрасываем локальное состояние к часам
                 activeCodeContent = generateClockTemplate();
                 currentJavaFileName = "Шаблон: Часы с фонариком и яркостью";
                 appTitle = "MonsterClock";
@@ -1307,7 +1298,6 @@ public class MainActivity extends Activity {
                 appVersion = "1.0";
                 saveSettings();
 
-                // Синхронизируем чистый проект с нуля (перезаписываем основные файлы)
                 boolean synced = pushFileToGitHub("build.gradle", getRootGradleContent(), "Clean & Reset root gradle") &&
                                  pushFileToGitHub("settings.gradle", getSettingsGradleContent(), "Clean & Reset settings") &&
                                  pushFileToGitHub("local.properties", "sdk.dir=/usr/local/lib/android/sdk\n", "Clean & Reset local.properties") &&
@@ -1320,7 +1310,7 @@ public class MainActivity extends Activity {
                     if (synced) {
                         statusTextView.setText("Статус: ✅ Репозиторий полностью очищен и восстановлен!");
                         Toast.makeText(MainActivity.this, "Репозиторий очищен и восстановлен!", Toast.LENGTH_LONG).show();
-                        logEditText.setText("=== 🗑 ПОЛНАЯ ОЧИСТКА УСПЕШНА ===\n• Репозиторий очищен от мусора.\n• Восстановлен шаблон Monster Clock.\n• Пакет: com.monster.clock");
+                        logEditText.setText("=== 🗑 ПОЛНАЯ ОЧИСТКА УСПЕШНА ===\n• Репозиторий очищен.\n• Восстановлен шаблон Monster Clock.");
                     } else {
                         statusTextView.setText("Статус: ❌ Ошибка очистки репозитория");
                         Toast.makeText(MainActivity.this, "Ошибка при очистке", Toast.LENGTH_SHORT).show();
@@ -1343,10 +1333,8 @@ public class MainActivity extends Activity {
             .setView(input)
             .setPositiveButton("Сохранить", (dialog, which) -> {
                 appTitle = input.getText().toString().trim();
-                // Безопасная санитизация: даже если в имени есть цифры, пакет формируется без падений
                 String sanitized = appTitle.toLowerCase().replaceAll("[^a-z0-9]", "");
                 if (sanitized.isEmpty()) sanitized = "app";
-                // Если имя начинается с цифры, добавляем префикс буквы, чтобы пакет был валидным для Android
                 if (Character.isDigit(sanitized.charAt(0))) {
                     sanitized = "n" + sanitized;
                 }
