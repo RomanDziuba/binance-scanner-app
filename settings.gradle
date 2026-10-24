@@ -1,2 +1,2 @@
-rootProject.name = "RomaClockApp"
+rootProject.name = "монстр_компилятор_2"
 include ':app'
