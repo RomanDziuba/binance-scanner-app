@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "monster compiler-v1.0-" + variant.name + ".apk"
+            outputFileName = "monstercompiler-v1.0-" + variant.name + ".apk"
         }
     }
 }
