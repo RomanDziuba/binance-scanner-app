@@ -48,7 +48,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Deep HTML Scanner ✦");
+        authorView.setText("✦ Dziuba Roman — Frame/Box Hunter ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(14f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🛠️ Глубокий сканер HTML и тегов плеера");
+        titleView.setText("🛠️ Анализ страницы /frame/box");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(17f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -94,12 +94,12 @@ public class MainActivity extends Activity {
         urlInput.setLayoutParams(inputParams);
         card.addView(urlInput);
 
-        btnDebug = createStyledButton("🔍 Сканировать теги плеера и HTML", "#2563EB");
-        btnDebug.setOnClickListener(v -> runDeepScan());
+        btnDebug = createStyledButton("🔍 Запросить /frame/box и искать видео", "#2563EB");
+        btnDebug.setOnClickListener(v -> runFrameBoxScan());
         card.addView(btnDebug);
 
         statusText = new TextView(this);
-        statusText.setText("Статус: Готов к глубокому сканированию...");
+        statusText.setText("Статус: Ожидание сканирования фрейма...");
         statusText.setTextColor(Color.parseColor("#10B981"));
         statusText.setTextSize(12f);
         statusText.setPadding(12, 10, 12, 10);
@@ -117,13 +117,13 @@ public class MainActivity extends Activity {
         card.addView(statusText);
 
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Найденные медиа-теги и структуры:");
+        logLabel.setText("📋 Результаты анализа /frame/box:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
         logLabel.setTextSize(11f);
         card.addView(logLabel);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Здесь появятся найденные теги и ссылки...");
+        logEditText.setHint("Здесь появятся данные из фрейма плеера...");
         logEditText.setTextSize(10f);
         logEditText.setTypeface(Typeface.MONOSPACE);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
@@ -138,7 +138,7 @@ public class MainActivity extends Activity {
         btnCopyLogs = createStyledButton("📋 Скопировать лог в буфер", "#475569");
         btnCopyLogs.setOnClickListener(v -> {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("Smule Deep Scan", logEditText.getText().toString());
+            ClipData clip = ClipData.newPlainText("Smule FrameBox Debug", logEditText.getText().toString());
             clipboard.setPrimaryClip(clip);
             Toast.makeText(this, "Отчет скопирован!", Toast.LENGTH_SHORT).show();
         });
@@ -167,7 +167,7 @@ public class MainActivity extends Activity {
         return btn;
     }
 
-    private void runDeepScan() {
+    private void runFrameBoxScan() {
         String urlStr = urlInput.getText().toString().trim();
         if (urlStr.isEmpty()) {
             Toast.makeText(this, "Введите URL", Toast.LENGTH_SHORT).show();
@@ -175,12 +175,13 @@ public class MainActivity extends Activity {
         }
 
         btnDebug.setEnabled(false);
-        statusText.setText("Статус: ⚙️ Поиск видео-тегов и скриптов...");
-        logEditText.setText("=== ГЛУБОКИЙ СКАНЕР HTML ===\n");
+        statusText.setText("Статус: ⚙️ Получение страницы и переход на /frame/box...");
+        logEditText.setText("=== АНАЛИЗ /frame/box ===\n");
 
         new Thread(() -> {
             StringBuilder logs = new StringBuilder();
             try {
+                // 1. Сначала загружаем основную страницу, чтобы узнать точный URL записи или перенаправление
                 URL url = new URL(urlStr);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
@@ -195,41 +196,70 @@ public class MainActivity extends Activity {
                     }
                     br.close();
 
-                    String pageContent = html.toString().replace("\\/", "/");
+                    String pageContent = html.toString();
 
-                    // 1. Поиск тегов <video>, <source>, <audio>
-                    logs.append("--- HTML Медиа-теги (<video>, <source>, <audio>) ---\n");
-                    Matcher mediaTagMatcher = Pattern.compile("<(video|source|audio)[^>]*>", Pattern.CASE_INSENSITIVE).matcher(pageContent);
-                    boolean foundTags = false;
-                    while (mediaTagMatcher.find()) {
-                        foundTags = true;
-                        logs.append("🎥 ").append(mediaTagMatcher.group(0)).append("\n\n");
-                    }
-                    if (!foundTags) {
-                        logs.append("Прямых HTML медиа-тегов в коде страницы нет (плеер создается динамически через JS).\n\n");
+                    // Ищем каноническую ссылку или собираем /frame/box из og:video
+                    String frameBoxUrl = null;
+                    Matcher ogVideoMatcher = Pattern.compile("<meta\\s+property=\"og:video\"\\s+content=\"([^\"]+)\"").matcher(pageContent);
+                    if (ogVideoMatcher.find()) {
+                        frameBoxUrl = ogVideoMatcher.group(1);
                     }
 
-                    // 2. Ищем метатеги twitter:player, twitter:image, og:video
-                    logs.append("--- Метатеги Twitter / OpenGraph ---\n");
-                    Matcher metaMatcher = Pattern.compile("<meta\\s+(?:name|property)=\"(twitter:[^\"]+|og:[^\"]+)\"\\s+content=\"([^\"]+)\"").matcher(pageContent);
-                    boolean foundMeta = false;
-                    while (metaMatcher.find()) {
-                        foundMeta = true;
-                        logs.append("🏷️ ").append(metaMatcher.group(1)).append(" = ").append(metaMatcher.group(2)).append("\n");
-                    }
-                    if (!foundMeta) {
-                        logs.append("Метатеги плеера не найдены.\n\n");
+                    if (frameBoxUrl == null) {
+                        frameBoxUrl = urlStr + "/frame/box";
                     }
 
-                    // 3. Ищем упоминания UUID записи (6376040b-1c14-4ccc-8987-43b967b3016c) в контексте других папок
-                    logs.append("\n--- Контекст использования UUID записи в коде ---\n");
-                    Matcher uuidMatcher = Pattern.compile(".{0,100}6376040b-1c14-4ccc-8987-43b967b3016c.{0,100}").matcher(pageContent);
-                    while (uuidMatcher.find()) {
-                        logs.append("📌 ").append(uuidMatcher.group(0).trim()).append("\n\n");
+                    logs.append("Целевой URL фрейма:\n").append(frameBoxUrl).append("\n\n");
+
+                    // 2. Делаем запрос на страницу /frame/box
+                    HttpURLConnection frameConn = (HttpURLConnection) new URL(frameBoxUrl).openConnection();
+                    frameConn.setRequestMethod("GET");
+                    setupBrowserHeaders(frameConn);
+
+                    int frameCode = frameConn.getResponseCode();
+                    logs.append("HTTP Код фрейма: ").append(frameCode).append("\n\n");
+
+                    if (frameCode == 200) {
+                        BufferedReader frameBr = new BufferedReader(new InputStreamReader(frameConn.getInputStream(), StandardCharsets.UTF_8));
+                        StringBuilder frameHtml = new StringBuilder();
+                        while ((line = frameBr.readLine()) != null) {
+                            frameHtml.append(line).append("\n");
+                        }
+                        frameBr.close();
+
+                        String frameContent = frameHtml.toString().replace("\\/", "/");
+                        logs.append("Размер фрейма: ").append(frameContent.length()).append(" байт\n\n");
+
+                        // Ищем теги video/source во фрейме
+                        logs.append("--- Теги video / source во фрейме ---\n");
+                        Matcher vMatcher = Pattern.compile("<(video|source)[^>]*>", Pattern.CASE_INSENSITIVE).matcher(frameContent);
+                        boolean found = false;
+                        while (vMatcher.find()) {
+                            found = true;
+                            logs.append("🎥 ").append(vMatcher.group(0)).append("\n\n");
+                        }
+                        if (!found) {
+                            logs.append("Теги video/source не найдены во фрейме.\n\n");
+                        }
+
+                        // Ищем любые прямые ссылки на .mp4 или потоки внутри фрейма
+                        logs.append("--- Прямые ссылки во фрейме ---\n");
+                        Matcher linkMatcher = Pattern.compile("https?://[^\"]+?\\.mp4[^\"]*").matcher(frameContent);
+                        boolean foundLink = false;
+                        while (linkMatcher.find()) {
+                            foundLink = true;
+                            logs.append("🔗 ").append(linkMatcher.group(0)).append("\n\n");
+                        }
+                        if (!foundLink) {
+                            logs.append("Прямых ссылок на .mp4 во фрейме не найдено.\n");
+                        }
+
+                    } else {
+                        logs.append("Не удалось загрузить фрейм. Код: ").append(frameCode);
                     }
 
                 } else {
-                    logs.append("Ошибка HTTP: ").append(conn.getResponseCode());
+                    logs.append("Ошибка HTTP основной страницы: ").append(conn.getResponseCode());
                 }
 
             } catch (Exception e) {
@@ -239,7 +269,7 @@ public class MainActivity extends Activity {
             final String finalLogs = logs.toString();
             handler.post(() -> {
                 btnDebug.setEnabled(true);
-                statusText.setText("Статус: ✅ Сканирование завершено!");
+                statusText.setText("Статус: ✅ Анализ фрейма завершен!");
                 logEditText.setText(finalLogs);
             });
         }).start();
