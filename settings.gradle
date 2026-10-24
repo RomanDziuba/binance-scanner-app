@@ -1,2 +1,2 @@
-rootProject.name = "Smule_загрузчик_DRV"
+rootProject.name = "Smule_DRV"
 include ':app'
