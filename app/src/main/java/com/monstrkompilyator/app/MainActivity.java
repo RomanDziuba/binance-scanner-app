@@ -1115,7 +1115,6 @@ public class MainActivity extends Activity {
                     Thread.sleep(6000);
                     if (!isMonitoring) break;
                     String urlStr = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/actions/runs?per_page=1";
-                    // ИСПРАВЛЕНО: корректный вызов openConnection() для HttpURLConnection
                     HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
                     conn.setRequestMethod("GET");
                     conn.setRequestProperty("Authorization", "Bearer " + githubToken);
@@ -1304,15 +1303,9 @@ public class MainActivity extends Activity {
                "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" +
                "      - name: Checkout\n        uses: actions/checkout@v4\n" +
                "      - name: Set up JDK 17\n        uses: actions/setup-java@v5\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n" +
+               "      - name: Setup Android SDK\n        uses: android-actions/setup-android@v3\n" +
                "      - name: Setup Gradle\n        uses: gradle/actions/setup-gradle@v3\n        with:\n          gradle-version: '8.5'\n          cache-disabled: true\n" +
-               "      - name: Setup Android SDK\n        run: |\n" +
-               "          export ANDROID_HOME=/usr/local/lib/android/sdk\n" +
-               "          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n" +
-               "          yes | sdkmanager --licenses || true\n" +
-               "          sdkmanager \"platform-tools\" \"platforms;android-" + compileSdk + "\" \"build-tools;34.0.0\"\n" +
                "      - name: Build APK\n        run: |\n" +
-               "          export ANDROID_HOME=/usr/local/lib/android/sdk\n" +
-               "          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n" +
                "          gradle clean assembleDebug --info --stacktrace --no-daemon\n" +
                "      - name: Send to Telegram\n        if: success()\n        run: |\n" +
                "          APK_PATH=$(find app/build/outputs/apk/debug/ -name \"*.apk\" | head -n 1)\n" +
