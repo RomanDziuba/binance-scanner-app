@@ -690,7 +690,6 @@ public class MainActivity extends Activity {
 
             statusTextView.setText("Статус: ⚙️ Загрузка файла...");
             new Thread(() -> {
-                // ИСПРАВЛЕНО: добавлено корректное объявление boolean success
                 boolean success = pushBytesToGitHub(targetPath, fileBytes, "Upload file: " + fileName);
                 handler.post(() -> {
                     if (success) {
