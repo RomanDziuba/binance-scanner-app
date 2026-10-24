@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.ro.app'
+    namespace 'com.vzlom.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.ro.app"
+        applicationId "com.vzlom.app"
         minSdk 21
         targetSdk 34
         versionCode 1
