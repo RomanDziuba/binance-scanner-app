@@ -1,23 +1,19 @@
 package com.smulezagruzka.app;
 
 import android.app.Activity;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
-import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
-import android.view.View;
 import android.widget.*;
-import org.json.JSONObject;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -27,13 +23,10 @@ import java.util.regex.Pattern;
 
 public class MainActivity extends Activity {
 
-    private EditText urlInput;
+    private EditText urlInput, logEditText;
     private TextView statusText;
-    private Button btnDownload, btnPlay;
+    private Button btnDebug, btnCopyLogs;
     private Handler handler = new Handler(Looper.getMainLooper());
-    private File downloadedFile = null;
-    private MediaPlayer mediaPlayer;
-    private boolean isPlaying = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,7 +36,7 @@ public class MainActivity extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER_HORIZONTAL);
         root.setBackgroundColor(Color.parseColor("#030712"));
-        root.setPadding(30, 30, 30, 30);
+        root.setPadding(20, 20, 20, 20);
 
         ScrollView scroll = new ScrollView(this);
         scroll.setLayoutParams(new LinearLayout.LayoutParams(
@@ -55,17 +48,17 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Smule Downloader ✦");
+        authorView.setText("✦ Dziuba Roman — Smule Video/Audio Debug ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
-        authorView.setTextSize(15f);
+        authorView.setTextSize(14f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
         authorView.setGravity(Gravity.CENTER);
-        authorView.setPadding(0, 10, 0, 20);
+        authorView.setPadding(0, 5, 0, 15);
         container.addView(authorView);
 
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(30, 30, 30, 30);
+        card.setPadding(25, 25, 25, 25);
         
         GradientDrawable cardBg = new GradientDrawable();
         cardBg.setColor(Color.parseColor("#0F172A"));
@@ -79,55 +72,77 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🎤 Скачивание песен со Smule");
+        titleView.setText("🛠️ Расширенный отладчик (Видео/Аудио)");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
-        titleView.setTextSize(18f);
+        titleView.setTextSize(17f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
         titleView.setGravity(Gravity.CENTER);
-        titleView.setPadding(0, 0, 0, 16);
+        titleView.setPadding(0, 0, 0, 12);
         card.addView(titleView);
 
         urlInput = new EditText(this);
         urlInput.setText("https://www.smule.com/c/2930392803_5270362763");
         urlInput.setTextSize(12f);
         urlInput.setTextColor(Color.parseColor("#E2E8F0"));
-        urlInput.setHintTextColor(Color.parseColor("#475569"));
         urlInput.setBackgroundColor(Color.parseColor("#030712"));
-        urlInput.setPadding(20, 20, 20, 20);
+        urlInput.setPadding(15, 15, 15, 15);
         
         LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        inputParams.setMargins(0, 0, 0, 15);
+        inputParams.setMargins(0, 0, 0, 10);
         urlInput.setLayoutParams(inputParams);
         card.addView(urlInput);
 
-        btnDownload = createStyledButton("⬇️ Найти и скачать трек", "#2563EB");
-        btnDownload.setOnClickListener(v -> startSmuleDownload());
-        card.addView(btnDownload);
-
-        btnPlay = createStyledButton("▶️ Прослушать трек", "#059669");
-        btnPlay.setVisibility(View.GONE);
-        btnPlay.setOnClickListener(v -> toggleAudioPlayback());
-        card.addView(btnPlay);
+        btnDebug = createStyledButton("🔍 Искать медиа-ссылки в HTML", "#2563EB");
+        btnDebug.setOnClickListener(v -> runDiagnostic());
+        card.addView(btnDebug);
 
         statusText = new TextView(this);
-        statusText.setText("Статус: Готов к работе\nВведите ссылку на песню Smule выше.");
+        statusText.setText("Статус: Готов к углубленному анализу...");
         statusText.setTextColor(Color.parseColor("#10B981"));
         statusText.setTextSize(12f);
-        statusText.setPadding(20, 20, 20, 20);
+        statusText.setPadding(12, 10, 12, 10);
         
         GradientDrawable statusBg = new GradientDrawable();
         statusBg.setColor(Color.parseColor("#1E293B"));
-        statusBg.setCornerRadius(14f);
+        statusBg.setCornerRadius(10f);
         statusText.setBackground(statusBg);
         
         LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        statusParams.setMargins(0, 15, 0, 0);
+        statusParams.setMargins(0, 10, 0, 10);
         statusText.setLayoutParams(statusParams);
         card.addView(statusText);
+
+        TextView logLabel = new TextView(this);
+        logLabel.setText("📋 Найденные совпадения и ссылки:");
+        logLabel.setTextColor(Color.parseColor("#64748B"));
+        logLabel.setTextSize(11f);
+        card.addView(logLabel);
+
+        logEditText = new EditText(this);
+        logEditText.setHint("Здесь появится отчет поиска видео/аудио ссылок...");
+        logEditText.setTextSize(10f);
+        logEditText.setTypeface(Typeface.MONOSPACE);
+        logEditText.setTextColor(Color.parseColor("#E2E8F0"));
+        logEditText.setHintTextColor(Color.parseColor("#475569"));
+        logEditText.setBackgroundColor(Color.parseColor("#030712"));
+        logEditText.setPadding(12, 12, 12, 12);
+        logEditText.setGravity(Gravity.TOP);
+        logEditText.setMinLines(12);
+        logEditText.setMaxLines(18);
+        card.addView(logEditText);
+
+        btnCopyLogs = createStyledButton("📋 Скопировать лог в буфер", "#475569");
+        btnCopyLogs.setOnClickListener(v -> {
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            ClipData clip = ClipData.newPlainText("Smule Video Debug", logEditText.getText().toString());
+            clipboard.setPrimaryClip(clip);
+            Toast.makeText(this, "Отчет скопирован!", Toast.LENGTH_SHORT).show();
+        });
+        card.addView(btnCopyLogs);
 
         container.addView(card);
         scroll.addView(container);
@@ -139,131 +154,107 @@ public class MainActivity extends Activity {
         Button btn = new Button(this);
         btn.setText(text);
         btn.setTextColor(Color.WHITE);
-        btn.setTextSize(13f);
+        btn.setTextSize(12f);
         btn.setTypeface(Typeface.DEFAULT_BOLD);
         btn.setBackgroundColor(Color.parseColor(colorHex));
-        btn.setPadding(20, 20, 20, 20);
+        btn.setPadding(15, 15, 15, 15);
         
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        params.setMargins(0, 0, 0, 10);
+        params.setMargins(0, 5, 0, 5);
         btn.setLayoutParams(params);
         return btn;
     }
 
-    private void startSmuleDownload() {
-        String trackUrl = urlInput.getText().toString().trim();
-        if (trackUrl.isEmpty() || !trackUrl.contains("smule.com")) {
-            Toast.makeText(this, "⚠️ Введите корректную ссылку Smule!", Toast.LENGTH_SHORT).show();
+    private void runDiagnostic() {
+        String urlStr = urlInput.getText().toString().trim();
+        if (urlStr.isEmpty()) {
+            Toast.makeText(this, "Введите URL", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        btnDownload.setEnabled(false);
-        statusText.setText("Статус: 🔄 Загрузка страницы и поиск трека...");
+        btnDebug.setEnabled(false);
+        statusText.setText("Статус: ⚙️ Анализ HTML-страницы...");
+        logEditText.setText("=== АНАЛИЗ ВИДЕО/АУДИО ПОТОКОВ ===\n");
 
         new Thread(() -> {
+            StringBuilder logs = new StringBuilder();
             try {
-                // 1. Загружаем HTML страницы трека
-                HttpURLConnection conn = (HttpURLConnection) new URL(trackUrl).openConnection();
+                URL url = new URL(urlStr);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
                 setupBrowserHeaders(conn);
 
                 int responseCode = conn.getResponseCode();
-                if (responseCode != 200) {
-                    handler.post(() -> {
-                        btnDownload.setEnabled(true);
-                        statusText.setText("Статус: ❌ Ошибка соединения (Код: " + responseCode + ")");
-                    });
-                    return;
-                }
+                logs.append("HTTP Код: ").append(responseCode).append("\n\n");
 
-                BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-                StringBuilder html = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) html.append(line).append("\n");
-                reader.close();
-
-                // Убираем экранирование слешей в JSON-данных внутри HTML
-                String htmlContent = html.toString().replace("\\/", "/");
-
-                String mediaUrl = null;
-                String trackTitle = "Smule_Track_" + System.currentTimeMillis();
-
-                // 2. Ищем название трека в <title>
-                Matcher titleMatcher = Pattern.compile("<title>(.*?)</title>").matcher(htmlContent);
-                if (titleMatcher.find()) {
-                    String rawTitle = titleMatcher.group(1);
-                    // Очищаем от лишнего мусора в названии (оставляем только саму песню)
-                    trackTitle = rawTitle.replaceAll("\\s+by\\s+.*", "").replaceAll("[^a-zA-Z0-9А-Яа-я_-]", "_");
-                }
-
-                // 3. Ищем прямую ссылку на аудио (perf_url или media_url в разметке или скриптах)
-                Matcher jsonMatcher = Pattern.compile("\"(?:perf_url|media_url|audio_url|secure_url)\"\\s*:\\s*\"([^\"]+\\.(m4a|mp3|mp4)[^\"]*)\"").matcher(htmlContent);
-                if (jsonMatcher.find()) {
-                    mediaUrl = jsonMatcher.group(1);
-                }
-
-                // Запасной вариант 1: ищем тег og:audio
-                if (mediaUrl == null || mediaUrl.isEmpty()) {
-                    Matcher ogMatcher = Pattern.compile("<meta\\s+property=\"og:audio\"\\s+content=\"([^\"]+)\"").matcher(htmlContent);
-                    if (ogMatcher.find()) {
-                        mediaUrl = ogMatcher.group(1);
+                if (responseCode == 200) {
+                    BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                    StringBuilder html = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        html.append(line).append("\n");
                     }
-                }
+                    br.close();
 
-                // Запасной вариант 2: ищем любую прямую ссылку на .m4a / .mp3 в тексте
-                if (mediaUrl == null || mediaUrl.isEmpty()) {
-                    Matcher streamMatcher = Pattern.compile("https?://[^\"]+\\.(m4a|mp3|mp4)(\\?[^\"]*)?").matcher(htmlContent);
-                    if (streamMatcher.find()) {
-                        mediaUrl = streamMatcher.group(0);
+                    // Раэкранируем слэши, чтобы видеть чистые URL в JSON
+                    String pageContent = html.toString().replace("\\/", "/");
+                    logs.append("Размер страницы: ").append(pageContent.length()).append(" байт\n\n");
+
+                    // 1. Ищем все ссылки с расширениями mp4, m4a, mp3
+                    logs.append("--- Найденные медиа-ссылки (.mp4 / .m4a / .mp3) ---\n");
+                    Matcher mediaMatcher = Pattern.compile("https?://[^\"]+?\\.(mp4|m4a|mp3)(\\?[^\"]*)?").matcher(pageContent);
+                    boolean foundMedia = false;
+                    while (mediaMatcher.find()) {
+                        foundMedia = true;
+                        logs.append("🔗 ").append(mediaMatcher.group(0)).append("\n\n");
                     }
-                }
-
-                if (mediaUrl == null || mediaUrl.isEmpty()) {
-                    handler.post(() -> {
-                        btnDownload.setEnabled(true);
-                        statusText.setText("Статус: ❌ Не удалось извлечь аудиопоток со страницы.");
-                    });
-                    return;
-                }
-
-                mediaUrl = mediaUrl.replace("&amp;", "&");
-                final String downloadMediaUrl = mediaUrl;
-                final String fileName = trackTitle + ".m4a";
-
-                handler.post(() -> statusText.setText("Статус: 📥 Аудиоссылка найдена! Скачивание..."));
-
-                // 4. Скачивание самого файла
-                HttpURLConnection audioConn = (HttpURLConnection) new URL(downloadMediaUrl).openConnection();
-                setupBrowserHeaders(audioConn);
-
-                File outputDir = getExternalFilesDir(null);
-                if (outputDir == null) outputDir = getCacheDir();
-                downloadedFile = new File(outputDir, fileName);
-
-                try (InputStream in = audioConn.getInputStream();
-                     FileOutputStream out = new FileOutputStream(downloadedFile)) {
-                    byte[] buffer = new byte[8192];
-                    int len;
-                    while ((len = in.read(buffer)) != -1) {
-                        out.write(buffer, 0, len);
+                    if (!foundMedia) {
+                        logs.append("Прямых ссылок с расширениями не найдено.\n\n");
                     }
+
+                    // 2. Ищем метатеги og:video или og:audio
+                    logs.append("--- Метатеги OpenGraph (og:video / og:audio) ---\n");
+                    Matcher ogMatcher = Pattern.compile("<meta\\s+property=\"og:(video|audio)[^\"]*\"\\s+content=\"([^\"]+)\"").matcher(pageContent);
+                    boolean foundOg = false;
+                    while (ogMatcher.find()) {
+                        foundOg = true;
+                        logs.append("🏷️ og:").append(ogMatcher.group(1)).append(" -> ").append(ogMatcher.group(2)).append("\n\n");
+                    }
+                    if (!foundOg) {
+                        logs.append("Метатеги og:video/audio не найдены.\n\n");
+                    }
+
+                    // 3. Выводим строки содержащие ключевые слова видеопотока
+                    logs.append("--- Строки со словом 'video' или 'perf' в коде ---\n");
+                    String[] rows = pageContent.split("\n");
+                    int count = 0;
+                    for (String r : rows) {
+                        if ((r.contains("video") || r.contains("perf_url") || r.contains("media_url")) && r.length() < 300) {
+                            logs.append(r.trim()).append("\n");
+                            count++;
+                            if (count > 25) { // Ограничим вывод, чтобы не переполнить экран
+                                logs.append("... (показано первые 25 строк)\n");
+                                break;
+                            }
+                        }
+                    }
+
+                } else {
+                    logs.append("Ошибка загрузки страницы. Код: ").append(responseCode);
                 }
 
-                final File savedFile = downloadedFile;
-                handler.post(() -> {
-                    btnDownload.setEnabled(true);
-                    btnPlay.setVisibility(View.VISIBLE);
-                    statusText.setText("Статус: ✅ Трек успешно скачан!\nФайл: " + fileName);
-                    Toast.makeText(MainActivity.this, "Песня сохранена!", Toast.LENGTH_LONG).show();
-                });
-
-            } catch (final Exception e) {
-                handler.post(() -> {
-                    btnDownload.setEnabled(true);
-                    statusText.setText("Статус: ❌ Ошибка: " + e.getMessage());
-                });
+            } catch (Exception e) {
+                logs.append("❌ ОШИБКА: ").append(e.toString());
             }
+
+            final String finalLogs = logs.toString();
+            handler.post(() -> {
+                btnDebug.setEnabled(true);
+                statusText.setText("Статус: ✅ Анализ завершен! Скопируйте лог.");
+                logEditText.setText(finalLogs);
+            });
         }).start();
     }
 
@@ -273,50 +264,5 @@ public class MainActivity extends Activity {
         conn.setRequestProperty("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7");
         conn.setConnectTimeout(15000);
         conn.setReadTimeout(15000);
-    }
-
-    private void toggleAudioPlayback() {
-        if (downloadedFile == null || !downloadedFile.exists()) {
-            Toast.makeText(this, "Файл не найден", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        try {
-            if (isPlaying) {
-                if (mediaPlayer != null) {
-                    mediaPlayer.stop();
-                    mediaPlayer.release();
-                    mediaPlayer = null;
-                }
-                isPlaying = false;
-                btnPlay.setText("▶️ Прослушать трек");
-                statusText.setText("Статус: ⏹ Воспроизведение остановлено");
-            } else {
-                mediaPlayer = new MediaPlayer();
-                mediaPlayer.setDataSource(downloadedFile.getAbsolutePath());
-                mediaPlayer.prepare();
-                mediaPlayer.start();
-                isPlaying = true;
-                btnPlay.setText("⏹ Остановить воспроизведение");
-                statusText.setText("Статус: 🎵 Воспроизведение песни...");
-
-                mediaPlayer.setOnCompletionListener(mp -> {
-                    isPlaying = false;
-                    btnPlay.setText("▶️ Прослушать трек");
-                    statusText.setText("Статус: ✔️ Воспроизведение завершено");
-                });
-            }
-        } catch (Exception e) {
-            Toast.makeText(this, "Ошибка воспроизведения: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (mediaPlayer != null) {
-            mediaPlayer.release();
-            mediaPlayer = null;
-        }
     }
 }
