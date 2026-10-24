@@ -48,7 +48,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Smule Video/Audio Debug ✦");
+        authorView.setText("✦ Dziuba Roman — Smule CDN Debug ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(14f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🛠️ Расширенный отладчик (Видео/Аудио)");
+        titleView.setText("🛠️ Поиск CDN и медиа-потоков Smule");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(17f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -94,12 +94,12 @@ public class MainActivity extends Activity {
         urlInput.setLayoutParams(inputParams);
         card.addView(urlInput);
 
-        btnDebug = createStyledButton("🔍 Искать медиа-ссылки в HTML", "#2563EB");
+        btnDebug = createStyledButton("🔍 Сканировать CDN-ссылки в HTML", "#2563EB");
         btnDebug.setOnClickListener(v -> runDiagnostic());
         card.addView(btnDebug);
 
         statusText = new TextView(this);
-        statusText.setText("Статус: Готов к углубленному анализу...");
+        statusText.setText("Статус: Готов к сканированию...");
         statusText.setTextColor(Color.parseColor("#10B981"));
         statusText.setTextSize(12f);
         statusText.setPadding(12, 10, 12, 10);
@@ -117,13 +117,13 @@ public class MainActivity extends Activity {
         card.addView(statusText);
 
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Найденные совпадения и ссылки:");
+        logLabel.setText("📋 Результаты сканирования CDN:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
         logLabel.setTextSize(11f);
         card.addView(logLabel);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Здесь появится отчет поиска видео/аудио ссылок...");
+        logEditText.setHint("Здесь появятся найденные ссылки на CDN и скрипты...");
         logEditText.setTextSize(10f);
         logEditText.setTypeface(Typeface.MONOSPACE);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
@@ -138,7 +138,7 @@ public class MainActivity extends Activity {
         btnCopyLogs = createStyledButton("📋 Скопировать лог в буфер", "#475569");
         btnCopyLogs.setOnClickListener(v -> {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("Smule Video Debug", logEditText.getText().toString());
+            ClipData clip = ClipData.newPlainText("Smule CDN Debug", logEditText.getText().toString());
             clipboard.setPrimaryClip(clip);
             Toast.makeText(this, "Отчет скопирован!", Toast.LENGTH_SHORT).show();
         });
@@ -175,8 +175,8 @@ public class MainActivity extends Activity {
         }
 
         btnDebug.setEnabled(false);
-        statusText.setText("Статус: ⚙️ Анализ HTML-страницы...");
-        logEditText.setText("=== АНАЛИЗ ВИДЕО/АУДИО ПОТОКОВ ===\n");
+        statusText.setText("Статус: ⚙️ Сканирование HTML и скриптов...");
+        logEditText.setText("=== ПОИСК CDN И ПОТОКОВ SMULE ===\n");
 
         new Thread(() -> {
             StringBuilder logs = new StringBuilder();
@@ -198,51 +198,35 @@ public class MainActivity extends Activity {
                     }
                     br.close();
 
-                    // Раэкранируем слэши, чтобы видеть чистые URL в JSON
                     String pageContent = html.toString().replace("\\/", "/");
                     logs.append("Размер страницы: ").append(pageContent.length()).append(" байт\n\n");
 
-                    // 1. Ищем все ссылки с расширениями mp4, m4a, mp3
-                    logs.append("--- Найденные медиа-ссылки (.mp4 / .m4a / .mp3) ---\n");
-                    Matcher mediaMatcher = Pattern.compile("https?://[^\"]+?\\.(mp4|m4a|mp3)(\\?[^\"]*)?").matcher(pageContent);
-                    boolean foundMedia = false;
-                    while (mediaMatcher.find()) {
-                        foundMedia = true;
-                        logs.append("🔗 ").append(mediaMatcher.group(0)).append("\n\n");
+                    // 1. Ищем все ссылки, содержащие cdn.smule.com или smule-gg
+                    logs.append("--- Ссылки на CDN Smule (cdn.smule.com / smule-gg) ---\n");
+                    Matcher cdnMatcher = Pattern.compile("https?://[^\"]*?cdn\\.smule\\.com[^\"]*|https?://[^\"]*?smule-gg[^\"]*").matcher(pageContent);
+                    boolean foundCdn = false;
+                    while (cdnMatcher.find()) {
+                        foundCdn = true;
+                        logs.append("📦 ").append(cdnMatcher.group(0)).append("\n\n");
                     }
-                    if (!foundMedia) {
-                        logs.append("Прямых ссылок с расширениями не найдено.\n\n");
-                    }
-
-                    // 2. Ищем метатеги og:video или og:audio
-                    logs.append("--- Метатеги OpenGraph (og:video / og:audio) ---\n");
-                    Matcher ogMatcher = Pattern.compile("<meta\\s+property=\"og:(video|audio)[^\"]*\"\\s+content=\"([^\"]+)\"").matcher(pageContent);
-                    boolean foundOg = false;
-                    while (ogMatcher.find()) {
-                        foundOg = true;
-                        logs.append("🏷️ og:").append(ogMatcher.group(1)).append(" -> ").append(ogMatcher.group(2)).append("\n\n");
-                    }
-                    if (!foundOg) {
-                        logs.append("Метатеги og:video/audio не найдены.\n\n");
+                    if (!foundCdn) {
+                        logs.append("Ссылки на CDN не найдены в чистом виде.\n\n");
                     }
 
-                    // 3. Выводим строки содержащие ключевые слова видеопотока
-                    logs.append("--- Строки со словом 'video' или 'perf' в коде ---\n");
-                    String[] rows = pageContent.split("\n");
-                    int count = 0;
-                    for (String r : rows) {
-                        if ((r.contains("video") || r.contains("perf_url") || r.contains("media_url")) && r.length() < 300) {
-                            logs.append(r.trim()).append("\n");
-                            count++;
-                            if (count > 25) { // Ограничим вывод, чтобы не переполнить экран
-                                logs.append("... (показано первые 25 строк)\n");
-                                break;
-                            }
-                        }
+                    // 2. Ищем любые URL с параметрами внутри скриптов
+                    logs.append("--- Подозрительные URL в скриптах страницы ---\n");
+                    Matcher urlMatcher = Pattern.compile("\"(https?://[^\"]+?\b(mp4|m4a|mp3|perf|media|audio)[^\"]*?)\"").matcher(pageContent);
+                    boolean foundUrl = false;
+                    while (urlMatcher.find()) {
+                        foundUrl = true;
+                        logs.append("🎯 ").append(urlMatcher.group(1)).append("\n\n");
+                    }
+                    if (!foundUrl) {
+                        logs.append("Совпадений по ключевым словам не найдено.\n\n");
                     }
 
                 } else {
-                    logs.append("Ошибка загрузки страницы. Код: ").append(responseCode);
+                    logs.append("Ошибка загрузки. Код: ").append(responseCode);
                 }
 
             } catch (Exception e) {
@@ -252,7 +236,7 @@ public class MainActivity extends Activity {
             final String finalLogs = logs.toString();
             handler.post(() -> {
                 btnDebug.setEnabled(true);
-                statusText.setText("Статус: ✅ Анализ завершен! Скопируйте лог.");
+                statusText.setText("Статус: ✅ Сканирование завершено. Скопируйте лог!");
                 logEditText.setText(finalLogs);
             });
         }).start();
