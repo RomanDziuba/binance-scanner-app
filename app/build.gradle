@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.smuledrv.app'
+    namespace 'com.rom.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.smuledrv.app"
+        applicationId "com.rom.app"
         minSdk 26
         targetSdk 34
         versionCode 1
