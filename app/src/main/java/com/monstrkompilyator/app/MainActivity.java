@@ -680,8 +680,8 @@ public class MainActivity extends Activity {
     }
 
     private void processSelectedFileForFolder(Uri uri, String folderPath) {
-        String fileName = getFileNameFromUri(uri);
-        if (fileName == null) fileName = "uploaded.bin";
+        String rawName = getFileNameFromUri(uri);
+        final String fileName = (rawName != null) ? rawName : "uploaded.bin";
         final String targetPath = folderPath.isEmpty() ? fileName : folderPath + "/" + fileName;
 
         try {
