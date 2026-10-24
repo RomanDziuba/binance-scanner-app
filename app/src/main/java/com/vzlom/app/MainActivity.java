@@ -11,17 +11,15 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
 import android.view.Gravity;
+import android.view.View;
+import android.webkit.JavascriptInterface;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.*;
 
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -30,16 +28,8 @@ public class MainActivity extends Activity {
     private EditText urlInput, logEditText;
     private TextView statusText;
     private Button btnDebug, btnPasteUrl, btnCopyLogs;
+    private WebView hiddenWebView;
     private Handler handler = new Handler(Looper.getMainLooper());
-    
-    // Продвинутый OkHttpClient с имитацией реального браузера
-    private final OkHttpClient httpClient = new OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .followRedirects(true) // Разрешаем автоматические редиректы под защитой браузерных заголовков
-            .followSslRedirects(true)
-            .retryOnConnectionFailure(true)
-            .build();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,7 +51,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Smule Ultimate Extractor ✦");
+        authorView.setText("✦ Dziuba Roman — Smule WebView Hunter v3.0 ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(14f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -85,7 +75,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🔥 Абсолютный поиск медиа Smule");
+        titleView.setText("🛡️ Smule Stealth Extraction (WebView)");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(17f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -112,8 +102,8 @@ public class MainActivity extends Activity {
         btnPasteUrl.setOnClickListener(v -> pasteFromClipboard());
         card.addView(btnPasteUrl);
 
-        btnDebug = createStyledButton("🚀 Выкачать все ссылки и треки", "#2563EB");
-        btnDebug.setOnClickListener(v -> startSmuleExtraction());
+        btnDebug = createStyledButton("🚀 Бесшумный пробой и извлечение", "#2563EB");
+        btnDebug.setOnClickListener(v -> startStealthExtraction());
         card.addView(btnDebug);
 
         statusText = new TextView(this);
@@ -135,13 +125,13 @@ public class MainActivity extends Activity {
         card.addView(statusText);
 
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Найденные ссылки и отчет:");
+        logLabel.setText("📋 Найденные прямые ссылки:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
         logLabel.setTextSize(11f);
         card.addView(logLabel);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Здесь появятся все прямые ссылки на аудио/видео (.m4a, .mp4)...");
+        logEditText.setHint("Здесь появятся прямые ссылки на аудио/видео (.m4a, .mp4)...");
         logEditText.setTextSize(10f);
         logEditText.setTypeface(Typeface.MONOSPACE);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
@@ -156,11 +146,22 @@ public class MainActivity extends Activity {
         btnCopyLogs = createStyledButton("📋 Скопировать всё", "#475569");
         btnCopyLogs.setOnClickListener(v -> {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("Smule All Links", logEditText.getText().toString());
+            ClipData clip = ClipData.newPlainText("Smule Extracted Links", logEditText.getText().toString());
             clipboard.setPrimaryClip(clip);
-            Toast.makeText(this, "Все ссылки скопированы в буфер!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Ссылки скопированы!", Toast.LENGTH_SHORT).show();
         });
         card.addView(btnCopyLogs);
+
+        // Скрытый WebView для выполнения JS и прохождения Cloudflare
+        hiddenWebView = new WebView(this);
+        hiddenWebView.setVisibility(View.GONE);
+        WebSettings webSettings = hiddenWebView.getSettings();
+        webSettings.setJavaScriptEnabled(true);
+        webSettings.setDomStorageEnabled(true);
+        webSettings.setUserAgentString("Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36");
+        
+        hiddenWebView.addJavascriptInterface(new MyJavaScriptInterface(), "HTMLOUT");
+        container.addView(hiddenWebView);
 
         container.addView(card);
         scroll.addView(container);
@@ -201,7 +202,7 @@ public class MainActivity extends Activity {
         Toast.makeText(this, "Буфер обмена пуст!", Toast.LENGTH_SHORT).show();
     }
 
-    private void startSmuleExtraction() {
+    private void startStealthExtraction() {
         String inputUrl = urlInput.getText().toString().trim();
         if (TextUtils.isEmpty(inputUrl)) {
             Toast.makeText(this, "Введите ссылку!", Toast.LENGTH_SHORT).show();
@@ -215,169 +216,68 @@ public class MainActivity extends Activity {
 
         final String targetUrl = inputUrl;
         btnDebug.setEnabled(false);
-        statusText.setText("Статус: 🔄 Обход защиты и загрузка страницы...");
-        logEditText.setText("=== 🚀 SMULE ULTIMATE EXTRACTOR ===\nЦель: " + targetUrl + "\n\n");
+        statusText.setText("Статус: 🔄 Проход защиты Cloudflare через WebView...");
+        logEditText.setText("=== 🚀 SMULE STEALTH EXTRACTOR ===\nЦель: " + targetUrl + "\nЗагрузка и обход защиты...\n\n");
 
-        new Thread(() -> {
-            StringBuilder report = new StringBuilder();
-            report.append("=== 🚀 SMULE ULTIMATE EXTRACTOR ===\n");
-            report.append("Цель: ").append(targetUrl).append("\n\n");
-
-            try {
-                // Имитируем запросы полноценного десктопного Chrome для пробоя защиты 403
-                Request request = new Request.Builder()
-                        .url(targetUrl)
-                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
-                        .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
-                        .header("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7")
-                        .header("Accept-Encoding", "gzip, deflate, br")
-                        .header("Cache-Control", "no-cache")
-                        .header("Pragma", "no-cache")
-                        .header("Sec-Ch-Ua", "\"Google Chrome\";v=\"125\", \"Chromium\";v=\"125\", \"Not.A/Brand\";v=\"24\"")
-                        .header("Sec-Ch-Ua-Mobile", "?0")
-                        .header("Sec-Ch-Ua-Platform", "\"Windows\"")
-                        .header("Sec-Fetch-Dest", "document")
-                        .header("Sec-Fetch-Mode", "navigate")
-                        .header("Sec-Fetch-Site", "none")
-                        .header("Sec-Fetch-User", "?1")
-                        .header("Upgrade-Insecure-Requests", "1")
-                        .build();
-
-                Response response = httpClient.newCall(request).execute();
-                int code = response.code();
-                String finalUrl = response.request().url().toString();
-
-                report.append("• Финальный URL: ").append(finalUrl).append("\n");
-                report.append("• Код ответа сервера: ").append(code).append("\n");
-
-                if (!response.isSuccessful() || response.body() == null) {
-                    report.append("❌ Ошибка: Сервер вернул код ").append(code).append("\n");
-                    response.close();
-                    finishExtraction(report.toString());
-                    return;
-                }
-
-                String html = response.body().string();
-                response.close();
-
-                report.append("• Размер полученного HTML: ").append(html.length()).append(" символов\n\n");
-
-                // Извлекаем заголовок
-                Matcher titleMatcher = Pattern.compile("<title>(.*?)</title>", Pattern.CASE_INSENSITIVE).matcher(html);
-                if (titleMatcher.find()) {
-                    report.append("🎵 Название трека / Страницы:\n👉 ").append(titleMatcher.group(1).trim()).append("\n\n");
-                }
-
-                report.append("--- ПОИСК ПРЯМЫХ МЕДИА-ССЫЛОК (.mp4 / .m4a) ---\n");
-                Set<String> foundLinks = new HashSet<>();
-
-                // Шаблон 1: OpenGraph мета-теги
-                Matcher ogVideo = Pattern.compile("<meta\\s+property=[\"']og:video(?::secure_url)?[\"']\\s+content=[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE).matcher(html);
-                while (ogVideo.find()) foundLinks.add(ogVideo.group(1));
-
-                Matcher ogAudio = Pattern.compile("<meta\\s+property=[\"']og:audio(?::secure_url)?[\"']\\s+content=[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE).matcher(html);
-                while (ogAudio.find()) foundLinks.add(ogAudio.group(1));
-
-                // Шаблон 2: Поиск всех URL, оканчивающихся или содержащих расширения media в HTML
-                Matcher urlPattern = Pattern.compile("https?://[^\\s\"']+\\.(?:mp4|m4a|mp3|webm)(?:\\?[^\\s\"']*)?", Pattern.CASE_INSENSITIVE).matcher(html);
-                while (urlPattern.find()) {
-                    foundLinks.add(urlPattern.group(0));
-                }
-
-                // Шаблон 3: Поиск JSON-ключей с media_url / performance в коде страницы
-                Matcher jsonKeyPattern = Pattern.compile("[\"'](?:media_url|audio_url|video_url|secure_url|url)[\"']\\s*:\\s*[\"'](https?://[^\"']+)[\"']", Pattern.CASE_INSENSITIVE).matcher(html);
-                while (jsonKeyPattern.find()) {
-                    foundLinks.add(jsonKeyPattern.group(1));
-                }
-
-                int index = 0;
-                if (!foundLinks.isEmpty()) {
-                    for (String link : foundLinks) {
-                        index++;
-                        // Декодируем слэши если они экранированы в JSON (\/)
-                        String cleanLink = link.replace("\\/", "/");
-                        report.append("\n🎯 Ссылка №").append(index).append(":\n").append(cleanLink).append("\n");
-                    }
-                } else {
-                    report.append("ℹ️ В HTML прямой ссылки не оказалось. Сканируем JS-скрипты страницы...\n");
-                }
-
-                // Шаблон 4: Сканируем скрипты JS, подключенные к странице
-                List<String> jsLinks = extractJsLinks(html, finalUrl);
-                report.append("\n--- СКАНИРОВАНИЕ JS СКРИПТОВ (").append(jsLinks.size()).append(" шт.) ---\n");
-
-                int jsChecked = 0;
-                for (String jsUrl : jsLinks) {
-                    if (jsChecked >= 5) break; // Ограничим первыми 5 скриптами для скорости
-                    jsChecked++;
-                    
-                    try {
-                        Request jsReq = new Request.Builder()
-                                .url(jsUrl)
-                                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
-                                .header("Referer", finalUrl)
-                                .header("Origin", "https://www.smule.com")
-                                .build();
-                        Response jsResp = httpClient.newCall(jsReq).execute();
-                        if (jsResp.isSuccessful() && jsResp.body() != null) {
-                            String jsContent = jsResp.body().string();
-                            jsResp.close();
-                            
-                            Matcher jsMediaMatcher = Pattern.compile("https?://[^\\s\"'\\\\]+\\.(?:mp4|m4a|mp3)", Pattern.CASE_INSENSITIVE).matcher(jsContent);
-                            while (jsMediaMatcher.find()) {
-                                String found = jsMediaMatcher.group(0).replace("\\/", "/");
-                                if (found.contains("smule") || found.contains("cdn")) {
-                                    foundLinks.add(found);
-                                    report.append("🔥 Найдено в JS: ").append(found).append("\n");
-                                }
-                            }
-                        } else {
-                            if (jsResp != null) jsResp.close();
-                        }
-                    } catch (Exception ignored) {}
-                }
-
-                if (foundLinks.size() > index) {
-                    report.append("\n✅ Дополнительные ссылки из скриптов успешно добавлены в список выше!");
-                }
-
-                report.append("\n\n🎉 Анализ завершен! Скопируйте нужную ссылку и скачайте её в браузере или через любой загрузчик.");
-
-            } catch (Exception e) {
-                report.append("\n❌ ОШИБКА ОБХОДА: ").append(e.toString());
+        hiddenWebView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                // Даем время выполниться скриптам Smule
+                handler.postDelayed(() -> {
+                    hiddenWebView.loadUrl("javascript:window.HTMLOUT.processHTML(document.getElementsByTagName('html')[0].innerHTML);");
+                }, 3500);
             }
-
-            finishExtraction(report.toString());
-        }).start();
-    }
-
-    private void finishExtraction(String report) {
-        handler.post(() -> {
-            btnDebug.setEnabled(true);
-            statusText.setText("Статус: ✅ Поиск завершен!");
-            logEditText.setText(report);
         });
+
+        hiddenWebView.loadUrl(targetUrl);
     }
 
-    private List<String> extractJsLinks(String html, String baseUrl) {
-        List<String> links = new ArrayList<>();
-        Matcher scriptMatcher = Pattern.compile("<script[^>]+src=[\"']([^\"']+\\.js[^\"']*)[\"']", Pattern.CASE_INSENSITIVE).matcher(html);
-        while (scriptMatcher.find()) {
-            String src = scriptMatcher.group(1);
-            if (src.startsWith("//")) {
-                src = "https:" + src;
-            } else if (src.startsWith("/")) {
-                try {
-                    okhttp3.HttpUrl base = okhttp3.HttpUrl.parse(baseUrl);
-                    if (base != null) {
-                        src = base.scheme() + "://" + base.host() + src;
-                    }
-                } catch (Exception ignored) {}
+    class MyJavaScriptInterface {
+        @JavascriptInterface
+        public void processHTML(String html) {
+            StringBuilder report = new StringBuilder();
+            report.append("=== 🚀 SMULE STEALTH EXTRACTOR ===\n");
+            report.append("✅ Защита Cloudflare успешно пробита!\n");
+            report.append("• HTML Размер: ").append(html.length()).append(" символов\n\n");
+
+            Set<String> links = new HashSet<>();
+
+            // 1. Поиск OpenGraph
+            Matcher ogVideo = Pattern.compile("<meta\\s+property=[\"']og:video(?::secure_url)?[\"']\\s+content=[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE).matcher(html);
+            while (ogVideo.find()) links.add(ogVideo.group(1));
+
+            Matcher ogAudio = Pattern.compile("<meta\\s+property=[\"']og:audio(?::secure_url)?[\"']\\s+content=[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE).matcher(html);
+            while (ogAudio.find()) links.add(ogAudio.group(1));
+
+            // 2. Прямой поиск медиа CDN
+            Matcher mediaPattern = Pattern.compile("https?://[^\\s\"'\\\\]+\\.(?:mp4|m4a|mp3)(?:\\?[^\\s\"'\\\\]*)?", Pattern.CASE_INSENSITIVE).matcher(html);
+            while (mediaPattern.find()) {
+                links.add(mediaPattern.group(0).replace("\\/", "/"));
             }
-            if (src.startsWith("http")) {
-                links.add(src);
+
+            // 3. JSON медиа ключи
+            Matcher jsonKey = Pattern.compile("[\"'](?:media_url|audio_url|video_url|recording_url)[\"']\\s*:\\s*[\"'](https?://[^\"']+)[\"']", Pattern.CASE_INSENSITIVE).matcher(html);
+            while (jsonKey.find()) {
+                links.add(jsonKey.group(1).replace("\\/", "/"));
             }
+
+            report.append("--- 🔥 ПРЯМЫЕ ССЫЛКИ ДЛЯ СКАЧИВАНИЯ ---\n");
+            if (!links.isEmpty()) {
+                int i = 0;
+                for (String link : links) {
+                    i++;
+                    report.append("\n🎯 [Медиа-трек #").append(i).append("]:\n").append(link).append("\n");
+                }
+            } else {
+                report.append("⚠️ Ссылки не найдены прямо в коде. Проверьте заголовок записи в логах.");
+            }
+
+            handler.post(() -> {
+                btnDebug.setEnabled(true);
+                statusText.setText("Статус: 🎉 Запись успешно извлечена!");
+                logEditText.setText(report.toString());
+            });
         }
-        return links;
     }
 }
