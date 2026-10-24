@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.smuleloading.app'
+    namespace 'com.smuledownload.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.smuleloading.app"
+        applicationId "com.smuledownload.app"
         minSdk 26
         targetSdk 34
         versionCode 1
