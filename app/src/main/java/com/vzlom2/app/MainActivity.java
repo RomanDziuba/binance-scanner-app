@@ -1,19 +1,21 @@
 package com.vzlom2.app;
 
 import android.app.Activity;
-import android.app.AlertDialog;
+import android.app.DownloadManager;
 import android.content.ClipData;
 import android.content.ClipboardManager;
+import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
-import android.webkit.JavascriptInterface;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
@@ -21,9 +23,9 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.*;
 
-import java.util.ArrayList;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -32,11 +34,13 @@ public class MainActivity extends Activity {
 
     private EditText urlInput, logEditText;
     private TextView statusText;
-    private Button btnDebug, btnBrowser, btnPasteUrl, btnCopyLogs;
+    private Button btnDebug, btnPasteUrl, btnCopyLogs;
+    private LinearLayout downloadButtonsLayout;
     private WebView webView;
     private Handler handler = new Handler(Looper.getMainLooper());
     
     private final Set<String> interceptedMediaUrls = new HashSet<>();
+    private final StringBuilder debugLogBuilder = new StringBuilder();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,7 +62,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Smule Ultimate Downloader ✦");
+        authorView.setText("✦ Dziuba Roman — Universal Media Extractor ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(14f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -82,16 +86,16 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🔥 Скачивание треков Smule");
+        titleView.setText("🔥 Всеядный парсер контента & Кнопки загрузки");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
-        titleView.setTextSize(17f);
+        titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
         titleView.setGravity(Gravity.CENTER);
         titleView.setPadding(0, 0, 0, 12);
         card.addView(titleView);
 
         urlInput = new EditText(this);
-        urlInput.setHint("Введите или вставьте ссылку на запись...");
+        urlInput.setHint("Вставьте ссылку на страницу...");
         urlInput.setHintTextColor(Color.parseColor("#475569"));
         urlInput.setTextSize(12f);
         urlInput.setTextColor(Color.parseColor("#E2E8F0"));
@@ -109,13 +113,8 @@ public class MainActivity extends Activity {
         btnPasteUrl.setOnClickListener(v -> pasteFromClipboard());
         card.addView(btnPasteUrl);
 
-        // Кнопка ручного входа / браузера
-        btnBrowser = createStyledButton("🌐 Открыть сайт / Войти в аккаунт", "#7C3AED");
-        btnBrowser.setOnClickListener(v -> showBrowserDialog());
-        card.addView(btnBrowser);
-
-        btnDebug = createStyledButton("🚀 Извлечь прямую ссылку для скачивания", "#2563EB");
-        btnDebug.setOnClickListener(v -> startExtraction());
+        btnDebug = createStyledButton("🚀 Запустить глубокий парсинг и дешифровку", "#2563EB");
+        btnDebug.setOnClickListener(v -> startFullExtraction());
         card.addView(btnDebug);
 
         statusText = new TextView(this);
@@ -137,13 +136,13 @@ public class MainActivity extends Activity {
         card.addView(statusText);
 
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Прямые ссылки для скачивания (.mp4 / .m4a):");
+        logLabel.setText("📋 Консоль отладки этапов дешифрования:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
         logLabel.setTextSize(11f);
         card.addView(logLabel);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Здесь появятся прямые ссылки на файл песни...");
+        logEditText.setHint("Здесь будет полная техническая картина отладки...");
         logEditText.setTextSize(10f);
         logEditText.setTypeface(Typeface.MONOSPACE);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
@@ -151,27 +150,40 @@ public class MainActivity extends Activity {
         logEditText.setBackgroundColor(Color.parseColor("#030712"));
         logEditText.setPadding(12, 12, 12, 12);
         logEditText.setGravity(Gravity.TOP);
-        logEditText.setMinLines(12);
-        logEditText.setMaxLines(20);
+        logEditText.setMinLines(10);
+        logEditText.setMaxLines(16);
         card.addView(logEditText);
 
-        btnCopyLogs = createStyledButton("📋 Скопировать прямую ссылку", "#475569");
+        btnCopyLogs = createStyledButton("📋 Скопировать лог отладки", "#475569");
         btnCopyLogs.setOnClickListener(v -> {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("Direct Media Link", logEditText.getText().toString());
+            ClipData clip = ClipData.newPlainText("Debug Logs", logEditText.getText().toString());
             clipboard.setPrimaryClip(clip);
-            Toast.makeText(this, "Ссылка скопирована в буфер!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Логи скопированы в буфер!", Toast.LENGTH_SHORT).show();
         });
         card.addView(btnCopyLogs);
 
-        // Инициализируем WebView для фоновой работы и перехвата
+        // Контейнер для динамических кнопок скачивания
+        TextView dlLabel = new TextView(this);
+        dlLabel.setText("📥 Кнопки для скачивания файлов в телефон:");
+        dlLabel.setTextColor(Color.parseColor("#38BDF8"));
+        dlLabel.setTextSize(12f);
+        dlLabel.setTypeface(Typeface.DEFAULT_BOLD);
+        dlLabel.setPadding(0, 15, 0, 5);
+        card.addView(dlLabel);
+
+        downloadButtonsLayout = new LinearLayout(this);
+        downloadButtonsLayout.setOrientation(LinearLayout.VERTICAL);
+        card.addView(downloadButtonsLayout);
+
+        // Фоновый WebView
         webView = new WebView(this);
         webView.setVisibility(View.GONE);
-        WebSettings webSettings = webView.getSettings();
-        webSettings.setJavaScriptEnabled(true);
-        webSettings.setDomStorageEnabled(true);
-        webSettings.setMediaPlaybackRequiresUserGesture(false);
-        webSettings.setUserAgentString("Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36");
+        WebSettings ws = webView.getSettings();
+        ws.setJavaScriptEnabled(true);
+        ws.setDomStorageEnabled(true);
+        ws.setMediaPlaybackRequiresUserGesture(false);
+        ws.setUserAgentString("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36");
         
         container.addView(webView);
         container.addView(card);
@@ -213,36 +225,7 @@ public class MainActivity extends Activity {
         Toast.makeText(this, "Буфер обмена пуст!", Toast.LENGTH_SHORT).show();
     }
 
-    // Открытие интерактивного браузера/входа в диалоговом окне
-    private void showBrowserDialog() {
-        LinearLayout browserLayout = new LinearLayout(this);
-        browserLayout.setOrientation(LinearLayout.VERTICAL);
-        browserLayout.setLayoutParams(new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 1200
-        ));
-
-        WebView dialogWebView = new WebView(this);
-        dialogWebView.setLayoutParams(new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT
-        ));
-        WebSettings ws = dialogWebView.getSettings();
-        ws.setJavaScriptEnabled(true);
-        ws.setDomStorageEnabled(true);
-        ws.setUserAgentString("Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36");
-        
-        dialogWebView.setWebViewClient(new WebViewClient());
-        dialogWebView.loadUrl("https://www.smule.com/login");
-
-        browserLayout.addView(dialogWebView);
-
-        new AlertDialog.Builder(this)
-            .setTitle("🌐 Браузер / Вход в аккаунт Smule")
-            .setView(browserLayout)
-            .setPositiveButton("Закрыть", (dialog, which) -> dialogWebView.destroy())
-            .show();
-    }
-
-    private void startExtraction() {
+    private void startFullExtraction() {
         String inputUrl = urlInput.getText().toString().trim();
         if (TextUtils.isEmpty(inputUrl)) {
             Toast.makeText(this, "Введите ссылку!", Toast.LENGTH_SHORT).show();
@@ -256,10 +239,15 @@ public class MainActivity extends Activity {
 
         final String targetUrl = inputUrl;
         interceptedMediaUrls.clear();
+        downloadButtonsLayout.removeAllViews();
+        debugLogBuilder.setLength(0);
+
+        appendLog("=== [ЭТАП 1] ИНИЦИАЦИЯ ПАРСИНГА ===");
+        appendLog("Цель: " + targetUrl);
+        appendLog("Настройка скрытого WebView и обход защит...\n");
 
         btnDebug.setEnabled(false);
-        statusText.setText("Статус: 🌐 Загрузка и обход защиты...");
-        logEditText.setText("Идет поиск прямой ссылки для скачивания...\nПожалуйста, подождите до 15 секунд...\n\n");
+        statusText.setText("Статус: [Этап 2] Загрузка и обход Cloudflare...");
 
         webView.setVisibility(View.VISIBLE);
 
@@ -268,10 +256,14 @@ public class MainActivity extends Activity {
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 String reqUrl = request.getUrl().toString();
                 
-                // Ловим медиафайлы .mp4, .m4a, .mp3
-                if (reqUrl.contains(".m4a") || reqUrl.contains(".mp4") || reqUrl.contains(".mp3")) {
+                // Всеядный перехватчик: видео, звуки, изображения любых форматов
+                if (reqUrl.matches(".*\\.(mp4|m4a|mp3|wav|aac|ogg|flac|jpg|jpeg|png|webp|gif|svg|txt)(\\?.*)?$") ||
+                    reqUrl.contains("performance") || reqUrl.contains("renvideo") || reqUrl.contains("cdn")) {
+                    
                     synchronized (interceptedMediaUrls) {
-                        interceptedMediaUrls.add(reqUrl);
+                        if (reqUrl.matches(".*\\.(mp4|m4a|mp3|wav|aac|ogg|flac|jpg|jpeg|png|webp|gif|svg|txt)(\\?.*)?$")) {
+                            interceptedMediaUrls.add(reqUrl);
+                        }
                     }
                 }
                 return super.shouldInterceptRequest(view, request);
@@ -281,7 +273,13 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 
-                // Пытаемся запустить автовоспроизведение медиа для вызова сетевого запроса
+                appendLog("=== [ЭТАП 3] СТРАНИЦА ЗАГРУЖЕНА ===");
+                appendLog("Финальный URL: " + url);
+                appendLog("Запуск эмуляции плеера для инициации сетевых потоков...\n");
+
+                statusText.setText("Статус: [Этап 4] Сбор медиа и текстов...");
+
+                // Эмулируем запуск аудио/видео
                 webView.loadUrl("javascript:(function(){" +
                         "var playBtns = document.querySelectorAll('button, [class*=\"play\"], [class*=\"Play\"]');" +
                         "for(var i=0; i<playBtns.length; i++) { try { playBtns[i].click(); } catch(e){} }" +
@@ -289,36 +287,113 @@ public class MainActivity extends Activity {
                         "for(var j=0; j<audios.length; j++) { try { audios[j].play(); } catch(e){} }" +
                         "})();");
 
-                statusText.setText("Статус: ⏳ Ожидание перехвата медиафайла (12 сек)...");
-                
+                // Даем время на сбор потоков и парсим текст (без кракозябров)
                 handler.postDelayed(() -> {
                     webView.setVisibility(View.GONE);
-                    displayExtractedLinks();
+                    
+                    webView.loadUrl("javascript:window.HTMLOUT.processContent(" +
+                            "document.title," +
+                            "document.documentElement.innerText" +
+                            ");");
                 }, 12000);
             }
         });
 
+        webView.addJavascriptInterface(new ContentJavaScriptInterface(), "HTMLOUT");
         webView.loadUrl(targetUrl);
     }
 
-    private void displayExtractedLinks() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("=== 🎯 ПРЯМЫЕ ССЫЛКИ ДЛЯ СКАЧИВАНИЯ ===\n\n");
+    class ContentJavaScriptInterface {
+        @android.webkit.JavascriptInterface
+        public void processContent(String title, String cleanText) {
+            appendLog("=== [ЭТАП 5] ДЕШИФРОВКА И АНАЛИЗ КОНТЕНТА ===");
+            appendLog("Заголовок страницы: " + title);
+            
+            // Чистый текст без кракозябров (фильтруем служебный мусор)
+            if (!TextUtils.isEmpty(cleanText)) {
+                String normalizedText = cleanText.replaceAll("[\\t\\r]+", " ").replaceAll("\\n\\s*\n", "\n").trim();
+                if (normalizedText.length > 500) normalizedText = normalizedText.substring(0, 500) + "... [обрезано]";
+                appendLog("\n📝 [Извлеченный текст/описание]:\n" + normalizedText + "\n");
+            }
+
+            handler.post(() -> {
+                buildDownloadButtons();
+                btnDebug.setEnabled(true);
+                statusText.setText("Статус: ✅ Успешно завершено!");
+                logEditText.setText(debugLogBuilder.toString());
+            });
+        }
+    }
+
+    private void appendLog(String message) {
+        debugLogBuilder.append(message).append("\n");
+    }
+
+    private void buildDownloadButtons() {
+        downloadButtonsLayout.removeAllViews();
 
         synchronized (interceptedMediaUrls) {
-            if (!interceptedMediaUrls.isEmpty()) {
-                int count = 0;
-                for (String link : interceptedMediaUrls) {
-                    count++;
-                    sb.append("Ссылка №").append(count).append(":\n").append(link).append("\n\n");
-                }
-            } else {
-                sb.append("⚠️ Прямая ссылка не поймана в сети. Убедитесь, что ссылка ведет на конкретную запись песни, или войдите в аккаунт через кнопку браузера выше.");
+            appendLog("=== [ЭТАП 6] ФОРМИРОВАНИЕ КНОПОК СКАЧИВАНИЯ ===");
+            appendLog("Найдено уникальных файлов: " + interceptedMediaUrls.size() + "\n");
+
+            if (interceptedMediaUrls.isEmpty()) {
+                TextView noFiles = new TextView(this);
+                noFiles.setText("⚠️ Медиафайлы не перехвачены. Убедитесь, что ссылка ведет на конкретную запись.");
+                noFiles.setTextColor(Color.parseColor("#94A3B8"));
+                noFiles.setTextSize(11f);
+                downloadButtonsLayout.addView(noFiles);
+                return;
+            }
+
+            int index = 0;
+            for (String fileUrl : interceptedMediaUrls) {
+                index++;
+                String fileType = getFileType(fileUrl);
+                String buttonTitle = "📥 Скачать " + fileType + " #" + index;
+
+                // Создаем интерактивную кнопку для каждого файла
+                Button dlBtn = createStyledButton(buttonTitle, index % 2 == 0 ? "#059669" : "#2563EB");
+                
+                final String targetUrl = fileUrl;
+                dlBtn.setOnClickListener(v -> downloadFileToPhone(targetUrl, fileType, index));
+                
+                downloadButtonsLayout.addView(dlBtn);
+                appendLog("👉 Создана кнопка для: " + fileUrl);
             }
         }
+    }
 
-        btnDebug.setEnabled(true);
-        statusText.setText("Статус: ✅ Готово!");
-        logEditText.setText(sb.toString());
+    private String getFileType(String url) {
+        String lower = url.toLowerCase();
+        if (lower.contains(".mp4") || lower.contains("renvideo")) return "ВИДЕО (.mp4)";
+        if (lower.contains(".m4a")) return "АУДИО (.m4a)";
+        if (lower.contains(".mp3")) return "АУДИО (.mp3)";
+        if (lower.contains(".jpg") || lower.contains(".jpeg")) return "ФОТО (.jpg)";
+        if (lower.contains(".png")) return "ФОТО (.png)";
+        if (lower.contains(".webp")) return "ФОТО (.webp)";
+        return "ФАЙЛ";
+    }
+
+    private void downloadFileToPhone(String url, String fileType, int index) {
+        try {
+            DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+            request.setTitle("Загрузка Smule " + fileType);
+            request.setDescription("Скачивание файла на телефон...");
+            request.allowScanningByMediaScanner();
+            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+            
+            String extension = fileType.contains("mp4") ? ".mp4" : (fileType.contains("m4a") ? ".m4a" : ".jpg");
+            String fileName = "SmuleMedia_" + System.currentTimeMillis() + "_" + index + extension;
+            
+            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
+
+            DownloadManager manager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+            if (manager != null) {
+                manager.enqueue(request);
+                Toast.makeText(this, "Загрузка началась! Проверьте шторку уведомлений.", Toast.LENGTH_LONG).show();
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, "Ошибка скачивания: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 }
