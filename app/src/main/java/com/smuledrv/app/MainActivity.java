@@ -48,7 +48,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — JS Player Source Hunter ✦");
+        authorView.setText("✦ Dziuba Roman — Community Core Hunter ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(14f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🛠️ Скачивание и анализ плеера Smule JS");
+        titleView.setText("🛠️ Анализ основного движка community_core.js");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(17f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -94,12 +94,12 @@ public class MainActivity extends Activity {
         urlInput.setLayoutParams(inputParams);
         card.addView(urlInput);
 
-        btnDebug = createStyledButton("🔍 Скачать player_frame.js и искать декодер", "#2563EB");
-        btnDebug.setOnClickListener(v -> downloadAndAnalyzePlayerJs());
+        btnDebug = createStyledButton("🔍 Скачать community_core.js и искать декодер", "#2563EB");
+        btnDebug.setOnClickListener(v -> analyzeCommunityCore());
         card.addView(btnDebug);
 
         statusText = new TextView(this);
-        statusText.setText("Статус: Готов к загрузке JS плеера...");
+        statusText.setText("Статус: Готов к загрузке движка...");
         statusText.setTextColor(Color.parseColor("#10B981"));
         statusText.setTextSize(12f);
         statusText.setPadding(12, 10, 12, 10);
@@ -113,18 +113,17 @@ public class MainActivity extends Activity {
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
         statusParams.setMargins(0, 10, 0, 10);
-        statusText.setTextSize(12f);
         statusText.setLayoutParams(statusParams);
         card.addView(statusText);
 
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Результаты поиска в JS-коде плеера:");
+        logLabel.setText("📋 Совпадения функции расшифровки в JS:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
         logLabel.setTextSize(11f);
         card.addView(logLabel);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Здесь появятся фрагменты кода декодера из JS...");
+        logEditText.setHint("Здесь появятся найденные алгоритмы расшифровки...");
         logEditText.setTextSize(10f);
         logEditText.setTypeface(Typeface.MONOSPACE);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
@@ -139,7 +138,7 @@ public class MainActivity extends Activity {
         btnCopyLogs = createStyledButton("📋 Скопировать лог в буфер", "#475569");
         btnCopyLogs.setOnClickListener(v -> {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("Smule JS Analysis", logEditText.getText().toString());
+            ClipData clip = ClipData.newPlainText("Smule Core Analysis", logEditText.getText().toString());
             clipboard.setPrimaryClip(clip);
             Toast.makeText(this, "Отчет скопирован!", Toast.LENGTH_SHORT).show();
         });
@@ -168,24 +167,23 @@ public class MainActivity extends Activity {
         return btn;
     }
 
-    private void downloadAndAnalyzePlayerJs() {
+    private void analyzeCommunityCore() {
         btnDebug.setEnabled(false);
-        statusText.setText("Статус: ⚙️ Скачивание JS файла плеера...");
-        logEditText.setText("=== АНАЛИЗ player_frame.js ===\n");
+        statusText.setText("Статус: ⚙️ Скачивание community_core.js...");
+        logEditText.setText("=== АНАЛИЗ community_core.js ===\n");
 
         new Thread(() -> {
             StringBuilder logs = new StringBuilder();
             try {
-                // Ссылка на найденный JS плеер
-                String jsUrl = "https://w1-fa.cdn.smule.com/assets/community/player_frame-9b1955254fd1f0d9007c7112263408c9.js";
-                logs.append("Запрос к: ").append(jsUrl).append("\n\n");
+                String coreJsUrl = "https://w1-fa.cdn.smule.com/assets/community_core-f1e2b046e16d487330152631ceb1fdee.js";
+                logs.append("Запрос к: ").append(coreJsUrl).append("\n\n");
 
-                HttpURLConnection conn = (HttpURLConnection) new URL(jsUrl).openConnection();
+                HttpURLConnection conn = (HttpURLConnection) new URL(coreJsUrl).openConnection();
                 conn.setRequestMethod("GET");
                 setupBrowserHeaders(conn);
 
                 int code = conn.getResponseCode();
-                logs.append("HTTP Код JS файла: ").append(code).append("\n");
+                logs.append("HTTP Код файла: ").append(code).append("\n");
 
                 if (code == 200) {
                     BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
@@ -197,26 +195,24 @@ public class MainActivity extends Activity {
                     br.close();
 
                     String jsText = jsContent.toString();
-                    logs.append("Размер JS файла: ").append(jsText.length()).append(" символов\n\n");
+                    logs.append("Размер core JS: ").append(jsText.length()).append(" символов\n\n");
 
-                    // Ищем функции расшифровки или работы со строкой 'e:'
-                    logs.append("--- Строки с функциями расшифровки / обработки URL ---\n");
-                    String[] rows = jsText.split("[;\\n]");
-                    int foundCount = 0;
-                    for (String r : rows) {
-                        if ((r.contains("atob") || r.contains("charCodeAt") || r.contains("media_url") || r.contains("decrypt") || r.contains(".substring(2)")) && r.length() < 300) {
-                            logs.append("🔍 ").append(r.trim()).append("\n\n");
-                            foundCount++;
-                            if (foundCount >= 20) {
-                                logs.append("... (показано первые 20 совпадений)\n");
-                                break;
-                            }
+                    // 1. Ищем функции расшифровки 'e:' префикса или вызовы charCodeAt / Slice / XOR
+                    logs.append("--- Поиск обработки префикса 'e:' или URL ---\n");
+                    Matcher eMatcher = Pattern.compile(".{0,100}(?:\"e:\"|'e:'|media_url|video_media_url|decodeUrl|decryptUrl).{0,100}").matcher(jsText);
+                    boolean foundE = false;
+                    int count = 0;
+                    while (eMatcher.find()) {
+                        foundE = true;
+                        logs.append("🎯 ").append(eMatcher.group(0).trim()).append("\n\n");
+                        count++;
+                        if (count >= 15) {
+                            logs.append("... (показано первые 15 совпадений)\n");
+                            break;
                         }
                     }
-
-                    if (foundCount == 0) {
-                        logs.append("Прямых совпадений по ключевым словам не найдено. Выводим фрагмент кода:\n");
-                        logs.append(jsText.length() > 1000 ? jsText.substring(0, 1000) : jsText);
+                    if (!foundE) {
+                        logs.append("Строковых совпадений 'e:' не найдено. Ищем вызовы decode/atob...\n");
                     }
 
                 } else {
@@ -230,7 +226,7 @@ public class MainActivity extends Activity {
             final String finalLogs = logs.toString();
             handler.post(() -> {
                 btnDebug.setEnabled(true);
-                statusText.setText("Статус: ✅ Анализ JS завершен!");
+                statusText.setText("Статус: ✅ Анализ core завершен!");
                 logEditText.setText(finalLogs);
             });
         }).start();
