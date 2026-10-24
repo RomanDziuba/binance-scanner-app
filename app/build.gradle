@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.roma.nativeapp'
+    namespace 'com.monstr.app'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.roma.nativeapp"
+        applicationId "com.monstr.app"
         minSdk 24
         targetSdk 34
         versionCode 1
