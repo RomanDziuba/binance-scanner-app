@@ -1303,7 +1303,11 @@ public class MainActivity extends Activity {
                "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" +
                "      - name: Checkout\n        uses: actions/checkout@v4\n" +
                "      - name: Set up JDK 17\n        uses: actions/setup-java@v5\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n" +
-               "      - name: Setup Android SDK\n        uses: android-actions/setup-android@v3\n" +
+               "      - name: Setup Android SDK (Native Bash)\n        run: |\n" +
+               "          export ANDROID_HOME=/usr/local/lib/android/sdk\n" +
+               "          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n" +
+               "          echo \"y\" | sdkmanager --licenses || true\n" +
+               "          sdkmanager \"platform-tools\" \"platforms;android-" + compileSdk + "\" \"build-tools;34.0.0\"\n" +
                "      - name: Setup Gradle\n        uses: gradle/actions/setup-gradle@v3\n        with:\n          gradle-version: '8.5'\n          cache-disabled: true\n" +
                "      - name: Build APK\n        run: |\n" +
                "          gradle clean assembleDebug --info --stacktrace --no-daemon\n" +
