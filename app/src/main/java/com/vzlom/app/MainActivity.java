@@ -18,7 +18,9 @@ import okhttp3.Request;
 import okhttp3.Response;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -30,11 +32,13 @@ public class MainActivity extends Activity {
     private Button btnDebug, btnPasteUrl, btnCopyLogs;
     private Handler handler = new Handler(Looper.getMainLooper());
     
+    // Продвинутый OkHttpClient с имитацией реального браузера
     private final OkHttpClient httpClient = new OkHttpClient.Builder()
-            .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(20, TimeUnit.SECONDS)
-            .followRedirects(false)
-            .followSslRedirects(false)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .followRedirects(true) // Разрешаем автоматические редиректы под защитой браузерных заголовков
+            .followSslRedirects(true)
+            .retryOnConnectionFailure(true)
             .build();
 
     @Override
@@ -57,7 +61,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Smule Core Hunter v2.0 ✦");
+        authorView.setText("✦ Dziuba Roman — Smule Ultimate Extractor ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(14f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -81,7 +85,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🛠️ Анализ Smule & Извлечение Media");
+        titleView.setText("🔥 Абсолютный поиск медиа Smule");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(17f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -108,12 +112,12 @@ public class MainActivity extends Activity {
         btnPasteUrl.setOnClickListener(v -> pasteFromClipboard());
         card.addView(btnPasteUrl);
 
-        btnDebug = createStyledButton("🚀 Запустить охотник Smule", "#2563EB");
-        btnDebug.setOnClickListener(v -> startAdvancedAnalysis());
+        btnDebug = createStyledButton("🚀 Выкачать все ссылки и треки", "#2563EB");
+        btnDebug.setOnClickListener(v -> startSmuleExtraction());
         card.addView(btnDebug);
 
         statusText = new TextView(this);
-        statusText.setText("Статус: Готов к запуску...");
+        statusText.setText("Статус: Готов к работе...");
         statusText.setTextColor(Color.parseColor("#10B981"));
         statusText.setTextSize(12f);
         statusText.setPadding(12, 10, 12, 10);
@@ -131,13 +135,13 @@ public class MainActivity extends Activity {
         card.addView(statusText);
 
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Отчет и Медиа-ссылки:");
+        logLabel.setText("📋 Найденные ссылки и отчет:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
         logLabel.setTextSize(11f);
         card.addView(logLabel);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Здесь появится детальный лог и прямые ссылки на аудио/видео...");
+        logEditText.setHint("Здесь появятся все прямые ссылки на аудио/видео (.m4a, .mp4)...");
         logEditText.setTextSize(10f);
         logEditText.setTypeface(Typeface.MONOSPACE);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
@@ -146,15 +150,15 @@ public class MainActivity extends Activity {
         logEditText.setPadding(12, 12, 12, 12);
         logEditText.setGravity(Gravity.TOP);
         logEditText.setMinLines(14);
-        logEditText.setMaxLines(20);
+        logEditText.setMaxLines(22);
         card.addView(logEditText);
 
-        btnCopyLogs = createStyledButton("📋 Скопировать отчет", "#475569");
+        btnCopyLogs = createStyledButton("📋 Скопировать всё", "#475569");
         btnCopyLogs.setOnClickListener(v -> {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("Smule Report", logEditText.getText().toString());
+            ClipData clip = ClipData.newPlainText("Smule All Links", logEditText.getText().toString());
             clipboard.setPrimaryClip(clip);
-            Toast.makeText(this, "Отчет успешно скопирован!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Все ссылки скопированы в буфер!", Toast.LENGTH_SHORT).show();
         });
         card.addView(btnCopyLogs);
 
@@ -197,7 +201,7 @@ public class MainActivity extends Activity {
         Toast.makeText(this, "Буфер обмена пуст!", Toast.LENGTH_SHORT).show();
     }
 
-    private void startAdvancedAnalysis() {
+    private void startSmuleExtraction() {
         String inputUrl = urlInput.getText().toString().trim();
         if (TextUtils.isEmpty(inputUrl)) {
             Toast.makeText(this, "Введите ссылку!", Toast.LENGTH_SHORT).show();
@@ -211,169 +215,147 @@ public class MainActivity extends Activity {
 
         final String targetUrl = inputUrl;
         btnDebug.setEnabled(false);
-        statusText.setText("Статус: [Трассировка] Запрос страницы...");
-        logEditText.setText("=== 🛡️ SMULE CORE HUNTER REPORT ===\nЦель: " + targetUrl + "\n\n");
+        statusText.setText("Статус: 🔄 Обход защиты и загрузка страницы...");
+        logEditText.setText("=== 🚀 SMULE ULTIMATE EXTRACTOR ===\nЦель: " + targetUrl + "\n\n");
 
         new Thread(() -> {
             StringBuilder report = new StringBuilder();
-            report.append("=== 🛡️ SMULE CORE HUNTER REPORT ===\n");
+            report.append("=== 🚀 SMULE ULTIMATE EXTRACTOR ===\n");
             report.append("Цель: ").append(targetUrl).append("\n\n");
 
             try {
-                String currentUrl = targetUrl;
-                int redirectCount = 0;
-                Response response = null;
+                // Имитируем запросы полноценного десктопного Chrome для пробоя защиты 403
+                Request request = new Request.Builder()
+                        .url(targetUrl)
+                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
+                        .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
+                        .header("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7")
+                        .header("Accept-Encoding", "gzip, deflate, br")
+                        .header("Cache-Control", "no-cache")
+                        .header("Pragma", "no-cache")
+                        .header("Sec-Ch-Ua", "\"Google Chrome\";v=\"125\", \"Chromium\";v=\"125\", \"Not.A/Brand\";v=\"24\"")
+                        .header("Sec-Ch-Ua-Mobile", "?0")
+                        .header("Sec-Ch-Ua-Platform", "\"Windows\"")
+                        .header("Sec-Fetch-Dest", "document")
+                        .header("Sec-Fetch-Mode", "navigate")
+                        .header("Sec-Fetch-Site", "none")
+                        .header("Sec-Fetch-User", "?1")
+                        .header("Upgrade-Insecure-Requests", "1")
+                        .build();
 
-                report.append("--- ЭТАП 1: Трассировка редиректов ---\n");
-                while (redirectCount < 5) {
-                    Request request = new Request.Builder()
-                            .url(currentUrl)
-                            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
-                            .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-                            .header("Accept-Language", "en-US,en;q=0.9")
-                            .build();
+                Response response = httpClient.newCall(request).execute();
+                int code = response.code();
+                String finalUrl = response.request().url().toString();
 
-                    if (response != null) response.close();
+                report.append("• Финальный URL: ").append(finalUrl).append("\n");
+                report.append("• Код ответа сервера: ").append(code).append("\n");
 
-                    response = httpClient.newCall(request).execute();
-                    int code = response.code();
-
-                    report.append("• Шаг [").append(redirectCount + 1).append("] Код: ").append(code).append("\n");
-
-                    if (code >= 300 && code < 400) {
-                        String redirectUrl = response.header("Location");
-                        report.append("  ↪️ Редирект: ").append(redirectUrl).append("\n\n");
-                        if (redirectUrl == null) break;
-
-                        if (redirectUrl.startsWith("/")) {
-                            okhttp3.HttpUrl base = response.request().url();
-                            redirectUrl = base.scheme() + "://" + base.host() + redirectUrl;
-                        }
-                        currentUrl = redirectUrl;
-                        redirectCount++;
-                    } else {
-                        break;
-                    }
-                }
-
-                report.append("• Финальный URL: ").append(currentUrl).append("\n");
-
-                if (response == null || !response.isSuccessful()) {
-                    report.append("❌ Ошибка: HTTP ").append(response != null ? response.code() : "null").append("\n");
-                    finishAnalysis(report.toString());
-                    if (response != null) response.close();
+                if (!response.isSuccessful() || response.body() == null) {
+                    report.append("❌ Ошибка: Сервер вернул код ").append(code).append("\n");
+                    response.close();
+                    finishExtraction(report.toString());
                     return;
                 }
 
-                String pageContent = response.body() != null ? response.body().string() : "";
+                String html = response.body().string();
                 response.close();
 
-                report.append("• HTML Размер: ").append(pageContent.length()).append(" символов\n");
+                report.append("• Размер полученного HTML: ").append(html.length()).append(" символов\n\n");
 
-                Matcher titleMatcher = Pattern.compile("<title>(.*?)</title>", Pattern.CASE_INSENSITIVE).matcher(pageContent);
+                // Извлекаем заголовок
+                Matcher titleMatcher = Pattern.compile("<title>(.*?)</title>", Pattern.CASE_INSENSITIVE).matcher(html);
                 if (titleMatcher.find()) {
-                    report.append("• Title: ").append(titleMatcher.group(1).trim()).append("\n");
-                }
-                report.append("✅ Этап 1 пройден!\n\n");
-
-                // --- ЭТАП 2: Поиск прямых ссылок на Media (MP4 / M4A) ---
-                updateStatus("Статус: [Этап 2] Поиск прямых ссылок на медиа...");
-                report.append("--- ЭТАП 2: Парсинг прямых Media-ссылок ---\n");
-
-                boolean mediaFound = false;
-
-                // 2.1 Проверка OpenGraph тегов (og:video, og:audio, twitter:player:stream)
-                Matcher ogVideo = Pattern.compile("<meta\\s+property=[\"']og:video(?::secure_url)?[\"']\\s+content=[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE).matcher(pageContent);
-                while (ogVideo.find()) {
-                    report.append("🎬 [Прямой Видео Поток]: ").append(ogVideo.group(1)).append("\n");
-                    mediaFound = true;
+                    report.append("🎵 Название трека / Страницы:\n👉 ").append(titleMatcher.group(1).trim()).append("\n\n");
                 }
 
-                Matcher ogAudio = Pattern.compile("<meta\\s+property=[\"']og:audio(?::secure_url)?[\"']\\s+content=[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE).matcher(pageContent);
-                while (ogAudio.find()) {
-                    report.append("🎵 [Прямой Аудио Поток]: ").append(ogAudio.group(1)).append("\n");
-                    mediaFound = true;
+                report.append("--- ПОИСК ПРЯМЫХ МЕДИА-ССЫЛОК (.mp4 / .m4a) ---\n");
+                Set<String> foundLinks = new HashSet<>();
+
+                // Шаблон 1: OpenGraph мета-теги
+                Matcher ogVideo = Pattern.compile("<meta\\s+property=[\"']og:video(?::secure_url)?[\"']\\s+content=[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE).matcher(html);
+                while (ogVideo.find()) foundLinks.add(ogVideo.group(1));
+
+                Matcher ogAudio = Pattern.compile("<meta\\s+property=[\"']og:audio(?::secure_url)?[\"']\\s+content=[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE).matcher(html);
+                while (ogAudio.find()) foundLinks.add(ogAudio.group(1));
+
+                // Шаблон 2: Поиск всех URL, оканчивающихся или содержащих расширения media в HTML
+                Matcher urlPattern = Pattern.compile("https?://[^\\s\"']+\\.(?:mp4|m4a|mp3|webm)(?:\\?[^\\s\"']*)?", Pattern.CASE_INSENSITIVE).matcher(html);
+                while (urlPattern.find()) {
+                    foundLinks.add(urlPattern.group(0));
                 }
 
-                // 2.2 Проверка JSON в данных Smule (performance object / media_url)
-                Matcher jsonMedia = Pattern.compile("[\"'](https?://[^\"']+\\.(?:mp4|m4a|mp3)[^\"']*)[\"']", Pattern.CASE_INSENSITIVE).matcher(pageContent);
-                int countJson = 0;
-                while (jsonMedia.find() && countJson < 5) {
-                    countJson++;
-                    report.append("🔥 [Media CDN Direct #").append(countJson).append("]: ").append(jsonMedia.group(1)).append("\n");
-                    mediaFound = true;
+                // Шаблон 3: Поиск JSON-ключей с media_url / performance в коде страницы
+                Matcher jsonKeyPattern = Pattern.compile("[\"'](?:media_url|audio_url|video_url|secure_url|url)[\"']\\s*:\\s*[\"'](https?://[^\"']+)[\"']", Pattern.CASE_INSENSITIVE).matcher(html);
+                while (jsonKeyPattern.find()) {
+                    foundLinks.add(jsonKeyPattern.group(1));
                 }
 
-                if (!mediaFound) {
-                    report.append("ℹ️ В открытом HTML тегов media_url не найдено. Переходим к скриптам...\n");
+                int index = 0;
+                if (!foundLinks.isEmpty()) {
+                    for (String link : foundLinks) {
+                        index++;
+                        // Декодируем слэши если они экранированы в JSON (\/)
+                        String cleanLink = link.replace("\\/", "/");
+                        report.append("\n🎯 Ссылка №").append(index).append(":\n").append(cleanLink).append("\n");
+                    }
+                } else {
+                    report.append("ℹ️ В HTML прямой ссылки не оказалось. Сканируем JS-скрипты страницы...\n");
                 }
-                report.append("✅ Этап 2 завершен.\n\n");
 
-                // --- ЭТАП 3: Загрузка JS скриптов с корректными заголовками CDN ---
-                updateStatus("Статус: [Этап 3] Скачивание CDN JS-скриптов...");
-                report.append("--- ЭТАП 3: Анализ CDN JS-скриптов ---\n");
+                // Шаблон 4: Сканируем скрипты JS, подключенные к странице
+                List<String> jsLinks = extractJsLinks(html, finalUrl);
+                report.append("\n--- СКАНИРОВАНИЕ JS СКРИПТОВ (").append(jsLinks.size()).append(" шт.) ---\n");
 
-                List<String> jsLinks = extractJsLinks(pageContent, currentUrl);
-                report.append("• Найдено JS-файлов: ").append(jsLinks.size()).append("\n");
-
-                int analyzed = 0;
+                int jsChecked = 0;
                 for (String jsUrl : jsLinks) {
-                    if (analyzed >= 4) break;
-                    analyzed++;
-                    report.append("\n[Скрипт #").append(analyzed).append("] ").append(jsUrl).append("\n");
-
+                    if (jsChecked >= 5) break; // Ограничим первыми 5 скриптами для скорости
+                    jsChecked++;
+                    
                     try {
                         Request jsReq = new Request.Builder()
                                 .url(jsUrl)
-                                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
-                                .header("Referer", "https://www.smule.com/")
+                                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
+                                .header("Referer", finalUrl)
                                 .header("Origin", "https://www.smule.com")
-                                .header("Accept", "*/*")
                                 .build();
-
                         Response jsResp = httpClient.newCall(jsReq).execute();
                         if (jsResp.isSuccessful() && jsResp.body() != null) {
-                            String jsText = jsResp.body().string();
+                            String jsContent = jsResp.body().string();
                             jsResp.close();
-                            report.append("  Статус: HTTP 200 (Загружен) | ").append(jsText.length()).append(" символов\n");
-
-                            Matcher codeMatcher = Pattern.compile(".{0,60}(?:media_url|media_url_dl|video_media_url|performances|recording_url|render_url).{0,60}").matcher(jsText);
-                            int matches = 0;
-                            while (codeMatcher.find()) {
-                                matches++;
-                                report.append("  🎯 Ключ [").append(matches).append("]: ").append(codeMatcher.group(0).trim()).append("\n");
-                                if (matches >= 4) break;
+                            
+                            Matcher jsMediaMatcher = Pattern.compile("https?://[^\\s\"'\\\\]+\\.(?:mp4|m4a|mp3)", Pattern.CASE_INSENSITIVE).matcher(jsContent);
+                            while (jsMediaMatcher.find()) {
+                                String found = jsMediaMatcher.group(0).replace("\\/", "/");
+                                if (found.contains("smule") || found.contains("cdn")) {
+                                    foundLinks.add(found);
+                                    report.append("🔥 Найдено в JS: ").append(found).append("\n");
+                                }
                             }
-                            if (matches == 0) report.append("  (ключи сигнатур не обнаружены)\n");
                         } else {
-                            int code = jsResp.code();
                             if (jsResp != null) jsResp.close();
-                            report.append("  ❌ Ошибка загрузки CDN: HTTP ").append(code).append("\n");
                         }
-                    } catch (Exception e) {
-                        report.append("  ❌ Ошибка подключения: ").append(e.getMessage()).append("\n");
-                    }
+                    } catch (Exception ignored) {}
                 }
 
-                report.append("\n🎉 Охота Smule завершена!");
+                if (foundLinks.size() > index) {
+                    report.append("\n✅ Дополнительные ссылки из скриптов успешно добавлены в список выше!");
+                }
+
+                report.append("\n\n🎉 Анализ завершен! Скопируйте нужную ссылку и скачайте её в браузере или через любой загрузчик.");
 
             } catch (Exception e) {
-                report.append("\n❌ ОШИБКА: ").append(e.toString());
+                report.append("\n❌ ОШИБКА ОБХОДА: ").append(e.toString());
             }
 
-            finishAnalysis(report.toString());
+            finishExtraction(report.toString());
         }).start();
     }
 
-    private void updateStatus(String status) {
-        handler.post(() -> statusText.setText(status));
-    }
-
-    private void finishAnalysis(String finalReport) {
+    private void finishExtraction(String report) {
         handler.post(() -> {
             btnDebug.setEnabled(true);
-            statusText.setText("Статус: ✅ Анализ завершен!");
-            logEditText.setText(finalReport);
+            statusText.setText("Статус: ✅ Поиск завершен!");
+            logEditText.setText(report);
         });
     }
 
