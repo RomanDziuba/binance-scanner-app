@@ -48,7 +48,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — CDN Link Builder Test ✦");
+        authorView.setText("✦ Dziuba Roman — Deep HTML Scanner ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(14f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🛠️ Тест сборки прямой CDN-ссылки");
+        titleView.setText("🛠️ Глубокий сканер HTML и тегов плеера");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(17f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -94,12 +94,12 @@ public class MainActivity extends Activity {
         urlInput.setLayoutParams(inputParams);
         card.addView(urlInput);
 
-        btnDebug = createStyledButton("🔍 Собрать и проверить CDN ссылку", "#2563EB");
-        btnDebug.setOnClickListener(v -> runCdnTest());
+        btnDebug = createStyledButton("🔍 Сканировать теги плеера и HTML", "#2563EB");
+        btnDebug.setOnClickListener(v -> runDeepScan());
         card.addView(btnDebug);
 
         statusText = new TextView(this);
-        statusText.setText("Статус: Ожидание теста...");
+        statusText.setText("Статус: Готов к глубокому сканированию...");
         statusText.setTextColor(Color.parseColor("#10B981"));
         statusText.setTextSize(12f);
         statusText.setPadding(12, 10, 12, 10);
@@ -117,13 +117,13 @@ public class MainActivity extends Activity {
         card.addView(statusText);
 
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Результат проверки CDN:");
+        logLabel.setText("📋 Найденные медиа-теги и структуры:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
         logLabel.setTextSize(11f);
         card.addView(logLabel);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Здесь появится результат проверки собранной ссылки...");
+        logEditText.setHint("Здесь появятся найденные теги и ссылки...");
         logEditText.setTextSize(10f);
         logEditText.setTypeface(Typeface.MONOSPACE);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
@@ -138,7 +138,7 @@ public class MainActivity extends Activity {
         btnCopyLogs = createStyledButton("📋 Скопировать лог в буфер", "#475569");
         btnCopyLogs.setOnClickListener(v -> {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("Smule CDN Test", logEditText.getText().toString());
+            ClipData clip = ClipData.newPlainText("Smule Deep Scan", logEditText.getText().toString());
             clipboard.setPrimaryClip(clip);
             Toast.makeText(this, "Отчет скопирован!", Toast.LENGTH_SHORT).show();
         });
@@ -167,7 +167,7 @@ public class MainActivity extends Activity {
         return btn;
     }
 
-    private void runCdnTest() {
+    private void runDeepScan() {
         String urlStr = urlInput.getText().toString().trim();
         if (urlStr.isEmpty()) {
             Toast.makeText(this, "Введите URL", Toast.LENGTH_SHORT).show();
@@ -175,8 +175,8 @@ public class MainActivity extends Activity {
         }
 
         btnDebug.setEnabled(false);
-        statusText.setText("Статус: ⚙️ Парсинг страницы и сборка CDN-ссылки...");
-        logEditText.setText("=== ТЕСТ СБОРКИ CDN ССЫЛКИ ===\n");
+        statusText.setText("Статус: ⚙️ Поиск видео-тегов и скриптов...");
+        logEditText.setText("=== ГЛУБОКИЙ СКАНЕР HTML ===\n");
 
         new Thread(() -> {
             StringBuilder logs = new StringBuilder();
@@ -186,8 +186,7 @@ public class MainActivity extends Activity {
                 conn.setRequestMethod("GET");
                 setupBrowserHeaders(conn);
 
-                int responseCode = conn.getResponseCode();
-                if (responseCode == 200) {
+                if (conn.getResponseCode() == 200) {
                     BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
                     StringBuilder html = new StringBuilder();
                     String line;
@@ -198,46 +197,39 @@ public class MainActivity extends Activity {
 
                     String pageContent = html.toString().replace("\\/", "/");
 
-                    // Ищем cover_url в тексте страницы
-                    Matcher matcher = Pattern.compile("\"cover_url\"\\s*:\\s*\"([^\"]+)\"").matcher(pageContent);
-                    if (matcher.find()) {
-                        String coverUrl = matcher.group(1);
-                        logs.append("Найден cover_url:\n").append(coverUrl).append("\n\n");
+                    // 1. Поиск тегов <video>, <source>, <audio>
+                    logs.append("--- HTML Медиа-теги (<video>, <source>, <audio>) ---\n");
+                    Matcher mediaTagMatcher = Pattern.compile("<(video|source|audio)[^>]*>", Pattern.CASE_INSENSITIVE).matcher(pageContent);
+                    boolean foundTags = false;
+                    while (mediaTagMatcher.find()) {
+                        foundTags = true;
+                        logs.append("🎥 ").append(mediaTagMatcher.group(0)).append("\n\n");
+                    }
+                    if (!foundTags) {
+                        logs.append("Прямых HTML медиа-тегов в коде страницы нет (плеер создается динамически через JS).\n\n");
+                    }
 
-                        // Собираем видео-ссылку (меняем cover -> video, .jpg -> .mp4)
-                        String videoUrl = coverUrl.replace("/cover/", "/video/").replace(".jpg", ".mp4");
-                        logs.append("🔗 Сконструированная Video URL:\n").append(videoUrl).append("\n\n");
+                    // 2. Ищем метатеги twitter:player, twitter:image, og:video
+                    logs.append("--- Метатеги Twitter / OpenGraph ---\n");
+                    Matcher metaMatcher = Pattern.compile("<meta\\s+(?:name|property)=\"(twitter:[^\"]+|og:[^\"]+)\"\\s+content=\"([^\"]+)\"").matcher(pageContent);
+                    boolean foundMeta = false;
+                    while (metaMatcher.find()) {
+                        foundMeta = true;
+                        logs.append("🏷️ ").append(metaMatcher.group(1)).append(" = ").append(metaMatcher.group(2)).append("\n");
+                    }
+                    if (!foundMeta) {
+                        logs.append("Метатеги плеера не найдены.\n\n");
+                    }
 
-                        // Проверяем доступность видео-ссылки HEAD-запросом
-                        logs.append("Проверка доступности сервера (HEAD запрос)...\n");
-                        HttpURLConnection testConn = (HttpURLConnection) new URL(videoUrl).openConnection();
-                        testConn.setRequestMethod("HEAD");
-                        setupBrowserHeaders(testConn);
-                        int testCode = testConn.getResponseCode();
-                        logs.append("📡 HTTP Код видео-файла: ").append(testCode).append("\n");
-                        
-                        if (testCode == 200 || testCode == 206) {
-                            logs.append("\n✅ УСПЕХ! Ссылка рабочая, файл доступен для скачивания!");
-                        } else {
-                            // Попробуем альтернативный вариант пути (без слова video, а прямо в performance)
-                            String altUrl = coverUrl.replace("/cover/", "/").replace(".jpg", ".mp4");
-                            logs.append("\nПроверяем альтернативный путь:\n").append(altUrl).append("\n");
-                            HttpURLConnection altConn = (HttpURLConnection) new URL(altUrl).openConnection();
-                            altConn.setRequestMethod("HEAD");
-                            setupBrowserHeaders(altConn);
-                            int altCode = altConn.getResponseCode();
-                            logs.append("📡 HTTP Код альт. файла: ").append(altCode).append("\n");
-                            if (altCode == 200 || altCode == 206) {
-                                logs.append("\n✅ УСПЕХ по альтернативному пути!");
-                            }
-                        }
-
-                    } else {
-                        logs.append("Не удалось найти cover_url в коде страницы.");
+                    // 3. Ищем упоминания UUID записи (6376040b-1c14-4ccc-8987-43b967b3016c) в контексте других папок
+                    logs.append("\n--- Контекст использования UUID записи в коде ---\n");
+                    Matcher uuidMatcher = Pattern.compile(".{0,100}6376040b-1c14-4ccc-8987-43b967b3016c.{0,100}").matcher(pageContent);
+                    while (uuidMatcher.find()) {
+                        logs.append("📌 ").append(uuidMatcher.group(0).trim()).append("\n\n");
                     }
 
                 } else {
-                    logs.append("Ошибка HTTP страницы: ").append(responseCode);
+                    logs.append("Ошибка HTTP: ").append(conn.getResponseCode());
                 }
 
             } catch (Exception e) {
@@ -247,7 +239,7 @@ public class MainActivity extends Activity {
             final String finalLogs = logs.toString();
             handler.post(() -> {
                 btnDebug.setEnabled(true);
-                statusText.setText("Статус: ✅ Тест CDN завершен!");
+                statusText.setText("Статус: ✅ Сканирование завершено!");
                 logEditText.setText(finalLogs);
             });
         }).start();
