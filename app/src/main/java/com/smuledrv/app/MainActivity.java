@@ -67,9 +67,9 @@ public class MainActivity extends Activity {
         notesHeader.setPadding(0, 10, 0, 5);
         container.addView(notesHeader);
 
-        // Замена слова сборщик на загрузчик (пафосный английский логотип)
+        // Обновленный пафосный логотип со словом Загрузчик (DOWNLOADER)
         TextView logoView = new TextView(this);
-        logoView.setText("⚡ SMULE VIP MATRIX LOADER ⚡");
+        logoView.setText("⚡ SMULE VIP MATRIX DOWNLOADER ⚡");
         logoView.setTextColor(Color.parseColor("#38BDF8"));
         logoView.setTextSize(16f);
         logoView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -92,6 +92,12 @@ public class MainActivity extends Activity {
         );
         card.setLayoutParams(cardParams);
 
+        // Кнопка Вставить из буфера (с динамическим текстом и уменьшенным шрифтом)
+        btnPaste = createStyledButton("📋 Вставить из буфера", "#475569", 10f);
+        btnPaste.setOnClickListener(v -> pasteFromClipboard());
+        card.addView(btnPaste);
+
+        // Поле ввода ссылки (пустое по умолчанию)
         urlInput = new EditText(this);
         urlInput.setHint("Вставьте ссылку на трек Smule здесь...");
         urlInput.setHintTextColor(Color.parseColor("#475569"));
@@ -103,15 +109,9 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        inputParams.setMargins(0, 0, 0, 15);
+        inputParams.setMargins(0, 10, 0, 15);
         urlInput.setLayoutParams(inputParams);
         card.addView(urlInput);
-
-        // ДИНАМИЧЕСКАЯ КНОПКА ВСТАВКИ ИЗ БУФЕРА
-        btnPaste = createStyledButton("📋 Вставить из буфера", "#475569");
-        btnPaste.setTextSize(10f); // Уменьшенный шрифт, чтобы поместился текст ссылки
-        btnPaste.setOnClickListener(v -> pasteFromClipboard());
-        card.addView(btnPaste);
 
         infoCard = new LinearLayout(this);
         infoCard.setOrientation(LinearLayout.VERTICAL);
@@ -131,15 +131,15 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams infoParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        infoParams.setMargins(0, 10, 0, 10);
+        infoParams.setMargins(0, 0, 0, 12);
         infoCard.setLayoutParams(infoParams);
         card.addView(infoCard);
 
-        mainActionButton = createStyledButton("🔍 Найти и подготовить трек", "#2563EB");
+        mainActionButton = createStyledButton("🔍 Найти и подготовить трек", "#2563EB", 12f);
         mainActionButton.setOnClickListener(v -> handleMainButtonClick());
         card.addView(mainActionButton);
 
-        btnClear = createStyledButton("❌ Очистить / Сбросить", "#7F1D1D");
+        btnClear = createStyledButton("❌ Очистить / Сбросить буфер", "#7F1D1D", 12f);
         btnClear.setOnClickListener(v -> resetState());
         card.addView(btnClear);
 
@@ -198,59 +198,14 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        // Динамически подтягиваем текст из буфера обмена на кнопку при возврате в приложение
-        updatePasteButtonText();
+        updatePasteButtonText(); // Динамически обновляем текст кнопки при возврате в приложение
     }
 
-    private void updatePasteButtonText() {
-        try {
-            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            if (clipboard != null && clipboard.hasPrimaryClip()) {
-                ClipData clip = clipboard.getPrimaryClip();
-                if (clip != null && clip.getItemCount() > 0) {
-                    CharSequence text = clip.getItemAt(0).coerceToText(this);
-                    if (text != null) {
-                        String clipStr = text.toString().trim();
-                        if (!clipStr.isEmpty()) {
-                            // Если ссылка слишком длинная, красиво обрезаем для отображения на кнопке
-                            if (clipStr.length() > 40) {
-                                clipStr = clipStr.substring(0, 37) + "...";
-                            }
-                            btnPaste.setText("📋 Вставить: " + clipStr);
-                            return;
-                        }
-                    }
-                }
-            }
-        } catch (Exception ignored) {}
-        btnPaste.setText("📋 Вставить из буфера");
-    }
-
-    private void pasteFromClipboard() {
-        try {
-            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            if (clipboard != null && clipboard.hasPrimaryClip()) {
-                ClipData clip = clipboard.getPrimaryClip();
-                if (clip != null && clip.getItemCount() > 0) {
-                    CharSequence text = clip.getItemAt(0).coerceToText(this);
-                    if (text != null) {
-                        urlInput.setText(text.toString().trim());
-                        Toast.makeText(this, "Ссылка вставлена из буфера!", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                }
-            }
-            Toast.makeText(this, "Буфер обмена пуст", Toast.LENGTH_SHORT).show();
-        } catch (Exception e) {
-            Toast.makeText(this, "Не удалось прочитать буфер", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private Button createStyledButton(String text, String colorHex) {
+    private Button createStyledButton(String text, String colorHex, float textSizeSp) {
         Button btn = new Button(this);
         btn.setText(text);
         btn.setTextColor(Color.WHITE);
-        btn.setTextSize(12f);
+        btn.setTextSize(textSizeSp);
         btn.setTypeface(Typeface.DEFAULT_BOLD);
         btn.setBackgroundColor(Color.parseColor(colorHex));
         btn.setPadding(15, 15, 15, 15);
@@ -261,6 +216,48 @@ public class MainActivity extends Activity {
         params.setMargins(0, 5, 0, 5);
         btn.setLayoutParams(params);
         return btn;
+    }
+
+    private void updatePasteButtonText() {
+        try {
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            if (clipboard != null && clipboard.hasPrimaryClip()) {
+                ClipData clip = clipboard.getPrimaryClip();
+                if (clip != null && clip.getItemCount() > 0) {
+                    CharSequence text = clip.getItemAt(0).getText();
+                    if (text != null && text.length() > 0) {
+                        String str = text.toString().trim();
+                        // Обрезаем длинную ссылку для отображения на кнопке
+                        if (str.length() > 35) {
+                            str = str.substring(0, 32) + "...";
+                        }
+                        btnPaste.setText("📋 Вставить: " + str);
+                        return;
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        btnPaste.setText("📋 Буфер обмена пуст");
+    }
+
+    private void pasteFromClipboard() {
+        try {
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            if (clipboard != null && clipboard.hasPrimaryClip()) {
+                ClipData clip = clipboard.getPrimaryClip();
+                if (clip != null && clip.getItemCount() > 0) {
+                    CharSequence text = clip.getItemAt(0).getText();
+                    if (text != null && text.length() > 0) {
+                        urlInput.setText(text.toString());
+                        Toast.makeText(this, "Ссылка вставлена из буфера!", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                }
+            }
+            Toast.makeText(this, "В буфере нет текста!", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Ошибка вставки", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void handleMainButtonClick() {
@@ -394,8 +391,17 @@ public class MainActivity extends Activity {
         mainActionButton.setBackgroundColor(Color.parseColor("#2563EB"));
         mainActionButton.setText("🔍 Найти и подготовить трек");
         statusText.setText("Статус: Сброшено. Ожидание ссылки...");
+
+        // Полная очистка буфера обмена по требованию
+        try {
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            if (clipboard != null) {
+                clipboard.setPrimaryClip(ClipData.newPlainText("", ""));
+            }
+        } catch (Exception ignored) {}
+
         updatePasteButtonText();
-        Toast.makeText(this, "Очищено!", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Очищено и буфер сброшен!", Toast.LENGTH_SHORT).show();
     }
 
     private String extractMeta(String html, String regex) {
