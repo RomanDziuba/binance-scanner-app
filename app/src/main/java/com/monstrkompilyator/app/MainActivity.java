@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
-import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
@@ -30,9 +29,6 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -694,10 +690,11 @@ public class MainActivity extends Activity {
 
             statusTextView.setText("Статус: ⚙️ Загрузка файла...");
             new Thread(() -> {
+                // ИСПРАВЛЕНО: добавлено корректное объявление boolean success
                 boolean success = pushBytesToGitHub(targetPath, fileBytes, "Upload file: " + fileName);
                 handler.post(() -> {
                     if (success) {
-                        Toast.makeText(this, "Файл загружен!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(MainActivity.this, "Файл загружен!", Toast.LENGTH_SHORT).show();
                         openRepositoryFileManager();
                     }
                     statusTextView.setText("Статус: Готов к работе 🚀");
@@ -815,7 +812,7 @@ public class MainActivity extends Activity {
                     if (success) {
                         iconCustomized = false;
                         saveSettings();
-                        Toast.makeText(this, "Иконка обновлена!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(MainActivity.this, "Иконка обновлена!", Toast.LENGTH_SHORT).show();
                     }
                 });
             }).start();
@@ -1118,7 +1115,7 @@ public class MainActivity extends Activity {
                     Thread.sleep(6000);
                     if (!isMonitoring) break;
                     String urlStr = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/actions/runs?per_page=1";
-                    HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
+                    HttpURLConnection conn = (HttpURLConnection) new URL(urlStr);
                     conn.setRequestMethod("GET");
                     conn.setRequestProperty("Authorization", "Bearer " + githubToken);
 
