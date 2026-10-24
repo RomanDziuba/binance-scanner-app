@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v5.3 ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v5.4 ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -133,7 +133,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🚀 Android Monster Compiler (UI Styled)");
+        titleView.setText("🚀 Android Monster Compiler (Direct Bash Fix)");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -170,7 +170,7 @@ public class MainActivity extends Activity {
         btnFileManager.setOnClickListener(v -> openRepositoryFileManager());
         card.addView(btnFileManager);
 
-        // 🖤 Темно-синяя (почти черная) кнопка редактора кода
+        // 🖤 Темно-синяя кнопка редактора кода
         btnCodeEditor = createCustomStyledButton("📝 Редактор кода с подсказками", "#0A0F1D", "#1E293B");
         btnCodeEditor.setOnClickListener(v -> openCodeEditorDialog());
         card.addView(btnCodeEditor);
@@ -294,7 +294,7 @@ public class MainActivity extends Activity {
     private Button createCustomStyledButton(String text, String bgColorHex, String borderColorHex) {
         Button btn = new Button(this);
         btn.setText(text);
-        btn.setTextColor(Color.parseColor("#38BDF8")); // Светло-голубой текст для контраста с темным фоном
+        btn.setTextColor(Color.parseColor("#38BDF8"));
         btn.setTextSize(11f);
         btn.setTypeface(Typeface.DEFAULT_BOLD);
         
@@ -820,7 +820,7 @@ public class MainActivity extends Activity {
                 boolean repaired = false;
                 StringBuilder diagnosticReport = new StringBuilder("=== 🤖 SMART AI-ДОКТОР: ОТЧЕТ АНАЛИЗА ===\n\n");
 
-                diagnosticReport.append("ℹ️ Сборка настроена на Gradle 8.4 + AGP 8.2.2.\n");
+                diagnosticReport.append("ℹ️ Сборка переведена на прямую компиляцию (Direct Bash Compiler) без Gradle-демонов.\n");
 
                 if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("WebView") || lastErrorLog.contains("WebSettings") || lastErrorLog.contains("WebViewClient"))) {
                     diagnosticReport.append("🔍 Обнаружено: Использование WebView без импортов.\n");
@@ -841,7 +841,7 @@ public class MainActivity extends Activity {
                 }
 
                 if (!repaired) {
-                    diagnosticReport.append("💡 Интерфейс обновлен, кнопка редактора теперь темно-синяя. Нажмите сборку заново!");
+                    diagnosticReport.append("💡 Прямая Bash компиляция активирована. Нажмите сборку заново!");
                 } else {
                     diagnosticReport.append("\n🎉 Исправления применены! Запустите сборку заново.");
                 }
@@ -856,7 +856,7 @@ public class MainActivity extends Activity {
                         saveSettings();
                         statusTextView.setText("Статус: ✅ AI-Доктор применил патчи!");
                     } else {
-                        statusTextView.setText("Статус: ✅ Дизайн обновлен, запустите сборку");
+                        statusTextView.setText("Статус: ✅ Переведено на Direct Bash, запустите сборку");
                     }
                     logEditText.setText(reportStr);
                 });
@@ -985,7 +985,7 @@ public class MainActivity extends Activity {
         btnBuild.setBackgroundColor(Color.parseColor("#1E3A8A"));
         btnBuild.setText("⏳ Компиляция на сервере...\n📦 " + packageName);
         statusTextView.setText("Статус: ⚙️ Синхронизация репозитория...");
-        logEditText.setText("Отправка кода и конфигурации на GitHub...");
+        logEditText.setText("Отправка кода и прямой конфигурации на GitHub...");
 
         new Thread(() -> {
             try {
@@ -1024,7 +1024,7 @@ public class MainActivity extends Activity {
                 if (conn.getResponseCode() == 204 || conn.getResponseCode() == 201) {
                     handler.post(() -> {
                         statusTextView.setText("Статус: 🚀 Сборка запущена! Ожидание APK...");
-                        logEditText.setText("GitHub Actions компилирует ваш проект...\nКак только сборка завершится, бот пришлет APK в Telegram.");
+                        logEditText.setText("GitHub Actions компилирует ваш проект напрямую через Bash...\nКак только сборка завершится, бот пришлет APK в Telegram.");
                         startMonitoringBuild();
                     });
                 } else {
@@ -1197,7 +1197,7 @@ public class MainActivity extends Activity {
                             
                             String[] lines = lastErrorLog.split("\n");
                             for (String logLine : lines) {
-                                if (logLine.contains("error:") || logLine.contains("FAILED") || logLine.contains("Exception") || logLine.contains("AAPT2") || logLine.contains("Execution failed")) {
+                                if (logLine.contains("error:") || logLine.contains("FAILED") || logLine.contains("Exception") || logLine.contains("Execution failed")) {
                                     professionalReport.append("❌ ").append(logLine.trim()).append("\n");
                                     foundErrorBlock = true;
                                 }
@@ -1336,26 +1336,44 @@ public class MainActivity extends Activity {
     }
 
     private String getWorkflowContent() {
-        return "name: Build Monster APK\n" +
+        return "name: Build Monster APK (Direct Bash)\n" +
                "on:\n  workflow_dispatch:\n\n" +
                "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" +
                "      - name: Checkout\n        uses: actions/checkout@v4\n" +
                "      - name: Set up JDK 17\n        uses: actions/setup-java@v5\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n" +
-               "      - name: Install Gradle 8.4\n        run: |\n" +
-               "          wget -q https://services.gradle.org/distributions/gradle-8.4-bin.zip\n" +
-               "          unzip -q gradle-8.4-bin.zip\n" +
-               "          echo \"$PWD/gradle-8.4/bin\" >> $GITHUB_PATH\n" +
-               "      - name: Setup Android SDK (Native Bash)\n        run: |\n" +
+               "      - name: Setup Android SDK & Direct Compile\n        run: |\n" +
                "          export ANDROID_HOME=/usr/local/lib/android/sdk\n" +
-               "          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n" +
+               "          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/34.0.0\n" +
                "          echo \"y\" | sdkmanager --licenses || true\n" +
                "          sdkmanager \"platform-tools\" \"platforms;android-" + compileSdk + "\" \"build-tools;34.0.0\"\n" +
-               "      - name: Build APK\n        run: |\n" +
-               "          gradle clean assembleDebug --info --no-daemon\n" +
+               "          \n" +
+               "          echo \"=== DIRECT BASH COMPILATION START ===\"\n" +
+               "          mkdir -p build/gen build/obj build/apk\n" +
+               "          \n" +
+               "          # 1. Compile R.java using aapt2\n" +
+               "          aapt2 compile --dir app/src/main/res -o build/res.zip\n" +
+               "          aapt2 link -I $ANDROID_HOME/platforms/android-" + compileSdk + "/android.jar \\\n" +
+               "            --manifest app/src/main/AndroidManifest.xml \\\n" +
+               "            -o build/apk/unsigned.apk \\\n" +
+               "            --auto-add-overlay build/res.zip\n" +
+               "          \n" +
+               "          # 2. Compile Java source\n" +
+               "          javac -source 1.8 -target 1.8 -bootclasspath $ANDROID_HOME/platforms/android-" + compileSdk + "/android.jar \\\n" +
+               "            -d build/obj " + getMainActivityPath() + "\n" +
+               "          \n" +
+               "          # 3. Convert to dex\n" +
+               "          dx --dex --output=build/apk/classes.dex build/obj\n" +
+               "          \n" +
+               "          # 4. Add dex to APK\n" +
+               "          cd build/apk\n" +
+               "          zip -u unsigned.apk classes.dex\n" +
+               "          \n" +
+               "          # 5. Align and sign with debug key\n" +
+               "          apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android --ks-key-alias androiddebugkey unsigned.apk\n" +
+               "          mv unsigned.apk final.apk\n" +
+               "          ls -la final.apk\n" +
                "      - name: Send to Telegram\n        if: success()\n        run: |\n" +
-               "          APK_PATH=$(find app/build/outputs/apk/debug/ -name \"*.apk\" | head -n 1)\n" +
-               "          echo \"Found APK: $APK_PATH\"\n" +
-               "          curl -F chat_id=\"" + chatId + "\" -F document=@\"$APK_PATH\" https://api.telegram.org/bot" + botToken + "/sendDocument\n";
+               "          curl -F chat_id=\"" + chatId + "\" -F document=@\"build/apk/final.apk\" https://api.telegram.org/bot" + botToken + "/sendDocument\n";
     }
 
     private String generateManifest() {
