@@ -133,7 +133,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🚀 Android Monster Compiler v3.8");
+        titleView.setText("🚀 Android Monster Compiler v3.9");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -158,7 +158,7 @@ public class MainActivity extends Activity {
         infoTextView.setLayoutParams(infoParams);
         card.addView(infoTextView);
 
-        btnBuild = createStyledButton(getBuildButtonText(), "#2563EB");
+        btnBuild = createStyledButton("", "#2563EB");
         btnBuild.setOnClickListener(v -> triggerGitHubBuild());
         card.addView(btnBuild);
 
@@ -174,7 +174,7 @@ public class MainActivity extends Activity {
         btnCodeEditor.setOnClickListener(v -> openCodeEditorDialog());
         card.addView(btnCodeEditor);
 
-        btnUploadJava = createStyledButton("📂 Загрузить файл: " + currentJavaFileName, "#0D9488");
+        btnUploadJava = createStyledButton("", "#0D9488");
         btnUploadJava.setOnClickListener(v -> openJavaFilePicker());
         card.addView(btnUploadJava);
 
@@ -248,9 +248,14 @@ public class MainActivity extends Activity {
         rootLayout.addView(mainScroll);
         setContentView(rootLayout);
 
-        // Мгновенное обновление всех кнопок и информации при запуске
+        // Принудительное обновление всех кнопок и вывод отчета в консоль при старте
         updateAllButtonLabels();
-        logEditText.setText("Monster Compiler готов к работе.\nТокен: " + (githubToken.isEmpty() ? "⚠️ Не введен" : "✅ Загружен"));
+        logEditText.setText("=== 🚀 MONSTER COMPILER v3.9 ЗАПУЩЕН ===\n" +
+                            "• Текущее имя: " + appTitle + "\n" +
+                            "• Пакет: " + packageName + "\n" +
+                            "• Версия: " + appVersion + "\n" +
+                            "• GitHub Token: " + (githubToken.isEmpty() ? "⚠️ Не введен (Требуется в настройках!)" : "✅ Загружен") + "\n" +
+                            "• Репозиторий: " + repoOwner + "/" + repoName);
 
         if (!githubToken.isEmpty()) {
             fetchRemoteRepositoryInfo();
@@ -359,7 +364,10 @@ public class MainActivity extends Activity {
                     handler.post(() -> {
                         saveSettings();
                         statusTextView.setText("Статус: ✅ Репозиторий синхронизирован!");
-                        logEditText.setText("Синхронизация успешна!\nПакет: " + packageName + "\nВерсия: " + appVersion);
+                        logEditText.setText("=== 🔄 СИНХРОНИЗАЦИЯ УСПЕШНА ===\n" +
+                                            "• Пакет: " + packageName + "\n" +
+                                            "• Версия: " + appVersion + "\n" +
+                                            "• Репозиторий подключен и готов к сборке.");
                     });
                 } else {
                     handler.post(() -> statusTextView.setText("Статус: Готов к работе 🚀"));
@@ -709,7 +717,7 @@ public class MainActivity extends Activity {
             activeCodeContent = sanitizeAndInjectJavaCode(code, packageName);
             currentJavaFileName = fileName;
             saveSettings();
-            Toast.makeText(this, "Java файл загружен и очищен!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Java файл загружен: " + fileName, Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка чтения: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
@@ -1178,6 +1186,7 @@ public class MainActivity extends Activity {
                 currentJavaFileName = "Шаблон: Часы с фонариком и яркостью";
                 saveSettings();
                 Toast.makeText(this, "Проект сброшен до часов!", Toast.LENGTH_SHORT).show();
+                logEditText.setText("=== 🔄 ПРОЕКТ СБРОШЕН ===\nШаблон: Часы с фонариком и яркостью\nВсе параметры обновлены.");
             })
             .setNegativeButton("Отмена", null)
             .show();
@@ -1194,6 +1203,7 @@ public class MainActivity extends Activity {
                 packageName = "com." + appTitle.toLowerCase().replaceAll("[^a-z0-9]", "") + ".app";
                 saveSettings();
                 Toast.makeText(this, "Имя и пакет обновлены!", Toast.LENGTH_SHORT).show();
+                logEditText.setText("=== 🏷 ИМЯ ОБНОВЛЕНО ===\n• Новое имя: " + appTitle + "\n• Пакет: " + packageName);
             })
             .setNegativeButton("Отмена", null)
             .show();
@@ -1209,6 +1219,7 @@ public class MainActivity extends Activity {
                 appVersion = input.getText().toString().trim();
                 saveSettings();
                 Toast.makeText(this, "Версия обновлена!", Toast.LENGTH_SHORT).show();
+                logEditText.setText("=== 🔢 ВЕРСИЯ ОБНОВЛЕНА ===\n• Новая версия: " + appVersion);
             })
             .setNegativeButton("Отмена", null)
             .show();
@@ -1244,6 +1255,13 @@ public class MainActivity extends Activity {
                 minSdk = spinner.getSelectedItemPosition() == 0 ? 21 : 26;
                 saveSettings();
                 Toast.makeText(this, "Настройки сохранены!", Toast.LENGTH_SHORT).show();
+                logEditText.setText("=== ⚙️ НАСТРОЙКИ ОБНОВЛЕНЫ ===\n" +
+                                    "• GitHub Token: " + (githubToken.isEmpty() ? "⚠️ Пусто" : "✅ Сохранен") + "\n" +
+                                    "• Telegram Bot: ✅ Сохранен\n" +
+                                    "• Chat ID: " + chatId);
+                if (!githubToken.isEmpty()) {
+                    fetchRemoteRepositoryInfo();
+                }
             })
             .setNegativeButton("Отмена", null)
             .show();
