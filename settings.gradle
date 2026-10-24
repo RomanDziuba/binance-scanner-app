@@ -1,2 +1,2 @@
-rootProject.name = "vzlom"
+rootProject.name = "монстр_компилятор"
 include ':app'
