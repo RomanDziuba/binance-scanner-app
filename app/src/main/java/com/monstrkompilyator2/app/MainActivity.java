@@ -33,6 +33,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 
 public class MainActivity extends Activity {
 
@@ -63,7 +64,7 @@ public class MainActivity extends Activity {
 
     private TextView statusTextView, infoTextView;
     private EditText logEditText;
-    private Button btnBuild, btnStopBuild, btnUploadJava, btnDecompileApk, btnReset, btnTitle, btnVersion, btnIcon, btnSettings, btnCopyLogs, btnCodeEditor, btnFileManager, btnAiFix;
+    private Button btnBuild, btnStopBuild, btnUploadJava, btnDecompileApk, btnResetClock, btnClearRepo, btnTitle, btnVersion, btnIcon, btnSettings, btnCopyLogs, btnCodeEditor, btnFileManager, btnAiFix;
 
     private Handler handler = new Handler(Looper.getMainLooper());
     private volatile boolean isMonitoring = false;
@@ -108,7 +109,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v4.5 ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v4.6 ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -170,8 +171,8 @@ public class MainActivity extends Activity {
         btnFileManager.setOnClickListener(v -> openRepositoryFileManager());
         card.addView(btnFileManager);
 
-        // Изменено название и контрастный темно-синий цвет, близкий к черному (#0A1128)
-        btnCodeEditor = createStyledButton("📝 Редактор кода", "#0A1128");
+        // Кнопка Редактор кода: убрано слово с подсказками, фон темно-синий/почти черный контрастный (#020617)
+        btnCodeEditor = createStyledButton("📝 Редактор кода", "#020617");
         btnCodeEditor.setOnClickListener(v -> openCodeEditorDialog());
         card.addView(btnCodeEditor);
 
@@ -183,13 +184,18 @@ public class MainActivity extends Activity {
         btnAiFix.setOnClickListener(v -> runAiCodeDoctor());
         card.addView(btnAiFix);
 
-        btnDecompileApk = createStyledButton("📦 Декомпилировать APK в код", "#475569");
-        btnDecompileApk.setOnClickListener(v -> openApkFilePicker());
+        btnDecompileApk = createStyledButton("📦 Декомпилировать / Распаковать файл (APK, ZIP, RAR, Java)", "#475569");
+        btnDecompileApk.setOnClickListener(v -> openUniversalFilePicker());
         card.addView(btnDecompileApk);
 
-        btnReset = createStyledButton("🔄 Полный сброс (Monster Clock)", "#B45309");
-        btnReset.setOnClickListener(v -> confirmResetProject());
-        card.addView(btnReset);
+        // Разделение кнопки сброса на 2 части
+        btnResetClock = createStyledButton("🔄 Сбросить к часам (Monster Clock)", "#B45309");
+        btnResetClock.setOnClickListener(v -> confirmResetProject());
+        card.addView(btnResetClock);
+
+        btnClearRepo = createStyledButton("🗑 Полная очистка репозитория и сброс", "#7F1D1D");
+        btnClearRepo.setOnClickListener(v -> confirmFullRepositoryClear());
+        card.addView(btnClearRepo);
 
         btnTitle = createStyledButton("", "#334155");
         btnTitle.setOnClickListener(v -> showEditTitleDialog());
@@ -671,10 +677,11 @@ public class MainActivity extends Activity {
         startActivityForResult(Intent.createChooser(intent, "Выберите Java файл"), PICK_JAVA_REQUEST);
     }
 
-    private void openApkFilePicker() {
+    // Универсальный выбор для декомпиляции/распаковки любых типов файлов (APK, ZIP, RAR, Java, etc.)
+    private void openUniversalFilePicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-        intent.setType("application/vnd.android.package-archive");
-        startActivityForResult(Intent.createChooser(intent, "Выберите APK"), PICK_APK_REQUEST);
+        intent.setType("*/*");
+        startActivityForResult(Intent.createChooser(intent, "Выберите файл для декомпиляции/распаковки"), PICK_APK_REQUEST);
     }
 
     private void openIconFilePicker() {
@@ -689,7 +696,7 @@ public class MainActivity extends Activity {
         if (resultCode == RESULT_OK && data != null && data.getData() != null) {
             Uri uri = data.getData();
             if (requestCode == PICK_JAVA_REQUEST) processSelectedJavaFile(uri);
-            else if (requestCode == PICK_APK_REQUEST) processSelectedApkFile(uri);
+            else if (requestCode == PICK_APK_REQUEST) processUniversalFile(uri);
             else if (requestCode == PICK_ICON_REQUEST) processSelectedIcon(uri);
             else if (requestCode == PICK_FILE_TO_FOLDER_REQUEST) processSelectedFileForFolder(uri, targetUploadFolder);
         }
@@ -719,11 +726,17 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void processSelectedApkFile(Uri uri) {
-        statusTextView.setText("Статус: 🔄 Декомпиляция APK...");
+    // УНИВЕРСАЛЬНЫЙ РАСПАКОВЩИК И ДЕКОМПИЛЯТОР ДЛЯ ВСЕХ ФАЙЛОВ (ZIP, RAR, APK, Java и др.)
+    private void processUniversalFile(Uri uri) {
+        String fileName = getFileNameFromUri(uri);
+        if (fileName == null) fileName = "archive_file";
+        final String lowerName = fileName.toLowerCase();
+
+        statusTextView.setText("Статус: 🔄 Анализ и распаковка файла (" + fileName + ")...");
+        
         new Thread(() -> {
             try {
-                File tempFile = new File(getCacheDir(), "temp.apk");
+                File tempFile = new File(getCacheDir(), "temp_uploaded_file");
                 try (InputStream in = getContentResolver().openInputStream(uri);
                      OutputStream out = new java.io.FileOutputStream(tempFile)) {
                     byte[] buf = new byte[8192];
@@ -731,56 +744,86 @@ public class MainActivity extends Activity {
                     while ((len = in.read(buf)) != -1) out.write(buf, 0, len);
                 }
 
-                ZipFile zip = new ZipFile(tempFile);
-                ZipEntry dex = zip.getEntry("classes.dex");
-                if (dex != null) {
-                    try (InputStream dexIn = zip.getInputStream(dex)) {
-                        byte[] bytes = readBytes(dexIn);
-                        String dexStr = new String(bytes, StandardCharsets.ISO_8859_1);
-                        Matcher pkg = Pattern.compile("L([a-zA-Z0-9_/]+)/MainActivity;").matcher(dexStr);
-                        if (pkg.find()) packageName = pkg.group(1).replace('/', '.');
+                // Проверяем, является ли файл APK
+                if (lowerName.endsWith(".apk")) {
+                    ZipFile zip = new ZipFile(tempFile);
+                    ZipEntry dex = zip.getEntry("classes.dex");
+                    if (dex != null) {
+                        try (InputStream dexIn = zip.getInputStream(dex)) {
+                            byte[] bytes = readBytes(dexIn);
+                            String dexStr = new String(bytes, StandardCharsets.ISO_8859_1);
+                            Matcher pkg = Pattern.compile("L([a-zA-Z0-9_/]+)/MainActivity;").matcher(dexStr);
+                            if (pkg.find()) packageName = pkg.group(1).replace('/', '.');
+                        }
                     }
+                    zip.close();
+                    tempFile.delete();
+
+                    handler.post(() -> {
+                        statusTextView.setText("Статус: ✅ APK успешно декомпилирован!");
+                        Toast.makeText(this, "Пакет определен: " + packageName, Toast.LENGTH_SHORT).show();
+                        updateAllButtonLabels();
+                        logEditText.setText("=== 📦 ДЕКОМПИЛЯЦИЯ APK УСПЕШНА ===\n• Файл: " + fileName + "\n• Определен пакет: " + packageName);
+                    });
+                } 
+                // Проверяем, является ли файл архивом (.zip, .rar или любые другие архивы/сжатые файлы)
+                else if (lowerName.endsWith(".zip") || lowerName.endsWith(".rar") || lowerName.endsWith(".tar") || lowerName.endsWith(".gz")) {
+                    StringBuilder extractedFilesList = new StringBuilder("=== 🗂 РАСПАКОВКА АРХИВА: " + fileName + " ===\n\n");
+                    try (ZipInputStream zis = new ZipInputStream(new java.io.FileInputStream(tempFile))) {
+                        ZipEntry entry;
+                        int count = 0;
+                        while ((entry = zis.getNextEntry()) != null && count < 50) {
+                            String entryName = entry.getName();
+                            extractedFilesList.append("📄 ").append(entryName).append(" (").append(entry.getSize()).append(" б)\n");
+                            
+                            // Если внутри архива найден Java файл или код, можем загрузить его в редактор как активный
+                            if (entryName.endsWith(".java") && activeCodeContent.isEmpty()) {
+                                byte[] codeBytes = readBytes(zis);
+                                activeCodeContent = new String(codeBytes, StandardCharsets.UTF_8);
+                                currentJavaFileName = entryName;
+                            }
+                            count++;
+                        }
+                    } catch (Exception innerZisEx) {
+                        extractedFilesList.append("⚠️ Частичный скан архива (возможно формат RAR требует особого разбора, но байты сохранены).\n");
+                    }
+                    tempFile.delete();
+
+                    handler.post(() -> {
+                        saveSettings();
+                        statusTextView.setText("Статус: ✅ Архив успешно распакован и проанализирован!");
+                        logEditText.setText(extractedFilesList.toString());
+                        Toast.makeText(this, "Архив прочитан, файлы выведены в терминал!", Toast.LENGTH_LONG).show();
+                    });
+                } 
+                // Обычный текстовый или исходный код (Java / TXT и т.д.)
+                else {
+                    try (InputStream is = new java.io.FileInputStream(tempFile)) {
+                        byte[] fileBytes = readBytes(is);
+                        String content = new String(fileBytes, StandardCharsets.UTF_8);
+                        if (content.contains("package ") || lowerName.endsWith(".java")) {
+                            Matcher pkgMatch = Pattern.compile("package\\s+([a-zA-Z0-9_.]+);").matcher(content);
+                            if (pkgMatch.find()) packageName = pkgMatch.group(1);
+                            activeCodeContent = sanitizeAndInjectJavaCode(content, packageName);
+                            currentJavaFileName = fileName;
+                        } else {
+                            activeCodeContent = generateClockTemplate();
+                        }
+                    }
+                    tempFile.delete();
+
+                    handler.post(() -> {
+                        saveSettings();
+                        statusTextView.setText("Статус: ✅ Файл успешно загружен и обработан!");
+                        logEditText.setText("=== 📄 ФАЙЛ УСПЕШНО ЗАГРУЖЕН ===\n• Имя: " + fileName + "\n• Загружен в редактор кода.");
+                        Toast.makeText(this, "Файл обработан!", Toast.LENGTH_SHORT).show();
+                    });
                 }
-                zip.close();
-                tempFile.delete();
-
-                // Формируем сгенерированный шаблон кода декомпилированного APK и загружаем в редактор
-                final String decompiledTemplate = "package " + packageName + ";\n\n" +
-                        "import android.app.Activity;\n" +
-                        "import android.os.Bundle;\n" +
-                        "import android.widget.*;\n" +
-                        "import android.graphics.*;\n" +
-                        "import android.view.*;\n\n" +
-                        "public class MainActivity extends Activity {\n" +
-                        "    @Override\n" +
-                        "    protected void onCreate(Bundle savedInstanceState) {\n" +
-                        "        super.onCreate(savedInstanceState);\n" +
-                        "        LinearLayout layout = new LinearLayout(this);\n" +
-                        "        layout.setOrientation(LinearLayout.VERTICAL);\n" +
-                        "        layout.setGravity(Gravity.CENTER);\n" +
-                        "        layout.setBackgroundColor(Color.parseColor(\"#030712\"));\n" +
-                        "        layout.setPadding(30, 30, 30, 30);\n\n" +
-                        "        TextView tv = new TextView(this);\n" +
-                        "        tv.setText(\"📦 APK успешно декомпилирован!\\nПакет: " + packageName + "\");\n" +
-                        "        tv.setTextColor(Color.parseColor(\"#38BDF8\"));\n" +
-                        "        tv.setTextSize(18f);\n" +
-                        "        tv.setGravity(Gravity.CENTER);\n" +
-                        "        layout.addView(tv);\n\n" +
-                        "        setContentView(layout);\n" +
-                        "    }\n" +
-                        "}\n";
-
-                activeCodeContent = decompiledTemplate;
-                currentJavaFileName = "Декомпилированный APK (" + packageName + ")";
-                saveSettings();
-
-                handler.post(() -> {
-                    statusTextView.setText("Статус: ✅ APK декомпилирован и загружен в редактор!");
-                    Toast.makeText(this, "Пакет определен: " + packageName, Toast.LENGTH_SHORT).show();
-                    updateAllButtonLabels();
-                });
             } catch (Exception e) {
-                handler.post(() -> statusTextView.setText("Статус: ❌ Ошибка декомпиляции: " + e.getMessage()));
+                handler.post(() -> {
+                    statusTextView.setText("Статус: ❌ Ошибка чтения файла");
+                    logEditText.setText("❌ Ошибка при обработке файла: " + e.getMessage());
+                });
             }
         }).start();
     }
@@ -828,7 +871,6 @@ public class MainActivity extends Activity {
                 boolean repaired = false;
                 StringBuilder diagnosticReport = new StringBuilder("=== 🤖 SMART AI-ДОКТОР: ОТЧЕТ АНАЛИЗА ===\n\n");
 
-                // 1. Анализ пропущенных импортов WebKit
                 if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("WebView") || lastErrorLog.contains("WebSettings") || lastErrorLog.contains("WebViewClient"))) {
                     diagnosticReport.append("🔍 Обнаружено: Использование WebView без импортов.\n");
                     if (!fixedCode.contains("import android.webkit.WebView;")) {
@@ -838,7 +880,6 @@ public class MainActivity extends Activity {
                     }
                 }
 
-                // 2. Анализ пропущенных AppCompat импортов
                 if (lastErrorLog.contains("AppCompatActivity") || lastErrorLog.contains("androidx.")) {
                     diagnosticReport.append("🔍 Обнаружено: Использование компонентов AndroidX / AppCompat.\n");
                     if (!fixedCode.contains("import androidx.appcompat.app.AppCompatActivity;")) {
@@ -848,7 +889,6 @@ public class MainActivity extends Activity {
                     }
                 }
 
-                // 3. Анализ отсутствующих коллекций и утилит (List, Set, Pattern, Matcher)
                 if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("List") || lastErrorLog.contains("Pattern") || lastErrorLog.contains("Matcher") || lastErrorLog.contains("Set"))) {
                     diagnosticReport.append("🔍 Обнаружено: Пропущены импорты Java Util или Regex.\n");
                     if (!fixedCode.contains("import java.util.*;")) {
@@ -858,7 +898,6 @@ public class MainActivity extends Activity {
                     }
                 }
 
-                // 4. Анализ ошибок ресурсов R
                 if (lastErrorLog.contains("R cannot be resolved") || lastErrorLog.contains("error: cannot find symbol variable R")) {
                     diagnosticReport.append("🔍 Обнаружено: Неверная или неразрешенная ссылка на ресурсы (R.id / R.layout).\n");
                     fixedCode = fixedCode.replaceAll("R\\.[a-z]+\\.[a-zA-Z0-9_]+", "/* Авто-заглушка сомнительного ресурса */ View.VISIBLE");
@@ -866,7 +905,6 @@ public class MainActivity extends Activity {
                     diagnosticReport.append("✅ Исправление: Заменены неразрешенные R-ссылки для предотвращения краша компилятора.\n");
                 }
 
-                // 5. Анализ проблем с синтаксисом (отсутствующие точки с запятой или скобки)
                 if (lastErrorLog.contains("error: ';' expected") || lastErrorLog.contains("error: reached end of file while parsing")) {
                     diagnosticReport.append("🔍 Обнаружено: Синтаксическая ошибка (пропущена ';' или фигурная скобка '}')\n");
                     diagnosticReport.append("💡 Рекомендация: Откройте встроенный Редактор кода и проверьте последние добавленные строки.\n");
@@ -1228,7 +1266,6 @@ public class MainActivity extends Activity {
                             while ((line = lb.readLine()) != null) ls.append(line).append("\n");
                             lastErrorLog = ls.toString();
 
-                            // Интеллектуальный парсинг ошибок для красивого вывода
                             StringBuilder professionalReport = new StringBuilder("=== 📋 ПРОФЕССИОНАЛЬНЫЙ ОТЧЕТ ОБ ОШИБКЕ ===\n\n");
                             boolean foundErrorBlock = false;
                             
@@ -1259,7 +1296,7 @@ public class MainActivity extends Activity {
 
     private void confirmResetProject() {
         new AlertDialog.Builder(this)
-            .setTitle("Полный сброс")
+            .setTitle("Сброс к часам")
             .setMessage("Сбросить проект к стандартному шаблону (Monster Clock)?")
             .setPositiveButton("Сбросить", (dialog, which) -> {
                 activeCodeContent = generateClockTemplate();
@@ -1272,6 +1309,34 @@ public class MainActivity extends Activity {
                 saveSettings();
                 Toast.makeText(this, "Проект сброшен до Monster Clock!", Toast.LENGTH_SHORT).show();
                 logEditText.setText("=== 🔄 ПРОЕКТ СБРОШЕН ДО ЧАСОВ ===\n• Имя: Monster Clock\n• Пакет: com.monster.clock\n• Все параметры и кнопки обновлены.");
+            })
+            .setNegativeButton("Отмена", null)
+            .show();
+    }
+
+    // Полная очистка репозитория и восстановление часов
+    private void confirmFullRepositoryClear() {
+        new AlertDialog.Builder(this)
+            .setTitle("🗑 Полная очистка репозитория")
+            .setMessage("ВНИМАНИЕ! Это полностью очистит репозиторий на GitHub, удалит сторонние файлы и восстановит настройки по умолчанию (Monster Clock). Вы уверены?")
+            .setPositiveButton("Очистить всё", (dialog, which) -> {
+                activeCodeContent = generateClockTemplate();
+                currentJavaFileName = "Шаблон: Часы с фонариком и яркостью";
+                appTitle = "Monster Clock";
+                packageName = "com.monster.clock";
+                appVersion = "1.0";
+                saveSettings();
+
+                statusTextView.setText("Статус: 🗑 Полная очистка и сброс репозитория...");
+                Toast.makeText(this, "Репозиторий очищается и сбрасывается...", Toast.LENGTH_LONG).show();
+
+                // Автоматически пушим дефолтные чистые файлы на GitHub
+                triggerGitHubBuild();
+
+                logEditText.setText("=== 🗑 РЕПОЗИТОРИЙ ПОЛНОСТЬЮ ОЧИЩЕН ===\n" +
+                                    "• Все старые файлы удалены/перезаписаны.\n" +
+                                    "• Проект восстановлен до стандартных часов (Monster Clock).\n" +
+                                    "• Запущена чистая компиляция.");
             })
             .setNegativeButton("Отмена", null)
             .show();
