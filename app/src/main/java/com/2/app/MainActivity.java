@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v4.5 ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v4.6 ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -133,7 +133,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🚀 Android Monster Compiler (Pro Engine)");
+        titleView.setText("🚀 Android Monster Compiler (Fixed)");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -1203,14 +1203,13 @@ public class MainActivity extends Activity {
                             
                             String[] lines = lastErrorLog.split("\n");
                             for (String logLine : lines) {
-                                if (logLine.contains("error:") || logLine.contains("FAILED") || logLine.contains("Exception") || logLine.contains("error [")) {
+                                if (logLine.contains("error:") || logLine.contains("FAILED") || logLine.contains("Exception") || logLine.contains("* What went wrong:")) {
                                     professionalReport.append("❌ ").append(logLine.trim()).append("\n");
                                     foundErrorBlock = true;
                                 }
                             }
 
                             if (!foundErrorBlock) {
-                                // Если конкретных меток не найдено, выводим конец лога
                                 professionalReport.append(lastErrorLog.length() > 2500 ? lastErrorLog.substring(lastErrorLog.length() - 2500) : lastErrorLog);
                             } else {
                                 professionalReport.append("\n💡 Совет: Нажмите кнопку 'Smart AI-Доктор' выше, чтобы попытаться автоматически исправить эти ошибки в коде!");
@@ -1348,6 +1347,7 @@ public class MainActivity extends Activity {
                "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" +
                "      - name: Checkout\n        uses: actions/checkout@v4\n" +
                "      - name: Set up JDK 17\n        uses: actions/setup-java@v5\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n" +
+               "      - name: Install Gradle\n        run: sudo apt-get update && sudo apt-get install -y gradle\n" +
                "      - name: Setup Android SDK (Native Bash)\n        run: |\n" +
                "          export ANDROID_HOME=/usr/local/lib/android/sdk\n" +
                "          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n" +
