@@ -67,8 +67,9 @@ public class MainActivity extends Activity {
         notesHeader.setPadding(0, 10, 0, 5);
         container.addView(notesHeader);
 
+        // Замена слова сборщик на загрузчик (пафосный английский логотип)
         TextView logoView = new TextView(this);
-        logoView.setText("⚡ SMULE VIP MATRIX DOWNLOADER ⚡");
+        logoView.setText("⚡ SMULE VIP MATRIX LOADER ⚡");
         logoView.setTextColor(Color.parseColor("#38BDF8"));
         logoView.setTextSize(16f);
         logoView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -91,22 +92,6 @@ public class MainActivity extends Activity {
         );
         card.setLayoutParams(cardParams);
 
-        // Кнопка-вставка из буфера с динамическим содержимым и мелким шрифтом
-        btnPaste = new Button(this);
-        btnPaste.setTextColor(Color.parseColor("#93C5FD"));
-        btnPaste.setTextSize(10f); // Уменьшенный шрифт, чтобы влезала ссылка
-        btnPaste.setTypeface(Typeface.MONOSPACE);
-        btnPaste.setBackgroundColor(Color.parseColor("#1E293B"));
-        btnPaste.setPadding(12, 10, 12, 10);
-        LinearLayout.LayoutParams pasteParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        pasteParams.setMargins(0, 0, 0, 10);
-        btnPaste.setLayoutParams(pasteParams);
-        btnPaste.setOnClickListener(v -> pasteFromClipboard());
-        card.addView(btnPaste);
-
-        // Поле ввода ссылки (пустое по умолчанию)
         urlInput = new EditText(this);
         urlInput.setHint("Вставьте ссылку на трек Smule здесь...");
         urlInput.setHintTextColor(Color.parseColor("#475569"));
@@ -121,6 +106,12 @@ public class MainActivity extends Activity {
         inputParams.setMargins(0, 0, 0, 15);
         urlInput.setLayoutParams(inputParams);
         card.addView(urlInput);
+
+        // ДИНАМИЧЕСКАЯ КНОПКА ВСТАВКИ ИЗ БУФЕРА
+        btnPaste = createStyledButton("📋 Вставить из буфера", "#475569");
+        btnPaste.setTextSize(10f); // Уменьшенный шрифт, чтобы поместился текст ссылки
+        btnPaste.setOnClickListener(v -> pasteFromClipboard());
+        card.addView(btnPaste);
 
         infoCard = new LinearLayout(this);
         infoCard.setOrientation(LinearLayout.VERTICAL);
@@ -140,7 +131,7 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams infoParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        infoParams.setMargins(0, 0, 0, 12);
+        infoParams.setMargins(0, 10, 0, 10);
         infoCard.setLayoutParams(infoParams);
         card.addView(infoCard);
 
@@ -207,7 +198,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        updatePasteButtonText(); // Обновляем текст буфера при возврате в приложение
+        // Динамически подтягиваем текст из буфера обмена на кнопку при возврате в приложение
+        updatePasteButtonText();
     }
 
     private void updatePasteButtonText() {
@@ -216,21 +208,22 @@ public class MainActivity extends Activity {
             if (clipboard != null && clipboard.hasPrimaryClip()) {
                 ClipData clip = clipboard.getPrimaryClip();
                 if (clip != null && clip.getItemCount() > 0) {
-                    CharSequence text = clip.getItemAt(0).getText();
+                    CharSequence text = clip.getItemAt(0).coerceToText(this);
                     if (text != null) {
                         String clipStr = text.toString().trim();
-                        if (clipStr.length() > 40) {
-                            clipStr = clipStr.substring(0, 37) + "...";
+                        if (!clipStr.isEmpty()) {
+                            // Если ссылка слишком длинная, красиво обрезаем для отображения на кнопке
+                            if (clipStr.length() > 40) {
+                                clipStr = clipStr.substring(0, 37) + "...";
+                            }
+                            btnPaste.setText("📋 Вставить: " + clipStr);
+                            return;
                         }
-                        btnPaste.setText("📋 Вставить: " + clipStr);
-                        return;
                     }
                 }
             }
-            btnPaste.setText("📋 Буфер обмена пуст");
-        } catch (Exception e) {
-            btnPaste.setText("📋 Вставить из буфера");
-        }
+        } catch (Exception ignored) {}
+        btnPaste.setText("📋 Вставить из буфера");
     }
 
     private void pasteFromClipboard() {
@@ -239,17 +232,18 @@ public class MainActivity extends Activity {
             if (clipboard != null && clipboard.hasPrimaryClip()) {
                 ClipData clip = clipboard.getPrimaryClip();
                 if (clip != null && clip.getItemCount() > 0) {
-                    CharSequence text = clip.getItemAt(0).getText();
+                    CharSequence text = clip.getItemAt(0).coerceToText(this);
                     if (text != null) {
                         urlInput.setText(text.toString().trim());
-                        Toast.makeText(this, "Ссылка вставлена!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Ссылка вставлена из буфера!", Toast.LENGTH_SHORT).show();
+                        return;
                     }
                 }
             }
+            Toast.makeText(this, "Буфер обмена пуст", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             Toast.makeText(this, "Не удалось прочитать буфер", Toast.LENGTH_SHORT).show();
         }
-        updatePasteButtonText();
     }
 
     private Button createStyledButton(String text, String colorHex) {
@@ -371,7 +365,7 @@ public class MainActivity extends Activity {
             
             DownloadManager.Request request = new DownloadManager.Request(Uri.parse(resolvedMediaUrl));
             request.setTitle(songArtist + " - " + songTitle);
-            request.setDescription("Скачивание медиа со Smule Загрузчиком");
+            request.setDescription("Скачивание медиа со Smule");
             request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
             request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
 
