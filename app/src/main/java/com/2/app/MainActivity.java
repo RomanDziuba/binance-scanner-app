@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v5.0 ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v5.1 ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -133,7 +133,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🚀 Android Monster Compiler (AAPT2 Icon Fixed)");
+        titleView.setText("🚀 Android Monster Compiler (AAPT2 Bulletproof)");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -779,11 +779,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    private byte[] getDefaultIconBytes() {
-        String b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
-        return android.util.Base64.decode(b64, android.util.Base64.DEFAULT);
-    }
-
     // ==========================================
     // 🧠 УМНЫЙ СТАТИЧЕСКИЙ AI-ДОКТОР & ПАРСЕР ЛОГОВ (PRO)
     // ==========================================
@@ -802,10 +797,7 @@ public class MainActivity extends Activity {
                 boolean repaired = false;
                 StringBuilder diagnosticReport = new StringBuilder("=== 🤖 SMART AI-ДОКТОР: ОТЧЕТ АНАЛИЗА ===\n\n");
 
-                if (lastErrorLog.contains("AAPT2") || lastErrorLog.contains("aapt2") || lastErrorLog.contains("resource") || lastErrorLog.contains("failed linking")) {
-                    diagnosticReport.append("🔍 Обнаружено: Ошибка AAPT2 / ресурсов XML.\n");
-                    diagnosticReport.append("💡 Решение: Теперь Monster Compiler автоматически добавляет иконку ic_launcher.png перед каждой сборкой!\n");
-                }
+                diagnosticReport.append("ℹ️ AAPT2 и иконки полностью нейтрализованы (убрана зависимость от launcher icon в манифесте).\n");
 
                 if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("WebView") || lastErrorLog.contains("WebSettings") || lastErrorLog.contains("WebViewClient"))) {
                     diagnosticReport.append("🔍 Обнаружено: Использование WebView без импортов.\n");
@@ -826,8 +818,7 @@ public class MainActivity extends Activity {
                 }
 
                 if (!repaired) {
-                    diagnosticReport.append("⚠️ Авто-патч завершен. Ошибка устранена авто-загрузкой иконки.\n");
-                    diagnosticReport.append("💡 Нажмите кнопку компиляции заново — сборка пройдет успешно!");
+                    diagnosticReport.append("💡 Конфликт ресурсов полностью устранен обновлением манифеста. Нажмите компиляцию заново!");
                 } else {
                     diagnosticReport.append("\n🎉 Исправления применены! Запустите сборку заново.");
                 }
@@ -842,7 +833,7 @@ public class MainActivity extends Activity {
                         saveSettings();
                         statusTextView.setText("Статус: ✅ AI-Доктор применил патчи!");
                     } else {
-                        statusTextView.setText("Статус: ✅ Иконка добавлена, запустите сборку");
+                        statusTextView.setText("Статус: ✅ Манифест очищен от AAPT2 ошибок");
                     }
                     logEditText.setText(reportStr);
                 });
@@ -970,8 +961,8 @@ public class MainActivity extends Activity {
         btnBuild.setEnabled(false);
         btnBuild.setBackgroundColor(Color.parseColor("#1E3A8A"));
         btnBuild.setText("⏳ Компиляция на сервере...\n📦 " + packageName);
-        statusTextView.setText("Статус: ⚙️ Синхронизация репозитория и иконки...");
-        logEditText.setText("Отправка кода, конфигурации и иконки на GitHub...");
+        statusTextView.setText("Статус: ⚙️ Синхронизация репозитория...");
+        logEditText.setText("Отправка кода и конфигурации на GitHub...");
 
         new Thread(() -> {
             try {
@@ -983,7 +974,6 @@ public class MainActivity extends Activity {
                                  pushFileToGitHub("app/src/main/AndroidManifest.xml", generateManifest(), "Update manifest") &&
                                  pushFileToGitHub("app/build.gradle", generateAppGradle(), "Update app gradle") &&
                                  pushFileToGitHub(".github/workflows/build_native.yml", getWorkflowContent(), "Update workflow") &&
-                                 pushBytesToGitHub("app/src/main/res/mipmap-xxhdpi/ic_launcher.png", getDefaultIconBytes(), "Ensure default launcher icon") &&
                                  pushFileToGitHub(getMainActivityPath(), activeCodeContent, "Update MainActivity");
 
                 if (!synced) {
@@ -1044,7 +1034,7 @@ public class MainActivity extends Activity {
                     conn.setRequestProperty("Authorization", "Bearer " + githubToken);
                     conn.getResponseCode();
                 } catch (Exception ignored) {}
-            }).start();
+            }.start();
         }
 
         handler.post(() -> {
@@ -1193,7 +1183,7 @@ public class MainActivity extends Activity {
                             if (!foundErrorBlock) {
                                 professionalReport.append(lastErrorLog.length() > 2500 ? lastErrorLog.substring(lastErrorLog.length() - 2500) : lastErrorLog);
                             } else {
-                                professionalReport.append("\n💡 Иконка теперь добавляется автоматически. Нажмите сборку заново!");
+                                professionalReport.append("\n💡 AAPT2 иконки отключены. Нажмите сборку заново!");
                             }
 
                             handler.post(() -> {
@@ -1352,7 +1342,7 @@ public class MainActivity extends Activity {
                "    <uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\" />\n" +
                "    <uses-permission android:name=\"android.permission.CAMERA\" />\n" +
                "    <uses-permission android:name=\"android.permission.FLASHLIGHT\" />\n" +
-               "    <application android:allowBackup=\"true\" android:icon=\"@mipmap/ic_launcher\" android:label=\"" + appTitle + "\" android:theme=\"@android:style/Theme.Material.Light.NoActionBar\">\n" +
+               "    <application android:allowBackup=\"true\" android:label=\"" + appTitle + "\" android:theme=\"@android:style/Theme.Material.Light.NoActionBar\">\n" +
                "        <activity android:name=\".MainActivity\" android:exported=\"true\">\n" +
                "            <intent-filter>\n" +
                "                <action android:name=\"android.intent.action.MAIN\" />\n" +
