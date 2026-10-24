@@ -58,7 +58,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Smule Full Debugger v4.0 ✦");
+        authorView.setText("✦ Dziuba Roman — Smule Full Debugger v4.1 ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(14f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -82,7 +82,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🔍 Глубокая консоль и перехват сети");
+        titleView.setText("🔍 Обход Cloudflare & Перехват треков");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(17f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -138,7 +138,7 @@ public class MainActivity extends Activity {
         card.addView(logLabel);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Здесь появится вся детальная картина: meta-теги, скрипты, JSON и перехваченные сетевые запросы...");
+        logEditText.setHint("Здесь появится вся детальная картина и перехваченные ссылки...");
         logEditText.setTextSize(10f);
         logEditText.setTypeface(Typeface.MONOSPACE);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
@@ -226,24 +226,24 @@ public class MainActivity extends Activity {
         networkLogs.clear();
 
         btnDebug.setEnabled(false);
-        statusText.setText("Статус: 🌐 Загрузка страницы и мониторинг трафика...");
-        logEditText.setText("=== 🔍 FULL DEBUG CONSOLE ===\nЦель: " + targetUrl + "\nМониторинг запросов и анализ DOM...\n\n");
+        statusText.setText("Статус: 🌐 Обход Cloudflare и загрузка страницы...");
+        logEditText.setText("=== 🔍 FULL DEBUG CONSOLE ===\nЦель: " + targetUrl + "\nЖдем прохождение защиты и запуск плеера...\n\n");
 
         hiddenWebView.setWebViewClient(new WebViewClient() {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 String reqUrl = request.getUrl().toString();
                 
-                // Фильтруем полезные сетевые вызовы
-                if (reqUrl.contains(".m4a") || reqUrl.contains(".mp4") || reqUrl.contains(".mp3") || reqUrl.contains("performance") || reqUrl.contains("smule")) {
+                // Перехватываем все медиа и api запросы Smule
+                if (reqUrl.contains(".m4a") || reqUrl.contains(".mp4") || reqUrl.contains(".mp3") || reqUrl.contains("performance") || reqUrl.contains("recording")) {
                     synchronized (interceptedMediaUrls) {
                         if (reqUrl.contains(".m4a") || reqUrl.contains(".mp4") || reqUrl.contains(".mp3")) {
                             interceptedMediaUrls.add(reqUrl);
                         }
                     }
                     synchronized (networkLogs) {
-                        if (networkLogs.size() < 15) {
-                            networkLogs.add("📡 [Network Call]: " + reqUrl);
+                        if (networkLogs.size() < 30) {
+                            networkLogs.add("🔥 [Media/API Intercept]: " + reqUrl);
                         }
                     }
                 }
@@ -254,19 +254,24 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 
-                // Автоматически запускаем воспроизведение HTML5 audio/video элементов, если они есть
+                // Автоматически кликаем по кнопкам play и запускаем аудио/видео элементы
                 hiddenWebView.loadUrl("javascript:(function(){" +
-                        "var els = document.querySelectorAll('audio, video');" +
-                        "for(var i=0; i<els.length; i++) { els[i].play(); }" +
+                        "console.log('Auto-clicking play...');" +
+                        "var playBtns = document.querySelectorAll('button, [class*=\"play\"], [class*=\"Play\"], [aria-label*=\"play\"], [aria-label*=\"Play\"]');" +
+                        "for(var i=0; i<playBtns.length; i++) { try { playBtns[i].click(); } catch(e){} }" +
+                        "var audios = document.querySelectorAll('audio, video');" +
+                        "for(var j=0; j<audios.length; j++) { try { audios[j].play(); } catch(e){} }" +
                         "})();");
 
-                // Снимаем дампы через 4 секунды
+                statusText.setText("Статус: ⏳ Ожидание Cloudflare и воспроизведения (9 сек)...");
+                
+                // Увеличили задержку до 9 секунд, чтобы дать время пройти Cloudflare и подгрузить медиа
                 handler.postDelayed(() -> {
                     hiddenWebView.loadUrl("javascript:window.HTMLOUT.processHTML(" +
                             "document.getElementsByTagName('html')[0].innerHTML," +
                             "document.title" +
                             ");");
-                }, 4000);
+                }, 9000);
             }
         });
 
@@ -287,10 +292,10 @@ public class MainActivity extends Activity {
                     int n = 0;
                     for (String mediaUrl : interceptedMediaUrls) {
                         n++;
-                        report.append("🔥 [Сетевой медиа-поток #").append(n).append("]:\n").append(mediaUrl).append("\n\n");
+                        report.append("🎯 [Сетевой медиа-поток #").append(n).append("]:\n").append(mediaUrl).append("\n\n");
                     }
                 } else {
-                    report.append("ℹ️ Прямых вызовов .m4a/.mp4 сетевым перехватчиком пока не зафиксировано.\n\n");
+                    report.append("ℹ️ Сетевым перехватчиком файлы .m4a/.mp4 еще не пойманы (возможно, требуется больше времени).\n\n");
                 }
             }
 
@@ -318,7 +323,7 @@ public class MainActivity extends Activity {
                 int count = 0;
                 while (mUrl.find()) {
                     count++;
-                    report.append("🎯 [NEXT_DATA Media #").append(count).append("]: ").append(mUrl.group(1).replace("\\/", "/")).append("\n");
+                    report.append("🔥 [NEXT_DATA Media #").append(count).append("]: ").append(mUrl.group(1).replace("\\/", "/")).append("\n");
                 }
                 if (count == 0) report.append("ℹ️ Внутри __NEXT_DATA__ прямых ссылок .m4a/.mp4 не обнаружено.\n");
             } else {
