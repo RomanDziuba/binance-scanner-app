@@ -170,8 +170,8 @@ public class MainActivity extends Activity {
         btnFileManager.setOnClickListener(v -> openRepositoryFileManager());
         card.addView(btnFileManager);
 
-        // Кнопка редактора кода с новым темно-синим (почти черным) цветом фона (#0A0F1D) и без слова "с подсказками"
-        btnCodeEditor = createStyledButton("📝 Редактор кода", "#0A0F1D");
+        // Кнопка редактора кода: убрано "с подсказками", установлен очень темно-синий цвет (#0A1128) ближе к черному для максимального контраста
+        btnCodeEditor = createStyledButton("📝 Редактор кода", "#0A1128");
         btnCodeEditor.setOnClickListener(v -> openCodeEditorDialog());
         card.addView(btnCodeEditor);
 
@@ -217,7 +217,7 @@ public class MainActivity extends Activity {
         card.addView(statusTextView);
 
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Профессиональный терминал и расширенный отчет об ошибках:");
+        logLabel.setText("📋 Профессиональный терминал и отчет об ошибках:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
         logLabel.setTextSize(11f);
         logLabel.setPadding(0, 6, 0, 4);
@@ -1169,7 +1169,7 @@ public class MainActivity extends Activity {
     }
 
     // ==========================================
-    // 🔍 РАСШИРЕННЫЙ И ИНТЕЛЛЕКТУАЛЬНЫЙ АНАЛИЗАТОР ВСЕХ ЛОГОВ (PRO MAX)
+    // 🔍 РАСШИРЕННЫЙ И ИНТЕЛЛЕКТУАЛЬНЫЙ АНАЛИЗАТОР ЛОГОВ (PRO)
     // ==========================================
     private void fetchLogsAsync(long runId) {
         new Thread(() -> {
@@ -1188,7 +1188,7 @@ public class MainActivity extends Activity {
                     if (jobs.length() > 0) {
                         long jobId = jobs.getJSONObject(0).getLong("id");
                         String logsUrl = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/actions/jobs/" + jobId + "/logs";
-                        HttpURLConnection logConn = (HttpURLConnection) new URL(logsUrl);
+                        HttpURLConnection logConn = (HttpURLConnection) new URL(logsUrl).openConnection();
                         logConn.setRequestMethod("GET");
                         logConn.setRequestProperty("Authorization", "Bearer " + githubToken);
 
@@ -1198,46 +1198,95 @@ public class MainActivity extends Activity {
                             while ((line = lb.readLine()) != null) ls.append(line).append("\n");
                             lastErrorLog = ls.toString();
 
-                            // Интеллектуальный расширенный анализ всех типичных и нетипичных ошибок
-                            StringBuilder smartReport = new StringBuilder("=== 📋 РАСШИРЕННЫЙ ОТЧЕТ ОБ ОШИБКАХ И ЛОГАХ ===\n\n");
-                            boolean foundImportant = false;
+                            // Глубокий интеллектуальный анализатор всех типов ошибок (типичных и нетипичных)
+                            StringBuilder professionalReport = new StringBuilder("=== 🧠 РАСШИРЕННЫЙ ИНТЕЛЛЕКТУАЛЬНЫЙ АНАЛИЗАТОР ЛОГОВ (PRO) ===\n\n");
                             
+                            java.util.List<String> compileErrors = new java.util.ArrayList<>();
+                            java.util.List<String> gradleErrors = new java.util.ArrayList<>();
+                            java.util.List<String> resourceErrors = new java.util.ArrayList<>();
+                            java.util.List<String> otherIssues = new java.util.ArrayList<>();
+
                             String[] logLines = lastErrorLog.split("\n");
-                            for (String l : logLines) {
-                                String tr = l.trim();
-                                // Ловим все типы ошибок: синтаксис Java, сбои Gradle, неразрешенные символы, исключения и проблемы SDK/bash
-                                if (tr.contains("error:") || tr.contains("FAILED") || tr.contains("Exception") || 
-                                    tr.contains("FAILURE:") || tr.contains("error [") || tr.contains("Execution failed") || 
-                                    tr.contains("A problem occurred") || tr.contains("Could not resolve") || tr.contains("Warning:")) {
-                                    
-                                    if (tr.contains("FAILURE:") || tr.contains("Execution failed")) {
-                                        smartReport.append("\n🚨 [ГРУППА СБОЯ]: ").append(tr).append("\n");
-                                    } else if (tr.contains("error:")) {
-                                        smartReport.append("❌ [ОШИБКА КОМПИЛЯЦИИ]: ").append(tr).append("\n");
-                                    } else {
-                                        smartReport.append("⚠️ ").append(tr).append("\n");
-                                    }
-                                    foundImportant = true;
+                            for (String logLine : logLines) {
+                                String lower = logLine.toLowerCase();
+                                String trimmed = logLine.trim();
+                                if (trimmed.isEmpty()) continue;
+
+                                if (lower.contains("error:") || lower.contains("cannot find symbol") || lower.contains("symbol not found") || lower.contains("package does not exist") || lower.contains("incompatible types") || lower.contains("bad source file") || lower.contains("syntax error") || lower.contains("expected")) {
+                                    compileErrors.add(trimmed);
+                                } else if (lower.contains("failed") || lower.contains("failure") || lower.contains("task :") || lower.contains("build failed") || lower.contains("gradleexception") || lower.contains("execution failed")) {
+                                    gradleErrors.add(trimmed);
+                                } else if (lower.contains("aapt") || lower.contains("resource") || lower.contains("manifest") || lower.contains("xml") || lower.contains("no such file") || lower.contains("invalid resource")) {
+                                    resourceErrors.add(trimmed);
+                                } else if (lower.contains("exception") || lower.contains("fatal") || lower.contains("stacktrace") || lower.contains("crash") || lower.contains("warning:")) {
+                                    otherIssues.add(trimmed);
                                 }
                             }
 
-                            if (!foundImportant) {
-                                // Если жестких меток нет, выводим больший блок последних логов (увеличенный охват)
-                                smartReport.append("ℹ️ Специфичных меток ошибок не найдено. Последние строки лога сборки:\n\n");
-                                int startIdx = Math.max(0, lastErrorLog.length() - 4000);
-                                smartReport.append(lastErrorLog.substring(startIdx));
+                            boolean hasAnyIssue = false;
+
+                            if (!compileErrors.isEmpty()) {
+                                hasAnyIssue = true;
+                                professionalReport.append("🔴 КРИТИЧЕСКИЕ ОШИБКИ КОМПИЛЯЦИИ JAVA/KOTLIN:\n");
+                                int count = 0;
+                                for (String err : compileErrors) {
+                                    if (count++ < 25) professionalReport.append("  • ").append(err).append("\n");
+                                }
+                                professionalReport.append("\n");
+                            }
+
+                            if (!gradleErrors.isEmpty()) {
+                                hasAnyIssue = true;
+                                professionalReport.append("🟠 ОШИБКИ СБОРКИ GRADLE / TASKS:\n");
+                                int count = 0;
+                                for (String err : gradleErrors) {
+                                    if (count++ < 20) professionalReport.append("  • ").append(err).append("\n");
+                                }
+                                professionalReport.append("\n");
+                            }
+
+                            if (!resourceErrors.isEmpty()) {
+                                hasAnyIssue = true;
+                                professionalReport.append("🟡 ОШИБКИ РЕСУРСОВ, AAPT И MANIFEST:\n");
+                                int count = 0;
+                                for (String err : resourceErrors) {
+                                    if (count++ < 15) professionalReport.append("  • ").append(err).append("\n");
+                                }
+                                professionalReport.append("\n");
+                            }
+
+                            if (!otherIssues.isEmpty()) {
+                                hasAnyIssue = true;
+                                professionalReport.append("🟣 ИСКЛЮЧЕНИЯ, КРАШИ И ПРЕДУПРЕЖДЕНИЯ:\n");
+                                int count = 0;
+                                for (String err : otherIssues) {
+                                    if (count++ < 15) professionalReport.append("  • ").append(err).append("\n");
+                                }
+                                professionalReport.append("\n");
+                            }
+
+                            if (!hasAnyIssue) {
+                                professionalReport.append("⚠️ Специфичных меток ошибок не обнаружено. Вот последние расширенные строки логов сервера:\n\n");
+                                int startIdx = Math.max(0, logLines.length - 80);
+                                for (int i = startIdx; i < logLines.length; i++) {
+                                    professionalReport.append(logLines[i]).append("\n");
+                                }
                             } else {
-                                smartReport.append("\n💡 Интеллектуальный совет: Нажмите кнопку 'Smart AI-Доктор' выше, чтобы автоматически исправить код!");
+                                professionalReport.append("💡 ИНТЕЛЛЕКТУАЛЬНЫЙ СОВЕТ: Нажмите кнопку 'Smart AI-Доктор' выше, чтобы автоматически проанализировать и исправить найденные ошибки в коде!");
                             }
 
                             handler.post(() -> {
-                                logEditText.setText(smartReport.toString());
-                                Toast.makeText(MainActivity.this, "⚠️ Обнаружены ошибки сборки! Проверьте отчет.", Toast.LENGTH_LONG).show();
+                                logEditText.setText(professionalReport.toString());
+                                Toast.makeText(MainActivity.this, "⚠️ Обнаружены ошибки! Просмотрите расширенный отчет.", Toast.LENGTH_LONG).show();
                             });
                         }
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                handler.post(() -> {
+                    logEditText.setText("❌ Ошибка получения расширенных логов: " + e.getMessage());
+                });
+            }
         }).start();
     }
 
