@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.rom.app'
+    namespace 'com.prodvinutyykompilyator.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.rom.app"
+        applicationId "com.prodvinutyykompilyator.app"
         minSdk 26
         targetSdk 34
         versionCode 1
-        versionName "1.1"
+        versionName "1.4"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
