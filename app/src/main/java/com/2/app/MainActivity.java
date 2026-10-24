@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v5.7 ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v5.8 ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -133,7 +133,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🚀 Android Monster Compiler (Pure Bash Only)");
+        titleView.setText("🚀 Android Monster Compiler (Gradle Stable Fix)");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -802,9 +802,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // ==========================================
-    // 🧠 УМНЫЙ СТАТИЧЕСКИЙ AI-ДОКТОР & ПАРСЕР ЛОГОВ (PRO)
-    // ==========================================
     private void runAiCodeDoctor() {
         if (lastErrorLog.isEmpty()) {
             Toast.makeText(this, "ℹ️ Нет ошибок для анализа. Сначала запустите сборку!", Toast.LENGTH_LONG).show();
@@ -820,7 +817,7 @@ public class MainActivity extends Activity {
                 boolean repaired = false;
                 StringBuilder diagnosticReport = new StringBuilder("=== 🤖 SMART AI-ДОКТОР: ОТЧЕТ АНАЛИЗА ===\n\n");
 
-                diagnosticReport.append("ℹ️ Чистый Bash-компилятор активен. Все gradle-зависимости удалены.\n");
+                diagnosticReport.append("ℹ️ Используется стабильная Gradle-сборка с авто-отправкой APK в Telegram.\n");
 
                 if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("WebView") || lastErrorLog.contains("WebSettings") || lastErrorLog.contains("WebViewClient"))) {
                     diagnosticReport.append("🔍 Обнаружено: Использование WebView без импортов.\n");
@@ -831,17 +828,8 @@ public class MainActivity extends Activity {
                     }
                 }
 
-                if (lastErrorLog.contains("AppCompatActivity") || lastErrorLog.contains("androidx.")) {
-                    diagnosticReport.append("🔍 Обнаружено: Использование AndroidX / AppCompat.\n");
-                    if (!fixedCode.contains("import androidx.appcompat.app.AppCompatActivity;")) {
-                        fixedCode = fixedCode.replaceFirst("package\\s+[a-zA-Z0-9_.]+;", "$0\n\nimport androidx.appcompat.app.AppCompatActivity;");
-                        repaired = true;
-                        diagnosticReport.append("✅ Исправление: Добавлен импорт AppCompatActivity.\n");
-                    }
-                }
-
                 if (!repaired) {
-                    diagnosticReport.append("💡 Чистый Bash воркфлоу настроен. Нажмите сборку заново!");
+                    diagnosticReport.append("💡 Ошибка в логах выше. Нажмите сборку заново!");
                 } else {
                     diagnosticReport.append("\n🎉 Исправления применены! Запустите сборку заново.");
                 }
@@ -856,7 +844,7 @@ public class MainActivity extends Activity {
                         saveSettings();
                         statusTextView.setText("Статус: ✅ AI-Доктор применил патчи!");
                     } else {
-                        statusTextView.setText("Статус: ✅ Pure Bash воркфлоу готов, запустите сборку");
+                        statusTextView.setText("Статус: ✅ Проанализировано, запустите сборку");
                     }
                     logEditText.setText(reportStr);
                 });
@@ -984,17 +972,19 @@ public class MainActivity extends Activity {
         btnBuild.setEnabled(false);
         btnBuild.setBackgroundColor(Color.parseColor("#1E3A8A"));
         btnBuild.setText("⏳ Компиляция на сервере...\n📦 " + packageName);
-        statusTextView.setText("Статус: ⚙️ Полная очистка старых воркфлоу...");
-        logEditText.setText("Удаление всех старых воркфлоу и запуск чистого Bash-скриптера...");
+        statusTextView.setText("Статус: ⚙️ Синхронизация Gradle проекта...");
+        logEditText.setText("Обновление gradle-файлов и отправка на GitHub...");
 
         new Thread(() -> {
             try {
-                cleanOldWorkflows();
-
                 activeCodeContent = sanitizeAndInjectJavaCode(activeCodeContent, packageName);
                 
-                boolean synced = pushFileToGitHub("app/src/main/AndroidManifest.xml", generateManifest(), "Update manifest") &&
-                                 pushFileToGitHub(".github/workflows/build_native.yml", getWorkflowContent(), "Update workflow") &&
+                boolean synced = pushFileToGitHub("build.gradle", getRootGradleContent(), "Update root gradle") &&
+                                 pushFileToGitHub("settings.gradle", getSettingsGradleContent(), "Update settings") &&
+                                 pushFileToGitHub("gradlew", getGradlewWrapperContent(), "Update gradlew") &&
+                                 pushFileToGitHub("app/build.gradle", generateAppGradle(), "Update app gradle") &&
+                                 pushFileToGitHub("app/src/main/AndroidManifest.xml", generateManifest(), "Update manifest") &&
+                                 pushFileToGitHub(".github/workflows/build_gradle.yml", getWorkflowContent(), "Update workflow") &&
                                  pushFileToGitHub(getMainActivityPath(), activeCodeContent, "Update MainActivity");
 
                 if (!synced) {
@@ -1007,7 +997,7 @@ public class MainActivity extends Activity {
                     return;
                 }
 
-                String dispatchUrl = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/actions/workflows/build_native.yml/dispatches";
+                String dispatchUrl = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/actions/workflows/build_gradle.yml/dispatches";
                 URL url = new URL(dispatchUrl);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
@@ -1022,7 +1012,7 @@ public class MainActivity extends Activity {
                 if (conn.getResponseCode() == 204 || conn.getResponseCode() == 201) {
                     handler.post(() -> {
                         statusTextView.setText("Статус: 🚀 Сборка запущена! Ожидание APK...");
-                        logEditText.setText("Чистый Bash воркфлоу запущен без Gradle!\nКак только сборка завершится, бот пришлет APK в Telegram.");
+                        logEditText.setText("Gradle-сборка запущена на сервере...\nКак только APK будет готов, бот пришлет его в Telegram.");
                         startMonitoringBuild();
                     });
                 } else {
@@ -1042,33 +1032,6 @@ public class MainActivity extends Activity {
                 });
             }
         }).start();
-    }
-
-    private void cleanOldWorkflows() {
-        try {
-            String treeUrl = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/git/trees/main?recursive=1";
-            HttpURLConnection conn = (HttpURLConnection) new URL(treeUrl).openConnection();
-            conn.setRequestMethod("GET");
-            conn.setRequestProperty("Authorization", "Bearer " + githubToken);
-            conn.setRequestProperty("Accept", "application/vnd.github+json");
-
-            if (conn.getResponseCode() == 200) {
-                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = br.readLine()) != null) sb.append(line);
-                JSONArray treeArray = new JSONObject(sb.toString()).optJSONArray("tree");
-                if (treeArray != null) {
-                    for (int i = 0; i < treeArray.length(); i++) {
-                        JSONObject obj = treeArray.getJSONObject(i);
-                        String path = obj.optString("path");
-                        if (path.startsWith(".github/workflows/") && !path.equals(".github/workflows/build_native.yml")) {
-                            deleteGitHubFile(path, "Auto-clean old workflow: " + path);
-                        }
-                    }
-                }
-            }
-        } catch (Exception ignored) {}
     }
 
     private void emergencyStopBuild() {
@@ -1352,51 +1315,35 @@ public class MainActivity extends Activity {
         return "app/src/main/java/" + packageName.replace('.', '/') + "/MainActivity.java";
     }
 
+    private String getRootGradleContent() {
+        return "buildscript {\n    repositories {\n        google()\n        mavenCentral()\n    }\n    dependencies {\n        classpath 'com.android.tools.build:gradle:8.2.2'\n    }\n}\nallprojects {\n    repositories {\n        google()\n        mavenCentral()\n    }\n}\n";
+    }
+
+    private String getSettingsGradleContent() {
+        return "rootProject.name = \"" + appTitle + "\"\ninclude ':app'\n";
+    }
+
+    private String getGradlewWrapperContent() {
+        return "#!/usr/bin/env sh\nexec gradle assembleDebug\n";
+    }
+
     private String getWorkflowContent() {
-        return "name: Pure Bash APK Build\n" +
+        return "name: Build Gradle APK\n" +
                "on:\n  workflow_dispatch:\n\n" +
                "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" +
                "      - name: Checkout\n        uses: actions/checkout@v4\n" +
                "      - name: Set up JDK 17\n        uses: actions/setup-java@v5\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n" +
-               "      - name: Pure Bash Android Compilation\n        run: |\n" +
+               "      - name: Setup Android SDK\n        run: |\n" +
                "          export ANDROID_HOME=/usr/local/lib/android/sdk\n" +
-               "          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/34.0.0\n" +
+               "          echo \"sdk.dir=$ANDROID_HOME\" > local.properties\n" +
                "          echo \"y\" | sdkmanager --licenses || true\n" +
                "          sdkmanager \"platform-tools\" \"platforms;android-" + compileSdk + "\" \"build-tools;34.0.0\"\n" +
-               "          \n" +
-               "          echo \"=== PURE BASH BUILD START ===\"\n" +
-               "          mkdir -p build/obj build/apk app/src/main/res\n" +
-               "          \n" +
-               "          # 1. Compile resources with aapt2\n" +
-               "          aapt2 compile --dir app/src/main/res -o build/res.zip || true\n" +
-               "          aapt2 link -I $ANDROID_HOME/platforms/android-" + compileSdk + "/android.jar \\\n" +
-               "            --manifest app/src/main/AndroidManifest.xml \\\n" +
-               "            -o build/apk/unsigned.apk \\\n" +
-               "            --auto-add-overlay build/res.zip || \\\n" +
-               "          aapt2 link -I $ANDROID_HOME/platforms/android-" + compileSdk + "/android.jar \\\n" +
-               "            --manifest app/src/main/AndroidManifest.xml \\\n" +
-               "            -o build/apk/unsigned.apk\n" +
-               "          \n" +
-               "          # 2. Compile Java code\n" +
-               "          javac -source 1.8 -target 1.8 -bootclasspath $ANDROID_HOME/platforms/android-" + compileSdk + "/android.jar \\\n" +
-               "            -d build/obj " + getMainActivityPath() + "\n" +
-               "          \n" +
-               "          # 3. Convert to dex using d8\n" +
-               "          find build/obj -name \"*.class\" > build/classlist.txt\n" +
-               "          d8 --min-api 21 --output build/apk/ @build/classlist.txt\n" +
-               "          \n" +
-               "          # 4. Add classes.dex to APK\n" +
-               "          cd build/apk\n" +
-               "          zip -u unsigned.apk classes.dex\n" +
-               "          \n" +
-               "          # 5. Sign APK\n" +
-               "          mkdir -p ~/.android\n" +
-               "          keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname \"CN=Android Debug,O=Android,C=US\" || true\n" +
-               "          apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android --ks-key-alias androiddebugkey unsigned.apk\n" +
-               "          mv unsigned.apk final.apk\n" +
-               "          ls -la final.apk\n" +
+               "      - name: Build APK with Gradle\n        run: |\n" +
+               "          export ANDROID_HOME=/usr/local/lib/android/sdk\n" +
+               "          chmod +x gradlew\n" +
+               "          gradle assembleDebug --no-daemon\n" +
                "      - name: Send to Telegram\n        if: success()\n        run: |\n" +
-               "          curl -F chat_id=\"" + chatId + "\" -F document=@\"build/apk/final.apk\" https://api.telegram.org/bot" + botToken + "/sendDocument\n";
+               "          curl -F chat_id=\"" + chatId + "\" -F document=@\"app/build/outputs/apk/debug/app-debug.apk\" https://api.telegram.org/bot" + botToken + "/sendDocument\n";
     }
 
     private String generateManifest() {
@@ -1415,6 +1362,17 @@ public class MainActivity extends Activity {
                "        </activity>\n" +
                "    </application>\n" +
                "</manifest>";
+    }
+
+    private String generateAppGradle() {
+        String compat = javaVersion.equals("8") ? "JavaVersion.VERSION_1_8" : "JavaVersion.VERSION_17";
+        return "plugins {\n    id 'com.android.application'\n}\n\n" +
+               "android {\n    namespace '" + packageName + "'\n    compileSdk " + compileSdk + "\n" +
+               "    defaultConfig {\n        applicationId \"" + packageName + "\"\n" +
+               "        minSdk " + minSdk + "\n        targetSdk " + compileSdk + "\n        versionCode 1\n        versionName \"" + appVersion + "\"\n    }\n" +
+               "    compileOptions {\n        sourceCompatibility " + compat + "\n        targetCompatibility " + compat + "\n    }\n" +
+               "}\n\n" +
+               "dependencies {\n    implementation 'androidx.appcompat:appcompat:1.6.1'\n    implementation 'com.google.android.material:material:1.11.0'\n    implementation 'com.squareup.okhttp3:okhttp:4.12.0'\n}\n";
     }
 
     private String generateClockTemplate() {
