@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.vzlom2.app'
+    namespace 'com.2.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.vzlom2.app"
+        applicationId "com.2.app"
         minSdk 21
         targetSdk 34
         versionCode 1
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "vzlom2-v1.2-" + variant.name + ".apk"
+            outputFileName = "монстр_компилятор_2-v1.2-" + variant.name + ".apk"
         }
     }
 }
