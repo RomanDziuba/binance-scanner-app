@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.vzlom.app'
+    namespace 'com.monstrkompilyator.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.vzlom.app"
+        applicationId "com.monstrkompilyator.app"
         minSdk 26
         targetSdk 34
         versionCode 1
