@@ -14,7 +14,6 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.webkit.WebResourceRequest;
@@ -133,7 +132,7 @@ public class MainActivity extends Activity {
         card.addView(statusText);
 
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Консоль отладки этапов дешифрования (Real-time):");
+        logLabel.setText("📋 Консоль отладки (вывод в реальном времени):");
         logLabel.setTextColor(Color.parseColor("#64748B"));
         logLabel.setTextSize(11f);
         card.addView(logLabel);
@@ -149,7 +148,6 @@ public class MainActivity extends Activity {
         logEditText.setGravity(Gravity.TOP);
         logEditText.setMinLines(10);
         logEditText.setMaxLines(16);
-        logEditText.setFocusable(true);
         card.addView(logEditText);
 
         btnCopyLogs = createStyledButton("📋 Скопировать лог отладки", "#475569");
@@ -188,6 +186,8 @@ public class MainActivity extends Activity {
         scroll.addView(container);
         root.addView(scroll);
         setContentView(root);
+        
+        appendLog("🟢 Приложение успешно запущено и готово к работе.");
     }
 
     private Button createStyledButton(String text, String colorHex) {
@@ -216,17 +216,20 @@ public class MainActivity extends Activity {
                 if (!TextUtils.isEmpty(text)) {
                     urlInput.setText(text.toString().trim());
                     Toast.makeText(this, "Ссылка вставлена!", Toast.LENGTH_SHORT).show();
+                    appendLog("📋 Ссылка успешно вставлена из буфера обмена.");
                     return;
                 }
             }
         }
         Toast.makeText(this, "Буфер обмена пуст!", Toast.LENGTH_SHORT).show();
+        appendLog("⚠️ Попытка вставки: буфер обмена пуст.");
     }
 
     private void startUniversalExtraction() {
         String inputUrl = urlInput.getText().toString().trim();
         if (TextUtils.isEmpty(inputUrl)) {
             Toast.makeText(this, "Введите ссылку!", Toast.LENGTH_SHORT).show();
+            appendLog("⚠️ Ошибка: поле ввода ссылки пустое.");
             return;
         }
 
@@ -239,7 +242,6 @@ public class MainActivity extends Activity {
         interceptedMediaUrls.clear();
         downloadButtonsLayout.removeAllViews();
         debugLogBuilder.setLength(0);
-        logEditText.setText(""); // Очищаем поле логов перед запуском
 
         appendLog("=== [ЭТАП 1] ЗАПУСК УНИВЕРСАЛЬНОГО ПАРСЕРА ===");
         appendLog("Цель: " + targetUrl);
@@ -269,7 +271,7 @@ public class MainActivity extends Activity {
             @Override
             public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
                 super.onReceivedError(view, errorCode, description, failingUrl);
-                appendLog("❌ Ошибка загрузки страницы [Код " + errorCode + "]: " + description);
+                appendLog("❌ Ошибка WebView [Код " + errorCode + "]: " + description + " | URL: " + failingUrl);
             }
 
             @Override
@@ -308,7 +310,7 @@ public class MainActivity extends Activity {
         @android.webkit.JavascriptInterface
         public void processContent(String title, String cleanText) {
             appendLog("=== [ЭТАП 5] ДЕШИФРОВКА ТЕКСТА И DOM ===");
-            appendLog("Заголовок страницы: " + title);
+            appendLog("Заголовок страницы: " + (title != null ? title : "Без заголовка"));
             
             // Выводим чистый текст без кракозябров
             if (!TextUtils.isEmpty(cleanText)) {
@@ -331,16 +333,13 @@ public class MainActivity extends Activity {
         }
     }
 
-    // Явный вывод логов в реальном времени в UI консоль и в Logcat
+    // МЕТОД ДЛЯ МГНОВЕННОГО ВЫВОДА ЛОГОВ В РЕАЛЬНОМ ВРЕМЕНИ
     private void appendLog(String message) {
         debugLogBuilder.append(message).append("\n");
-        Log.d("RomaExtractor", message); // Дублируем в системный Logcat Android
-
         handler.post(() -> {
             if (logEditText != null) {
-                logEditText.append(message + "\n");
-                // Автоматическая прокрутка к концу логов
-                logEditText.setSelection(logEditText.getText().length());
+                logEditText.setText(debugLogBuilder.toString());
+                logEditText.setSelection(logEditText.getText().length()); // Автоматическая прокрутка вниз
             }
         });
     }
@@ -358,6 +357,7 @@ public class MainActivity extends Activity {
                 noFiles.setTextColor(Color.parseColor("#94A3B8"));
                 noFiles.setTextSize(11f);
                 downloadButtonsLayout.addView(noFiles);
+                appendLog("ℹ️ Файлы через сетевой перехватчик не обнаружены.");
                 return;
             }
 
@@ -373,7 +373,7 @@ public class MainActivity extends Activity {
                 dlBtn.setOnClickListener(v -> downloadFileToPhone(targetUrl, fileType, index));
                 
                 downloadButtonsLayout.addView(dlBtn);
-                appendLog("👉 Создана кнопка скачивания для: " + fileUrl);
+                appendLog("👉 Создана кнопка скачивания [" + fileType + "]: " + fileUrl);
             }
         }
     }
@@ -404,7 +404,7 @@ public class MainActivity extends Activity {
             if (manager != null) {
                 manager.enqueue(request);
                 Toast.makeText(this, "Загрузка началась! Проверьте шторку уведомлений.", Toast.LENGTH_LONG).show();
-                appendLog("📥 Запуск скачивания файла: " + fileName);
+                appendLog("📥 Запуск скачивания файла: " + fileName + " из URL: " + url);
             }
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка загрузки: " + e.getMessage(), Toast.LENGTH_LONG).show();
