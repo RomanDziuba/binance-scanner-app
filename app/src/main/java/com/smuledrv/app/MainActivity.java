@@ -46,7 +46,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Function Extractor ✦");
+        authorView.setText("✦ Dziuba Roman — Key 'v' Hunter ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(14f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -70,7 +70,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🛠️ Извлечение функции $.processRecording");
+        titleView.setText("🛠️ Поиск ключа 'v' перед processRecording");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(17f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -92,12 +92,12 @@ public class MainActivity extends Activity {
         urlInput.setLayoutParams(inputParams);
         card.addView(urlInput);
 
-        btnDebug = createStyledButton("🔍 Найти полную функцию дешифратора", "#2563EB");
-        btnDebug.setOnClickListener(v -> extractDecoderFunction());
+        btnDebug = createStyledButton("🔍 Найти контекст и ключ 'v'", "#2563EB");
+        btnDebug.setOnClickListener(v -> findKeyContext());
         card.addView(btnDebug);
 
         statusText = new TextView(this);
-        statusText.setText("Статус: Готов к извлечению функции...");
+        statusText.setText("Статус: Готов к поиску ключа...");
         statusText.setTextColor(Color.parseColor("#10B981"));
         statusText.setTextSize(12f);
         statusText.setPadding(12, 10, 12, 10);
@@ -114,14 +114,8 @@ public class MainActivity extends Activity {
         statusText.setLayoutParams(statusParams);
         card.addView(statusText);
 
-        TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Код функции расшифровки:");
-        logLabel.setTextColor(Color.parseColor("#64748B"));
-        logLabel.setTextSize(11f);
-        card.addView(logLabel);
-
         logEditText = new EditText(this);
-        logEditText.setHint("Здесь появится полный текст функции processRecording...");
+        logEditText.setHint("Здесь появится код вокруг processRecording...");
         logEditText.setTextSize(10f);
         logEditText.setTypeface(Typeface.MONOSPACE);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
@@ -136,7 +130,7 @@ public class MainActivity extends Activity {
         btnCopyLogs = createStyledButton("📋 Скопировать лог в буфер", "#475569");
         btnCopyLogs.setOnClickListener(v -> {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("Smule Decoder Function", logEditText.getText().toString());
+            ClipData clip = ClipData.newPlainText("Smule Key Context", logEditText.getText().toString());
             clipboard.setPrimaryClip(clip);
             Toast.makeText(this, "Лог скопирован!", Toast.LENGTH_SHORT).show();
         });
@@ -165,10 +159,10 @@ public class MainActivity extends Activity {
         return btn;
     }
 
-    private void extractDecoderFunction() {
+    private void findKeyContext() {
         btnDebug.setEnabled(false);
-        statusText.setText("Статус: ⚙️ Скачивание core и поиск функции...");
-        logEditText.setText("=== ИЗВЛЕЧЕНИЕ processRecording ===\n");
+        statusText.setText("Статус: ⚙️ Анализ окружения $.processRecording...");
+        logEditText.setText("=== ПОИСК ПЕРЕМЕННОЙ v ===\n");
 
         new Thread(() -> {
             StringBuilder logs = new StringBuilder();
@@ -188,15 +182,15 @@ public class MainActivity extends Activity {
 
                     String jsText = jsContent.toString();
                     
-                    // Ищем индекс вхождения $.processRecording=
                     int index = jsText.indexOf("$.processRecording=");
                     if (index != -1) {
-                        // Вырезаем кусок кода длиной 1500 символов начиная с этой точки
-                        int endIndex = Math.min(index + 1500, jsText.length());
-                        String funcCode = jsText.substring(index, endIndex);
-                        logs.append("📌 Найден дешифратор:\n\n").append(funcCode);
+                        // Захватим 1000 символов ДО функции (там обычно объявляются переменные v, p и т.д.)
+                        int startIndex = Math.max(0, index - 1000);
+                        int endIndex = Math.min(index + 500, jsText.length());
+                        String contextCode = jsText.substring(startIndex, endIndex);
+                        logs.append("📌 Контекст перед processRecording:\n\n").append(contextCode);
                     } else {
-                        logs.append("Точка входа $.processRecording не найдена.");
+                        logs.append("Точка входа не найдена.");
                     }
 
                 } else {
@@ -210,7 +204,7 @@ public class MainActivity extends Activity {
             final String finalLogs = logs.toString();
             handler.post(() -> {
                 btnDebug.setEnabled(true);
-                statusText.setText("Статус: ✅ Функция извлечена!");
+                statusText.setText("Статус: ✅ Контекст выведен!");
                 logEditText.setText(finalLogs);
             });
         }).start();
