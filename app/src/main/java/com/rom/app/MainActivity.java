@@ -204,30 +204,65 @@ public class MainActivity extends Activity {
 
         final String targetUrl = inputUrl;
         btnDebug.setEnabled(false);
-        statusText.setText("Статус: [Этап 1/4] Базовая разведка...");
-        logEditText.setText("=== 🕵️ МНОГОЭТАПНЫЙ ОТЧЕТ АНАЛИЗА ===\nЦель: " + targetUrl + "\n\n");
+        statusText.setText("Статус: [Этап 1/4] Разведка и обход редиректов...");
+        logEditText.setText("=== 🕵️ МНОГОЭТАПНЫЙ ОТЧЕТ АНАЛИЗА ===\nИсходная цель: " + targetUrl + "\n\n");
 
         new Thread(() -> {
             StringBuilder report = new StringBuilder();
             report.append("=== 🕵️ МНОГОЭТАПНЫЙ ОТЧЕТ АНАЛИЗА ===\n");
-            report.append("Цель: ").append(targetUrl).append("\n\n");
+            report.append("Исходная цель: ").append(targetUrl).append("\n\n");
 
             try {
-                // ==================== ЭТАП 1: Базовая разведка ====================
-                updateStatus("Статус: [Этап 1/4] Базовая разведка HTTP...");
-                report.append("--- ЭТАП 1: Базовая разведка ---\n");
+                // ==================== ЭТАП 1: Разведка и обработка редиректов ====================
+                updateStatus("Статус: [Этап 1/4] Обработка редиректов и HTTP...");
+                report.append("--- ЭТАП 1: Разведка и редиректы ---\n");
                 
-                HttpURLConnection conn = (HttpURLConnection) new URL(targetUrl).openConnection();
-                conn.setRequestMethod("GET");
-                setupBrowserHeaders(conn);
+                String currentUrl = targetUrl;
+                HttpURLConnection conn = null;
+                int redirectCount = 0;
+                int responseCode = -1;
                 
-                int responseCode = conn.getResponseCode();
-                report.append("• HTTP Статус код: ").append(responseCode).append("\n");
+                // Проходим цепочку редиректов (до 5 шагов)
+                while (redirectCount < 5) {
+                    conn = (HttpURLConnection) new URL(currentUrl).openConnection();
+                    conn.setRequestMethod("GET");
+                    setupBrowserHeaders(conn);
+                    conn.setInstanceFollowRedirects(false); // Отключаем автоматический редирект для логирования
+                    
+                    responseCode = conn.getResponseCode();
+                    report.append("• Шаг [").append(redirectCount + 1).append("] URL: ").append(currentUrl).append("\n");
+                    report.append("  Код ответа: ").append(responseCode).append("\n");
+
+                    // Проверяем статус редиректа (301, 302, 303, 307, 308)
+                    if (responseCode == 301 || responseCode == 302 || responseCode == 303 || responseCode == 307 || responseCode == 308) {
+                        String redirectUrl = conn.getHeaderField("Location");
+                        report.append("  ↪️ Редирект на: ").append(redirectUrl).append("\n\n");
+                        
+                        if (redirectUrl == null) break;
+                        
+                        // Обработка относительных путей
+                        if (redirectUrl.startsWith("/")) {
+                            URL base = new URL(currentUrl);
+                            redirectUrl = base.getProtocol() + "://" + base.getHost() + redirectUrl;
+                        } else if (!redirectUrl.startsWith("http")) {
+                            URL base = new URL(currentUrl);
+                            redirectUrl = new URL(base, redirectUrl).toString();
+                        }
+                        
+                        currentUrl = redirectUrl;
+                        redirectCount++;
+                        conn.disconnect();
+                    } else {
+                        break;
+                    }
+                }
+
+                report.append("• Финальный целевой URL: ").append(currentUrl).append("\n");
                 report.append("• Content-Type: ").append(conn.getContentType()).append("\n");
                 report.append("• Сервер: ").append(conn.getHeaderField("Server")).append("\n\n");
 
                 if (responseCode != 200) {
-                    report.append("❌ Ошибка: Сервер вернул код отличный от 200. Анализ прерван.\n");
+                    report.append("❌ Ошибка: Сервер вернул код ").append(responseCode).append(". Анализ остановлен.\n");
                     finishAnalysis(report.toString());
                     return;
                 }
@@ -272,7 +307,7 @@ public class MainActivity extends Activity {
                 updateStatus("Статус: [Этап 3/4] Скачивание и глубокий анализ .JS файлов...");
                 report.append("--- ЭТАП 3: Глубокий анализ JavaScript-файлов ---\n");
 
-                List<String> jsLinks = extractJsLinks(pageContent, targetUrl);
+                List<String> jsLinks = extractJsLinks(pageContent, currentUrl);
                 report.append("• Обнаружено внешних JS скриптов: ").append(jsLinks.size()).append("\n");
 
                 int analyzedJsCount = 0;
@@ -313,10 +348,10 @@ public class MainActivity extends Activity {
                 updateStatus("Статус: [Этап 4/4] Синтез отчета...");
                 report.append("--- ЭТАП 4: Итоговый вердикт ---\n");
                 report.append("🎉 Полный цикл глубокой разведки успешно завершен!\n");
-                report.append("Все ключевые блоки проанализированы. Используйте кнопку ниже, чтобы скопировать этот отчет.\n");
 
             } catch (Exception e) {
-                report.append("\n❌ КРИТИЧЕСКАЯ ОШИБКА НА КОНВЕЙЕРЕ: ").append(e.toString());
+                report.append("\n❌ КРИТИЧЕСКАЯ ОШИБКА НА КОНВЕЙЕРЕ: ").append(e.toString())
+                      .append("\n💡 Подсказка: Сервер сбросил соединение. Возможно, сайт блокирует автоматические запросы или требует специфических cookies/headers.");
             }
 
             finishAnalysis(report.toString());
