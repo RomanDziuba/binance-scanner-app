@@ -48,7 +48,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Canonical Frame Hunter ✦");
+        authorView.setText("✦ Dziuba Roman — Player JS Decoder Hunter ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(14f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🛠️ Умный переход на канонический /frame/box");
+        titleView.setText("🛠️ Поиск алгоритма расшифровки во фрейме");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(17f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -94,12 +94,12 @@ public class MainActivity extends Activity {
         urlInput.setLayoutParams(inputParams);
         card.addView(urlInput);
 
-        btnDebug = createStyledButton("🔍 Найти канонический фрейм и ссылки", "#2563EB");
-        btnDebug.setOnClickListener(v -> runCanonicalScan());
+        btnDebug = createStyledButton("🔍 Сканировать JS-скрипты фрейма", "#2563EB");
+        btnDebug.setOnClickListener(v -> runJsHunter());
         card.addView(btnDebug);
 
         statusText = new TextView(this);
-        statusText.setText("Статус: Готов к умному поиску...");
+        statusText.setText("Статус: Готов к анализу скриптов...");
         statusText.setTextColor(Color.parseColor("#10B981"));
         statusText.setTextSize(12f);
         statusText.setPadding(12, 10, 12, 10);
@@ -117,13 +117,13 @@ public class MainActivity extends Activity {
         card.addView(statusText);
 
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Результаты анализа настоящего фрейма:");
+        logLabel.setText("📋 Скрипты и функции расшифровки:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
         logLabel.setTextSize(11f);
         card.addView(logLabel);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Здесь появятся данные из настоящего фрейма плеера...");
+        logEditText.setHint("Здесь появятся JS-ссылки и вызовы функций...");
         logEditText.setTextSize(10f);
         logEditText.setTypeface(Typeface.MONOSPACE);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
@@ -138,7 +138,7 @@ public class MainActivity extends Activity {
         btnCopyLogs = createStyledButton("📋 Скопировать лог в буфер", "#475569");
         btnCopyLogs.setOnClickListener(v -> {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("Smule Canonical Debug", logEditText.getText().toString());
+            ClipData clip = ClipData.newPlainText("Smule JS Debug", logEditText.getText().toString());
             clipboard.setPrimaryClip(clip);
             Toast.makeText(this, "Отчет скопирован!", Toast.LENGTH_SHORT).show();
         });
@@ -167,7 +167,7 @@ public class MainActivity extends Activity {
         return btn;
     }
 
-    private void runCanonicalScan() {
+    private void runJsHunter() {
         String urlStr = urlInput.getText().toString().trim();
         if (urlStr.isEmpty()) {
             Toast.makeText(this, "Введите URL", Toast.LENGTH_SHORT).show();
@@ -175,87 +175,67 @@ public class MainActivity extends Activity {
         }
 
         btnDebug.setEnabled(false);
-        statusText.setText("Статус: ⚙️ Получение канонического URL...");
-        logEditText.setText("=== ПОИСК НАСТОЯЩЕГО ФРЕЙМА ===\n");
+        statusText.setText("Статус: ⚙️ Поиск JS скриптов во фрейме...");
+        logEditText.setText("=== ПОИСК АЛГОРИТМА РАСШИФРОВКИ ===\n");
 
         new Thread(() -> {
             StringBuilder logs = new StringBuilder();
             try {
-                // 1. Сначала качаем основную страницу
+                // 1. Получаем og:video с главной
                 HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
-                conn.setRequestMethod("GET");
                 setupBrowserHeaders(conn);
 
                 if (conn.getResponseCode() == 200) {
                     BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
                     StringBuilder html = new StringBuilder();
                     String line;
-                    while ((line = br.readLine()) != null) {
-                        html.append(line).append("\n");
-                    }
+                    while ((line = br.readLine()) != null) html.append(line).append("\n");
                     br.close();
 
-                    String pageContent = html.toString().replace("\\/", "/");
-
-                    // Вытягиваем метатег og:video
+                    String mainPage = html.toString().replace("\\/", "/");
                     String realFrameUrl = null;
-                    Matcher ogVideoMatcher = Pattern.compile("<meta\\s+property=\"og:video\"\\s+content=\"([^\"]+)\"").matcher(pageContent);
-                    if (ogVideoMatcher.find()) {
-                        realFrameUrl = ogVideoMatcher.group(1);
-                    }
+                    Matcher ogMatcher = Pattern.compile("<meta\\s+property=\"og:video\"\\s+content=\"([^\"]+)\"").matcher(mainPage);
+                    if (ogMatcher.find()) realFrameUrl = ogMatcher.group(1);
 
-                    if (realFrameUrl == null) {
-                        logs.append("Не удалось вытащить og:video из основной страницы.\n");
-                        handler.post(() -> {
-                            btnDebug.setEnabled(true);
-                            logEditText.setText(logs.toString());
-                        });
-                        return;
-                    }
+                    if (realFrameUrl == null) realFrameUrl = urlStr + "/frame/box";
 
-                    logs.append("📌 Настоящий URL фрейма:\n").append(realFrameUrl).append("\n\n");
-
-                    // 2. Делаем запрос к НАСТОЯЩЕМУ фрейму
+                    // 2. Загружаем сам фрейм
                     HttpURLConnection frameConn = (HttpURLConnection) new URL(realFrameUrl).openConnection();
-                    frameConn.setRequestMethod("GET");
                     setupBrowserHeaders(frameConn);
 
-                    int frameCode = frameConn.getResponseCode();
-                    logs.append("HTTP Код фрейма: ").append(frameCode).append("\n");
+                    if (frameConn.getResponseCode() == 200) {
+                        BufferedReader fBr = new BufferedReader(new InputStreamReader(frameConn.getInputStream(), StandardCharsets.UTF_8));
+                        StringBuilder fHtml = new StringBuilder();
+                        while ((line = fBr.readLine()) != null) fHtml.append(line).append("\n");
+                        fBr.close();
 
-                    if (frameCode == 200) {
-                        BufferedReader frameBr = new BufferedReader(new InputStreamReader(frameConn.getInputStream(), StandardCharsets.UTF_8));
-                        StringBuilder frameHtml = new StringBuilder();
-                        while ((line = frameBr.readLine()) != null) {
-                            frameHtml.append(line).append("\n");
+                        String fContent = fHtml.toString().replace("\\/", "/");
+
+                        // 3. Вытягиваем все внешние JS скрипты из фрейма (<script src="...">)
+                        logs.append("--- Внешние JS скрипты во фрейме ---\n");
+                        Matcher jsSrcMatcher = Pattern.compile("<script[^>]+src=\"([^\"]+)\"").matcher(fContent);
+                        boolean foundJs = false;
+                        while (jsSrcMatcher.find()) {
+                            foundJs = true;
+                            logs.append("📜 ").append(jsSrcMatcher.group(1)).append("\n");
                         }
-                        frameBr.close();
+                        if (!foundJs) logs.append("Внешние JS-скрипты не найдены.\n");
 
-                        String frameContent = frameHtml.toString().replace("\\/", "/");
-                        logs.append("Размер фрейма: ").append(frameContent.length()).append(" байт\n\n");
-
-                        // 3. Ищем ссылки на видео / медиа-файлы во фрейме
-                        logs.append("--- Ищем ссылки на видео/аудио в коде фрейма ---\n");
-                        Matcher streamMatcher = Pattern.compile("https?://[^\"]+?\\.(mp4|m4a|m3u8|mp3)(\\?[^\"]*)?").matcher(frameContent);
-                        boolean foundStream = false;
-                        while (streamMatcher.find()) {
-                            foundStream = true;
-                            logs.append("🎬 ").append(streamMatcher.group(0)).append("\n\n");
+                        // 4. Показываем конец кода фрейма (символы с 2000 по 4000)
+                        logs.append("\n--- Код фрейма (символы 2000 - 4500) ---\n");
+                        if (fContent.length() > 2000) {
+                            int end = Math.min(fContent.length(), 4500);
+                            logs.append(fContent.substring(2000, end));
+                        } else {
+                            logs.append("Длина фрейма меньше 2000 символов.");
                         }
-                        if (!foundStream) {
-                            logs.append("Прямых медиа-ссылок с расширениями не найдено.\n\n");
-                        }
-
-                        // 4. Показываем первые 2000 символов кода фрейма (там весь плеер!)
-                        logs.append("--- Первые 2000 символов кода фрейма ---\n");
-                        logs.append(frameContent.length() > 2000 ? frameContent.substring(0, 2000) : frameContent);
 
                     } else {
-                        logs.append("Ошибка получения фрейма. Код: ").append(frameCode);
+                        logs.append("Ошибка фрейма: ").append(frameConn.getResponseCode());
                     }
 
                 } else {
-                    logs.append("Ошибка загрузки страницы. Код: ").append(conn.getResponseCode());
+                    logs.append("Ошибка основной страницы: ").append(conn.getResponseCode());
                 }
 
             } catch (Exception e) {
@@ -265,7 +245,7 @@ public class MainActivity extends Activity {
             final String finalLogs = logs.toString();
             handler.post(() -> {
                 btnDebug.setEnabled(true);
-                statusText.setText("Статус: ✅ Запрос фрейма завершен!");
+                statusText.setText("Статус: ✅ Поиск завершен!");
                 logEditText.setText(finalLogs);
             });
         }).start();
@@ -274,7 +254,6 @@ public class MainActivity extends Activity {
     private void setupBrowserHeaders(HttpURLConnection conn) {
         conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
         conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
-        conn.setRequestProperty("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7");
         conn.setConnectTimeout(15000);
         conn.setReadTimeout(15000);
     }
