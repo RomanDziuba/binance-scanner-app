@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v4.6 ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v4.7 ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -133,7 +133,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🚀 Android Monster Compiler (Fixed)");
+        titleView.setText("🚀 Android Monster Compiler (Gradle 8.5 Fixed)");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -1197,7 +1197,6 @@ public class MainActivity extends Activity {
                             while ((line = lb.readLine()) != null) ls.append(line).append("\n");
                             lastErrorLog = ls.toString();
 
-                            // Интеллектуальный парсинг ошибок для красивого вывода
                             StringBuilder professionalReport = new StringBuilder("=== 📋 ПРОФЕССИОНАЛЬНЫЙ ОТЧЕТ ОБ ОШИБКЕ ===\n\n");
                             boolean foundErrorBlock = false;
                             
@@ -1347,13 +1346,15 @@ public class MainActivity extends Activity {
                "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" +
                "      - name: Checkout\n        uses: actions/checkout@v4\n" +
                "      - name: Set up JDK 17\n        uses: actions/setup-java@v5\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n" +
-               "      - name: Install Gradle\n        run: sudo apt-get update && sudo apt-get install -y gradle\n" +
+               "      - name: Install Gradle 8.5\n        run: |\n" +
+               "          wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip\n" +
+               "          unzip -q gradle-8.5-bin.zip\n" +
+               "          echo \"$PWD/gradle-8.5/bin\" >> $GITHUB_PATH\n" +
                "      - name: Setup Android SDK (Native Bash)\n        run: |\n" +
                "          export ANDROID_HOME=/usr/local/lib/android/sdk\n" +
                "          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n" +
                "          echo \"y\" | sdkmanager --licenses || true\n" +
                "          sdkmanager \"platform-tools\" \"platforms;android-" + compileSdk + "\" \"build-tools;34.0.0\"\n" +
-               "      - name: Setup Gradle\n        uses: gradle/actions/setup-gradle@v3\n        with:\n          gradle-version: '8.5'\n          cache-disabled: true\n" +
                "      - name: Build APK\n        run: |\n" +
                "          gradle clean assembleDebug --info --stacktrace --no-daemon\n" +
                "      - name: Send to Telegram\n        if: success()\n        run: |\n" +
