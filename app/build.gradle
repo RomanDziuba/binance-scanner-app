@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.monstrkompilyator2.app'
+    namespace 'com..app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.monstrkompilyator2.app"
+        applicationId "com..app"
         minSdk 26
         targetSdk 34
         versionCode 1
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "монстр_компилятор_2-v1.0-" + variant.name + ".apk"
+            outputFileName = "взлом-v1.0-" + variant.name + ".apk"
         }
     }
 }
