@@ -57,7 +57,7 @@ public class MainActivity extends Activity {
 
     private int minSdk = 21;
     private int compileSdk = 34;
-    private String javaVersion = "8"; // ИСПРАВЛЕНО: Стабильная Java 8 по умолчанию для избежания ошибок jlink
+    private String javaVersion = "8"; 
     private String activeCodeContent = "";
 
     private TextView statusTextView, infoTextView;
@@ -1115,7 +1115,8 @@ public class MainActivity extends Activity {
                     Thread.sleep(6000);
                     if (!isMonitoring) break;
                     String urlStr = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/actions/runs?per_page=1";
-                    HttpURLConnection conn = (HttpURLConnection) new URL(urlStr);
+                    // ИСПРАВЛЕНО: корректный вызов openConnection() для HttpURLConnection
+                    HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
                     conn.setRequestMethod("GET");
                     conn.setRequestProperty("Authorization", "Bearer " + githubToken);
 
