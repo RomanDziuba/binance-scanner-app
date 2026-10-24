@@ -51,7 +51,7 @@ public class MainActivity extends Activity {
     private String appTitle = "RomaMonsterApp";
     private String appVersion = "1.0";
     private String packageName = "com.roma.monster";
-    private String currentJavaFileName = "Шаблон: AI-Браузер с WebView";
+    private String currentJavaFileName = "Шаблон: Часы с фонариком и яркостью";
     private boolean iconCustomized = true;
     private String targetUploadFolder = "";
 
@@ -62,7 +62,7 @@ public class MainActivity extends Activity {
 
     private TextView statusTextView, infoTextView;
     private EditText logEditText;
-    private Button btnBuild, btnStopBuild, btnUploadJava, btnDecompileApk, btnReset, btnTitle, btnVersion, btnIcon, btnSettings, btnCopyLogs, btnCodeEditor, btnFileManager, btnTemplates, btnAiFix;
+    private Button btnBuild, btnStopBuild, btnUploadJava, btnDecompileApk, btnReset, btnTitle, btnVersion, btnIcon, btnSettings, btnCopyLogs, btnCodeEditor, btnFileManager, btnAiFix;
 
     private Handler handler = new Handler(Looper.getMainLooper());
     private volatile boolean isMonitoring = false;
@@ -88,7 +88,7 @@ public class MainActivity extends Activity {
         loadSettings();
 
         if (activeCodeContent.isEmpty()) {
-            activeCodeContent = generateBrowserTemplate();
+            activeCodeContent = generateClockTemplate();
         }
 
         LinearLayout rootLayout = new LinearLayout(this);
@@ -132,7 +132,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🚀 Android Monster Compiler v3.5");
+        titleView.setText("🚀 Android Monster Compiler v3.7");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -166,10 +166,6 @@ public class MainActivity extends Activity {
         btnStopBuild.setOnClickListener(v -> emergencyStopBuild());
         card.addView(btnStopBuild);
 
-        btnTemplates = createStyledButton("⚡ Выбрать готовый шаблон приложения", "#D97706");
-        btnTemplates.setOnClickListener(v -> showTemplatesDialog());
-        card.addView(btnTemplates);
-
         btnFileManager = createStyledButton("📁 Файловый менеджер репозитория", "#8B5CF6");
         btnFileManager.setOnClickListener(v -> openRepositoryFileManager());
         card.addView(btnFileManager);
@@ -190,7 +186,7 @@ public class MainActivity extends Activity {
         btnDecompileApk.setOnClickListener(v -> openApkFilePicker());
         card.addView(btnDecompileApk);
 
-        btnReset = createStyledButton("🔄 Полный сброс репозитория", "#B45309");
+        btnReset = createStyledButton("🔄 Полный сброс (Часы + Фонарик)", "#B45309");
         btnReset.setOnClickListener(v -> confirmResetProject());
         card.addView(btnReset);
 
@@ -375,42 +371,6 @@ public class MainActivity extends Activity {
                 handler.post(() -> statusTextView.setText("Статус: Готов к работе 🚀"));
             }
         }).start();
-    }
-
-    private void showTemplatesDialog() {
-        CharSequence[] templates = {
-            "🌐 Шаблон 1: AI-Браузер с WebView и адресной строкой",
-            "🕞 Шаблон 2: Часы с фонариком и ночным режимом",
-            "📊 Шаблон 3: Binance Crypto Tracker (Котировки и графики)",
-            "💬 Шаблон 4: Telegram Web App Оболочка",
-            "🎮 Шаблон 5: Простой кликер-игра на Java"
-        };
-
-        new AlertDialog.Builder(this)
-            .setTitle("⚡ Выберите шаблон приложения")
-            .setItems(templates, (dialog, which) -> {
-                if (which == 0) {
-                    activeCodeContent = generateBrowserTemplate();
-                    currentJavaFileName = "Шаблон: AI-Браузер";
-                } else if (which == 1) {
-                    activeCodeContent = generateClockTemplate();
-                    currentJavaFileName = "Шаблон: Часы с фонариком";
-                } else if (which == 2) {
-                    activeCodeContent = generateCryptoTemplate();
-                    currentJavaFileName = "Шаблон: Binance Crypto Tracker";
-                } else if (which == 3) {
-                    activeCodeContent = generateWebAppTemplate();
-                    currentJavaFileName = "Шаблон: Telegram Web App";
-                } else if (which == 4) {
-                    activeCodeContent = generateClickerTemplate();
-                    currentJavaFileName = "Шаблон: Кликер-игра";
-                }
-                saveSettings();
-                btnUploadJava.setText("📂 Файл: " + currentJavaFileName);
-                Toast.makeText(this, "Шаблон успешно загружен!", Toast.LENGTH_SHORT).show();
-            })
-            .setNegativeButton("Отмена", null)
-            .show();
     }
 
     private void openRepositoryFileManager() {
@@ -1202,10 +1162,11 @@ public class MainActivity extends Activity {
     private void confirmResetProject() {
         new AlertDialog.Builder(this)
             .setTitle("Полный сброс")
-            .setMessage("Сбросить проект к стандартному шаблону браузера?")
+            .setMessage("Сбросить проект к стандартному шаблону (Часы + Фонарик + Яркость)?")
             .setPositiveButton("Сбросить", (dialog, which) -> {
-                activeCodeContent = generateBrowserTemplate();
-                currentJavaFileName = "Шаблон: AI-Браузер";
+                activeCodeContent = generateClockTemplate();
+                currentJavaFileName = "Шаблон: Часы с фонариком и яркостью";
+                btnUploadJava.setText("📂 Файл: " + currentJavaFileName);
                 saveSettings();
                 Toast.makeText(this, "Проект сброшен!", Toast.LENGTH_SHORT).show();
             })
@@ -1340,58 +1301,103 @@ public class MainActivity extends Activity {
                "android {\n    namespace '" + packageName + "'\n    compileSdk " + compileSdk + "\n" +
                "    defaultConfig {\n        applicationId \"" + packageName + "\"\n" +
                "        minSdk " + minSdk + "\n        targetSdk " + compileSdk + "\n        versionCode 1\n        versionName \"" + appVersion + "\"\n    }\n" +
-               "    compileOptions {\n        sourceCompatibility " + compat + "\n        targetCompatibility " + compat + "\n    }\n}\n\n" +
-               "dependencies {\n    implementation 'androidx.appcompat:appcompat:1.6.1'\n    implementation 'com.google.android.material:material:1.11.0'\n}\n";
-    }
-
-    private String generateBrowserTemplate() {
-        return "package " + packageName + ";\n\n" +
-               "import android.app.Activity;\n" +
-               "import android.os.Bundle;\n" +
-               "import android.webkit.WebView;\n" +
-               "import android.webkit.WebViewClient;\n" +
-               "import android.widget.LinearLayout;\n" +
-               "import android.graphics.Color;\n\n" +
-               "public class MainActivity extends Activity {\n" +
-               "    @Override\n" +
-               "    protected void onCreate(Bundle savedInstanceState) {\n" +
-               "        super.onCreate(savedInstanceState);\n" +
-               "        LinearLayout layout = new LinearLayout(this);\n" +
-               "        layout.setOrientation(LinearLayout.VERTICAL);\n" +
-               "        WebView webView = new WebView(this);\n" +
-               "        webView.setWebViewClient(new WebViewClient());\n" +
-               "        webView.getSettings().setJavaScriptEnabled(true);\n" +
-               "        webView.loadUrl(\"https://www.google.com\");\n" +
-               "        layout.addView(webView, new LinearLayout.LayoutParams(-1, -1));\n" +
-               "        setContentView(layout);\n" +
+               "    compileOptions {\n        sourceCompatibility " + compat + "\n        targetCompatibility " + compat + "\n    }\n" +
+               "    applicationVariants.all { variant ->\n" +
+               "        variant.outputs.all { output ->\n" +
+               "            outputFileName = \"" + appTitle + "-v" + appVersion + "-\" + variant.name + \".apk\"\n" +
+               "        }\n" +
                "    }\n" +
-               "}\n";
+               "}\n\n" +
+               "dependencies {\n    implementation 'androidx.appcompat:appcompat:1.6.1'\n    implementation 'com.google.android.material:material:1.11.0'\n    implementation 'com.squareup.okhttp3:okhttp:4.12.0'\n}\n";
     }
 
     private String generateClockTemplate() {
         return "package " + packageName + ";\n\n" +
                "import android.app.Activity;\n" +
+               "import android.content.Context;\n" +
+               "import android.hardware.camera2.CameraManager;\n" +
                "import android.os.Bundle;\n" +
+               "import android.view.Gravity;\n" +
+               "import android.view.WindowManager;\n" +
                "import android.widget.*;\n" +
                "import android.graphics.Color;\n" +
-               "import android.view.Gravity;\n\n" +
+               "import android.graphics.Typeface;\n\n" +
                "public class MainActivity extends Activity {\n" +
+               "    private boolean isFlashOn = false;\n" +
+               "    private CameraManager cameraManager;\n" +
+               "    private String cameraId;\n\n" +
                "    @Override\n" +
                "    protected void onCreate(Bundle savedInstanceState) {\n" +
                "        super.onCreate(savedInstanceState);\n" +
                "        LinearLayout layout = new LinearLayout(this);\n" +
+               "        layout.setOrientation(LinearLayout.VERTICAL);\n" +
                "        layout.setGravity(Gravity.CENTER);\n" +
                "        layout.setBackgroundColor(Color.parseColor(\"#030712\"));\n" +
+               "        layout.setPadding(30, 30, 30, 30);\n\n" +
+               "        TextView title = new TextView(this);\n" +
+               "        title.setText(\"⚡ Monster Clock & Flash\");\n" +
+               "        title.setTextColor(Color.parseColor(\"#38BDF8\"));\n" +
+               "        title.setTextSize(20f);\n" +
+               "        title.setTypeface(Typeface.DEFAULT_BOLD);\n" +
+               "        title.setGravity(Gravity.CENTER);\n" +
+               "        title.setPadding(0, 0, 0, 30);\n" +
+               "        layout.addView(title);\n\n" +
                "        TextClock clock = new TextClock(this);\n" +
                "        clock.setTextColor(Color.parseColor(\"#10B981\"));\n" +
-               "        clock.setTextSize(48f);\n" +
-               "        layout.addView(clock);\n" +
+               "        clock.setTextSize(52f);\n" +
+               "        clock.setTypeface(Typeface.DEFAULT_BOLD);\n" +
+               "        clock.setGravity(Gravity.CENTER);\n" +
+               "        clock.setPadding(0, 0, 0, 40);\n" +
+               "        layout.addView(clock);\n\n" +
+               "        Button flashBtn = new Button(this);\n" +
+               "        flashBtn.setText(\"🔦 Включить фонарик\");\n" +
+               "        flashBtn.setTextColor(Color.WHITE);\n" +
+               "        flashBtn.setTextSize(14f);\n" +
+               "        flashBtn.setBackgroundColor(Color.parseColor(\"#2563EB\"));\n" +
+               "        flashBtn.setPadding(20, 20, 20, 20);\n" +
+               "        layout.addView(flashBtn);\n\n" +
+               "        TextView brightLabel = new TextView(this);\n" +
+               "        brightLabel.setText(\"☀️ Яркость экрана\");\n" +
+               "        brightLabel.setTextColor(Color.parseColor(\"#94A3B8\"));\n" +
+               "        brightLabel.setTextSize(12f);\n" +
+               "        brightLabel.setPadding(0, 40, 0, 10);\n" +
+               "        layout.addView(brightLabel);\n\n" +
+               "        SeekBar seekBar = new SeekBar(this);\n" +
+               "        seekBar.setMax(100);\n" +
+               "        seekBar.setProgress(50);\n" +
+               "        layout.addView(seekBar);\n\n" +
+               "        cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);\n" +
+               "        try {\n" +
+               "            if (cameraManager != null && cameraManager.getCameraIdList().length > 0) {\n" +
+               "                cameraId = cameraManager.getCameraIdList()[0];\n" +
+               "            }\n" +
+               "        } catch (Exception ignored) {}\n\n" +
+               "        flashBtn.setOnClickListener(v -> {\n" +
+               "            try {\n" +
+               "                if (cameraManager != null && cameraId != null) {\n" +
+               "                    isFlashOn = !isFlashOn;\n" +
+               "                    cameraManager.setTorchMode(cameraId, isFlashOn);\n" +
+               "                    flashBtn.setText(isFlashOn ? \"🔦 Выключить фонарик\" : \"🔦 Включить фонарик\");\n" +
+               "                    flashBtn.setBackgroundColor(Color.parseColor(isFlashOn ? \"#DC2626\" : \"#2563EB\"));\n" +
+               "                } else {\n" +
+               "                    Toast.makeText(this, \"Фонарик недоступен\", Toast.LENGTH_SHORT).show();\n" +
+               "                }\n" +
+               "            } catch (Exception e) {\n" +
+               "                Toast.makeText(this, \"Ошибка фонарика: \" + e.getMessage(), Toast.LENGTH_SHORT).show();\n" +
+               "            }\n" +
+               "        });\n\n" +
+               "        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {\n" +
+               "            @Override\n" +
+               "            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {\n" +
+               "                WindowManager.LayoutParams lp = getWindow().getAttributes();\n" +
+               "                lp.screenBrightness = (float) progress / 100f;\n" +
+               "                getWindow().setAttributes(lp);\n" +
+               "            }\n" +
+               "            @Override public void onStartTrackingTouch(SeekBar seekBar) {}\n" +
+               "            @Override public void onStopTrackingTouch(SeekBar seekBar) {}\n" +
+               "        });\n\n" +
                "        setContentView(layout);\n" +
                "    }\n" +
                "}\n";
     }
-
-    private String generateCryptoTemplate() { return generateBrowserTemplate(); }
-    private String generateWebAppTemplate() { return generateBrowserTemplate(); }
-    private String generateClickerTemplate() { return generateClockTemplate(); }
 }
