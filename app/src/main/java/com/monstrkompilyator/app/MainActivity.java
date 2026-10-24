@@ -64,7 +64,7 @@ public class MainActivity extends Activity {
     private EditText logEditText;
     private Button btnBuild, btnStopBuild, btnUploadJava, btnDecompileApk, btnReset, btnTitle, btnVersion, btnIcon, btnSettings, btnCopyLogs, btnCodeEditor, btnFileManager, btnAiFix;
 
-    private Handler handler = new Handler(Looper.getMainLocate() != null ? Looper.getMainLooper() : Looper.getMainLooper());
+    private Handler handler = new Handler(Looper.getMainLooper());
     private volatile boolean isMonitoring = false;
     private String lastErrorLog = "";
 
@@ -132,7 +132,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🚀 Android Monster Compiler v3.8");
+        titleView.setText("🚀 Android Monster Compiler v3.9");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -173,7 +173,7 @@ public class MainActivity extends Activity {
         btnCodeEditor.setOnClickListener(v -> openCodeEditorDialog());
         card.addView(btnCodeEditor);
 
-        btnUploadJava = createStyledButton("📂 Загрузить файл: " + currentJavaFileName, "#0D9488");
+        btnUploadJava = createStyledButton("", "#0D9488");
         btnUploadJava.setOnClickListener(v -> openJavaFilePicker());
         card.addView(btnUploadJava);
 
@@ -197,7 +197,7 @@ public class MainActivity extends Activity {
         btnVersion.setOnClickListener(v -> showEditVersionDialog());
         card.addView(btnVersion);
 
-        btnIcon = createStyledButton(getIconBtnText(), "#6D28D9");
+        btnIcon = createStyledButton("", "#6D28D9");
         btnIcon.setOnClickListener(v -> openIconFilePicker());
         card.addView(btnIcon);
 
@@ -247,7 +247,7 @@ public class MainActivity extends Activity {
         rootLayout.addView(mainScroll);
         setContentView(rootLayout);
 
-        // Обновляем все UI элементы сразу при старте
+        // Мгновенное обновление всех кнопок при старте
         updateInfoText();
 
         if (!githubToken.isEmpty()) {
@@ -331,7 +331,7 @@ public class MainActivity extends Activity {
         editor.putString("javaVersion", javaVersion);
         editor.putString("activeCodeContent", activeCodeContent);
         editor.apply();
-        updateInfoText();
+        updateInfoText(); // Мгновенно обновляем весь UI при любом изменении
     }
 
     private void fetchRemoteRepositoryInfo() {
@@ -1026,7 +1026,6 @@ public class MainActivity extends Activity {
 
         new Thread(() -> {
             try {
-                // Ищем активный запуск (in_progress)
                 String urlStr = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/actions/runs?status=in_progress";
                 HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
                 conn.setRequestMethod("GET");
@@ -1041,7 +1040,6 @@ public class MainActivity extends Activity {
                     JSONArray runs = new JSONObject(sb.toString()).getJSONArray("workflow_runs");
                     if (runs.length() > 0) {
                         long runId = runs.getJSONObject(0).getLong("id");
-                        // Отменяем этот запуск
                         String cancelUrl = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/actions/runs/" + runId + "/cancel";
                         HttpURLConnection cancelConn = (HttpURLConnection) new URL(cancelUrl).openConnection();
                         cancelConn.setRequestMethod("POST");
@@ -1341,22 +1339,11 @@ public class MainActivity extends Activity {
 
     private String generateAppGradle() {
         String compat = javaVersion.equals("8") ? "JavaVersion.VERSION_1_8" : "JavaVersion.VERSION_17";
-        
-        // Автоматически формируем числовой versionCode из версии (например "1.0" -> 10, "1.2.5" -> 125)
-        int vCode = 1;
-        try {
-            String digits = appVersion.replaceAll("[^0-9]", "");
-            if (!digits.isEmpty()) {
-                vCode = Integer.parseInt(digits);
-                if (vCode < 1) vCode = 1;
-            }
-        } catch (Exception ignored) {}
-
         return "plugins {\n    id 'com.android.application'\n}\n\n" +
                "base {\n    archivesName.set(\"" + appTitle + "-v" + appVersion + "\")\n}\n\n" +
                "android {\n    namespace '" + packageName + "'\n    compileSdk " + compileSdk + "\n" +
                "    defaultConfig {\n        applicationId \"" + packageName + "\"\n" +
-               "        minSdk " + minSdk + "\n        targetSdk " + compileSdk + "\n        versionCode " + vCode + "\n        versionName \"" + appVersion + "\"\n    }\n" +
+               "        minSdk " + minSdk + "\n        targetSdk " + compileSdk + "\n        versionCode 1\n        versionName \"" + appVersion + "\"\n    }\n" +
                "    compileOptions {\n        sourceCompatibility " + compat + "\n        targetCompatibility " + compat + "\n    }\n}\n\n" +
                "dependencies {\n    implementation 'androidx.appcompat:appcompat:1.6.1'\n    implementation 'com.google.android.material:material:1.11.0'\n    implementation 'com.squareup.okhttp3:okhttp:4.12.0'\n}\n";
     }
