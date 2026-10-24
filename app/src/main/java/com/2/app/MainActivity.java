@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v5.2 ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v5.3 ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -133,7 +133,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🚀 Android Monster Compiler (Gradle 8.4 Fix)");
+        titleView.setText("🚀 Android Monster Compiler (UI Styled)");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -170,7 +170,8 @@ public class MainActivity extends Activity {
         btnFileManager.setOnClickListener(v -> openRepositoryFileManager());
         card.addView(btnFileManager);
 
-        btnCodeEditor = createStyledButton("📝 Редактор кода с подсказками", "#059669");
+        // 🖤 Темно-синяя (почти черная) кнопка редактора кода
+        btnCodeEditor = createCustomStyledButton("📝 Редактор кода с подсказками", "#0A0F1D", "#1E293B");
         btnCodeEditor.setOnClickListener(v -> openCodeEditorDialog());
         card.addView(btnCodeEditor);
 
@@ -280,6 +281,28 @@ public class MainActivity extends Activity {
         btn.setTextSize(11f);
         btn.setTypeface(Typeface.DEFAULT_BOLD);
         btn.setBackgroundColor(Color.parseColor(colorHex));
+        btn.setPadding(12, 12, 12, 12);
+        
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.setMargins(0, 0, 0, 6);
+        btn.setLayoutParams(params);
+        return btn;
+    }
+
+    private Button createCustomStyledButton(String text, String bgColorHex, String borderColorHex) {
+        Button btn = new Button(this);
+        btn.setText(text);
+        btn.setTextColor(Color.parseColor("#38BDF8")); // Светло-голубой текст для контраста с темным фоном
+        btn.setTextSize(11f);
+        btn.setTypeface(Typeface.DEFAULT_BOLD);
+        
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.parseColor(bgColorHex));
+        bg.setCornerRadius(16f);
+        bg.setStroke(2, Color.parseColor(borderColorHex));
+        btn.setBackground(bg);
         btn.setPadding(12, 12, 12, 12);
         
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
@@ -797,7 +820,7 @@ public class MainActivity extends Activity {
                 boolean repaired = false;
                 StringBuilder diagnosticReport = new StringBuilder("=== 🤖 SMART AI-ДОКТОР: ОТЧЕТ АНАЛИЗА ===\n\n");
 
-                diagnosticReport.append("ℹ️ Версия Gradle зафиксирована на 8.4 для полной совместимости с AGP 8.2.2.\n");
+                diagnosticReport.append("ℹ️ Сборка настроена на Gradle 8.4 + AGP 8.2.2.\n");
 
                 if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("WebView") || lastErrorLog.contains("WebSettings") || lastErrorLog.contains("WebViewClient"))) {
                     diagnosticReport.append("🔍 Обнаружено: Использование WebView без импортов.\n");
@@ -818,7 +841,7 @@ public class MainActivity extends Activity {
                 }
 
                 if (!repaired) {
-                    diagnosticReport.append("💡 Совместимость Gradle 8.4 настроена. Нажмите сборку заново!");
+                    diagnosticReport.append("💡 Интерфейс обновлен, кнопка редактора теперь темно-синяя. Нажмите сборку заново!");
                 } else {
                     diagnosticReport.append("\n🎉 Исправления применены! Запустите сборку заново.");
                 }
@@ -833,7 +856,7 @@ public class MainActivity extends Activity {
                         saveSettings();
                         statusTextView.setText("Статус: ✅ AI-Доктор применил патчи!");
                     } else {
-                        statusTextView.setText("Статус: ✅ Gradle 8.4 применен, запустите сборку");
+                        statusTextView.setText("Статус: ✅ Дизайн обновлен, запустите сборку");
                     }
                     logEditText.setText(reportStr);
                 });
@@ -1183,7 +1206,7 @@ public class MainActivity extends Activity {
                             if (!foundErrorBlock) {
                                 professionalReport.append(lastErrorLog.length() > 2500 ? lastErrorLog.substring(lastErrorLog.length() - 2500) : lastErrorLog);
                             } else {
-                                professionalReport.append("\n💡 Версия Gradle исправлена на 8.4. Нажмите сборку заново!");
+                                professionalReport.append("\n💡 Нажмите сборку заново!");
                             }
 
                             handler.post(() -> {
