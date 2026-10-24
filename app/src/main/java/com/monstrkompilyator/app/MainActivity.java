@@ -55,9 +55,9 @@ public class MainActivity extends Activity {
     private boolean iconCustomized = true;
     private String targetUploadFolder = "";
 
-    private int minSdk = 24;
+    private int minSdk = 21;
     private int compileSdk = 34;
-    private String javaVersion = "17"; 
+    private String javaVersion = "8"; // ИСПРАВЛЕНО: Стабильная Java 8 по умолчанию для избежания ошибок jlink
     private String activeCodeContent = "";
 
     private TextView statusTextView, infoTextView;
@@ -288,7 +288,7 @@ public class MainActivity extends Activity {
     }
 
     private void updateInfoText() {
-        String profile = javaVersion.equals("8") ? "⚡ Слабый телефон" : "🚀 Мощный телефон";
+        String profile = javaVersion.equals("8") ? "⚡ Стабильный (Java 8)" : "🚀 Java 17";
         String info = "🏷 Имя: " + appTitle + " | 📦 Пакет: " + packageName + "\n" +
                       "🔢 Версия: " + appVersion + " | 📂 Репо: " + repoOwner + "/" + repoName + "\n" +
                       "☕ Java: " + javaVersion + " | SDK: " + compileSdk + " [" + profile + "]";
@@ -311,9 +311,9 @@ public class MainActivity extends Activity {
         packageName = sp.getString("packageName", packageName);
         currentJavaFileName = sp.getString("currentJavaFileName", currentJavaFileName);
         iconCustomized = sp.getBoolean("iconCustomized", true);
-        minSdk = sp.getInt("minSdk", 24);
+        minSdk = sp.getInt("minSdk", 21);
         compileSdk = sp.getInt("compileSdk", 34);
-        javaVersion = sp.getString("javaVersion", "17");
+        javaVersion = sp.getString("javaVersion", "8");
         activeCodeContent = sp.getString("activeCodeContent", "");
     }
 
@@ -1256,7 +1256,7 @@ public class MainActivity extends Activity {
 
         final Spinner spinner = new Spinner(this);
         spinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, new String[]{
-            "⚡ Слабые телефоны (Java 8)", "🚀 Мощные телефоны (Java 17)"
+            "⚡ Стабильный (Java 8)", "🚀 Java 17"
         }));
         spinner.setSelection(javaVersion.equals("8") ? 0 : 1);
         layout.addView(spinner);
