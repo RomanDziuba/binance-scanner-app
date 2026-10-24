@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.vzlom.app'
+    namespace 'com.vzlom2.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.vzlom.app"
+        applicationId "com.vzlom2.app"
         minSdk 21
         targetSdk 34
         versionCode 1
-        versionName "1.0"
+        versionName "1.1"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "vzlom-v1.0-" + variant.name + ".apk"
+            outputFileName = "vzlom2-v1.1-" + variant.name + ".apk"
         }
     }
 }
