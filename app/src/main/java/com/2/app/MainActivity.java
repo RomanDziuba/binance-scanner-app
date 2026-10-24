@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v5.5 ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v5.6 ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -133,7 +133,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🚀 Android Monster Compiler (D8 Modernized)");
+        titleView.setText("🚀 Android Monster Compiler (Auto-Clean Workflow)");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -796,7 +796,7 @@ public class MainActivity extends Activity {
                         Toast.makeText(MainActivity.this, "Иконка обновлена!", Toast.LENGTH_SHORT).show();
                     }
                 });
-            }).start();
+            }.start();
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка иконки", Toast.LENGTH_SHORT).show();
         }
@@ -820,7 +820,7 @@ public class MainActivity extends Activity {
                 boolean repaired = false;
                 StringBuilder diagnosticReport = new StringBuilder("=== 🤖 SMART AI-ДОКТОР: ОТЧЕТ АНАЛИЗА ===\n\n");
 
-                diagnosticReport.append("ℹ️ Скрипт обновлен: используется современный компилятор `d8` вместо устаревшего `dx`.\n");
+                diagnosticReport.append("ℹ️ Автоматическая очистка старых воркфлоу активирована.\n");
 
                 if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("WebView") || lastErrorLog.contains("WebSettings") || lastErrorLog.contains("WebViewClient"))) {
                     diagnosticReport.append("🔍 Обнаружено: Использование WebView без импортов.\n");
@@ -841,7 +841,7 @@ public class MainActivity extends Activity {
                 }
 
                 if (!repaired) {
-                    diagnosticReport.append("💡 Компилятор `d8` настроен. Нажмите сборку заново!");
+                    diagnosticReport.append("💡 Старые воркфлоу будут удалены автоматически при следующем запуске. Нажмите сборку!");
                 } else {
                     diagnosticReport.append("\n🎉 Исправления применены! Запустите сборку заново.");
                 }
@@ -856,7 +856,7 @@ public class MainActivity extends Activity {
                         saveSettings();
                         statusTextView.setText("Статус: ✅ AI-Доктор применил патчи!");
                     } else {
-                        statusTextView.setText("Статус: ✅ D8 утилита подключена, запустите сборку");
+                        statusTextView.setText("Статус: ✅ Авто-очистка настроена, запустите сборку");
                     }
                     logEditText.setText(reportStr);
                 });
@@ -984,11 +984,14 @@ public class MainActivity extends Activity {
         btnBuild.setEnabled(false);
         btnBuild.setBackgroundColor(Color.parseColor("#1E3A8A"));
         btnBuild.setText("⏳ Компиляция на сервере...\n📦 " + packageName);
-        statusTextView.setText("Статус: ⚙️ Синхронизация репозитория...");
-        logEditText.setText("Отправка кода и прямой конфигурации на GitHub...");
+        statusTextView.setText("Статус: ⚙️ Очистка старых воркфлоу и синхронизация...");
+        logEditText.setText("Автоматическое удаление старых файлов из .github/workflows и отправка нового скрипта...");
 
         new Thread(() -> {
             try {
+                // Автоматически очищаем старые воркфлоу конфликтующие файлы в репозитории
+                cleanOldWorkflows();
+
                 activeCodeContent = sanitizeAndInjectJavaCode(activeCodeContent, packageName);
                 
                 boolean synced = pushFileToGitHub("build.gradle", getRootGradleContent(), "Update root gradle") &&
@@ -1024,7 +1027,7 @@ public class MainActivity extends Activity {
                 if (conn.getResponseCode() == 204 || conn.getResponseCode() == 201) {
                     handler.post(() -> {
                         statusTextView.setText("Статус: 🚀 Сборка запущена! Ожидание APK...");
-                        logEditText.setText("GitHub Actions компилирует ваш проект через современный D8 компилятор...\nКак только сборка завершится, бот пришлет APK в Telegram.");
+                        logEditText.setText("Старые воркфлоу удалены. GitHub Actions выполняет чистую сборку...\nКак только сборка завершится, бот пришлет APK в Telegram.");
                         startMonitoringBuild();
                     });
                 } else {
@@ -1046,6 +1049,33 @@ public class MainActivity extends Activity {
         }).start();
     }
 
+    private void cleanOldWorkflows() {
+        try {
+            String treeUrl = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/git/trees/main?recursive=1";
+            HttpURLConnection conn = (HttpURLConnection) new URL(treeUrl).openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Authorization", "Bearer " + githubToken);
+            conn.setRequestProperty("Accept", "application/vnd.github+json");
+
+            if (conn.getResponseCode() == 200) {
+                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                JSONArray treeArray = new JSONObject(sb.toString()).optJSONArray("tree");
+                if (treeArray != null) {
+                    for (int i = 0; i < treeArray.length(); i++) {
+                        JSONObject obj = treeArray.getJSONObject(i);
+                        String path = obj.optString("path");
+                        if (path.startsWith(".github/workflows/") && !path.equals(".github/workflows/build_native.yml")) {
+                            deleteGitHubFile(path, "Auto-clean old workflow: " + path);
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+    }
+
     private void emergencyStopBuild() {
         isMonitoring = false;
         if (latestRunId > 0 && !githubToken.isEmpty()) {
@@ -1057,7 +1087,7 @@ public class MainActivity extends Activity {
                     conn.setRequestProperty("Authorization", "Bearer " + githubToken);
                     conn.getResponseCode();
                 } catch (Exception ignored) {}
-            }).start();
+            }.start();
         }
 
         handler.post(() -> {
@@ -1206,7 +1236,7 @@ public class MainActivity extends Activity {
                             if (!foundErrorBlock) {
                                 professionalReport.append(lastErrorLog.length() > 2500 ? lastErrorLog.substring(lastErrorLog.length() - 2500) : lastErrorLog);
                             } else {
-                                professionalReport.append("\n💡 Нажмите сборку заново!");
+                                professionalReport.append("\n💡 Старые воркфлоу очищены. Нажмите сборку заново!");
                             }
 
                             handler.post(() -> {
@@ -1497,6 +1527,7 @@ public class MainActivity extends Activity {
                "            }\n" +
                "            @Override public void onStartTrackingTouch(SeekBar seekBar) {}\n" +
                "            @Override public void onStopTrackingTouch(SeekBar seekBar) {}\n" +
+               "../" +
                "        });\n\n" +
                "        setContentView(layout);\n" +
                "    }\n" +
