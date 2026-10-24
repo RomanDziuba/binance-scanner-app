@@ -48,7 +48,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Smule CDN Debug ✦");
+        authorView.setText("✦ Dziuba Roman — Script & UUID Hunter ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(14f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🛠️ Поиск CDN и медиа-потоков Smule");
+        titleView.setText("🛠️ Поиск скрытых скриптов и UUID");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(17f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -94,12 +94,12 @@ public class MainActivity extends Activity {
         urlInput.setLayoutParams(inputParams);
         card.addView(urlInput);
 
-        btnDebug = createStyledButton("🔍 Сканировать CDN-ссылки в HTML", "#2563EB");
+        btnDebug = createStyledButton("🔍 Извлечь скрипты и JSON-данные", "#2563EB");
         btnDebug.setOnClickListener(v -> runDiagnostic());
         card.addView(btnDebug);
 
         statusText = new TextView(this);
-        statusText.setText("Статус: Готов к сканированию...");
+        statusText.setText("Статус: Ожидание сканирования скриптов...");
         statusText.setTextColor(Color.parseColor("#10B981"));
         statusText.setTextSize(12f);
         statusText.setPadding(12, 10, 12, 10);
@@ -117,13 +117,13 @@ public class MainActivity extends Activity {
         card.addView(statusText);
 
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Результаты сканирования CDN:");
+        logLabel.setText("📋 Содержимое скриптов и найденные пути:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
         logLabel.setTextSize(11f);
         card.addView(logLabel);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Здесь появятся найденные ссылки на CDN и скрипты...");
+        logEditText.setHint("Здесь появятся данные из тегов <script>...");
         logEditText.setTextSize(10f);
         logEditText.setTypeface(Typeface.MONOSPACE);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
@@ -138,7 +138,7 @@ public class MainActivity extends Activity {
         btnCopyLogs = createStyledButton("📋 Скопировать лог в буфер", "#475569");
         btnCopyLogs.setOnClickListener(v -> {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("Smule CDN Debug", logEditText.getText().toString());
+            ClipData clip = ClipData.newPlainText("Smule Scripts Debug", logEditText.getText().toString());
             clipboard.setPrimaryClip(clip);
             Toast.makeText(this, "Отчет скопирован!", Toast.LENGTH_SHORT).show();
         });
@@ -175,8 +175,8 @@ public class MainActivity extends Activity {
         }
 
         btnDebug.setEnabled(false);
-        statusText.setText("Статус: ⚙️ Сканирование HTML и скриптов...");
-        logEditText.setText("=== ПОИСК CDN И ПОТОКОВ SMULE ===\n");
+        statusText.setText("Статус: ⚙️ Загрузка и разбор тегов <script>...");
+        logEditText.setText("=== АНАЛИЗ СКРИПТОВ И JSON ===\n");
 
         new Thread(() -> {
             StringBuilder logs = new StringBuilder();
@@ -199,30 +199,32 @@ public class MainActivity extends Activity {
                     br.close();
 
                     String pageContent = html.toString().replace("\\/", "/");
-                    logs.append("Размер страницы: ").append(pageContent.length()).append(" байт\n\n");
 
-                    // 1. Ищем все ссылки, содержащие cdn.smule.com или smule-gg
-                    logs.append("--- Ссылки на CDN Smule (cdn.smule.com / smule-gg) ---\n");
-                    Matcher cdnMatcher = Pattern.compile("https?://[^\"]*?cdn\\.smule\\.com[^\"]*|https?://[^\"]*?smule-gg[^\"]*").matcher(pageContent);
-                    boolean foundCdn = false;
-                    while (cdnMatcher.find()) {
-                        foundCdn = true;
-                        logs.append("📦 ").append(cdnMatcher.group(0)).append("\n\n");
-                    }
-                    if (!foundCdn) {
-                        logs.append("Ссылки на CDN не найдены в чистом виде.\n\n");
+                    // 1. Ищем все теги <script>...</script>
+                    logs.append("--- Содержимое тегов <script> (поиск данных) ---\n");
+                    Matcher scriptMatcher = Pattern.compile("<script[^>]*>(.*?)</script>", Pattern.DOTALL).matcher(pageContent);
+                    int scriptIndex = 1;
+                    while (scriptMatcher.find()) {
+                        String scriptBody = scriptMatcher.group(1).trim();
+                        if (!scriptBody.isEmpty() && (scriptBody.contains("performance") || scriptBody.contains("video") || scriptBody.contains("audio") || scriptBody.contains("url") || scriptBody.contains("6376040b"))) {
+                            logs.append("\n[Скрипт #").append(scriptIndex).append(" (длина ").append(scriptBody.length()).append(" символов)]\n");
+                            // Выводим кусок скрипта, где упоминаются ключевые слова или UUID
+                            if (scriptBody.length() > 800) {
+                                logs.append(scriptBody.substring(0, 800)).append("\n... [обрезано] ...\n");
+                            } else {
+                                logs.append(scriptBody).append("\n");
+                            }
+                        }
+                        scriptIndex++;
                     }
 
-                    // 2. Ищем любые URL с параметрами внутри скриптов
-                    logs.append("--- Подозрительные URL в скриптах страницы ---\n");
-                    Matcher urlMatcher = Pattern.compile("\"(https?://[^\"]+?\b(mp4|m4a|mp3|perf|media|audio)[^\"]*?)\"").matcher(pageContent);
-                    boolean foundUrl = false;
-                    while (urlMatcher.find()) {
-                        foundUrl = true;
-                        logs.append("🎯 ").append(urlMatcher.group(1)).append("\n\n");
-                    }
-                    if (!foundUrl) {
-                        logs.append("Совпадений по ключевым словам не найдено.\n\n");
+                    // 2. Ищем любые строки содержащие mp4 или m4a в любом месте страницы
+                    logs.append("\n--- Строки с упоминанием медиа-форматов ---\n");
+                    String[] rows = pageContent.split("\n");
+                    for (String r : rows) {
+                        if ((r.contains(".mp4") || r.contains(".m4a") || r.contains(".mp3") || r.contains("stream") || r.contains("perf_url")) && r.length() < 400) {
+                            logs.append("🎯 ").append(r.trim()).append("\n");
+                        }
                     }
 
                 } else {
@@ -236,7 +238,7 @@ public class MainActivity extends Activity {
             final String finalLogs = logs.toString();
             handler.post(() -> {
                 btnDebug.setEnabled(true);
-                statusText.setText("Статус: ✅ Сканирование завершено. Скопируйте лог!");
+                statusText.setText("Статус: ✅ Анализ скриптов завершен!");
                 logEditText.setText(finalLogs);
             });
         }).start();
