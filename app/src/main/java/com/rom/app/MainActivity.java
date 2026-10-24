@@ -13,13 +13,13 @@ import android.text.TextUtils;
 import android.view.Gravity;
 import android.widget.*;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -29,6 +29,14 @@ public class MainActivity extends Activity {
     private TextView statusText;
     private Button btnDebug, btnPasteUrl, btnCopyLogs;
     private Handler handler = new Handler(Looper.getMainLooper());
+    
+    // Продвинутый HTTP-клиент с поддержкой HTTP/2 и современных TLS-шифров
+    private final OkHttpClient httpClient = new OkHttpClient.Builder()
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .followRedirects(false) // Ручное отслеживание редиректов для глубокого анализа
+            .followSslRedirects(false)
+            .build();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,7 +58,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Multi-Stage Core Hunter ✦");
+        authorView.setText("✦ Dziuba Roman — Advanced Core Hunter (OkHttp) ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(14f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -74,7 +82,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🛠️ Поэтапный глубокий анализ целей");
+        titleView.setText("🛠️ Обход защиты и глубокий анализ");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(17f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -101,8 +109,8 @@ public class MainActivity extends Activity {
         btnPasteUrl.setOnClickListener(v -> pasteFromClipboard());
         card.addView(btnPasteUrl);
 
-        btnDebug = createStyledButton("🚀 Запустить поэтапный пробой", "#2563EB");
-        btnDebug.setOnClickListener(v -> startSequentialAnalysis());
+        btnDebug = createStyledButton("🚀 Запустить защищенный пробой", "#2563EB");
+        btnDebug.setOnClickListener(v -> startAdvancedAnalysis());
         card.addView(btnDebug);
 
         statusText = new TextView(this);
@@ -124,13 +132,13 @@ public class MainActivity extends Activity {
         card.addView(statusText);
 
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Итоговый структурированный отчет:");
+        logLabel.setText("📋 Отчет о проходе защиты:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
         logLabel.setTextSize(11f);
         card.addView(logLabel);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Здесь появится подробный отчет о проходе всех этапов...");
+        logEditText.setHint("Здесь появится детальный лог обхода и содержимое...");
         logEditText.setTextSize(10f);
         logEditText.setTypeface(Typeface.MONOSPACE);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
@@ -145,7 +153,7 @@ public class MainActivity extends Activity {
         btnCopyLogs = createStyledButton("📋 Скопировать отчет", "#475569");
         btnCopyLogs.setOnClickListener(v -> {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("Deep Analysis Report", logEditText.getText().toString());
+            ClipData clip = ClipData.newPlainText("Advanced Report", logEditText.getText().toString());
             clipboard.setPrimaryClip(clip);
             Toast.makeText(this, "Отчет успешно скопирован!", Toast.LENGTH_SHORT).show();
         });
@@ -190,7 +198,7 @@ public class MainActivity extends Activity {
         Toast.makeText(this, "Буфер обмена пуст!", Toast.LENGTH_SHORT).show();
     }
 
-    private void startSequentialAnalysis() {
+    private void startAdvancedAnalysis() {
         String inputUrl = urlInput.getText().toString().trim();
         if (TextUtils.isEmpty(inputUrl)) {
             Toast.makeText(this, "Введите ссылку!", Toast.LENGTH_SHORT).show();
@@ -204,170 +212,150 @@ public class MainActivity extends Activity {
 
         final String targetUrl = inputUrl;
         btnDebug.setEnabled(false);
-        statusText.setText("Статус: [Этап 1/4] Разведка и обход редиректов...");
-        logEditText.setText("=== 🕵️ МНОГОЭТАПНЫЙ ОТЧЕТ АНАЛИЗА ===\nИсходная цель: " + targetUrl + "\n\n");
+        statusText.setText("Статус: [Защищенный этап] Обход редиректов...");
+        logEditText.setText("=== 🛡️ ADVANCED CORE HUNTER REPORT ===\nЦель: " + targetUrl + "\n\n");
 
         new Thread(() -> {
             StringBuilder report = new StringBuilder();
-            report.append("=== 🕵️ МНОГОЭТАПНЫЙ ОТЧЕТ АНАЛИЗА ===\n");
-            report.append("Исходная цель: ").append(targetUrl).append("\n\n");
+            report.append("=== 🛡️ ADVANCED CORE HUNTER REPORT ===\n");
+            report.append("Цель: ").append(targetUrl).append("\n\n");
 
             try {
-                // ==================== ЭТАП 1: Разведка и обработка редиректов ====================
-                updateStatus("Статус: [Этап 1/4] Обработка редиректов и HTTP...");
-                report.append("--- ЭТАП 1: Разведка и редиректы ---\n");
-                
                 String currentUrl = targetUrl;
-                HttpURLConnection conn = null;
                 int redirectCount = 0;
-                int responseCode = -1;
-                
-                while (redirectCount < 5) {
-                    try {
-                        conn = (HttpURLConnection) new URL(currentUrl).openConnection();
-                        conn.setRequestMethod("GET");
-                        setupBrowserHeaders(conn);
-                        conn.setInstanceFollowRedirects(false);
-                        
-                        responseCode = conn.getResponseCode();
-                        report.append("• Шаг [").append(redirectCount + 1).append("] URL: ").append(currentUrl).append("\n");
-                        report.append("  Код ответа: ").append(responseCode).append("\n");
+                Response response = null;
 
-                        if (responseCode == 301 || responseCode == 302 || responseCode == 303 || responseCode == 307 || responseCode == 308) {
-                            String redirectUrl = conn.getHeaderField("Location");
-                            report.append("  ↪️ Редирект на: ").append(redirectUrl).append("\n\n");
-                            
-                            if (redirectUrl == null) break;
-                            
-                            if (redirectUrl.startsWith("/")) {
-                                URL base = new URL(currentUrl);
-                                redirectUrl = base.getProtocol() + "://" + base.getHost() + redirectUrl;
-                            } else if (!redirectUrl.startsWith("http")) {
-                                URL base = new URL(currentUrl);
-                                redirectUrl = new URL(base, redirectUrl).toString();
-                            }
-                            
-                            currentUrl = redirectUrl;
-                            redirectCount++;
-                            conn.disconnect();
-                        } else {
-                            break;
+                // 1. Продвинутый обход редиректов с OkHttp
+                report.append("--- ЭТАП 1: Трассировка редиректов ---\n");
+                while (redirectCount < 5) {
+                    Request request = new Request.Builder()
+                            .url(currentUrl)
+                            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+                            .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+                            .header("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7")
+                            .header("Sec-Ch-Ua", "\"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\", \"Not-A.Brand\";v=\"99\"")
+                            .header("Sec-Ch-Ua-Mobile", "?0")
+                            .header("Sec-Ch-Ua-Platform", "\"Windows\"")
+                            .header("Upgrade-Insecure-Requests", "1")
+                            .build();
+
+                    if (response != null) {
+                        response.close();
+                    }
+
+                    response = httpClient.newCall(request).execute();
+                    int code = response.code();
+
+                    report.append("• Шаг [").append(redirectCount + 1).append("] URL: ").append(currentUrl).append("\n");
+                    report.append("  Код ответа: ").append(code).append("\n");
+
+                    if (code == 301 || code == 302 || code == 303 || code == 307 || code == 308) {
+                        String redirectUrl = response.header("Location");
+                        report.append("  ↪️ Редирект на: ").append(redirectUrl).append("\n\n");
+
+                        if (redirectUrl == null) break;
+
+                        if (redirectUrl.startsWith("/")) {
+                            okhttp3.HttpUrl base = response.request().url();
+                            redirectUrl = base.scheme() + "://" + base.host() + redirectUrl;
                         }
-                    } catch (Exception e) {
-                        report.append("  ⚠️ Ошибка соединения на шаге: ").append(e.getMessage()).append("\n");
+
+                        currentUrl = redirectUrl;
+                        redirectCount++;
+                    } else {
                         break;
                     }
                 }
 
                 report.append("• Финальный целевой URL: ").append(currentUrl).append("\n");
-                
-                // Пробуем получить данные с конечного сайта
-                try {
-                    conn = (HttpURLConnection) new URL(currentUrl).openConnection();
-                    conn.setRequestMethod("GET");
-                    setupBrowserHeaders(conn);
-                    responseCode = conn.getResponseCode();
-                    
-                    report.append("• HTTP Статус финала: ").append(responseCode).append("\n");
-                    report.append("• Content-Type: ").append(conn.getContentType()).append("\n");
-                    report.append("• Сервер: ").append(conn.getHeaderField("Server")).append("\n\n");
 
-                    if (responseCode != 200) {
-                        report.append("❌ Сервер вернул код отличный от 200. Анализ страницы невозможен.\n");
-                        finishAnalysis(report.toString());
-                        return;
-                    }
-
-                    String pageContent = readStream(conn.getInputStream());
-                    report.append("• Размер полученных данных: ").append(pageContent.length()).append(" символов\n");
-
-                    Matcher titleMatcher = Pattern.compile("<title>(.*?)</title>", Pattern.CASE_INSENSITIVE).matcher(pageContent);
-                    if (titleMatcher.find()) {
-                        report.append("• Заголовок страницы (Title): ").append(titleMatcher.group(1).trim()).append("\n");
-                    }
-                    report.append("✅ Этап 1 завершен успешно.\n\n");
-
-                    // ==================== ЭТАП 2: Поиск скрытых состояний и API ====================
-                    updateStatus("Статус: [Этап 2/4] Сканирование API и скрытых JSON...");
-                    report.append("--- ЭТАП 2: Поиск скрытых данных и API ---\n");
-
-                    Matcher stateMatcher = Pattern.compile("(window\\.__[a-zA-Z0-9_]+__\\s*=\\s*\\{.+?\\});", Pattern.DOTALL).matcher(pageContent);
-                    int statesFound = 0;
-                    while (stateMatcher.find() && statesFound < 3) {
-                        statesFound++;
-                        String snippet = stateMatcher.group(1);
-                        if (snippet.length() > 300) snippet = snippet.substring(0, 300) + "... [обрезано]";
-                        report.append("🎯 Найдено состояние №").append(statesFound).append(":\n").append(snippet).append("\n\n");
-                    }
-                    if (statesFound == 0) {
-                        report.append("ℹ️ Крупных JSON-состояний в HTML не обнаружено.\n");
-                    }
-
-                    Matcher apiMatcher = Pattern.compile("[\"']((?:https?://[^\"']+|/[a-zA-Z0-9_/\\-]+)?/api/v[0-9]+/[^\"']+)[\"']").matcher(pageContent);
-                    int apiCount = 0;
-                    report.append("Найденные API маршруты:\n");
-                    while (apiMatcher.find()) {
-                        apiCount++;
-                        report.append("  [").append(apiCount).append("] ").append(apiMatcher.group(1)).append("\n");
-                        if (apiCount >= 5) break;
-                    }
-                    if (apiCount == 0) report.append("  (явных API путей не найдено)\n");
-                    report.append("\n✅ Этап 2 завершен.\n\n");
-
-                    // ==================== ЭТАП 3: Погружение в скрипты (JS Deep Dive) ====================
-                    updateStatus("Статус: [Этап 3/4] Скачивание и глубокий анализ .JS файлов...");
-                    report.append("--- ЭТАП 3: Глубокий анализ JavaScript-файлов ---\n");
-
-                    List<String> jsLinks = extractJsLinks(pageContent, currentUrl);
-                    report.append("• Обнаружено внешних JS скриптов: ").append(jsLinks.size()).append("\n");
-
-                    int analyzedJsCount = 0;
-                    for (String jsUrl : jsLinks) {
-                        if (analyzedJsCount >= 3) {
-                            report.append("⚠️ Лимит анализа: проверены первые 3 JS файла.\n");
-                            break;
-                        }
-                        analyzedJsCount++;
-                        report.append("\n[Скрипт #").append(analyzedJsCount).append("] URL: ").append(jsUrl).append("\n");
-
-                        try {
-                            String jsText = fetchContentDirect(jsUrl);
-                            report.append("  Размер JS: ").append(jsText.length()).append(" символов\n");
-
-                            Matcher codeMatcher = Pattern.compile(".{0,80}(?:\"e:\"|'e:'|media_url|video_media_url|decodeUrl|decryptUrl|authorization|bearer|token|signature|AES|atob).{0,80}").matcher(jsText);
-                            
-                            int matchInJs = 0;
-                            while (codeMatcher.find()) {
-                                matchInJs++;
-                                report.append("  🎯 Совпадение [").append(matchInJs).append("]: ").append(codeMatcher.group(0).trim()).append("\n");
-                                if (matchInJs >= 5) {
-                                    report.append("  ... (показано первые 5 совпадений в этом скрипте)\n");
-                                    break;
-                                }
-                            }
-                            if (matchInJs == 0) {
-                                report.append("  (искомых сигнатур декодирования/токенов не обнаружено)\n");
-                            }
-
-                        } catch (Exception e) {
-                            report.append("  ❌ Ошибка загрузки JS: ").append(e.getMessage()).append("\n");
-                        }
-                    }
-                    report.append("\n✅ Этап 3 завершен.\n\n");
-
-                    // ==================== ЭТАП 4: Финальный отчет ====================
-                    updateStatus("Статус: [Этап 4/4] Синтез отчета...");
-                    report.append("--- ЭТАП 4: Итоговый вердикт ---\n");
-                    report.append("🎉 Полный цикл глубокой разведки успешно завершен!\n");
-
-                } catch (Exception e) {
-                    report.append("\n🛡️ ЗАЩИТА СЕРВЕРА (Connection reset / Blocked):\n")
-                          .append("Конечный ресурс (например, mil.ru) принудительно сбросил TCP-соединение из-за систем защиты от ботов/парсер-фильтров.\n")
-                          .append("Техническая ошибка: ").append(e.getMessage()).append("\n");
+                if (response == null || !response.isSuccessful()) {
+                    report.append("❌ Ошибка: Сервер не отдал успешный код (HTTP ").append(response != null ? response.code() : "null").append(").\n");
+                    finishAnalysis(report.toString());
+                    if (response != null) response.close();
+                    return;
                 }
 
+                String pageContent = response.body() != null ? response.body().string() : "";
+                response.close();
+
+                report.append("• Размер данных страницы: ").append(pageContent.length()).append(" символов\n");
+
+                Matcher titleMatcher = Pattern.compile("<title>(.*?)</title>", Pattern.CASE_INSENSITIVE).matcher(pageContent);
+                if (titleMatcher.find()) {
+                    report.append("• Заголовок (Title): ").append(titleMatcher.group(1).trim()).append("\n");
+                }
+                report.append("✅ Этап 1 успешно пройден без Connection reset!\n\n");
+
+                // 2. Сканирование API и JSON-состояний
+                updateStatus("Статус: [Этап 2] Анализ структуры и API...");
+                report.append("--- ЭТАП 2: Поиск API и скрытых данных ---\n");
+
+                Matcher stateMatcher = Pattern.compile("(window\\.__[a-zA-Z0-9_]+__\\s*=\\s*\\{.+?\\});", Pattern.DOTALL).matcher(pageContent);
+                int statesFound = 0;
+                while (stateMatcher.find() && statesFound < 3) {
+                    statesFound++;
+                    String snippet = stateMatcher.group(1);
+                    if (snippet.length() > 300) snippet = snippet.substring(0, 300) + "... [обрезано]";
+                    report.append("🎯 Найдено состояние №").append(statesFound).append(":\n").append(snippet).append("\n\n");
+                }
+                if (statesFound == 0) report.append("ℹ️ Крупных глобальных JSON-структур не найдено.\n");
+
+                Matcher apiMatcher = Pattern.compile("[\"']((?:https?://[^\"']+|/[a-zA-Z0-9_/\\-]+)?/api/v[0-9]+/[^\"']+)[\"']").matcher(pageContent);
+                int apiCount = 0;
+                while (apiMatcher.find()) {
+                    apiCount++;
+                    report.append("  [API #").append(apiCount).append("] ").append(apiMatcher.group(1)).append("\n");
+                    if (apiCount >= 5) break;
+                }
+                report.append("\n✅ Этап 2 завершен.\n\n");
+
+                // 3. Глубокий анализ JS-файлов
+                updateStatus("Статус: [Этап 3] Скачивание и глубокий анализ скриптов...");
+                report.append("--- ЭТАП 3: Анализ JS-скриптов ---\n");
+
+                List<String> jsLinks = extractJsLinks(pageContent, currentUrl);
+                report.append("• Найдено внешних JS: ").append(jsLinks.size()).append("\n");
+
+                int analyzed = 0;
+                for (String jsUrl : jsLinks) {
+                    if (analyzed >= 3) break;
+                    analyzed++;
+                    report.append("\n[Скрипт #").append(analyzed).append("] ").append(jsUrl).append("\n");
+
+                    try {
+                        Request jsReq = new Request.Builder()
+                                .url(jsUrl)
+                                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+                                .header("Referer", currentUrl)
+                                .build();
+                        Response jsResp = httpClient.newCall(jsReq).execute();
+                        if (jsResp.isSuccessful() && jsResp.body() != null) {
+                            String jsText = jsResp.body().string();
+                            jsResp.close();
+                            report.append("  Размер: ").append(jsText.length()).append(" символов\n");
+
+                            Matcher codeMatcher = Pattern.compile(".{0,80}(?:\"e:\"|'e:'|media_url|video_media_url|decodeUrl|decryptUrl|authorization|bearer|token|signature|AES|atob).{0,80}").matcher(jsText);
+                            int matches = 0;
+                            while (codeMatcher.find()) {
+                                matches++;
+                                report.append("  🎯 Совпадение [").append(matches).append("]: ").append(codeMatcher.group(0).trim()).append("\n");
+                                if (matches >= 5) break;
+                            }
+                            if (matches == 0) report.append("  (искомых сигнатур не найдено)\n");
+                        } else {
+                            if (jsResp != null) jsResp.close();
+                            report.append("  ❌ Ошибка загрузки скрипта\n");
+                        }
+                    } catch (Exception e) {
+                        report.append("  ❌ Ошибка: ").append(e.getMessage()).append("\n");
+                    }
+                }
+
+                report.append("\n🎉 Разведка успешно завершена!");
+
             } catch (Exception e) {
-                report.append("\n❌ КРИТИЧЕСКАЯ ОШИБКА НА КОНВЕЙЕРЕ: ").append(e.toString());
+                report.append("\n❌ ОШИБКА ПРОБОЯ ЗАЩИТЫ: ").append(e.toString());
             }
 
             finishAnalysis(report.toString());
@@ -386,27 +374,6 @@ public class MainActivity extends Activity {
         });
     }
 
-    private String readStream(java.io.InputStream is) throws Exception {
-        BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
-        StringBuilder sb = new StringBuilder();
-        String line;
-        while ((line = br.readLine()) != null) {
-            sb.append(line).append("\n");
-        }
-        br.close();
-        return sb.toString();
-    }
-
-    private String fetchContentDirect(String urlString) throws Exception {
-        HttpURLConnection conn = (HttpURLConnection) new URL(urlString).openConnection();
-        conn.setRequestMethod("GET");
-        setupBrowserHeaders(conn);
-        if (conn.getResponseCode() != 200) {
-            throw new Exception("HTTP Код: " + conn.getResponseCode());
-        }
-        return readStream(conn.getInputStream());
-    }
-
     private List<String> extractJsLinks(String html, String baseUrl) {
         List<String> links = new ArrayList<>();
         Matcher scriptMatcher = Pattern.compile("<script[^>]+src=[\"']([^\"']+\\.js[^\"']*)[\"']", Pattern.CASE_INSENSITIVE).matcher(html);
@@ -416,8 +383,10 @@ public class MainActivity extends Activity {
                 src = "https:" + src;
             } else if (src.startsWith("/")) {
                 try {
-                    URL base = new URL(baseUrl);
-                    src = base.getProtocol() + "://" + base.getHost() + src;
+                    okhttp3.HttpUrl base = okhttp3.HttpUrl.parse(baseUrl);
+                    if (base != null) {
+                        src = base.scheme() + "://" + base.host() + src;
+                    }
                 } catch (Exception ignored) {}
             }
             if (src.startsWith("http")) {
@@ -425,14 +394,5 @@ public class MainActivity extends Activity {
             }
         }
         return links;
-    }
-
-    private void setupBrowserHeaders(HttpURLConnection conn) {
-        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
-        conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8");
-        conn.setRequestProperty("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7");
-        conn.setRequestProperty("Connection", "keep-alive");
-        conn.setConnectTimeout(15000);
-        conn.setReadTimeout(15000);
     }
 }
