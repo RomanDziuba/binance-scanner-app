@@ -67,7 +67,7 @@ public class MainActivity extends Activity {
         notesHeader.setPadding(0, 10, 0, 5);
         container.addView(notesHeader);
 
-        // Обновленный пафосный логотип со словом Загрузчик (DOWNLOADER)
+        // Пафосный логотип
         TextView logoView = new TextView(this);
         logoView.setText("⚡ SMULE VIP MATRIX DOWNLOADER ⚡");
         logoView.setTextColor(Color.parseColor("#38BDF8"));
@@ -92,16 +92,16 @@ public class MainActivity extends Activity {
         );
         card.setLayoutParams(cardParams);
 
-        // Кнопка Вставить из буфера (с динамическим текстом и уменьшенным шрифтом)
-        btnPaste = createStyledButton("📋 Вставить из буфера", "#475569", 10f);
+        // Красивая овальная/капсульная кнопка вставки из буфера
+        btnPaste = createPillButton("📋 ВСТАВИТЬ ИЗ БУФЕРА", "#334155", 12f);
         btnPaste.setOnClickListener(v -> pasteFromClipboard());
         card.addView(btnPaste);
 
-        // Поле ввода ссылки (пустое по умолчанию)
+        // Поле ввода ссылки
         urlInput = new EditText(this);
-        urlInput.setHint("Вставьте ссылку на трек Smule здесь...");
+        urlInput.setHint("ВСТАВЬТЕ ССЫЛКУ НА ТРЕК SMULE ЗДЕСЬ...");
         urlInput.setHintTextColor(Color.parseColor("#475569"));
-        urlInput.setTextSize(13f);
+        urlInput.setTextSize(12f);
         urlInput.setTextColor(Color.parseColor("#F1F5F9"));
         urlInput.setBackgroundColor(Color.parseColor("#030712"));
         urlInput.setPadding(20, 20, 20, 20);
@@ -109,7 +109,7 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        inputParams.setMargins(0, 10, 0, 15);
+        inputParams.setMargins(0, 12, 0, 15);
         urlInput.setLayoutParams(inputParams);
         card.addView(urlInput);
 
@@ -135,16 +135,18 @@ public class MainActivity extends Activity {
         infoCard.setLayoutParams(infoParams);
         card.addView(infoCard);
 
-        mainActionButton = createStyledButton("🔍 Найти и подготовить трек", "#2563EB", 12f);
+        // Капсульная главная кнопка
+        mainActionButton = createPillButton("🔍 НАЙТИ И ПОДГОТОВИТЬ ТРЕК", "#2563EB", 13f);
         mainActionButton.setOnClickListener(v -> handleMainButtonClick());
         card.addView(mainActionButton);
 
-        btnClear = createStyledButton("❌ Очистить / Сбросить буфер", "#7F1D1D", 12f);
+        // Капсульная кнопка очистки
+        btnClear = createPillButton("❌ ОЧИСТИТЬ / СБРОСИТЬ БУФЕР", "#7F1D1D", 12f);
         btnClear.setOnClickListener(v -> resetState());
         card.addView(btnClear);
 
         statusText = new TextView(this);
-        statusText.setText("Статус: Ожидание ссылки...");
+        statusText.setText("СТАТУС: ОЖИДАНИЕ ССЫЛКИ...");
         statusText.setTextColor(Color.parseColor("#94A3B8"));
         statusText.setTextSize(11f);
         statusText.setPadding(12, 10, 12, 10);
@@ -162,7 +164,7 @@ public class MainActivity extends Activity {
         card.addView(statusText);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Технические лог-данные...");
+        logEditText.setHint("ТЕХНИЧЕСКИЕ ЛОГ-ДАННЫЕ...");
         logEditText.setTextSize(9f);
         logEditText.setTypeface(Typeface.MONOSPACE);
         logEditText.setTextColor(Color.parseColor("#64748B"));
@@ -181,6 +183,7 @@ public class MainActivity extends Activity {
         notesFooter.setPadding(0, 15, 0, 10);
         container.addView(notesFooter);
 
+        // Фирменная подпись
         TextView footerAuthor = new TextView(this);
         footerAuthor.setText("CREATED BY DZIUBA ROMAN 2026");
         footerAuthor.setTextColor(Color.parseColor("#F59E0B"));
@@ -195,49 +198,30 @@ public class MainActivity extends Activity {
         setContentView(root);
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        updatePasteButtonText(); // Динамически обновляем текст кнопки при возврате в приложение
-    }
-
-    private Button createStyledButton(String text, String colorHex, float textSizeSp) {
+    /**
+     * Создает оригинальную овальную/капсульную кнопку (Pill Button)
+     */
+    private Button createPillButton(String text, String colorHex, float textSizeSp) {
         Button btn = new Button(this);
-        btn.setText(text);
+        btn.setText(text.toUpperCase());
         btn.setTextColor(Color.WHITE);
         btn.setTextSize(textSizeSp);
         btn.setTypeface(Typeface.DEFAULT_BOLD);
-        btn.setBackgroundColor(Color.parseColor(colorHex));
-        btn.setPadding(15, 15, 15, 15);
+        
+        // Закругленный фон-капсула (овальная форма)
+        GradientDrawable pillShape = new GradientDrawable();
+        pillShape.setColor(Color.parseColor(colorHex));
+        pillShape.setCornerRadius(100f); // Максимальное скругление для эффекта капсулы
+        btn.setBackground(pillShape);
+        
+        btn.setPadding(20, 22, 20, 22);
         
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        params.setMargins(0, 5, 0, 5);
+        params.setMargins(0, 8, 0, 8);
         btn.setLayoutParams(params);
         return btn;
-    }
-
-    private void updatePasteButtonText() {
-        try {
-            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            if (clipboard != null && clipboard.hasPrimaryClip()) {
-                ClipData clip = clipboard.getPrimaryClip();
-                if (clip != null && clip.getItemCount() > 0) {
-                    CharSequence text = clip.getItemAt(0).getText();
-                    if (text != null && text.length() > 0) {
-                        String str = text.toString().trim();
-                        // Обрезаем длинную ссылку для отображения на кнопке
-                        if (str.length() > 35) {
-                            str = str.substring(0, 32) + "...";
-                        }
-                        btnPaste.setText("📋 Вставить: " + str);
-                        return;
-                    }
-                }
-            }
-        } catch (Exception ignored) {}
-        btnPaste.setText("📋 Буфер обмена пуст");
     }
 
     private void pasteFromClipboard() {
@@ -249,14 +233,14 @@ public class MainActivity extends Activity {
                     CharSequence text = clip.getItemAt(0).getText();
                     if (text != null && text.length() > 0) {
                         urlInput.setText(text.toString());
-                        Toast.makeText(this, "Ссылка вставлена из буфера!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "ССЫЛКА ВСТАВЛЕНА ИЗ БУФЕРА!", Toast.LENGTH_SHORT).show();
                         return;
                     }
                 }
             }
-            Toast.makeText(this, "В буфере нет текста!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "В БУФЕРЕ НЕТ ТЕКСТА!", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
-            Toast.makeText(this, "Ошибка вставки", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "ОШИБКА ВСТАВКИ", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -271,25 +255,27 @@ public class MainActivity extends Activity {
     private void startAnalysis() {
         String urlStr = urlInput.getText().toString().trim();
         if (urlStr.isEmpty()) {
-            Toast.makeText(this, "Пожалуйста, введите ссылку на трек!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "ПОЖАЛУЙСТА, ВВЕДИТЕ ССЫЛКУ НА ТРЕК!", Toast.LENGTH_SHORT).show();
             return;
         }
 
         currentState = State.ANALYZING;
         mainActionButton.setEnabled(false);
-        mainActionButton.setBackgroundColor(Color.parseColor("#475569"));
-        mainActionButton.setText("⏳ Анализ трека...");
-        statusText.setText("Статус: Сканирование страницы и расшифровка...");
+        // Изменяем цвет капсулы при загрузке
+        GradientDrawable bg = (GradientDrawable) mainActionButton.getBackground();
+        bg.setColor(Color.parseColor("#475569"));
+        mainActionButton.setText("⏳ АНАЛИЗ ТРЕКА...");
+        statusText.setText("СТАТУС: СКАНУВАННЯ СТРАНИЦЫ И РАСШИФРОВКА...");
 
         new Thread(() -> {
             try {
                 String pageHtml = downloadString(urlStr);
-                if (pageHtml == null) throw new Exception("Не удалось загрузить страницу.");
+                if (pageHtml == null) throw new Exception("НЕ УДАЛОСЬ ЗАГРУЗИТЬ СТРАНИЦУ.");
 
                 songTitle = extractMeta(pageHtml, "\"title\"\\s*:\\s*\"([^\"]+)\"");
                 songArtist = extractMeta(pageHtml, "\"artist\"\\s*:\\s*\"([^\"]+)\"");
-                if (songTitle.isEmpty()) songTitle = "Неизвестный трек";
-                if (songArtist.isEmpty()) songArtist = "Неизвестный исполнитель";
+                if (songTitle.isEmpty()) songTitle = "НЕИЗВЕСТНЫЙ ТРЕК";
+                if (songArtist.isEmpty()) songArtist = "НЕИЗВЕСТНЫЙ ИСПОЛНИТЕЛЬ";
 
                 String encryptedUrl = null;
                 mediaExtension = "mp4";
@@ -313,7 +299,7 @@ public class MainActivity extends Activity {
                 }
 
                 if (encryptedUrl == null || encryptedUrl.isEmpty()) {
-                    throw new Exception("Медиапоток не найден в данных страницы.");
+                    throw new Exception("МЕДИАТОК НЕ НАЙДЕН В ДАННЫХ СТРАНИЦЫ.");
                 }
 
                 if (cachedRc4Key == null) {
@@ -329,26 +315,28 @@ public class MainActivity extends Activity {
                     handler.post(() -> {
                         currentState = State.READY_TO_DOWNLOAD;
                         mainActionButton.setEnabled(true);
-                        mainActionButton.setBackgroundColor(Color.parseColor("#10B981"));
-                        mainActionButton.setText("💾 СКАЧАТЬ ТРЕК (" + mediaExtension.toUpperCase() + ")");
+                        GradientDrawable successBg = (GradientDrawable) mainActionButton.getBackground();
+                        successBg.setColor(Color.parseColor("#10B981"));
+                        mainActionButton.setText(("💾 СКАЧАТЬ ТРЕК (" + mediaExtension + ")").toUpperCase());
                         
-                        songInfoText.setText("🎵 Трек: " + songArtist + " — " + songTitle + " [" + mediaExtension.toUpperCase() + "]");
+                        songInfoText.setText(("🎵 ТРЕК: " + songArtist + " — " + songTitle + " [" + mediaExtension + "]").toUpperCase());
                         infoCard.setVisibility(LinearLayout.VISIBLE);
-                        statusText.setText("Статус: Готово к загрузке!");
+                        statusText.setText("СТАТУС: ГОТОВО К ЗАГРУЗКЕ!");
                         logEditText.setText(resolvedMediaUrl);
                     });
                 } else {
-                    throw new Exception("Ошибка расшифровки потока.");
+                    throw new Exception("ОШИБКА РАСШИФРОВКИ ПОТОКА.");
                 }
 
             } catch (Exception e) {
-                final String errMsg = e.getMessage();
+                final String errMsg = e.getMessage() != null ? e.getMessage().toUpperCase() : "НЕИЗВЕСТНАЯ ОШИБКА";
                 handler.post(() -> {
                     currentState = State.IDLE;
                     mainActionButton.setEnabled(true);
-                    mainActionButton.setBackgroundColor(Color.parseColor("#2563EB"));
-                    mainActionButton.setText("🔍 Найти и подготовить трек");
-                    statusText.setText("Статус: Ошибка — " + errMsg);
+                    GradientDrawable errorBg = (GradientDrawable) mainActionButton.getBackground();
+                    errorBg.setColor(Color.parseColor("#2563EB"));
+                    mainActionButton.setText("🔍 НАЙТИ И ПОДГОТОВИТЬ ТРЕК");
+                    statusText.setText("СТАТУС: ОШИБКА — " + errMsg);
                 });
             }
         }).start();
@@ -369,16 +357,17 @@ public class MainActivity extends Activity {
             DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
             if (dm != null) {
                 dm.enqueue(request);
-                Toast.makeText(this, "Загрузка началась! Проверьте папку Загрузки", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "ЗАГРУЗКА НАЧАЛАСЬ!", Toast.LENGTH_SHORT).show();
             }
 
             currentState = State.DOWNLOADED;
-            mainActionButton.setBackgroundColor(Color.parseColor("#2563EB"));
-            mainActionButton.setText("🚀 Скачать другой трек");
-            statusText.setText("Статус: Файл отправлен в системную загрузку!");
+            GradientDrawable downloadedBg = (GradientDrawable) mainActionButton.getBackground();
+            downloadedBg.setColor(Color.parseColor("#2563EB"));
+            mainActionButton.setText("🚀 СКАЧАТЬ ДРУГОЙ ТРЕК");
+            statusText.setText("СТАТУС: ФАЙЛ ОТПРАВЛЕН В ЗАГРУЗКИ!");
 
         } catch (Exception e) {
-            Toast.makeText(this, "Ошибка скачивания: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "ОШИБКА ЗАГРУЗКИ", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -388,11 +377,12 @@ public class MainActivity extends Activity {
         urlInput.setText("");
         infoCard.setVisibility(LinearLayout.GONE);
         mainActionButton.setEnabled(true);
-        mainActionButton.setBackgroundColor(Color.parseColor("#2563EB"));
-        mainActionButton.setText("🔍 Найти и подготовить трек");
-        statusText.setText("Статус: Сброшено. Ожидание ссылки...");
+        GradientDrawable defaultBg = (GradientDrawable) mainActionButton.getBackground();
+        defaultBg.setColor(Color.parseColor("#2563EB"));
+        mainActionButton.setText("🔍 НАЙТИ И ПОДГОТОВИТЬ ТРЕК");
+        statusText.setText("СТАТУС: СБРОШЕНО. ОЖИДАНИЕ ССЫЛКИ...");
 
-        // Полная очистка буфера обмена по требованию
+        // Полная очистка системного буфера обмена
         try {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
             if (clipboard != null) {
@@ -400,8 +390,7 @@ public class MainActivity extends Activity {
             }
         } catch (Exception ignored) {}
 
-        updatePasteButtonText();
-        Toast.makeText(this, "Очищено и буфер сброшен!", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "БУФЕР И ПОЛЕ ОЧИЩЕНЫ!", Toast.LENGTH_SHORT).show();
     }
 
     private String extractMeta(String html, String regex) {
@@ -477,7 +466,7 @@ public class MainActivity extends Activity {
 
             return decrypted.toString();
         } catch (Exception e) {
-            return "Ошибка RC4: " + e.getMessage();
+            return "ОШИБКА RC4: " + e.getMessage();
         }
     }
 
