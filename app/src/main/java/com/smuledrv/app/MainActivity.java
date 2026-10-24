@@ -18,8 +18,6 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class MainActivity extends Activity {
 
@@ -48,7 +46,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Community Core Hunter ✦");
+        authorView.setText("✦ Dziuba Roman — Function Extractor ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(14f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -72,7 +70,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🛠️ Анализ основного движка community_core.js");
+        titleView.setText("🛠️ Извлечение функции $.processRecording");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(17f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -94,12 +92,12 @@ public class MainActivity extends Activity {
         urlInput.setLayoutParams(inputParams);
         card.addView(urlInput);
 
-        btnDebug = createStyledButton("🔍 Скачать community_core.js и искать декодер", "#2563EB");
-        btnDebug.setOnClickListener(v -> analyzeCommunityCore());
+        btnDebug = createStyledButton("🔍 Найти полную функцию дешифратора", "#2563EB");
+        btnDebug.setOnClickListener(v -> extractDecoderFunction());
         card.addView(btnDebug);
 
         statusText = new TextView(this);
-        statusText.setText("Статус: Готов к загрузке движка...");
+        statusText.setText("Статус: Готов к извлечению функции...");
         statusText.setTextColor(Color.parseColor("#10B981"));
         statusText.setTextSize(12f);
         statusText.setPadding(12, 10, 12, 10);
@@ -117,13 +115,13 @@ public class MainActivity extends Activity {
         card.addView(statusText);
 
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Совпадения функции расшифровки в JS:");
+        logLabel.setText("📋 Код функции расшифровки:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
         logLabel.setTextSize(11f);
         card.addView(logLabel);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Здесь появятся найденные алгоритмы расшифровки...");
+        logEditText.setHint("Здесь появится полный текст функции processRecording...");
         logEditText.setTextSize(10f);
         logEditText.setTypeface(Typeface.MONOSPACE);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
@@ -138,9 +136,9 @@ public class MainActivity extends Activity {
         btnCopyLogs = createStyledButton("📋 Скопировать лог в буфер", "#475569");
         btnCopyLogs.setOnClickListener(v -> {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("Smule Core Analysis", logEditText.getText().toString());
+            ClipData clip = ClipData.newPlainText("Smule Decoder Function", logEditText.getText().toString());
             clipboard.setPrimaryClip(clip);
-            Toast.makeText(this, "Отчет скопирован!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Лог скопирован!", Toast.LENGTH_SHORT).show();
         });
         card.addView(btnCopyLogs);
 
@@ -167,25 +165,19 @@ public class MainActivity extends Activity {
         return btn;
     }
 
-    private void analyzeCommunityCore() {
+    private void extractDecoderFunction() {
         btnDebug.setEnabled(false);
-        statusText.setText("Статус: ⚙️ Скачивание community_core.js...");
-        logEditText.setText("=== АНАЛИЗ community_core.js ===\n");
+        statusText.setText("Статус: ⚙️ Скачивание core и поиск функции...");
+        logEditText.setText("=== ИЗВЛЕЧЕНИЕ processRecording ===\n");
 
         new Thread(() -> {
             StringBuilder logs = new StringBuilder();
             try {
                 String coreJsUrl = "https://w1-fa.cdn.smule.com/assets/community_core-f1e2b046e16d487330152631ceb1fdee.js";
-                logs.append("Запрос к: ").append(coreJsUrl).append("\n\n");
-
                 HttpURLConnection conn = (HttpURLConnection) new URL(coreJsUrl).openConnection();
-                conn.setRequestMethod("GET");
                 setupBrowserHeaders(conn);
 
-                int code = conn.getResponseCode();
-                logs.append("HTTP Код файла: ").append(code).append("\n");
-
-                if (code == 200) {
+                if (conn.getResponseCode() == 200) {
                     BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
                     StringBuilder jsContent = new StringBuilder();
                     String line;
@@ -195,28 +187,20 @@ public class MainActivity extends Activity {
                     br.close();
 
                     String jsText = jsContent.toString();
-                    logs.append("Размер core JS: ").append(jsText.length()).append(" символов\n\n");
-
-                    // 1. Ищем функции расшифровки 'e:' префикса или вызовы charCodeAt / Slice / XOR
-                    logs.append("--- Поиск обработки префикса 'e:' или URL ---\n");
-                    Matcher eMatcher = Pattern.compile(".{0,100}(?:\"e:\"|'e:'|media_url|video_media_url|decodeUrl|decryptUrl).{0,100}").matcher(jsText);
-                    boolean foundE = false;
-                    int count = 0;
-                    while (eMatcher.find()) {
-                        foundE = true;
-                        logs.append("🎯 ").append(eMatcher.group(0).trim()).append("\n\n");
-                        count++;
-                        if (count >= 15) {
-                            logs.append("... (показано первые 15 совпадений)\n");
-                            break;
-                        }
-                    }
-                    if (!foundE) {
-                        logs.append("Строковых совпадений 'e:' не найдено. Ищем вызовы decode/atob...\n");
+                    
+                    // Ищем индекс вхождения $.processRecording=
+                    int index = jsText.indexOf("$.processRecording=");
+                    if (index != -1) {
+                        // Вырезаем кусок кода длиной 1500 символов начиная с этой точки
+                        int endIndex = Math.min(index + 1500, jsText.length());
+                        String funcCode = jsText.substring(index, endIndex);
+                        logs.append("📌 Найден дешифратор:\n\n").append(funcCode);
+                    } else {
+                        logs.append("Точка входа $.processRecording не найдена.");
                     }
 
                 } else {
-                    logs.append("Ошибка скачивания JS. Код: ").append(code);
+                    logs.append("Ошибка скачивания: ").append(conn.getResponseCode());
                 }
 
             } catch (Exception e) {
@@ -226,7 +210,7 @@ public class MainActivity extends Activity {
             final String finalLogs = logs.toString();
             handler.post(() -> {
                 btnDebug.setEnabled(true);
-                statusText.setText("Статус: ✅ Анализ core завершен!");
+                statusText.setText("Статус: ✅ Функция извлечена!");
                 logEditText.setText(finalLogs);
             });
         }).start();
