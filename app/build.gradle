@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.smulezagruzka.app'
+    namespace 'com.smulezagruzchikdrv.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.smulezagruzka.app"
+        applicationId "com.smulezagruzchikdrv.app"
         minSdk 26
         targetSdk 34
         versionCode 1
-        versionName "1.0"
+        versionName "1.1"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
