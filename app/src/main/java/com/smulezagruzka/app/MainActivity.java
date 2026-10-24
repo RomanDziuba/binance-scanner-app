@@ -48,7 +48,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Script & UUID Hunter ✦");
+        authorView.setText("✦ Dziuba Roman — Full Script Extractor ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(14f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🛠️ Поиск скрытых скриптов и UUID");
+        titleView.setText("🛠️ Чтение полных данных скриптов");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(17f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -94,12 +94,12 @@ public class MainActivity extends Activity {
         urlInput.setLayoutParams(inputParams);
         card.addView(urlInput);
 
-        btnDebug = createStyledButton("🔍 Извлечь скрипты и JSON-данные", "#2563EB");
+        btnDebug = createStyledButton("🔍 Вывести полный текст скриптов", "#2563EB");
         btnDebug.setOnClickListener(v -> runDiagnostic());
         card.addView(btnDebug);
 
         statusText = new TextView(this);
-        statusText.setText("Статус: Ожидание сканирования скриптов...");
+        statusText.setText("Статус: Готов к извлечению...");
         statusText.setTextColor(Color.parseColor("#10B981"));
         statusText.setTextSize(12f);
         statusText.setPadding(12, 10, 12, 10);
@@ -117,13 +117,13 @@ public class MainActivity extends Activity {
         card.addView(statusText);
 
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Содержимое скриптов и найденные пути:");
+        logLabel.setText("📋 Полное содержимое скриптов:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
         logLabel.setTextSize(11f);
         card.addView(logLabel);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Здесь появятся данные из тегов <script>...");
+        logEditText.setHint("Здесь появятся неотрезанные скрипты...");
         logEditText.setTextSize(10f);
         logEditText.setTypeface(Typeface.MONOSPACE);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
@@ -138,9 +138,9 @@ public class MainActivity extends Activity {
         btnCopyLogs = createStyledButton("📋 Скопировать лог в буфер", "#475569");
         btnCopyLogs.setOnClickListener(v -> {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("Smule Scripts Debug", logEditText.getText().toString());
+            ClipData clip = ClipData.newPlainText("Smule Full Script", logEditText.getText().toString());
             clipboard.setPrimaryClip(clip);
-            Toast.makeText(this, "Отчет скопирован!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Лог скопирован!", Toast.LENGTH_SHORT).show();
         });
         card.addView(btnCopyLogs);
 
@@ -175,8 +175,8 @@ public class MainActivity extends Activity {
         }
 
         btnDebug.setEnabled(false);
-        statusText.setText("Статус: ⚙️ Загрузка и разбор тегов <script>...");
-        logEditText.setText("=== АНАЛИЗ СКРИПТОВ И JSON ===\n");
+        statusText.setText("Статус: ⚙️ Чтение скриптов...");
+        logEditText.setText("=== ПОИСК ССЫЛКИ В JSON-ДАННЫХ ===\n");
 
         new Thread(() -> {
             StringBuilder logs = new StringBuilder();
@@ -187,8 +187,6 @@ public class MainActivity extends Activity {
                 setupBrowserHeaders(conn);
 
                 int responseCode = conn.getResponseCode();
-                logs.append("HTTP Код: ").append(responseCode).append("\n\n");
-
                 if (responseCode == 200) {
                     BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
                     StringBuilder html = new StringBuilder();
@@ -200,35 +198,25 @@ public class MainActivity extends Activity {
 
                     String pageContent = html.toString().replace("\\/", "/");
 
-                    // 1. Ищем все теги <script>...</script>
-                    logs.append("--- Содержимое тегов <script> (поиск данных) ---\n");
+                    // Ищем точное вхождение VideoObject схемы или DataStore
                     Matcher scriptMatcher = Pattern.compile("<script[^>]*>(.*?)</script>", Pattern.DOTALL).matcher(pageContent);
-                    int scriptIndex = 1;
                     while (scriptMatcher.find()) {
-                        String scriptBody = scriptMatcher.group(1).trim();
-                        if (!scriptBody.isEmpty() && (scriptBody.contains("performance") || scriptBody.contains("video") || scriptBody.contains("audio") || scriptBody.contains("url") || scriptBody.contains("6376040b"))) {
-                            logs.append("\n[Скрипт #").append(scriptIndex).append(" (длина ").append(scriptBody.length()).append(" символов)]\n");
-                            // Выводим кусок скрипта, где упоминаются ключевые слова или UUID
-                            if (scriptBody.length() > 800) {
-                                logs.append(scriptBody.substring(0, 800)).append("\n... [обрезано] ...\n");
+                        String body = scriptMatcher.group(1).trim();
+                        // Если в скрипте есть Schema.org или DataStore, выводим его полностью или кусками
+                        if (body.contains("VideoObject") || body.contains("DataStore")) {
+                            logs.append("=== НАЙДЕН СКРИПТ (Длина: ").append(body.length()).append(") ===\n");
+                            // Если слишком длинный, выведем частями или найдем то, где есть слова url / mp4 / stream
+                            if (body.length() > 3000) {
+                                logs.append(body.substring(0, 3000)).append("\n... [ЧАСТЬ 1 ОБРЕЗАНА] ...\n");
+                                logs.append(body.substring(3000, Math.min(body.length(), 6000))).append("\n");
                             } else {
-                                logs.append(scriptBody).append("\n");
+                                logs.append(body).append("\n");
                             }
-                        }
-                        scriptIndex++;
-                    }
-
-                    // 2. Ищем любые строки содержащие mp4 или m4a в любом месте страницы
-                    logs.append("\n--- Строки с упоминанием медиа-форматов ---\n");
-                    String[] rows = pageContent.split("\n");
-                    for (String r : rows) {
-                        if ((r.contains(".mp4") || r.contains(".m4a") || r.contains(".mp3") || r.contains("stream") || r.contains("perf_url")) && r.length() < 400) {
-                            logs.append("🎯 ").append(r.trim()).append("\n");
                         }
                     }
 
                 } else {
-                    logs.append("Ошибка загрузки. Код: ").append(responseCode);
+                    logs.append("Ошибка HTTP: ").append(responseCode);
                 }
 
             } catch (Exception e) {
@@ -238,7 +226,7 @@ public class MainActivity extends Activity {
             final String finalLogs = logs.toString();
             handler.post(() -> {
                 btnDebug.setEnabled(true);
-                statusText.setText("Статус: ✅ Анализ скриптов завершен!");
+                statusText.setText("Статус: ✅ Данные выведены!");
                 logEditText.setText(finalLogs);
             });
         }).start();
