@@ -235,7 +235,6 @@ public class MainActivity extends Activity {
                 String pageContent = readStream(conn.getInputStream());
                 report.append("• Размер полученных данных: ").append(pageContent.length()).append(" символов\n");
 
-                // Ищем заголовок страницы
                 Matcher titleMatcher = Pattern.compile("<title>(.*?)</title>", Pattern.CASE_INSENSITIVE).matcher(pageContent);
                 if (titleMatcher.find()) {
                     report.append("• Заголовок страницы (Title): ").append(titleMatcher.group(1).trim()).append("\n");
@@ -246,7 +245,6 @@ public class MainActivity extends Activity {
                 updateStatus("Статус: [Этап 2/4] Сканирование API и скрытых JSON...");
                 report.append("--- ЭТАП 2: Поиск скрытых данных и API ---\n");
 
-                // Поиск JSON данных гидратации (window.__...__)
                 Matcher stateMatcher = Pattern.compile("(window\\.__[a-zA-Z0-9_]+__\\s*=\\s*\\{.+?\\});", Pattern.DOTALL).matcher(pageContent);
                 int statesFound = 0;
                 while (stateMatcher.find() && statesFound < 3) {
@@ -259,7 +257,6 @@ public class MainActivity extends Activity {
                     report.append("ℹ️ Крупных JSON-состояний в HTML не обнаружено.\n");
                 }
 
-                // Поиск эндпоинтов API
                 Matcher apiMatcher = Pattern.compile("[\"']((?:https?://[^\"']+|/[a-zA-Z0-9_/\\-]+)?/api/v[0-9]+/[^\"']+)[\"']").matcher(pageContent);
                 int apiCount = 0;
                 report.append("Найденные API маршруты:\n");
@@ -291,7 +288,6 @@ public class MainActivity extends Activity {
                         String jsText = fetchContentDirect(jsUrl);
                         report.append("  Размер JS: ").append(jsText.length()).append(" символов\n");
 
-                        // Ищем паттерны декодирования, ключи, префиксы
                         Matcher codeMatcher = Pattern.compile(".{0,80}(?:\"e:\"|'e:'|media_url|video_media_url|decodeUrl|decryptUrl|authorization|bearer|token|signature|AES|atob).{0,80}").matcher(jsText);
                         
                         int matchInJs = 0;
@@ -323,17 +319,20 @@ public class MainActivity extends Activity {
                 report.append("\n❌ КРИТИЧЕСКАЯ ОШИБКА НА КОНВЕЙЕРЕ: ").append(e.toString());
             }
 
-            final String finalReport = report.toString();
-            handler.post(() -> {
-                btnDebug.setEnabled(true);
-                statusText.setText("Статус: ✅ Анализ успешно завершен!");
-                logEditText.setText(finalReport);
-            });
+            finishAnalysis(report.toString());
         }).start();
     }
 
     private void updateStatus(String status) {
         handler.post(() -> statusText.setText(status));
+    }
+
+    private void finishAnalysis(String finalReport) {
+        handler.post(() -> {
+            btnDebug.setEnabled(true);
+            statusText.setText("Статус: ✅ Анализ завершен!");
+            logEditText.setText(finalReport);
+        });
     }
 
     private String readStream(java.io.InputStream is) throws Exception {
