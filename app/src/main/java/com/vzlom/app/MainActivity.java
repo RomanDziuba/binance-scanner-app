@@ -58,7 +58,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Smule Full Debugger v4.1 ✦");
+        authorView.setText("✦ Dziuba Roman — Smule Full Debugger v4.2 ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(14f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -159,6 +159,7 @@ public class MainActivity extends Activity {
         });
         card.addView(btnCopyLogs);
 
+        // WebView изначально скрыт
         hiddenWebView = new WebView(this);
         hiddenWebView.setVisibility(View.GONE);
         WebSettings webSettings = hiddenWebView.getSettings();
@@ -226,8 +227,11 @@ public class MainActivity extends Activity {
         networkLogs.clear();
 
         btnDebug.setEnabled(false);
-        statusText.setText("Статус: 🌐 Обход Cloudflare и загрузка страницы...");
-        logEditText.setText("=== 🔍 FULL DEBUG CONSOLE ===\nЦель: " + targetUrl + "\nЖдем прохождение защиты и запуск плеера...\n\n");
+        statusText.setText("Статус: 🌐 Обход Cloudflare (Загрузка WebView)...");
+        logEditText.setText("=== 🔍 FULL DEBUG CONSOLE ===\nЦель: " + targetUrl + "\nДелаем WebView видимым для прохождения защиты...\n\n");
+
+        // Делаем WebView видимым, чтобы Cloudflare дал зеленый свет
+        hiddenWebView.setVisibility(View.VISIBLE);
 
         hiddenWebView.setWebViewClient(new WebViewClient() {
             @Override
@@ -263,15 +267,18 @@ public class MainActivity extends Activity {
                         "for(var j=0; j<audios.length; j++) { try { audios[j].play(); } catch(e){} }" +
                         "})();");
 
-                statusText.setText("Статус: ⏳ Ожидание Cloudflare и воспроизведения (9 сек)...");
+                statusText.setText("Статус: ⏳ Ожидание прохождения Cloudflare и загрузки песни (15 сек)...");
                 
-                // Увеличили задержку до 9 секунд, чтобы дать время пройти Cloudflare и подгрузить медиа
+                // Даем 15 секунд на прохождение проверки Cloudflare и автозапуск медиа
                 handler.postDelayed(() -> {
+                    // Скрываем WebView обратно после сбора данных
+                    hiddenWebView.setVisibility(View.GONE);
+
                     hiddenWebView.loadUrl("javascript:window.HTMLOUT.processHTML(" +
                             "document.getElementsByTagName('html')[0].innerHTML," +
                             "document.title" +
                             ");");
-                }, 9000);
+                }, 15000);
             }
         });
 
@@ -295,7 +302,7 @@ public class MainActivity extends Activity {
                         report.append("🎯 [Сетевой медиа-поток #").append(n).append("]:\n").append(mediaUrl).append("\n\n");
                     }
                 } else {
-                    report.append("ℹ️ Сетевым перехватчиком файлы .m4a/.mp4 еще не пойманы (возможно, требуется больше времени).\n\n");
+                    report.append("ℹ️ Сетевым перехватчиком файлы .m4a/.mp4 еще не пойманы.\n\n");
                 }
             }
 
