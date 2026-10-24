@@ -64,9 +64,8 @@ public class MainActivity extends Activity {
     private EditText logEditText;
     private Button btnBuild, btnStopBuild, btnUploadJava, btnDecompileApk, btnReset, btnTitle, btnVersion, btnIcon, btnSettings, btnCopyLogs, btnCodeEditor, btnFileManager, btnAiFix;
 
-    private Handler handler = new Handler(Looper.getMainLooper());
+    private Handler handler = new Handler(Looper.getMainLocate() != null ? Looper.getMainLooper() : Looper.getMainLooper());
     private volatile boolean isMonitoring = false;
-    private long activeRunId = 0;
     private String lastErrorLog = "";
 
     public static class RepoItem {
@@ -142,7 +141,6 @@ public class MainActivity extends Activity {
         card.addView(titleView);
 
         infoTextView = new TextView(this);
-        updateInfoText();
         infoTextView.setTextColor(Color.parseColor("#94A3B8"));
         infoTextView.setTextSize(11f);
         infoTextView.setPadding(12, 10, 12, 10);
@@ -191,16 +189,15 @@ public class MainActivity extends Activity {
         btnReset.setOnClickListener(v -> confirmResetProject());
         card.addView(btnReset);
 
-        btnTitle = createStyledButton("🏷 Имя: " + appTitle + " (" + packageName + ")", "#334155");
+        btnTitle = createStyledButton("", "#334155");
         btnTitle.setOnClickListener(v -> showEditTitleDialog());
         card.addView(btnTitle);
 
-        btnVersion = createStyledButton("📦 Версия: " + appVersion, "#334155");
+        btnVersion = createStyledButton("", "#334155");
         btnVersion.setOnClickListener(v -> showEditVersionDialog());
         card.addView(btnVersion);
 
         btnIcon = createStyledButton(getIconBtnText(), "#6D28D9");
-        updateIconButtonPreview();
         btnIcon.setOnClickListener(v -> openIconFilePicker());
         card.addView(btnIcon);
 
@@ -250,8 +247,13 @@ public class MainActivity extends Activity {
         rootLayout.addView(mainScroll);
         setContentView(rootLayout);
 
+        // Обновляем все UI элементы сразу при старте
+        updateInfoText();
+
         if (!githubToken.isEmpty()) {
             fetchRemoteRepositoryInfo();
+        } else {
+            logEditText.setText("⚠️ Введите GitHub Token в настройках для подключения к репозиторию!");
         }
     }
 
@@ -280,10 +282,6 @@ public class MainActivity extends Activity {
         return iconCustomized ? "🖼 Иконка: ⚡ Шаблон" : "🖼 Иконка: 🎨 Пользовательская";
     }
 
-    private void updateIconButtonPreview() {
-        if (btnIcon != null) btnIcon.setText(getIconBtnText());
-    }
-
     private void updateInfoText() {
         String profile = javaVersion.equals("8") ? "⚡ Стабильный (Java 8)" : "🚀 Java 17";
         String info = "🏷 Имя: " + appTitle + " | 📦 Пакет: " + packageName + "\n" +
@@ -294,7 +292,7 @@ public class MainActivity extends Activity {
         if (btnVersion != null) btnVersion.setText("📦 Версия: " + appVersion);
         if (btnUploadJava != null) btnUploadJava.setText("📂 Файл: " + currentJavaFileName);
         if (btnBuild != null) btnBuild.setText(getBuildButtonText());
-        updateIconButtonPreview();
+        if (btnIcon != null) btnIcon.setText(getIconBtnText());
     }
 
     private void loadSettings() {
@@ -338,6 +336,7 @@ public class MainActivity extends Activity {
 
     private void fetchRemoteRepositoryInfo() {
         statusTextView.setText("Статус: 🔄 Синхронизация с GitHub...");
+        logEditText.setText("Подключение к репозиторию " + repoOwner + "/" + repoName + "...");
         new Thread(() -> {
             try {
                 String gradlePath = "app/build.gradle";
@@ -365,12 +364,19 @@ public class MainActivity extends Activity {
                     handler.post(() -> {
                         saveSettings();
                         statusTextView.setText("Статус: ✅ Репозиторий синхронизирован!");
+                        logEditText.setText("Репозиторий успешно подключен.\nИмя: " + appTitle + "\nПакет: " + packageName + "\nВерсия: " + appVersion);
                     });
                 } else {
-                    handler.post(() -> statusTextView.setText("Статус: Готов к работе 🚀"));
+                    handler.post(() -> {
+                        statusTextView.setText("Статус: Готов к работе 🚀");
+                        logEditText.setText("⚠️ Не удалось прочитать удаленный build.gradle (код ответа: " + conn.getResponseCode() + "). Проверьте токен.");
+                    });
                 }
             } catch (Exception e) {
-                handler.post(() -> statusTextView.setText("Статус: Готов к работе 🚀"));
+                handler.post(() -> {
+                    statusTextView.setText("Статус: Готов к работе 🚀");
+                    logEditText.setText("❌ Ошибка сети при синхронизации: " + e.getMessage());
+                });
             }
         }).start();
     }
@@ -1015,42 +1021,46 @@ public class MainActivity extends Activity {
 
     private void emergencyStopBuild() {
         isMonitoring = false;
-        if (btnBuild != null) {
-            btnBuild.setEnabled(true);
-            btnBuild.setBackgroundColor(Color.parseColor("#2563EB"));
-            btnBuild.setText(getBuildButtonText());
-        }
         statusTextView.setText("Статус: 🛑 Отмена сборки на сервере...");
-        logEditText.setText("Отправка запроса на отмену сборки в GitHub Actions...");
+        logEditText.setText("Отправка запроса на отмену в GitHub Actions...");
 
-        if (activeRunId > 0 && !githubToken.isEmpty()) {
-            new Thread(() -> {
-                try {
-                    String cancelUrl = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/actions/runs/" + activeRunId + "/cancel";
-                    HttpURLConnection conn = (HttpURLConnection) new URL(cancelUrl).openConnection();
-                    conn.setRequestMethod("POST");
-                    conn.setRequestProperty("Authorization", "Bearer " + githubToken);
-                    conn.setRequestProperty("Accept", "application/vnd.github+json");
-                    conn.setDoOutput(true);
-                    int respCode = conn.getResponseCode();
+        new Thread(() -> {
+            try {
+                // Ищем активный запуск (in_progress)
+                String urlStr = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/actions/runs?status=in_progress";
+                HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("Authorization", "Bearer " + githubToken);
+                conn.setRequestProperty("Accept", "application/vnd.github+json");
 
-                    handler.post(() -> {
-                        statusTextView.setText("Статус: 🛑 Сборка успешно отменена!");
-                        logEditText.setText("Сборка #" + activeRunId + " отменена на сервере (код ответа: " + respCode + ").");
-                    });
-                } catch (Exception e) {
-                    handler.post(() -> {
-                        statusTextView.setText("Статус: 🛑 Локальная остановка выполнена");
-                        logEditText.setText("Мониторинг остановлен. Ошибка отмены на сервере: " + e.getMessage());
-                    });
+                if (conn.getResponseCode() == 200) {
+                    BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) sb.append(line);
+                    JSONArray runs = new JSONObject(sb.toString()).getJSONArray("workflow_runs");
+                    if (runs.length() > 0) {
+                        long runId = runs.getJSONObject(0).getLong("id");
+                        // Отменяем этот запуск
+                        String cancelUrl = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/actions/runs/" + runId + "/cancel";
+                        HttpURLConnection cancelConn = (HttpURLConnection) new URL(cancelUrl).openConnection();
+                        cancelConn.setRequestMethod("POST");
+                        cancelConn.setRequestProperty("Authorization", "Bearer " + githubToken);
+                        cancelConn.getResponseCode();
+                    }
                 }
-            }).start();
-        } else {
+            } catch (Exception ignored) {}
+
             handler.post(() -> {
-                statusTextView.setText("Статус: 🛑 Сборка остановлена локально!");
-                logEditText.setText("Мониторинг прерван пользователем.");
+                if (btnBuild != null) {
+                    btnBuild.setEnabled(true);
+                    btnBuild.setBackgroundColor(Color.parseColor("#2563EB"));
+                    btnBuild.setText(getBuildButtonText());
+                }
+                statusTextView.setText("Статус: 🛑 Сборка экстренно отменена!");
+                logEditText.setText("Сборка на GitHub успешно остановлена пользователем.");
             });
-        }
+        }).start();
     }
 
     private boolean pushFileToGitHub(String path, String content, String message) {
@@ -1117,9 +1127,9 @@ public class MainActivity extends Activity {
                         JSONArray runs = new JSONObject(sb.toString()).getJSONArray("workflow_runs");
                         if (runs.length() > 0) {
                             JSONObject run = runs.getJSONObject(0);
-                            activeRunId = run.getLong("id");
                             String status = run.getString("status");
                             String conclusion = run.optString("conclusion", "null");
+                            long runId = run.getLong("id");
                             long elapsed = (System.currentTimeMillis() - start) / 1000;
 
                             handler.post(() -> {
@@ -1134,7 +1144,7 @@ public class MainActivity extends Activity {
                                         logEditText.setText("Сборка завершена успешно! Бот отправил готовый файл в ваш Telegram чат.");
                                     } else {
                                         statusTextView.setText("Статус: ❌ Ошибка компиляции");
-                                        fetchLogsAsync(activeRunId);
+                                        fetchLogsAsync(runId);
                                     }
                                 } else {
                                     statusTextView.setText("Статус: ⚙️ " + status + " (" + elapsed + "с)");
@@ -1197,7 +1207,7 @@ public class MainActivity extends Activity {
                 activeCodeContent = generateClockTemplate();
                 currentJavaFileName = "Шаблон: Часы с фонариком и яркостью";
                 saveSettings();
-                Toast.makeText(this, "Проект сброшен к часам!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Проект сброшен!", Toast.LENGTH_SHORT).show();
             })
             .setNegativeButton("Отмена", null)
             .show();
@@ -1213,6 +1223,7 @@ public class MainActivity extends Activity {
                 appTitle = input.getText().toString().trim();
                 packageName = "com." + appTitle.toLowerCase().replaceAll("[^a-z0-9]", "") + ".app";
                 saveSettings();
+                Toast.makeText(this, "Имя и пакет обновлены!", Toast.LENGTH_SHORT).show();
             })
             .setNegativeButton("Отмена", null)
             .show();
@@ -1227,6 +1238,7 @@ public class MainActivity extends Activity {
             .setPositiveButton("Сохранить", (dialog, which) -> {
                 appVersion = input.getText().toString().trim();
                 saveSettings();
+                Toast.makeText(this, "Версия обновлена!", Toast.LENGTH_SHORT).show();
             })
             .setNegativeButton("Отмена", null)
             .show();
@@ -1261,7 +1273,10 @@ public class MainActivity extends Activity {
                 javaVersion = spinner.getSelectedItemPosition() == 0 ? "8" : "17";
                 minSdk = spinner.getSelectedItemPosition() == 0 ? 21 : 26;
                 saveSettings();
-                Toast.makeText(this, "Сохранено!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Настройки сохранены!", Toast.LENGTH_SHORT).show();
+                if (!githubToken.isEmpty()) {
+                    fetchRemoteRepositoryInfo();
+                }
             })
             .setNegativeButton("Отмена", null)
             .show();
@@ -1326,17 +1341,23 @@ public class MainActivity extends Activity {
 
     private String generateAppGradle() {
         String compat = javaVersion.equals("8") ? "JavaVersion.VERSION_1_8" : "JavaVersion.VERSION_17";
+        
+        // Автоматически формируем числовой versionCode из версии (например "1.0" -> 10, "1.2.5" -> 125)
+        int vCode = 1;
+        try {
+            String digits = appVersion.replaceAll("[^0-9]", "");
+            if (!digits.isEmpty()) {
+                vCode = Integer.parseInt(digits);
+                if (vCode < 1) vCode = 1;
+            }
+        } catch (Exception ignored) {}
+
         return "plugins {\n    id 'com.android.application'\n}\n\n" +
+               "base {\n    archivesName.set(\"" + appTitle + "-v" + appVersion + "\")\n}\n\n" +
                "android {\n    namespace '" + packageName + "'\n    compileSdk " + compileSdk + "\n" +
                "    defaultConfig {\n        applicationId \"" + packageName + "\"\n" +
-               "        minSdk " + minSdk + "\n        targetSdk " + compileSdk + "\n        versionCode 1\n        versionName \"" + appVersion + "\"\n    }\n" +
-               "    compileOptions {\n        sourceCompatibility " + compat + "\n        targetCompatibility " + compat + "\n    }\n" +
-               "    applicationVariants.all { variant ->\n" +
-               "        variant.outputs.all { output ->\n" +
-               "            outputFileName = \"" + appTitle + "-v" + appVersion + "-\" + variant.name + \".apk\"\n" +
-               "        }\n" +
-               "    }\n" +
-               "}\n\n" +
+               "        minSdk " + minSdk + "\n        targetSdk " + compileSdk + "\n        versionCode " + vCode + "\n        versionName \"" + appVersion + "\"\n    }\n" +
+               "    compileOptions {\n        sourceCompatibility " + compat + "\n        targetCompatibility " + compat + "\n    }\n}\n\n" +
                "dependencies {\n    implementation 'androidx.appcompat:appcompat:1.6.1'\n    implementation 'com.google.android.material:material:1.11.0'\n    implementation 'com.squareup.okhttp3:okhttp:4.12.0'\n}\n";
     }
 
