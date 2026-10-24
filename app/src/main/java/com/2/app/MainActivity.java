@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v5.4 ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v5.5 ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -133,7 +133,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🚀 Android Monster Compiler (Direct Bash Fix)");
+        titleView.setText("🚀 Android Monster Compiler (D8 Modernized)");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -820,7 +820,7 @@ public class MainActivity extends Activity {
                 boolean repaired = false;
                 StringBuilder diagnosticReport = new StringBuilder("=== 🤖 SMART AI-ДОКТОР: ОТЧЕТ АНАЛИЗА ===\n\n");
 
-                diagnosticReport.append("ℹ️ Сборка переведена на прямую компиляцию (Direct Bash Compiler) без Gradle-демонов.\n");
+                diagnosticReport.append("ℹ️ Скрипт обновлен: используется современный компилятор `d8` вместо устаревшего `dx`.\n");
 
                 if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("WebView") || lastErrorLog.contains("WebSettings") || lastErrorLog.contains("WebViewClient"))) {
                     diagnosticReport.append("🔍 Обнаружено: Использование WebView без импортов.\n");
@@ -841,7 +841,7 @@ public class MainActivity extends Activity {
                 }
 
                 if (!repaired) {
-                    diagnosticReport.append("💡 Прямая Bash компиляция активирована. Нажмите сборку заново!");
+                    diagnosticReport.append("💡 Компилятор `d8` настроен. Нажмите сборку заново!");
                 } else {
                     diagnosticReport.append("\n🎉 Исправления применены! Запустите сборку заново.");
                 }
@@ -856,7 +856,7 @@ public class MainActivity extends Activity {
                         saveSettings();
                         statusTextView.setText("Статус: ✅ AI-Доктор применил патчи!");
                     } else {
-                        statusTextView.setText("Статус: ✅ Переведено на Direct Bash, запустите сборку");
+                        statusTextView.setText("Статус: ✅ D8 утилита подключена, запустите сборку");
                     }
                     logEditText.setText(reportStr);
                 });
@@ -1024,7 +1024,7 @@ public class MainActivity extends Activity {
                 if (conn.getResponseCode() == 204 || conn.getResponseCode() == 201) {
                     handler.post(() -> {
                         statusTextView.setText("Статус: 🚀 Сборка запущена! Ожидание APK...");
-                        logEditText.setText("GitHub Actions компилирует ваш проект напрямую через Bash...\nКак только сборка завершится, бот пришлет APK в Telegram.");
+                        logEditText.setText("GitHub Actions компилирует ваш проект через современный D8 компилятор...\nКак только сборка завершится, бот пришлет APK в Telegram.");
                         startMonitoringBuild();
                     });
                 } else {
@@ -1336,18 +1336,18 @@ public class MainActivity extends Activity {
     }
 
     private String getWorkflowContent() {
-        return "name: Build Monster APK (Direct Bash)\n" +
+        return "name: Build Monster APK (Direct D8 Bash)\n" +
                "on:\n  workflow_dispatch:\n\n" +
                "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" +
                "      - name: Checkout\n        uses: actions/checkout@v4\n" +
                "      - name: Set up JDK 17\n        uses: actions/setup-java@v5\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n" +
-               "      - name: Setup Android SDK & Direct Compile\n        run: |\n" +
+               "      - name: Setup Android SDK & Direct D8 Compile\n        run: |\n" +
                "          export ANDROID_HOME=/usr/local/lib/android/sdk\n" +
                "          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/34.0.0\n" +
                "          echo \"y\" | sdkmanager --licenses || true\n" +
                "          sdkmanager \"platform-tools\" \"platforms;android-" + compileSdk + "\" \"build-tools;34.0.0\"\n" +
                "          \n" +
-               "          echo \"=== DIRECT BASH COMPILATION START ===\"\n" +
+               "          echo \"=== DIRECT D8 BASH COMPILATION START ===\"\n" +
                "          mkdir -p build/gen build/obj build/apk\n" +
                "          \n" +
                "          # 1. Compile R.java using aapt2\n" +
@@ -1361,14 +1361,17 @@ public class MainActivity extends Activity {
                "          javac -source 1.8 -target 1.8 -bootclasspath $ANDROID_HOME/platforms/android-" + compileSdk + "/android.jar \\\n" +
                "            -d build/obj " + getMainActivityPath() + "\n" +
                "          \n" +
-               "          # 3. Convert to dex\n" +
-               "          dx --dex --output=build/apk/classes.dex build/obj\n" +
+               "          # 3. Convert to dex using modern d8\n" +
+               "          find build/obj -name \"*.class\" > build/classlist.txt\n" +
+               "          d8 --min-api 21 --output build/apk/ @build/classlist.txt\n" +
                "          \n" +
                "          # 4. Add dex to APK\n" +
                "          cd build/apk\n" +
                "          zip -u unsigned.apk classes.dex\n" +
                "          \n" +
-               "          # 5. Align and sign with debug key\n" +
+               "          # 5. Generate debug keystore and sign APK\n" +
+               "          mkdir -p ~/.android\n" +
+               "          keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname \"CN=Android Debug,O=Android,C=US\" || true\n" +
                "          apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android --ks-key-alias androiddebugkey unsigned.apk\n" +
                "          mv unsigned.apk final.apk\n" +
                "          ls -la final.apk\n" +
