@@ -1,2 +1,2 @@
-rootProject.name = "Smule_loading"
+rootProject.name = "Smule_Download"
 include ':app'
