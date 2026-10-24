@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v5.1 ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v5.2 ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -133,7 +133,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🚀 Android Monster Compiler (AAPT2 Bulletproof)");
+        titleView.setText("🚀 Android Monster Compiler (Gradle 8.4 Fix)");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -797,7 +797,7 @@ public class MainActivity extends Activity {
                 boolean repaired = false;
                 StringBuilder diagnosticReport = new StringBuilder("=== 🤖 SMART AI-ДОКТОР: ОТЧЕТ АНАЛИЗА ===\n\n");
 
-                diagnosticReport.append("ℹ️ AAPT2 и иконки полностью нейтрализованы (убрана зависимость от launcher icon в манифесте).\n");
+                diagnosticReport.append("ℹ️ Версия Gradle зафиксирована на 8.4 для полной совместимости с AGP 8.2.2.\n");
 
                 if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("WebView") || lastErrorLog.contains("WebSettings") || lastErrorLog.contains("WebViewClient"))) {
                     diagnosticReport.append("🔍 Обнаружено: Использование WebView без импортов.\n");
@@ -818,7 +818,7 @@ public class MainActivity extends Activity {
                 }
 
                 if (!repaired) {
-                    diagnosticReport.append("💡 Конфликт ресурсов полностью устранен обновлением манифеста. Нажмите компиляцию заново!");
+                    diagnosticReport.append("💡 Совместимость Gradle 8.4 настроена. Нажмите сборку заново!");
                 } else {
                     diagnosticReport.append("\n🎉 Исправления применены! Запустите сборку заново.");
                 }
@@ -833,7 +833,7 @@ public class MainActivity extends Activity {
                         saveSettings();
                         statusTextView.setText("Статус: ✅ AI-Доктор применил патчи!");
                     } else {
-                        statusTextView.setText("Статус: ✅ Манифест очищен от AAPT2 ошибок");
+                        statusTextView.setText("Статус: ✅ Gradle 8.4 применен, запустите сборку");
                     }
                     logEditText.setText(reportStr);
                 });
@@ -1034,7 +1034,7 @@ public class MainActivity extends Activity {
                     conn.setRequestProperty("Authorization", "Bearer " + githubToken);
                     conn.getResponseCode();
                 } catch (Exception ignored) {}
-            }.start();
+            }).start();
         }
 
         handler.post(() -> {
@@ -1183,7 +1183,7 @@ public class MainActivity extends Activity {
                             if (!foundErrorBlock) {
                                 professionalReport.append(lastErrorLog.length() > 2500 ? lastErrorLog.substring(lastErrorLog.length() - 2500) : lastErrorLog);
                             } else {
-                                professionalReport.append("\n💡 AAPT2 иконки отключены. Нажмите сборку заново!");
+                                professionalReport.append("\n💡 Версия Gradle исправлена на 8.4. Нажмите сборку заново!");
                             }
 
                             handler.post(() -> {
@@ -1318,10 +1318,10 @@ public class MainActivity extends Activity {
                "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" +
                "      - name: Checkout\n        uses: actions/checkout@v4\n" +
                "      - name: Set up JDK 17\n        uses: actions/setup-java@v5\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n" +
-               "      - name: Install Gradle 8.5\n        run: |\n" +
-               "          wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip\n" +
-               "          unzip -q gradle-8.5-bin.zip\n" +
-               "          echo \"$PWD/gradle-8.5/bin\" >> $GITHUB_PATH\n" +
+               "      - name: Install Gradle 8.4\n        run: |\n" +
+               "          wget -q https://services.gradle.org/distributions/gradle-8.4-bin.zip\n" +
+               "          unzip -q gradle-8.4-bin.zip\n" +
+               "          echo \"$PWD/gradle-8.4/bin\" >> $GITHUB_PATH\n" +
                "      - name: Setup Android SDK (Native Bash)\n        run: |\n" +
                "          export ANDROID_HOME=/usr/local/lib/android/sdk\n" +
                "          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n" +
