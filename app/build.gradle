@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.smuledownloaddrv.app'
+    namespace 'com.smuledrv.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.smuledownloaddrv.app"
+        applicationId "com.smuledrv.app"
         minSdk 26
         targetSdk 34
         versionCode 1
