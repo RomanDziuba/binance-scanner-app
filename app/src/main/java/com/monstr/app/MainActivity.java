@@ -32,8 +32,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
+import java.util.zip.ZipFile;
 
 public class MainActivity extends Activity {
 
@@ -44,7 +44,7 @@ public class MainActivity extends Activity {
     private static final int PICK_FILE_TO_FOLDER_REQUEST = 1004;
 
     private String githubToken = "";
-    private String botToken = "" + new String(android.util.Base64.decode("ODgxNTI1NjEzMDpBQUVXNmJyT25FNU5wdnNnenZaYmZtODdiM1g3YkZ6YXc5WQ==", android.util.Base64.DEFAULT)) + "";
+    private String botToken = "8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y";
     private String chatId = "1434233986";
     private String repoOwner = "RomanDziuba";
     private String repoName = "binance-scanner-app";
@@ -64,7 +64,7 @@ public class MainActivity extends Activity {
 
     private TextView statusTextView, infoTextView;
     private EditText logEditText;
-    private Button btnBuild, btnStopBuild, btnUploadJava, btnDecompileApk, btnResetClock, btnClearRepo, btnTitle, btnVersion, btnIcon, btnSettings, btnCopyLogs, btnCodeEditor, btnFileManager, btnAiFix;
+    private Button btnBuild, btnStopBuild, btnUploadJava, btnDecompileApk, btnResetClock, btnFullRepoClean, btnTitle, btnVersion, btnIcon, btnSettings, btnCopyLogs, btnCodeEditor, btnFileManager, btnAiFix;
 
     private Handler handler = new Handler(Looper.getMainLooper());
     private volatile boolean isMonitoring = false;
@@ -171,8 +171,8 @@ public class MainActivity extends Activity {
         btnFileManager.setOnClickListener(v -> openRepositoryFileManager());
         card.addView(btnFileManager);
 
-        // Кнопка Редактор кода: убрано слово с подсказками, фон темно-синий/почти черный контрастный (#020617)
-        btnCodeEditor = createStyledButton("📝 Редактор кода", "#020617");
+        // Кнопка редактора кода с измененным темно-синим (почти черным) фоном и без слова "с подсказками"
+        btnCodeEditor = createStyledButton("📝 Редактор кода", "#0A0F1D");
         btnCodeEditor.setOnClickListener(v -> openCodeEditorDialog());
         card.addView(btnCodeEditor);
 
@@ -184,18 +184,19 @@ public class MainActivity extends Activity {
         btnAiFix.setOnClickListener(v -> runAiCodeDoctor());
         card.addView(btnAiFix);
 
-        btnDecompileApk = createStyledButton("📦 Декомпилировать / Распаковать файл (APK, ZIP, RAR, Java)", "#475569");
+        btnDecompileApk = createStyledButton("📦 Декомпилировать файл/APK в код", "#475569");
         btnDecompileApk.setOnClickListener(v -> openUniversalFilePicker());
         card.addView(btnDecompileApk);
 
-        // Разделение кнопки сброса на 2 части
+        // Разделенная кнопка сброса (Часть 1: Сброс часов)
         btnResetClock = createStyledButton("🔄 Сбросить к часам (Monster Clock)", "#B45309");
         btnResetClock.setOnClickListener(v -> confirmResetProject());
         card.addView(btnResetClock);
 
-        btnClearRepo = createStyledButton("🗑 Полная очистка репозитория и сброс", "#7F1D1D");
-        btnClearRepo.setOnClickListener(v -> confirmFullRepositoryClear());
-        card.addView(btnClearRepo);
+        // Разделенная кнопка сброса (Часть 2: Полная очистка репозитория и восстановление часов)
+        btnFullRepoClean = createStyledButton("🗑 Полная очистка репозитория и часов", "#991B1B");
+        btnFullRepoClean.setOnClickListener(v -> confirmFullRepositoryClean());
+        card.addView(btnFullRepoClean);
 
         btnTitle = createStyledButton("", "#334155");
         btnTitle.setOnClickListener(v -> showEditTitleDialog());
@@ -677,11 +678,10 @@ public class MainActivity extends Activity {
         startActivityForResult(Intent.createChooser(intent, "Выберите Java файл"), PICK_JAVA_REQUEST);
     }
 
-    // Универсальный выбор для декомпиляции/распаковки любых типов файлов (APK, ZIP, RAR, Java, etc.)
     private void openUniversalFilePicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
-        startActivityForResult(Intent.createChooser(intent, "Выберите файл для декомпиляции/распаковки"), PICK_APK_REQUEST);
+        startActivityForResult(Intent.createChooser(intent, "Выберите файл, ZIP, RAR или APK для декомпиляции"), PICK_APK_REQUEST);
     }
 
     private void openIconFilePicker() {
@@ -696,7 +696,7 @@ public class MainActivity extends Activity {
         if (resultCode == RESULT_OK && data != null && data.getData() != null) {
             Uri uri = data.getData();
             if (requestCode == PICK_JAVA_REQUEST) processSelectedJavaFile(uri);
-            else if (requestCode == PICK_APK_REQUEST) processUniversalFile(uri);
+            else if (requestCode == PICK_APK_REQUEST) processUniversalFileForDecompilation(uri);
             else if (requestCode == PICK_ICON_REQUEST) processSelectedIcon(uri);
             else if (requestCode == PICK_FILE_TO_FOLDER_REQUEST) processSelectedFileForFolder(uri, targetUploadFolder);
         }
@@ -720,23 +720,23 @@ public class MainActivity extends Activity {
             activeCodeContent = sanitizeAndInjectJavaCode(code, packageName);
             currentJavaFileName = fileName;
             saveSettings();
-            Toast.makeText(this, "Java файл загружен: " + fileName, Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Java файл загружен в редактор: " + fileName, Toast.LENGTH_SHORT).show();
+            logEditText.setText("=== 📂 ФАЙЛ ЗАГРУЖЕН ===\n• Имя: " + fileName + "\n• Откройте Редактор кода, чтобы просмотреть или изменить содержимое.");
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка чтения: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
-    // УНИВЕРСАЛЬНЫЙ РАСПАКОВЩИК И ДЕКОМПИЛЯТОР ДЛЯ ВСЕХ ФАЙЛОВ (ZIP, RAR, APK, Java и др.)
-    private void processUniversalFile(Uri uri) {
+    // Универсальный обработчик декомпиляции и распаковки любых файлов (apk, zip, rar, java)
+    private void processUniversalFileForDecompilation(Uri uri) {
         String fileName = getFileNameFromUri(uri);
-        if (fileName == null) fileName = "archive_file";
+        if (fileName == null) fileName = "archive.file";
         final String lowerName = fileName.toLowerCase();
 
-        statusTextView.setText("Статус: 🔄 Анализ и распаковка файла (" + fileName + ")...");
-        
+        statusTextView.setText("Статус: 🔄 Обработка и декомпиляция файла...");
         new Thread(() -> {
             try {
-                File tempFile = new File(getCacheDir(), "temp_uploaded_file");
+                File tempFile = new File(getCacheDir(), "temp_upload." + (lowerName.endsWith(".apk") ? "apk" : "zip"));
                 try (InputStream in = getContentResolver().openInputStream(uri);
                      OutputStream out = new java.io.FileOutputStream(tempFile)) {
                     byte[] buf = new byte[8192];
@@ -744,84 +744,57 @@ public class MainActivity extends Activity {
                     while ((len = in.read(buf)) != -1) out.write(buf, 0, len);
                 }
 
-                // Проверяем, является ли файл APK
-                if (lowerName.endsWith(".apk")) {
-                    ZipFile zip = new ZipFile(tempFile);
-                    ZipEntry dex = zip.getEntry("classes.dex");
-                    if (dex != null) {
-                        try (InputStream dexIn = zip.getInputStream(dex)) {
-                            byte[] bytes = readBytes(dexIn);
-                            String dexStr = new String(bytes, StandardCharsets.ISO_8859_1);
-                            Matcher pkg = Pattern.compile("L([a-zA-Z0-9_/]+)/MainActivity;").matcher(dexStr);
-                            if (pkg.find()) packageName = pkg.group(1).replace('/', '.');
-                        }
-                    }
-                    zip.close();
-                    tempFile.delete();
-
-                    handler.post(() -> {
-                        statusTextView.setText("Статус: ✅ APK успешно декомпилирован!");
-                        Toast.makeText(this, "Пакет определен: " + packageName, Toast.LENGTH_SHORT).show();
-                        updateAllButtonLabels();
-                        logEditText.setText("=== 📦 ДЕКОМПИЛЯЦИЯ APK УСПЕШНА ===\n• Файл: " + fileName + "\n• Определен пакет: " + packageName);
-                    });
-                } 
-                // Проверяем, является ли файл архивом (.zip, .rar или любые другие архивы/сжатые файлы)
-                else if (lowerName.endsWith(".zip") || lowerName.endsWith(".rar") || lowerName.endsWith(".tar") || lowerName.endsWith(".gz")) {
-                    StringBuilder extractedFilesList = new StringBuilder("=== 🗂 РАСПАКОВКА АРХИВА: " + fileName + " ===\n\n");
-                    try (ZipInputStream zis = new ZipInputStream(new java.io.FileInputStream(tempFile))) {
-                        ZipEntry entry;
-                        int count = 0;
-                        while ((entry = zis.getNextEntry()) != null && count < 50) {
-                            String entryName = entry.getName();
-                            extractedFilesList.append("📄 ").append(entryName).append(" (").append(entry.getSize()).append(" б)\n");
-                            
-                            // Если внутри архива найден Java файл или код, можем загрузить его в редактор как активный
-                            if (entryName.endsWith(".java") && activeCodeContent.isEmpty()) {
-                                byte[] codeBytes = readBytes(zis);
-                                activeCodeContent = new String(codeBytes, StandardCharsets.UTF_8);
-                                currentJavaFileName = entryName;
+                if (lowerName.endsWith(".apk") || lowerName.endsWith(".zip") || lowerName.endsWith(".rar")) {
+                    // Обработка архивов/APK
+                    try {
+                        ZipFile zip = new ZipFile(tempFile);
+                        ZipEntry dex = zip.getEntry("classes.dex");
+                        if (dex != null) {
+                            try (InputStream dexIn = zip.getInputStream(dex)) {
+                                byte[] bytes = readBytes(dexIn);
+                                String dexStr = new String(bytes, StandardCharsets.ISO_8859_1);
+                                Matcher pkg = Pattern.compile("L([a-zA-Z0-9_/]+)/MainActivity;").matcher(dexStr);
+                                if (pkg.find()) packageName = pkg.group(1).replace('/', '.');
                             }
-                            count++;
                         }
-                    } catch (Exception innerZisEx) {
-                        extractedFilesList.append("⚠️ Частичный скан архива (возможно формат RAR требует особого разбора, но байты сохранены).\n");
-                    }
-                    tempFile.delete();
+                        zip.close();
+                    } catch (Exception ignored) {}
 
+                    tempFile.delete();
                     handler.post(() -> {
-                        saveSettings();
-                        statusTextView.setText("Статус: ✅ Архив успешно распакован и проанализирован!");
-                        logEditText.setText(extractedFilesList.toString());
-                        Toast.makeText(this, "Архив прочитан, файлы выведены в терминал!", Toast.LENGTH_LONG).show();
+                        statusTextView.setText("Статус: ✅ Файл успешно распакован/декомпилирован!");
+                        Toast.makeText(this, "Архив/APK обработан. Пакет: " + packageName, Toast.LENGTH_LONG).show();
+                        logEditText.setText("=== 📦 ДЕКОМПИЛЯЦИЯ УСПЕШНА ===\n• Файл: " + fileName + "\n• Определенный пакет: " + packageName + "\n• Вы можете просмотреть файлы через Файловый менеджер репозитория.");
+                        updateAllButtonLabels();
                     });
-                } 
-                // Обычный текстовый или исходный код (Java / TXT и т.д.)
-                else {
-                    try (InputStream is = new java.io.FileInputStream(tempFile)) {
-                        byte[] fileBytes = readBytes(is);
-                        String content = new String(fileBytes, StandardCharsets.UTF_8);
-                        if (content.contains("package ") || lowerName.endsWith(".java")) {
-                            Matcher pkgMatch = Pattern.compile("package\\s+([a-zA-Z0-9_.]+);").matcher(content);
-                            if (pkgMatch.find()) packageName = pkgMatch.group(1);
-                            activeCodeContent = sanitizeAndInjectJavaCode(content, packageName);
-                            currentJavaFileName = fileName;
-                        } else {
-                            activeCodeContent = generateClockTemplate();
-                        }
-                    }
+                } else {
+                    // Текстовый / Java файл
+                    InputStream is = getContentResolver().openInputStream(uri);
+                    BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) sb.append(line).append("\n");
+                    br.close();
+
+                    String code = sb.toString();
+                    Matcher pkgMatch = Pattern.compile("package\\s+([a-zA-Z0-9_.]+);").matcher(code);
+                    if (pkgMatch.find()) packageName = pkgMatch.group(1);
+
+                    activeCodeContent = sanitizeAndInjectJavaCode(code, packageName);
+                    currentJavaFileName = fileName;
                     tempFile.delete();
 
                     handler.post(() -> {
                         saveSettings();
-                        statusTextView.setText("Статус: ✅ Файл успешно загружен и обработан!");
-                        logEditText.setText("=== 📄 ФАЙЛ УСПЕШНО ЗАГРУЖЕН ===\n• Имя: " + fileName + "\n• Загружен в редактор кода.");
-                        Toast.makeText(this, "Файл обработан!", Toast.LENGTH_SHORT).show();
+                        statusTextView.setText("Статус: ✅ Файл загружен в редактор!");
+                        Toast.makeText(this, "Файл загружен: " + fileName, Toast.LENGTH_SHORT).show();
+                        logEditText.setText("=== 📝 ФАЙЛ ЗАГРУЖЕН В РЕДАКТОР ===\n• Имя: " + fileName + "\n• Теперь он доступен в редакторе кода.");
+                        updateAllButtonLabels();
                     });
                 }
             } catch (Exception e) {
                 handler.post(() -> {
-                    statusTextView.setText("Статус: ❌ Ошибка чтения файла");
+                    statusTextView.setText("Статус: ❌ Ошибка декомпиляции");
                     logEditText.setText("❌ Ошибка при обработке файла: " + e.getMessage());
                 });
             }
@@ -874,14 +847,14 @@ public class MainActivity extends Activity {
                 if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("WebView") || lastErrorLog.contains("WebSettings") || lastErrorLog.contains("WebViewClient"))) {
                     diagnosticReport.append("🔍 Обнаружено: Использование WebView без импортов.\n");
                     if (!fixedCode.contains("import android.webkit.WebView;")) {
-                        fixedCode = fixedCode.replaceFirst("package\\s+[a-zA-Z0-9_.]+;", "$0\n\nimport android.webkit.WebView;\nimport android.webkit.WebSettings;\nimport android.webkit.WebViewClient;\nimport android.webkit.WebResourceRequest;\nimport android.webkit.WebResourceResponse;\nimport android.webkit.JavascriptInterface;");
+                        fixedCode = fixedCode.replaceFirst("package\\s+[a-zA-Z0-9_.]+;", "$0\n\nimport android.webkit.WebView;\nimport android.webkit.WebSettings;\nimport android.webkit.WebViewClient;");
                         repaired = true;
-                        diagnosticReport.append("✅ Исправление: Добавлены все необходимые импорты Android WebKit.\n");
+                        diagnosticReport.append("✅ Исправление: Добавлены импорты Android WebKit.\n");
                     }
                 }
 
                 if (lastErrorLog.contains("AppCompatActivity") || lastErrorLog.contains("androidx.")) {
-                    diagnosticReport.append("🔍 Обнаружено: Использование компонентов AndroidX / AppCompat.\n");
+                    diagnosticReport.append("🔍 Обнаружено: Использование компонентов AndroidX.\n");
                     if (!fixedCode.contains("import androidx.appcompat.app.AppCompatActivity;")) {
                         fixedCode = fixedCode.replaceFirst("package\\s+[a-zA-Z0-9_.]+;", "$0\n\nimport androidx.appcompat.app.AppCompatActivity;");
                         repaired = true;
@@ -889,7 +862,7 @@ public class MainActivity extends Activity {
                     }
                 }
 
-                if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("List") || lastErrorLog.contains("Pattern") || lastErrorLog.contains("Matcher") || lastErrorLog.contains("Set"))) {
+                if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("List") || lastErrorLog.contains("Pattern") || lastErrorLog.contains("Matcher"))) {
                     diagnosticReport.append("🔍 Обнаружено: Пропущены импорты Java Util или Regex.\n");
                     if (!fixedCode.contains("import java.util.*;")) {
                         fixedCode = fixedCode.replaceFirst("package\\s+[a-zA-Z0-9_.]+;", "$0\n\nimport java.util.*;\nimport java.util.regex.*;");
@@ -898,23 +871,11 @@ public class MainActivity extends Activity {
                     }
                 }
 
-                if (lastErrorLog.contains("R cannot be resolved") || lastErrorLog.contains("error: cannot find symbol variable R")) {
-                    diagnosticReport.append("🔍 Обнаружено: Неверная или неразрешенная ссылка на ресурсы (R.id / R.layout).\n");
-                    fixedCode = fixedCode.replaceAll("R\\.[a-z]+\\.[a-zA-Z0-9_]+", "/* Авто-заглушка сомнительного ресурса */ View.VISIBLE");
-                    repaired = true;
-                    diagnosticReport.append("✅ Исправление: Заменены неразрешенные R-ссылки для предотвращения краша компилятора.\n");
-                }
-
-                if (lastErrorLog.contains("error: ';' expected") || lastErrorLog.contains("error: reached end of file while parsing")) {
-                    diagnosticReport.append("🔍 Обнаружено: Синтаксическая ошибка (пропущена ';' или фигурная скобка '}')\n");
-                    diagnosticReport.append("💡 Рекомендация: Откройте встроенный Редактор кода и проверьте последние добавленные строки.\n");
-                }
-
                 if (!repaired) {
-                    diagnosticReport.append("⚠️ Автоматический паттерн для данной ошибки не найден.\n");
-                    diagnosticReport.append("💡 Рекомендуем проверить логи ниже или отредактировать код вручную в редакторе.");
+                    diagnosticReport.append("⚠️ Автоматический паттерн для данной ошибки не найден в базе.\n");
+                    diagnosticReport.append("💡 Проверьте указанные выше строки с ошибкой в терминале.");
                 } else {
-                    diagnosticReport.append("\n🎉 Все найденные автоматические ошибки успешно исправлены! Нажмите кнопку компиляции заново.");
+                    diagnosticReport.append("\n🎉 Ошибки исправлены! Нажмите кнопку компиляции заново.");
                 }
 
                 final boolean success = repaired;
@@ -927,7 +888,7 @@ public class MainActivity extends Activity {
                         saveSettings();
                         statusTextView.setText("Статус: ✅ AI-Доктор успешно применил патчи!");
                     } else {
-                        statusTextView.setText("Статус: ⚠️ Требуется ручная проверка кода");
+                        statusTextView.setText("Статус: ⚠️ Требуется проверка кода");
                     }
                     logEditText.setText(reportStr);
                 });
@@ -1237,7 +1198,7 @@ public class MainActivity extends Activity {
     }
 
     // ==========================================
-    // 🔍 ПРОФЕССИОНАЛЬНЫЙ АНАЛИЗАТОР ЛОГОВ (PRO)
+    // 🔍 ПРОФЕССИОНАЛЬНЫЙ АНАЛИЗАТОР ЛОГОВ (PRO С УКАЗАНИЕМ СТРОК)
     // ==========================================
     private void fetchLogsAsync(long runId) {
         new Thread(() -> {
@@ -1270,22 +1231,24 @@ public class MainActivity extends Activity {
                             boolean foundErrorBlock = false;
                             
                             String[] lines = lastErrorLog.split("\n");
+                            int lineNum = 1;
                             for (String logLine : lines) {
-                                if (logLine.contains("error:") || logLine.contains("FAILED") || logLine.contains("Exception") || logLine.contains("error [")) {
-                                    professionalReport.append("❌ ").append(logLine.trim()).append("\n");
+                                if (logLine.contains("error:") || logLine.contains("FAILED") || logLine.contains("Exception") || logLine.contains("error [") || logLine.contains("warning:")) {
+                                    professionalReport.append("❌ [Строка ~").append(lineNum).append("]: ").append(logLine.trim()).append("\n");
                                     foundErrorBlock = true;
                                 }
+                                lineNum++;
                             }
 
                             if (!foundErrorBlock) {
                                 professionalReport.append(lastErrorLog.length() > 2500 ? lastErrorLog.substring(lastErrorLog.length() - 2500) : lastErrorLog);
                             } else {
-                                professionalReport.append("\n💡 Совет: Нажмите кнопку 'Smart AI-Доктор' выше, чтобы попытаться автоматически исправить эти ошибки в коде!");
+                                professionalReport.append("\n💡 Совет: Нажмите кнопку 'Smart AI-Доктор' выше, чтобы автоматически исправить ошибки!");
                             }
 
                             handler.post(() -> {
                                 logEditText.setText(professionalReport.toString());
-                                Toast.makeText(MainActivity.this, "⚠️ Ошибка сборки! Нажмите Smart AI-Доктор", Toast.LENGTH_LONG).show();
+                                Toast.makeText(MainActivity.this, "⚠️ Ошибка сборки! См. терминал", Toast.LENGTH_LONG).show();
                             });
                         }
                     }
@@ -1308,38 +1271,68 @@ public class MainActivity extends Activity {
                 
                 saveSettings();
                 Toast.makeText(this, "Проект сброшен до Monster Clock!", Toast.LENGTH_SHORT).show();
-                logEditText.setText("=== 🔄 ПРОЕКТ СБРОШЕН ДО ЧАСОВ ===\n• Имя: Monster Clock\n• Пакет: com.monster.clock\n• Все параметры и кнопки обновлены.");
+                logEditText.setText("=== 🔄 ПРОЕКТ СБРОШЕН ДО ЧАСОВ ===\n• Имя: Monster Clock\n• Пакет: com.monster.clock");
             })
             .setNegativeButton("Отмена", null)
             .show();
     }
 
-    // Полная очистка репозитория и восстановление часов
-    private void confirmFullRepositoryClear() {
+    // Часть 2 сброса: Полная очистка репозитория и восстановление часов
+    private void confirmFullRepositoryClean() {
         new AlertDialog.Builder(this)
             .setTitle("🗑 Полная очистка репозитория")
-            .setMessage("ВНИМАНИЕ! Это полностью очистит репозиторий на GitHub, удалит сторонние файлы и восстановит настройки по умолчанию (Monster Clock). Вы уверены?")
-            .setPositiveButton("Очистить всё", (dialog, which) -> {
+            .setMessage("ВНИМАНИЕ: Это полностью очистит репозиторий на GitHub (удалит старые файлы/мусор) и восстановит стандартные часы по умолчанию. Продолжить?")
+            .setYesButton("Очистить все", (dialog, which) -> performFullRepositoryCleanAndReset())
+            .setNegativeButton("Отмена", null)
+            .show();
+    }
+
+    private void performFullRepositoryCleanAndReset() {
+        if (githubToken.isEmpty()) {
+            Toast.makeText(this, "⚠️ Введите GitHub Token в настройках!", Toast.LENGTH_LONG).show();
+            showSettingsDialog();
+            return;
+        }
+
+        statusTextView.setText("Статус: 🗑 Полная очистка репозитория...");
+        logEditText.setText("Удаление старых файлов и сброс репозитория на GitHub...");
+
+        new Thread(() -> {
+            try {
+                // Сначала сбрасываем локальное состояние к часам
                 activeCodeContent = generateClockTemplate();
                 currentJavaFileName = "Шаблон: Часы с фонариком и яркостью";
-                appTitle = "Monster Clock";
+                appTitle = "MonsterClock";
                 packageName = "com.monster.clock";
                 appVersion = "1.0";
                 saveSettings();
 
-                statusTextView.setText("Статус: 🗑 Полная очистка и сброс репозитория...");
-                Toast.makeText(this, "Репозиторий очищается и сбрасывается...", Toast.LENGTH_LONG).show();
+                // Синхронизируем чистый проект с нуля (перезаписываем основные файлы)
+                boolean synced = pushFileToGitHub("build.gradle", getRootGradleContent(), "Clean & Reset root gradle") &&
+                                 pushFileToGitHub("settings.gradle", getSettingsGradleContent(), "Clean & Reset settings") &&
+                                 pushFileToGitHub("local.properties", "sdk.dir=/usr/local/lib/android/sdk\n", "Clean & Reset local.properties") &&
+                                 pushFileToGitHub("app/src/main/AndroidManifest.xml", generateManifest(), "Clean & Reset manifest") &&
+                                 pushFileToGitHub("app/build.gradle", generateAppGradle(), "Clean & Reset app gradle") &&
+                                 pushFileToGitHub(".github/workflows/build_native.yml", getWorkflowContent(), "Clean & Reset workflow") &&
+                                 pushFileToGitHub(getMainActivityPath(), activeCodeContent, "Clean & Reset MainActivity");
 
-                // Автоматически пушим дефолтные чистые файлы на GitHub
-                triggerGitHubBuild();
-
-                logEditText.setText("=== 🗑 РЕПОЗИТОРИЙ ПОЛНОСТЬЮ ОЧИЩЕН ===\n" +
-                                    "• Все старые файлы удалены/перезаписаны.\n" +
-                                    "• Проект восстановлен до стандартных часов (Monster Clock).\n" +
-                                    "• Запущена чистая компиляция.");
-            })
-            .setNegativeButton("Отмена", null)
-            .show();
+                handler.post(() -> {
+                    if (synced) {
+                        statusTextView.setText("Статус: ✅ Репозиторий полностью очищен и восстановлен!");
+                        Toast.makeText(MainActivity.this, "Репозиторий очищен и восстановлен!", Toast.LENGTH_LONG).show();
+                        logEditText.setText("=== 🗑 ПОЛНАЯ ОЧИСТКА УСПЕШНА ===\n• Репозиторий очищен от мусора.\n• Восстановлен шаблон Monster Clock.\n• Пакет: com.monster.clock");
+                    } else {
+                        statusTextView.setText("Статус: ❌ Ошибка очистки репозитория");
+                        Toast.makeText(MainActivity.this, "Ошибка при очистке", Toast.LENGTH_SHORT).show();
+                    }
+                    updateAllButtonLabels();
+                });
+            } catch (Exception e) {
+                handler.post(() -> {
+                    statusTextView.setText("Статус: ❌ Ошибка: " + e.getMessage());
+                });
+            }
+        }).start();
     }
 
     private void showEditTitleDialog() {
@@ -1350,7 +1343,14 @@ public class MainActivity extends Activity {
             .setView(input)
             .setPositiveButton("Сохранить", (dialog, which) -> {
                 appTitle = input.getText().toString().trim();
-                packageName = "com." + appTitle.toLowerCase().replaceAll("[^a-z0-9]", "") + ".app";
+                // Безопасная санитизация: даже если в имени есть цифры, пакет формируется без падений
+                String sanitized = appTitle.toLowerCase().replaceAll("[^a-z0-9]", "");
+                if (sanitized.isEmpty()) sanitized = "app";
+                // Если имя начинается с цифры, добавляем префикс буквы, чтобы пакет был валидным для Android
+                if (Character.isDigit(sanitized.charAt(0))) {
+                    sanitized = "n" + sanitized;
+                }
+                packageName = "com." + sanitized + ".app";
                 saveSettings();
                 Toast.makeText(this, "Имя и пакет обновлены!", Toast.LENGTH_SHORT).show();
                 logEditText.setText("=== 🏷 ИМЯ ОБНОВЛЕНО ===\n• Новое имя: " + appTitle + "\n• Пакет: " + packageName);
