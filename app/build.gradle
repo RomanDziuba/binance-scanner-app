@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.monster.clock'
+    namespace 'com.entropyquantumshift.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.monster.clock"
+        applicationId "com.entropyquantumshift.app"
         minSdk 26
         targetSdk 34
-        versionCode 7
+        versionCode 8
         versionName "1.0"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "MonsterClock-v1.0-" + variant.name + ".apk"
+            outputFileName = "ENTROPY: Quantum Shift-v1.0-" + variant.name + ".apk"
         }
     }
 }
