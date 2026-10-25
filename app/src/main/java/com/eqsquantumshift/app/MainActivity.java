@@ -394,19 +394,24 @@ public class MainActivity extends Activity {
             case 6: gridCols = 6; gridRows = 6; maxStates = 4; break;
         }
 
+        // 1. Сначала выделяем память под массивы
+        cellViews = new TextView[gridRows][gridCols];
+        states = new int[gridRows][gridCols];
+
+        // 2. Заполняем поле рандомными значениями
         initQuantumField();
 
-        // 🧮 Точный математический расчет минимального числа ходов для текущей комбинации
+        // 3. Точный математический расчет минимального числа ходов
         int exactMinMoves = calculateExactMinStepsToSolve();
-        maxAllowedMoves = Math.max(exactMinMoves * 2, gridCols * 2); // Запас в 2 раза
+        maxAllowedMoves = Math.max(exactMinMoves * 2, gridCols * 2);
 
         levelTextView.setText("УР: " + level + "/6");
         updateMovesDisplay();
 
+        // 4. Строим UI сетки
         buildGridUI();
     }
 
-    // Алгоритм определения точного минимального числа шагов до победы
     private int calculateExactMinStepsToSolve() {
         class SearchNode {
             int[][] board;
@@ -426,7 +431,7 @@ public class MainActivity extends Activity {
 
         while (!q.isEmpty()) {
             SearchNode curr = q.poll();
-            if (curr.steps >= 6) break; // Ограничение для мгновенной генерации
+            if (curr.steps >= 6) break;
 
             for (int r = 0; r < gridRows; r++) {
                 for (int c = 0; c < gridCols; c++) {
@@ -443,7 +448,7 @@ public class MainActivity extends Activity {
                 }
             }
         }
-        return (gridCols * gridRows) / 2; // Резервное значение, если дольше 6 шагов
+        return (gridCols * gridRows) / 2;
     }
 
     private void updateMovesDisplay() {
@@ -507,14 +512,13 @@ public class MainActivity extends Activity {
         }
     }
 
-    // 🕒 Плавная живая анимация (замедлена для наглядности)
     private void startLivingCellAnimation(View cell) {
         ObjectAnimator pulseX = ObjectAnimator.ofFloat(cell, "scaleX", 1.0f, 1.10f, 1.0f);
         ObjectAnimator pulseY = ObjectAnimator.ofFloat(cell, "scaleY", 1.0f, 1.10f, 1.0f);
         pulseX.setRepeatCount(ValueAnimator.INFINITE);
         pulseY.setRepeatCount(ValueAnimator.INFINITE);
         
-        long duration = 3000 + new Random().nextInt(1000); // Замедлено в 3 раза
+        long duration = 3000 + new Random().nextInt(1000);
         pulseX.setDuration(duration);
         pulseY.setDuration(duration);
 
@@ -543,7 +547,6 @@ public class MainActivity extends Activity {
         animateCellFancy(cellViews[r][c], states[r][c], currentLevel);
     }
 
-    // 🐢 Замедленная в 10 раз сочная анимация клика для проверки
     private void animateCellFancy(TextView cell, int newState, int level) {
         ObjectAnimator scaleX = ObjectAnimator.ofFloat(cell, "scaleX", 0.6f, 1.25f, 1.0f);
         ObjectAnimator scaleY = ObjectAnimator.ofFloat(cell, "scaleY", 0.6f, 1.25f, 1.0f);
@@ -551,7 +554,7 @@ public class MainActivity extends Activity {
 
         AnimatorSet animatorSet = new AnimatorSet();
         animatorSet.playTogether(scaleX, scaleY, rotation);
-        animatorSet.setDuration(3200); // Замедлено ровно в 10 раз (3.2 секунды)
+        animatorSet.setDuration(3200);
         animatorSet.setInterpolator(new OvershootInterpolator(1.5f));
         animatorSet.start();
 
@@ -673,7 +676,6 @@ public class MainActivity extends Activity {
         return true;
     }
 
-    // 💥 ВИЗУАЛЬНЫЙ ВЗРЫВ ЯДРА (Сначала зрелищная тряска и пламя, потом диалог)
     private void triggerVisualExplosion() {
         ObjectAnimator shake = ObjectAnimator.ofFloat(gridLayout, "translationX", 0f, 40f, -40f, 30f, -30f, 15f, -15f, 0f);
         shake.setDuration(1500);
