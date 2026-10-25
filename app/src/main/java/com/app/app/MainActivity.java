@@ -114,7 +114,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🔥 Универсальный экстрактор любых сайтов");
+        titleView.setText("🔥 Универсальный экстрактор (Facebook / Web)");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(15f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -127,7 +127,7 @@ public class MainActivity extends Activity {
         card.addView(btnPaste);
 
         urlInput = new EditText(this);
-        urlInput.setHint("Вставьте любую ссылку (YouTube, соцсети, сайты)...");
+        urlInput.setHint("Вставьте ссылку (Facebook, YouTube, сайты)...");
         urlInput.setHintTextColor(Color.parseColor("#475569"));
         urlInput.setTextSize(12f);
         urlInput.setTextColor(Color.parseColor("#E2E8F0"));
@@ -167,7 +167,6 @@ public class MainActivity extends Activity {
         statusText.setLayoutParams(statusParams);
         card.addView(statusText);
 
-        // Информационная карточка страницы
         infoCard = new LinearLayout(this);
         infoCard.setOrientation(LinearLayout.VERTICAL);
         infoCard.setPadding(15, 15, 15, 15);
@@ -207,7 +206,6 @@ public class MainActivity extends Activity {
         mediaContainer.setOrientation(LinearLayout.VERTICAL);
         card.addView(mediaContainer);
 
-        // Панель отладочных кнопок
         LinearLayout debugButtonsRow = new LinearLayout(this);
         debugButtonsRow.setOrientation(LinearLayout.HORIZONTAL);
         
@@ -249,7 +247,8 @@ public class MainActivity extends Activity {
         ws.setJavaScriptEnabled(true);
         ws.setDomStorageEnabled(true);
         ws.setMediaPlaybackRequiresUserGesture(false);
-        ws.setUserAgentString("Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
+        // Используем User-Agent мобильного Safari (iPhone), чтобы Facebook отдавал простую мобильную верстку с видеотегами
+        ws.setUserAgentString("Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1");
 
         webView.addJavascriptInterface(new UniversalJSBridge(), "UniversalBridge");
 
@@ -306,8 +305,20 @@ public class MainActivity extends Activity {
             handler.post(() -> {
                 lastDownloadedHtml = htmlContent;
                 currentPageTitle = TextUtils.isEmpty(pageTitle) ? "Веб-страница" : pageTitle;
-                appendLog("📥 Загружен DOM страницы: " + currentPageTitle + " (" + htmlContent.length() + " байт)");
+                appendLog("📥 Загружен DOM: " + currentPageTitle + " (" + htmlContent.length() + " байт)");
                 parseUniversalContent(htmlContent);
+            });
+        }
+
+        @JavascriptInterface
+        public void onVideoUrlFound(String videoUrl) {
+            handler.post(() -> {
+                if (!TextUtils.isEmpty(videoUrl) && videoUrl.startsWith("http")) {
+                    synchronized (extractedMediaList) {
+                        extractedMediaList.add(new MediaItem(videoUrl, currentPageTitle, "ВИДЕО (DOM Player)", "mp4"));
+                        appendLog("🌐 [JS DOM] Найден видеоплеер: " + videoUrl);
+                    }
+                }
             });
         }
     }
@@ -341,7 +352,7 @@ public class MainActivity extends Activity {
         GradientDrawable bg = (GradientDrawable) mainActionButton.getBackground();
         bg.setColor(Color.parseColor("#475569"));
         mainActionButton.setText("⏳ АНАЛИЗ РЕСУРСА...");
-        statusText.setText("СТАТУС: Загрузка страницы и перехват потоков...");
+        statusText.setText("СТАТУС: Загрузка страницы и обход редиректов...");
 
         appendLog("=== СТАРТ УНИВЕРСАЛЬНОГО АНАЛИЗА: " + targetUrl + " ===");
 
@@ -351,25 +362,16 @@ public class MainActivity extends Activity {
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 String reqUrl = request.getUrl().toString().toLowerCase();
                 
-                // Перехват любых медиаформатов и стримов с любого сайта мира
-                if (reqUrl.matches(".*\\.(mp4|m4a|mp3|wav|aac|ogg|flac|m3u8|ts|webm|mov|avi|mkv)(\\?.*)?$") || 
-                    reqUrl.contains("videoplayback") || reqUrl.contains("manifest") || reqUrl.contains("chunk")) {
+                // Перехват медиапотоков (mp4, m3u8, ts, m4a, mp3, video playback)
+                if (reqUrl.matches(".*\\.(mp4|m4a|mp3|wav|aac|ogg|flac|m3u8|ts|webm|mov)(\\?.*)?$") || 
+                    reqUrl.contains("videoplayback") || reqUrl.contains("video-ams") || reqUrl.contains("fbcdn.net") && reqUrl.contains(".mp4")) {
                     synchronized (extractedMediaList) {
-                        String type = "ФАЙЛ";
+                        String type = "ВИДЕО";
                         String fmt = "mp4";
-                        if (reqUrl.contains("mp3") || reqUrl.contains("m4a") || reqUrl.contains("aac") || reqUrl.contains("wav")) {
-                            type = "АУДИО";
-                            fmt = "mp3";
-                        } else if (reqUrl.contains("m3u8") || reqUrl.contains("ts") || reqUrl.contains("manifest")) {
-                            type = "ПОТОК (STREAM)";
-                            fmt = "ts";
-                        } else if (reqUrl.contains("mp4") || reqUrl.contains("webm") || reqUrl.contains("mov")) {
-                            type = "ВИДЕО";
-                            fmt = "mp4";
-                        }
+                        if (reqUrl.contains("mp3") || reqUrl.contains("m4a")) { type = "АУДИО"; fmt = "mp3"; }
                         
-                        extractedMediaList.add(new MediaItem(request.getUrl().toString(), "Потоковый медиафайл", type, fmt));
-                        appendLog("🌐 [Sniffer] Пойман медиапоток: " + request.getUrl().toString());
+                        extractedMediaList.add(new MediaItem(request.getUrl().toString(), "Поток Facebook/Web", type, fmt));
+                        appendLog("🌐 [Sniffer] Пойман поток: " + request.getUrl().toString());
                     }
                 }
                 return super.shouldInterceptRequest(view, request);
@@ -378,16 +380,25 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                appendLog("🌐 Страница отрендерена. Извлечение элементов...");
+                appendLog("🌐 Страница прогружена. Сканирование плееров...");
 
-                // Запускаем JS для передачи полного HTML и скроллинга для подгрузки динамического контента
+                // Передаем HTML и запускаем скрипт поиска тегов <video> и source на странице (актуально для Facebook)
                 webView.loadUrl("javascript:window.UniversalBridge.onPageReady(document.documentElement.innerHTML, document.title);");
-                webView.loadUrl("javascript:window.scrollTo(0, document.body.scrollHeight);");
+                webView.loadUrl("javascript:(function(){" +
+                    "var vids = document.querySelectorAll('video');" +
+                    "for(var i=0; i<vids.length; i++) {" +
+                    "  if(vids[i].src) window.UniversalBridge.onVideoUrlFound(vids[i].src);" +
+                    "  var sources = vids[i].querySelectorAll('source');" +
+                    "  for(var j=0; j<sources.length; j++) { if(sources[j].src) window.UniversalBridge.onVideoUrlFound(sources[j].src); }" +
+                    "}" +
+                    "var ogV = document.querySelector('meta[property=\"og:video\"], meta[property=\"og:video:secure_url\"]');" +
+                    "if(ogV && ogV.content) window.UniversalBridge.onVideoUrlFound(ogV.content);" +
+                    "})();");
 
                 handler.postDelayed(() -> {
                     webView.setVisibility(View.GONE);
                     renderUI();
-                }, 7000);
+                }, 8000);
             }
         });
 
@@ -396,44 +407,32 @@ public class MainActivity extends Activity {
 
     private void parseUniversalContent(String html) {
         try {
-            // 1. Извлекаем OpenGraph теги (название, видео, аудио)
             Matcher ogTitle = Pattern.compile("<meta[^>]*property=\"og:title\"[^>]*content=\"([^\"]+)\"").matcher(html);
             if (ogTitle.find()) {
                 currentPageTitle = ogTitle.group(1);
             }
 
-            Matcher ogVideo = Pattern.compile("<meta[^>]*property=\"og:video\"[^>]*content=\"([^\"]+)\"").matcher(html);
+            Matcher ogVideo = Pattern.compile("<meta[^>]*property=\"og:video(?:\\:secure_url)?\"[^>]*content=\"([^\"]+)\"").matcher(html);
             if (ogVideo.find()) {
                 synchronized (extractedMediaList) {
-                    extractedMediaList.add(new MediaItem(ogVideo.group(1), currentPageTitle, "ВИДЕО (OpenGraph)", "mp4"));
+                    extractedMediaList.add(new MediaItem(ogVideo.group(1), currentPageTitle, "ВИДЕО (Facebook OpenGraph)", "mp4"));
                 }
             }
 
-            Matcher ogAudio = Pattern.compile("<meta[^>]*property=\"og:audio\"[^>]*content=\"([^\"]+)\"").matcher(html);
-            if (ogAudio.find()) {
-                synchronized (extractedMediaList) {
-                    extractedMediaList.add(new MediaItem(ogAudio.group(1), currentPageTitle, "АУДИО (OpenGraph)", "mp3"));
-                }
-            }
-
-            // 2. Сканируем весь HTML код на наличие прямых ссылок на медиафайлы
-            Matcher directLinks = Pattern.compile("https?://[^\\s\"'<>]+?\\.(mp4|m4a|mp3|m3u8|webm|ts|ogg|wav|mov)(\\?[^\\s\"'<>]*)?").matcher(html);
+            Matcher directLinks = Pattern.compile("https?://[^\\s\"'<>]+?\\.(mp4|m4a|mp3|m3u8|webm|ts)(\\?[^\\s\"'<>]*)?").matcher(html);
             while (directLinks.find()) {
                 String fileUrl = directLinks.group(0);
                 String ext = directLinks.group(1).toLowerCase();
-                String type = "ФАЙЛ";
-                if (ext.matches("mp4|webm|mov")) type = "ВИДЕО";
-                else if (ext.matches("mp3|m4a|aac|wav|ogg")) type = "АУДИО";
-                else if (ext.matches("m3u8|ts")) type = "ПОТОК";
+                String type = ext.equals("mp4") ? "ВИДЕО" : "АУДИО";
 
                 synchronized (extractedMediaList) {
                     extractedMediaList.add(new MediaItem(fileUrl, currentPageTitle, type, ext));
                 }
             }
 
-            appendLog("✅ Успешно просканировано. Найдено уникальных объектов: " + extractedMediaList.size());
+            appendLog("✅ Распарсено объектов: " + extractedMediaList.size());
         } catch (Exception e) {
-            appendLog("⚠️ Ошибка парсинга контента: " + e.getMessage());
+            appendLog("⚠️ Ошибка парсинга: " + e.getMessage());
         }
     }
 
@@ -441,12 +440,12 @@ public class MainActivity extends Activity {
         mediaContainer.removeAllViews();
 
         pageInfoTitle.setText("📄 " + currentPageTitle);
-        pageInfoDetails.setText("Найдено медиафайлов/потоков: " + extractedMediaList.size());
+        pageInfoDetails.setText("Найдено медиафайлов: " + extractedMediaList.size());
         infoCard.setVisibility(View.VISIBLE);
 
         synchronized (extractedMediaList) {
             if (extractedMediaList.isEmpty()) {
-                statusText.setText("СТАТУС: Прямые файлы не найдены. Попробуйте нажать Play на сайте.");
+                statusText.setText("СТАТУС: Видео не найдено. Нажмите Play в браузере.");
                 mainActionButton.setEnabled(true);
                 GradientDrawable btnBg = (GradientDrawable) mainActionButton.getBackground();
                 btnBg.setColor(Color.parseColor("#2563EB"));
@@ -465,7 +464,6 @@ public class MainActivity extends Activity {
                 
                 dlBtn.setOnClickListener(v -> downloadMediaFile(currentItem, currentIndex));
                 mediaContainer.addView(dlBtn);
-                appendLog("👉 Создана кнопка для: " + item.url);
             }
 
             statusText.setText("СТАТУС: ✅ Найдено файлов: " + extractedMediaList.size());
@@ -480,7 +478,7 @@ public class MainActivity extends Activity {
         try {
             String cleanTitle = item.title.replaceAll("[^a-zA-Z0-9а-яА-Я]", "_");
             if (cleanTitle.length() > 30) cleanTitle = cleanTitle.substring(0, 30);
-            String fileName = "Universal_" + cleanTitle + "_" + System.currentTimeMillis() + "_" + index + "." + item.format;
+            String fileName = "FB_Media_" + cleanTitle + "_" + System.currentTimeMillis() + "_" + index + "." + item.format;
             
             DownloadManager.Request request = new DownloadManager.Request(Uri.parse(item.url));
             request.setTitle(item.title);
@@ -514,7 +512,7 @@ public class MainActivity extends Activity {
         GradientDrawable defaultBg = (GradientDrawable) mainActionButton.getBackground();
         defaultBg.setColor(Color.parseColor("#2563EB"));
         mainActionButton.setText("🚀 ЗАПУСТИТЬ УНИВЕРСАЛЬНЫЙ АНАЛИЗ");
-        statusText.setText("СТАТУС: Сброшено. Готов к работе...");
+        statusText.setText("СТАТУС: Сброшено.");
         debugLogBuilder.setLength(0);
         lastDownloadedHtml = "";
         logEditText.setText("");
