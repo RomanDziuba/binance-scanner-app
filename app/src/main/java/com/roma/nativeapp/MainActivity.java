@@ -607,7 +607,6 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    // Редактор файлов репозитория со СКРОЛЛИНОМ
     private void showCodeEditorDialogForPath(String filePath, String initialContent) {
         LinearLayout editorLayout = new LinearLayout(this);
         editorLayout.setOrientation(LinearLayout.VERTICAL);
@@ -731,9 +730,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // ==========================================
-    // НАДЕЖНАЯ ЗАГРУЗКА И ОЧИСТКА БУФЕРА НОВОГО ФАЙЛА
-    // ==========================================
     private void processSelectedJavaFile(Uri uri) {
         String rawName = getFileNameFromUri(uri);
         final String fileName = (rawName != null) ? rawName : "Custom.java";
@@ -753,10 +749,9 @@ public class MainActivity extends Activity {
             currentJavaFileName = fileName;
             saveSettings();
 
-            // Показываем прогресс-бар синхронизации нового файла
             ProgressDialog progressDialog = new ProgressDialog(this);
             progressDialog.setTitle("📤 Синхронизация с сервером");
-            progressDialog.setMessage("Проверка и отправка файла на GitHub...");
+            progressDialog.setMessage("Очистка от BOM и отправка файла на GitHub...");
             progressDialog.setCancelable(false);
             progressDialog.show();
 
@@ -766,7 +761,6 @@ public class MainActivity extends Activity {
             new Thread(() -> {
                 boolean success = false;
                 int attempts = 0;
-                // До 10 попыток при проблемах с интернетом
                 while (attempts < 10 && !success) {
                     attempts++;
                     success = pushBytesToGitHub(targetPath, uploadBytes, "Upload new file: " + fileName + " (Attempt " + attempts + ")");
@@ -782,9 +776,9 @@ public class MainActivity extends Activity {
                     progressDialog.dismiss();
                     if (isSuccess) {
                         if (btnRetryUpload != null) btnRetryUpload.setVisibility(View.GONE);
-                        Toast.makeText(this, "Файл успешно заменен и синхронизирован!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Файл очищен от BOM и синхронизирован!", Toast.LENGTH_SHORT).show();
                         statusTextView.setText("Статус: ✅ Новый файл готов к компиляции!");
-                        logEditText.setText("=== 📂 НОВЫЙ ФАЙЛ УСПЕШНО ЗАГРУЖЕН И СВЕРЕН ===\n" +
+                        logEditText.setText("=== 📂 ФАЙЛ УСПЕШНО ОЧИЩЕН И ЗАГРУЖЕН ===\n" +
                                             "• Имя: " + fileName + "\n" +
                                             "• Пакет: " + packageName + "\n" +
                                             "• Путь: " + targetPath + "\n" +
@@ -795,7 +789,7 @@ public class MainActivity extends Activity {
                         lastFailedPath = targetPath;
                         if (btnRetryUpload != null) btnRetryUpload.setVisibility(View.VISIBLE);
                         statusTextView.setText("Статус: ❌ Ошибка сети при отправке файла");
-                        logEditText.setText("⚠️ Не удалось отправить файл на GitHub после 10 попыток (проверьте интернет).\n" +
+                        logEditText.setText("⚠️ Не удалось отправить файл на GitHub после 10 попыток.\n" +
                                             "Нажмите кнопку '🔄 Повторить отправку файла на сервер' ниже.");
                     }
                     updateAllButtonLabels();
@@ -1059,6 +1053,9 @@ public class MainActivity extends Activity {
         }
     }
 
+    // ==========================================
+    // УЛУЧШЕННЫЙ ПРОФЕССОР: САМ УДАЛЯЕТ BOM И ШЛЕТ НА СЕРВЕР
+    // ==========================================
     private void runAiCodeDoctor() {
         if (lastErrorLog.isEmpty()) {
             Toast.makeText(this, "ℹ️ Нет ошибок для анализа. Сначала запустите сборку!", Toast.LENGTH_LONG).show();
@@ -1076,14 +1073,15 @@ public class MainActivity extends Activity {
 
                 report.append("🔬 Скан логов завершен. Обнаружены следующие аномалии:\n\n");
 
-                if (lastErrorLog.contains("illegal character: '\\ufeff'") || lastErrorLog.contains("\ufeff")) {
+                // Мощное авто-исправление скрытого символа BOM (\ufeff)
+                if (lastErrorLog.contains("illegal character: '\\ufeff'") || lastErrorLog.contains("\ufeff") || fixedCode.contains("\uFEFF")) {
                     report.append("• 🧬 Проблема: Обнаружен скрытый символ BOM (\\ufeff) в первой строке файла.\n");
-                    if (fixedCode.startsWith("\uFEFF")) {
+                    while (fixedCode.startsWith("\uFEFF") || fixedCode.startsWith("\ufeff") || (fixedCode.length() > 0 && fixedCode.charAt(0) == 65279)) {
                         fixedCode = fixedCode.substring(1);
                     }
                     fixedCode = fixedCode.replace("\uFEFF", "").replace("\ufeff", "");
                     repaired = true;
-                    report.append("  ➜ 🛠 Авто-Патч: Скрытый символ BOM успешно удален из кода!\n");
+                    report.append("  ➜ 🛠 Авто-Патч: Скрытый символ BOM успешно вырезан из кода!\n");
                 }
 
                 if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("WebView") || lastErrorLog.contains("WebSettings") || lastErrorLog.contains("WebViewClient"))) {
@@ -1136,7 +1134,10 @@ public class MainActivity extends Activity {
                         }
                     }
                 } else {
-                    report.append("\n🎉 Профессор успешно применил исправления в коде! Сохраните изменения и запустите сборку заново.");
+                    // АВТОМАТИЧЕСКИ ОТПРАВЛЯЕМ ИСПРАВЛЕННЫЙ КОД НА GITHUB СРАЗУ!
+                    activeCodeContent = fixedCode;
+                    pushFileToGitHub(getMainActivityPath(), activeCodeContent, "AI Professor Auto-Fix BOM");
+                    report.append("\n🎉 Профессор исправил код и автоматически загрузил чистую версию на GitHub! Запускайте сборку.");
                 }
 
                 final boolean success = repaired;
@@ -1147,7 +1148,7 @@ public class MainActivity extends Activity {
                     if (success) {
                         activeCodeContent = newCode;
                         saveSettings();
-                        statusTextView.setText("Статус: ✅ AI-Профессор успешно пропатчил код!");
+                        statusTextView.setText("Статус: ✅ AI-Профессор исправил и отправил код на сервер!");
                     } else {
                         statusTextView.setText("Статус: ⚠️ Требуется внимание к логам");
                     }
@@ -1199,7 +1200,8 @@ public class MainActivity extends Activity {
 
     private String sanitizeAndInjectJavaCode(String code, String pkg) {
         if (code != null) {
-            if (code.startsWith("\uFEFF")) {
+            // Циклически отрезаем любые варианты невидимого BOM на старте
+            while (code.startsWith("\uFEFF") || code.startsWith("\ufeff") || (code.length() > 0 && code.charAt(0) == 65279)) {
                 code = code.substring(1);
             }
             code = code.replace("\uFEFF", "").replace("\ufeff", "");
@@ -1243,7 +1245,6 @@ public class MainActivity extends Activity {
         return res;
     }
 
-    // Главный редактор кода приложения со СКРОЛЛИНОМ
     private void openCodeEditorDialog() {
         LinearLayout editorLayout = new LinearLayout(this);
         editorLayout.setOrientation(LinearLayout.VERTICAL);
@@ -1547,7 +1548,6 @@ public class MainActivity extends Activity {
                 
                 saveSettings();
 
-                // Очищаем старые пути и пишем новый шаблон
                 new Thread(() -> {
                     deleteGitHubFile("app/src/main/java/com/app/app/MainActivity.java", "Clean old path");
                     pushFileToGitHub(getMainActivityPath(), activeCodeContent, "Reset to Monster Clock");
@@ -1589,7 +1589,6 @@ public class MainActivity extends Activity {
                 versionCode = 1;
                 saveSettings();
 
-                // Удаляем мусорные старые пути
                 deleteGitHubFile("app/src/main/java/com/app/app/MainActivity.java", "Clean old trash path");
 
                 boolean synced = pushFileToGitHub("build.gradle", getRootGradleContent(), "Clean & Reset root gradle") &&
@@ -1724,7 +1723,6 @@ public class MainActivity extends Activity {
         return "rootProject.name = \"" + appTitle + "\"\ninclude ':app'\n";
     }
 
-    // Важнейший файл конфигурации Gradle с включенными AndroidX и Jetifier
     private String getGradlePropertiesContent() {
         return "org.gradle.jvmargs=-Xmx2048M -Dfile.encoding=UTF-8\n" +
                "android.useAndroidX=true\n" +
