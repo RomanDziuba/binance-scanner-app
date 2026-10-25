@@ -1,4 +1,5 @@
-name: Build Monster APK
+name: Build Native Android APK (Java)
+
 on:
   workflow_dispatch:
 
@@ -6,39 +7,39 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Setup Android SDK (Native Bash)
-        run: |
-          export ANDROID_HOME=/usr/local/lib/android/sdk
-          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
-          echo "y" | sdkmanager --licenses || true
-          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-      - name: Setup Gradle
+      - name: Setup Gradle 8.5
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.5'
           cache-disabled: true
-      - name: Build APK
+      - name: Setup Android SDK & Accept Licenses
         run: |
-          gradle clean assembleDebug --info --stacktrace --no-daemon
-      - name: Send APK and Java Code Duplicate to Telegram
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
+          yes | sdkmanager --licenses || true
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+      - name: Build Debug APK with Gradle (Clean Cache)
+        run: |
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
+          gradle clean assembleDebug --stacktrace --no-daemon
+      - name: Upload APK to Telegram Bot
         if: success()
         run: |
           APK_PATH=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
-          echo "Found APK: $APK_PATH"
-          BASENAME=$(basename "$APK_PATH" .apk)
-          JAVA_SRC=$(find app/src/main/java/ -name "MainActivity.java" | head -n 1)
-          TXT_PATH="${BASENAME}.java.txt"
-          if [ -f "$JAVA_SRC" ]; then
-            cp "$JAVA_SRC" "$TXT_PATH"
+          if [ -n "$APK_PATH" ]; then
+            APP_TITLE="RomaClockApp"
+            RENAMED_PATH="/tmp/$APP_TITLE.apk"
+            cp "$APK_PATH" "$RENAMED_PATH"
+            curl -F chat_id="1434233986" -F document=@"$RENAMED_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
           else
-            echo "package com.monstercompiler.app;" > "$TXT_PATH"
+            echo "❌ Ошибка: APK файл не найден!"
+            exit 1
           fi
-          curl -F chat_id="1434233986" -F document=@"$APK_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
-          curl -F chat_id="1434233986" -F document=@"$TXT_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
