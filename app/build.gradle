@@ -10,7 +10,7 @@ android {
         minSdk 21
         targetSdk 34
         versionCode 1
-        versionName "10.0"
+        versionName "9.9"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "MonsterCompiler-v10.0-" + variant.name + ".apk"
+            outputFileName = "RomaMonsterApp-v9.9-" + variant.name + ".apk"
         }
     }
 }
