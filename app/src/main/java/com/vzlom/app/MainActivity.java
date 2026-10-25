@@ -1,7 +1,5 @@
 package com.vzlom.app;
 
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.app.Activity;
 import android.app.DownloadManager;
 import android.content.ClipData;
@@ -352,13 +350,15 @@ public class MainActivity extends Activity {
             int index = 0;
             for (String fileUrl : interceptedMediaUrls) {
                 index++;
+                final int currentIndex = index; // 🔥 Фикс: создаем effectively final копию для лямбды
                 String fileType = detectFileType(fileUrl);
-                String buttonTitle = "📥 Скачать " + fileType + " #" + index;
+                final String currentFileType = fileType;
+                String buttonTitle = "📥 Скачать " + fileType + " #" + currentIndex;
 
-                Button dlBtn = createStyledButton(buttonTitle, index % 2 == 0 ? "#059669" : "#2563EB");
+                Button dlBtn = createStyledButton(buttonTitle, currentIndex % 2 == 0 ? "#059669" : "#2563EB");
                 
                 final String targetUrl = fileUrl;
-                dlBtn.setOnClickListener(v -> downloadFileToPhone(targetUrl, fileType, index));
+                dlBtn.setOnClickListener(v -> downloadFileToPhone(targetUrl, currentFileType, currentIndex));
                 
                 downloadButtonsLayout.addView(dlBtn);
                 appendLog("👉 Создана кнопка скачивания для: " + fileUrl);
