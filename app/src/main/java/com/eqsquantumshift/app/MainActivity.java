@@ -1,7 +1,9 @@
 package com.eqsquantumshift.app;
 
 import android.animation.AnimatorSet;
+import android.animation.ArgbEvaluator;
 import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.graphics.Color;
@@ -27,6 +29,7 @@ public class MainActivity extends Activity {
     private int currentLevel = 1;
     private int totalScore = 0;
     private int movesOnLevel = 0;
+    private int maxAllowedMoves = 30; // Лимит ходов с запасом
     
     private int gridCols = 3;
     private int gridRows = 3;
@@ -35,12 +38,13 @@ public class MainActivity extends Activity {
     private TextView[][] cellViews;
     private int[][] states;
     
-    private TextView levelTextView, scoreTextView, movesTextView, titleTextView, logoView, clockTextView;
+    private TextView levelTextView, scoreTextView, movesTextView, titleTextView, logoView, clockTextView, instructionView;
     private Button btnExit, btnHint;
     private GridLayout gridLayout;
     
     private Handler clockHandler = new Handler(Looper.getMainLooper());
     private Runnable clockRunnable;
+    private ValueAnimator rgbAnimator; // Анимация перелива подсказки
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,20 +53,20 @@ public class MainActivity extends Activity {
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
         rootLayout.setBackgroundColor(Color.parseColor("#040711"));
-        rootLayout.setPadding(16, 16, 16, 16);
+        rootLayout.setPadding(14, 14, 14, 14);
 
         // --- ШАПКА ПРИЛОЖЕНИЯ ---
         LinearLayout headerLayout = new LinearLayout(this);
         headerLayout.setOrientation(LinearLayout.HORIZONTAL);
         headerLayout.setGravity(Gravity.CENTER_VERTICAL);
-        headerLayout.setPadding(0, 4, 0, 8);
+        headerLayout.setPadding(0, 2, 0, 6);
         headerLayout.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         titleTextView = new TextView(this);
         titleTextView.setText("EQS: QUANTUM SHIFT");
         titleTextView.setTextColor(Color.parseColor("#38BDF8"));
-        titleTextView.setTextSize(14);
+        titleTextView.setTextSize(13);
         titleTextView.setTypeface(Typeface.DEFAULT_BOLD);
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         titleTextView.setLayoutParams(titleParams);
@@ -79,35 +83,31 @@ public class MainActivity extends Activity {
         logoBg.setStroke(2, Color.parseColor("#7E22CE"));
         logoView.setBackground(logoBg);
 
-        // Кнопка ПОДСКАЗКА (🤓)
+        // КНОПКА-ПОДСКАЗКА С ПЕРЕЛИВАЮЩИМСЯ RGB ЦВЕТОМ
         btnHint = new Button(this);
-        btnHint.setText("🤓");
-        btnHint.setTextSize(14);
-        btnHint.setPadding(10, 2, 10, 2);
-        GradientDrawable hintBg = new GradientDrawable();
-        hintBg.setColor(Color.parseColor("#172554"));
-        hintBg.setCornerRadius(10f);
-        hintBg.setStroke(2, Color.parseColor("#3B82F6"));
-        btnHint.setBackground(hintBg);
+        btnHint.setText("💡");
+        btnHint.setTextSize(13);
+        btnHint.setPadding(8, 2, 8, 2);
         LinearLayout.LayoutParams hintParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        hintParams.setMargins(8, 0, 0, 0);
+        hintParams.setMargins(6, 0, 0, 0);
         btnHint.setLayoutParams(hintParams);
-        btnHint.setOnClickListener(v -> showProfessorHint());
+        btnHint.setOnClickListener(v -> useLogicalHint());
+        startRgbHintAnimation(btnHint);
 
-        // Кнопка ВЫХОД
+        // КНОПКА ВЫХОД
         btnExit = new Button(this);
         btnExit.setText("❌");
-        btnExit.setTextSize(14);
-        btnExit.setPadding(10, 2, 10, 2);
+        btnExit.setTextSize(13);
+        btnExit.setPadding(8, 2, 8, 2);
         GradientDrawable exitBg = new GradientDrawable();
         exitBg.setColor(Color.parseColor("#270F19"));
-        exitBg.setCornerRadius(10f);
+        exitBg.setCornerRadius(8f);
         exitBg.setStroke(2, Color.parseColor("#E11D48"));
         btnExit.setBackground(exitBg);
         LinearLayout.LayoutParams exitParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        exitParams.setMargins(8, 0, 0, 0);
+        exitParams.setMargins(6, 0, 0, 0);
         btnExit.setLayoutParams(exitParams);
         btnExit.setOnClickListener(v -> finishAndRemoveTask());
 
@@ -120,39 +120,38 @@ public class MainActivity extends Activity {
         // --- КВАНТОВЫЕ ЧАСЫ ---
         clockTextView = new TextView(this);
         clockTextView.setTextColor(Color.parseColor("#34D399"));
-        clockTextView.setTextSize(13);
+        clockTextView.setTextSize(12);
         clockTextView.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
         clockTextView.setGravity(Gravity.CENTER);
-        clockTextView.setPadding(8, 6, 8, 6);
+        clockTextView.setPadding(6, 4, 6, 4);
 
         GradientDrawable clockBg = new GradientDrawable();
         clockBg.setColor(Color.parseColor("#022C22"));
-        clockBg.setCornerRadius(12f);
+        clockBg.setCornerRadius(10f);
         clockBg.setStroke(2, Color.parseColor("#059669"));
         clockTextView.setBackground(clockBg);
 
         LinearLayout.LayoutParams clockParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        clockParams.setMargins(0, 0, 0, 8);
+        clockParams.setMargins(0, 0, 0, 6);
         clockTextView.setLayoutParams(clockParams);
         rootLayout.addView(clockTextView);
-
         startClockAnimation();
 
         // --- ИНФО-ПАНЕЛЬ ---
         LinearLayout statsLayout = new LinearLayout(this);
         statsLayout.setOrientation(LinearLayout.HORIZONTAL);
-        statsLayout.setPadding(8, 10, 8, 10);
+        statsLayout.setPadding(6, 8, 6, 8);
         
         GradientDrawable statsBg = new GradientDrawable();
         statsBg.setColor(Color.parseColor("#0B1120"));
-        statsBg.setCornerRadius(14f);
+        statsBg.setCornerRadius(12f);
         statsBg.setStroke(2, Color.parseColor("#1E293B"));
         statsLayout.setBackground(statsBg);
 
         levelTextView = createStatText("УР: 1/6", "#38BDF8");
         scoreTextView = createStatText("ОЧКИ: 0", "#F59E0B");
-        movesTextView = createStatText("ХОДЫ: 0", "#10B981");
+        movesTextView = createStatText("ХОДЫ: 30", "#10B981");
 
         statsLayout.addView(levelTextView);
         statsLayout.addView(scoreTextView);
@@ -163,12 +162,39 @@ public class MainActivity extends Activity {
         gridLayout = new GridLayout(this);
         LinearLayout.LayoutParams gridParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
-        gridParams.setMargins(0, 12, 0, 0);
+        gridParams.setMargins(0, 8, 0, 8);
         gridLayout.setLayoutParams(gridParams);
         rootLayout.addView(gridLayout);
 
+        // --- КРАТКАЯ ИНСТРУКЦИЯ ВНИЗУ ---
+        instructionView = new TextView(this);
+        instructionView.setText("📖 Цель: Кликайте на ячейки, чтобы синхронизировать всю матрицу в один знак. 💡 Подсказка указывает лучший ход (-2 хода). Превышение лимита ходов = Крах!");
+        instructionView.setTextColor(Color.parseColor("#64748B"));
+        instructionView.setTextSize(10);
+        instructionView.setGravity(Gravity.CENTER);
+        instructionView.setPadding(4, 4, 4, 4);
+        rootLayout.addView(instructionView);
+
         setContentView(rootLayout);
         loadLevel(currentLevel);
+    }
+
+    // 🌈 ПЕРЕЛИВАЮЩАЯСЯ RGB АНИМАЦИЯ КНОПКИ-ПОДСКАЗКИ
+    private void startRgbHintAnimation(Button btn) {
+        rgbAnimator = ValueAnimator.ofObject(new ArgbEvaluator(), 
+                Color.parseColor("#3B82F6"), Color.parseColor("#EC4899"), 
+                Color.parseColor("#10B981"), Color.parseColor("#F59E0B"), Color.parseColor("#3B82F6"));
+        rgbAnimator.setDuration(4000);
+        rgbAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        rgbAnimator.addUpdateListener(animator -> {
+            int color = (int) animator.getAnimatedValue();
+            GradientDrawable hintBg = new GradientDrawable();
+            hintBg.setColor(Color.parseColor("#172554"));
+            hintBg.setCornerRadius(8f);
+            hintBg.setStroke(3, color);
+            btn.setBackground(hintBg);
+        });
+        rgbAnimator.start();
     }
 
     private void startClockAnimation() {
@@ -186,9 +212,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (clockHandler != null && clockRunnable != null) {
-            clockHandler.removeCallbacks(clockRunnable);
-        }
+        if (clockHandler != null && clockRunnable != null) clockHandler.removeCallbacks(clockRunnable);
+        if (rgbAnimator != null) rgbAnimator.cancel();
     }
 
     private TextView createStatText(String text, String colorHex) {
@@ -203,37 +228,87 @@ public class MainActivity extends Activity {
         return tv;
     }
 
-    private void showProfessorHint() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("🤓 Совет Профессора ДРВ");
-        builder.setMessage("Сектор " + currentLevel + " требует расчёта волнового резонанса!\n\n" +
-                (currentLevel <= 2 ? "• Совет: На этом уровне волна распространяется по кресту (вверх, вниз, влево, вправо). Фокусируйтесь на углах!" :
-                 currentLevel <= 4 ? "• Совет: Внимание! Здесь активирован диагональный резонанс. Каждое нажатие меняет угловые соседи." :
-                 "• Совет: Ультимативный уровень! 4 квантовых состояния требуют строгой симметрии. Ищите центральные узлы сингулярности!"));
-        builder.setPositiveButton("Понял 🚀", null);
-        builder.show();
+    // 💡 ЛОГИЧЕСКАЯ ПОДСКАЗКА (-2 хода)
+    private void useLogicalHint() {
+        if (movesOnLevel + 2 > maxAllowedMoves) {
+            new AlertDialog.Builder(this)
+                    .setTitle("⚠️ Ошибка квантования")
+                    .setMessage("Недостаточно ходов для использования подсказки (-2 хода)!")
+                    .setPositiveButton("ОК", null)
+                    .show();
+            return;
+        }
+
+        // Вычисляем оптимальный узел: сканируем ячейку, которая меняет больше всего разнородных соседей
+        int bestR = 0, bestC = 0, maxScoreChanges = -1;
+        int targetState = states[0][0];
+
+        for (int r = 0; r < gridRows; r++) {
+            for (int c = 0; c < gridCols; c++) {
+                int diffs = 0;
+                // Проверяем влияние клика на соседей
+                if (states[r][c] != targetState) diffs += 2;
+                if (r > 0 && states[r-1][c] != targetState) diffs++;
+                if (r < gridRows-1 && states[r+1][c] != targetState) diffs++;
+                if (c > 0 && states[r][c-1] != targetState) diffs++;
+                if (c < gridCols-1 && states[r][c+1] != targetState) diffs++;
+
+                if (diffs > maxScoreChanges) {
+                    maxScoreChanges = diffs;
+                    bestR = r;
+                    bestC = c;
+                }
+            }
+        }
+
+        movesOnLevel += 2; // Штраф -2 хода
+        updateMovesDisplay();
+
+        // Подсвечиваем ячейку-подсказку пульсацией рамки
+        TextView targetCell = cellViews[bestR][bestC];
+        ObjectAnimator glow = ObjectAnimator.ofFloat(targetCell, "alpha", 0.3f, 1.0f, 0.3f, 1.0f);
+        glow.setDuration(800);
+        glow.start();
+
+        new AlertDialog.Builder(this)
+                .setTitle("🤓 Квантовая подсказка ДРВ")
+                .setMessage("Система вычислила оптимальный узел сингулярности: Строка " + (bestR + 1) + ", Столбец " + (bestC + 1) + ".\nСписано штрафных ходов: 2.")
+                .setPositiveButton("Понял 🚀", null)
+                .show();
+
+        checkGameOverCondition();
     }
 
     private void loadLevel(int level) {
         movesOnLevel = 0;
         
         switch (level) {
-            case 1: gridCols = 3; gridRows = 3; maxStates = 2; break;
-            case 2: gridCols = 4; gridRows = 4; maxStates = 2; break;
-            case 3: gridCols = 4; gridRows = 4; maxStates = 3; break;
-            case 4: gridCols = 5; gridRows = 5; maxStates = 3; break;
-            case 5: gridCols = 5; gridRows = 5; maxStates = 4; break;
-            case 6: gridCols = 6; gridRows = 6; maxStates = 4; break;
+            case 1: gridCols = 3; gridRows = 3; maxStates = 2; maxAllowedMoves = 14; break;
+            case 2: gridCols = 4; gridRows = 4; maxStates = 2; maxAllowedMoves = 22; break;
+            case 3: gridCols = 4; gridRows = 4; maxStates = 3; maxAllowedMoves = 28; break;
+            case 4: gridCols = 5; gridRows = 5; maxStates = 3; maxAllowedMoves = 38; break;
+            case 5: gridCols = 5; gridRows = 5; maxStates = 4; maxAllowedMoves = 46; break;
+            case 6: gridCols = 6; gridRows = 6; maxStates = 4; maxAllowedMoves = 60; break;
         }
 
         levelTextView.setText("УР: " + level + "/6");
-        movesTextView.setText("ХОДЫ: 0");
+        updateMovesDisplay();
 
         cellViews = new TextView[gridRows][gridCols];
         states = new int[gridRows][gridCols];
         
         initQuantumField();
         buildGridUI();
+    }
+
+    private void updateMovesDisplay() {
+        int leftMoves = maxAllowedMoves - movesOnLevel;
+        movesTextView.setText("ХОДЫ: " + leftMoves + "/" + maxAllowedMoves);
+        if (leftMoves <= 5) {
+            movesTextView.setTextColor(Color.parseColor("#F43F5E")); // Тревожный красный при нехватке ходов
+        } else {
+            movesTextView.setTextColor(Color.parseColor("#10B981"));
+        }
     }
 
     private void initQuantumField() {
@@ -252,8 +327,8 @@ public class MainActivity extends Activity {
         gridLayout.setRowCount(gridRows);
         gridLayout.setColumnCount(gridCols);
 
-        int screenWidth = getResources().getDisplayMetrics().widthPixels - 50;
-        int cellSize = screenWidth / gridCols - 8;
+        int screenWidth = getResources().getDisplayMetrics().widthPixels - 40;
+        int cellSize = screenWidth / gridCols - 6;
 
         for (int i = 0; i < gridRows; i++) {
             for (int j = 0; j < gridCols; j++) {
@@ -264,20 +339,23 @@ public class MainActivity extends Activity {
                 GridLayout.LayoutParams params = new GridLayout.LayoutParams();
                 params.width = cellSize;
                 params.height = cellSize;
-                params.setMargins(4, 4, 4, 4);
+                params.setMargins(3, 3, 3, 3);
                 cell.setLayoutParams(params);
                 cell.setGravity(Gravity.CENTER);
-                cell.setTextSize(26); // Увеличенный размер смайлов
+                cell.setTextSize(24);
 
                 updateCellStyle(cell, states[i][j], currentLevel);
+                startLivingAnimation(cell); // 🔥 Живая анимация элементов
 
                 cell.setOnClickListener(v -> {
                     triggerQuantumWave(row, col);
                     movesOnLevel++;
-                    movesTextView.setText("ХОДЫ: " + movesOnLevel);
+                    updateMovesDisplay();
 
                     if (checkVictoryCondition()) {
                         calculateScoreAndAdvance();
+                    } else {
+                        checkGameOverCondition();
                     }
                 });
 
@@ -287,6 +365,22 @@ public class MainActivity extends Activity {
         }
     }
 
+    // 🔥 АНИМАЦИЯ ЖИВЫХ ВНУТРЕННИХ ЭЛЕМЕНТОВ (Постоянное мягкое дыхание)
+    private void startLivingAnimation(TextView cell) {
+        ObjectAnimator scaleX = ObjectAnimator.ofFloat(cell, "scaleX", 1.0f, 1.06f, 1.0f);
+        ObjectAnimator scaleY = ObjectAnimator.ofFloat(cell, "scaleY", 1.0f, 1.06f, 1.0f);
+        scaleX.setRepeatCount(ValueAnimator.INFINITE);
+        scaleY.setRepeatCount(ValueAnimator.INFINITE);
+        
+        long randomDuration = 1200 + new Random().nextInt(800);
+        scaleX.setDuration(randomDuration);
+        scaleY.setDuration(randomDuration);
+
+        AnimatorSet set = new AnimatorSet();
+        set.playTogether(scaleX, scaleY);
+        set.start();
+    }
+
     private void triggerQuantumWave(int r, int c) {
         toggleState(r, c);
         if (r > 0) toggleState(r - 1, c);
@@ -294,7 +388,6 @@ public class MainActivity extends Activity {
         if (c > 0) toggleState(r, c - 1);
         if (c < gridCols - 1) toggleState(r, c + 1);
 
-        // Диагональный резонанс с уровня 3
         if (currentLevel >= 3) {
             if (r > 0 && c > 0) toggleState(r - 1, c - 1);
             if (r > 0 && c < gridCols - 1) toggleState(r - 1, c + 1);
@@ -305,121 +398,53 @@ public class MainActivity extends Activity {
 
     private void toggleState(int r, int c) {
         states[r][c] = (states[r][c] + 1) % maxStates;
-        animateCellFancy(cellViews[r][c], states[r][c], currentLevel);
+        animateCellClick(cellViews[r][c], states[r][c], currentLevel);
     }
 
-    private void animateCellFancy(TextView cell, int newState, int level) {
-        ObjectAnimator scaleX = ObjectAnimator.ofFloat(cell, "scaleX", 0.7f, 1.15f, 1.0f);
-        ObjectAnimator scaleY = ObjectAnimator.ofFloat(cell, "scaleY", 0.7f, 1.15f, 1.0f);
-        ObjectAnimator rotation = ObjectAnimator.ofFloat(cell, "rotation", 0f, 360f, 0f);
-
-        AnimatorSet animatorSet = new AnimatorSet();
-        animatorSet.playTogether(scaleX, scaleY, rotation);
-        animatorSet.setDuration(280);
-        animatorSet.setInterpolator(new OvershootInterpolator());
-        animatorSet.start();
-
+    private void animateCellClick(TextView cell, int newState, int level) {
+        ObjectAnimator rot = ObjectAnimator.ofFloat(cell, "rotation", 0f, 360f);
+        rot.setDuration(250);
+        rot.setInterpolator(new OvershootInterpolator());
+        rot.start();
         updateCellStyle(cell, newState, level);
     }
 
-    // 🎨 УНИКАЛЬНЫЕ ЦВЕТА И СМАЙЛЫ ДЛЯ КАЖДОГО УРОВНЯ
     private void updateCellStyle(TextView cell, int state, int level) {
         GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadius(16f);
+        bg.setCornerRadius(14f);
         bg.setOrientation(GradientDrawable.Orientation.TL_BR);
-
         String symbol = "⚛";
         
         switch (level) {
-            case 1: // Космос (Синий / Голубой)
-                if (state == 0) {
-                    bg.setColors(new int[]{Color.parseColor("#0F172A"), Color.parseColor("#0284C7")});
-                    bg.setStroke(3, Color.parseColor("#38BDF8"));
-                    symbol = "🪐";
-                } else {
-                    bg.setColors(new int[]{Color.parseColor("#1E3A8A"), Color.parseColor("#2563EB")});
-                    bg.setStroke(3, Color.parseColor("#60A5FA"));
-                    symbol = "🌌";
-                }
+            case 1:
+                if (state == 0) { bg.setColors(new int[]{Color.parseColor("#0F172A"), Color.parseColor("#0284C7")}); bg.setStroke(2, Color.parseColor("#38BDF8")); symbol = "🪐"; }
+                else { bg.setColors(new int[]{Color.parseColor("#1E3A8A"), Color.parseColor("#2563EB")}); bg.setStroke(2, Color.parseColor("#60A5FA")); symbol = "🌌"; }
                 break;
-            case 2: // Пурпурный кибер
-                if (state == 0) {
-                    bg.setColors(new int[]{Color.parseColor("#2E1065"), Color.parseColor("#6D28D9")});
-                    bg.setStroke(3, Color.parseColor("#A78BFA"));
-                    symbol = "🔮";
-                } else {
-                    bg.setColors(new int[]{Color.parseColor("#4C1D95"), Color.parseColor("#9333EA")});
-                    bg.setStroke(3, Color.parseColor("#C084FC"));
-                    symbol = "💠";
-                }
+            case 2:
+                if (state == 0) { bg.setColors(new int[]{Color.parseColor("#2E1065"), Color.parseColor("#6D28D9")}); bg.setStroke(2, Color.parseColor("#A78BFA")); symbol = "🔮"; }
+                else { bg.setColors(new int[]{Color.parseColor("#4C1D95"), Color.parseColor("#9333EA")}); bg.setStroke(2, Color.parseColor("#C084FC")); symbol = "💠"; }
                 break;
-            case 3: // Изумрудный био-резонанс (3 состояния)
-                if (state == 0) {
-                    bg.setColors(new int[]{Color.parseColor("#022C22"), Color.parseColor("#047857")});
-                    bg.setStroke(3, Color.parseColor("#34D399"));
-                    symbol = "🧬";
-                } else if (state == 1) {
-                    bg.setColors(new int[]{Color.parseColor("#064E3B"), Color.parseColor("#059669")});
-                    bg.setStroke(3, Color.parseColor("#6EE7B7"));
-                    symbol = "🧪";
-                } else {
-                    bg.setColors(new int[]{Color.parseColor("#14532D"), Color.parseColor("#16A34A")});
-                    bg.setStroke(3, Color.parseColor("#86EFAC"));
-                    symbol = "⚡";
-                }
+            case 3:
+                if (state == 0) { bg.setColors(new int[]{Color.parseColor("#022C22"), Color.parseColor("#047857")}); bg.setStroke(2, Color.parseColor("#34D399")); symbol = "🧬"; }
+                else if (state == 1) { bg.setColors(new int[]{Color.parseColor("#064E3B"), Color.parseColor("#059669")}); bg.setStroke(2, Color.parseColor("#6EE7B7")); symbol = "🧪"; }
+                else { bg.setColors(new int[]{Color.parseColor("#14532D"), Color.parseColor("#16A34A")}); bg.setStroke(2, Color.parseColor("#86EFAC")); symbol = "⚡"; }
                 break;
-            case 4: // Плазменный огонь (3 состояния)
-                if (state == 0) {
-                    bg.setColors(new int[]{Color.parseColor("#450A0A"), Color.parseColor("#B91C1C")});
-                    bg.setStroke(3, Color.parseColor("#F87171"));
-                    symbol = "🔥";
-                } else if (state == 1) {
-                    bg.setColors(new int[]{Color.parseColor("#7C2D12"), Color.parseColor("#C2410C")});
-                    bg.setStroke(3, Color.parseColor("#FB923C"));
-                    symbol = "💫";
-                } else {
-                    bg.setColors(new int[]{Color.parseColor("#78350F"), Color.parseColor("#D97706")});
-                    bg.setStroke(3, Color.parseColor("#FBBF24"));
-                    symbol = "✨";
-                }
+            case 4:
+                if (state == 0) { bg.setColors(new int[]{Color.parseColor("#450A0A"), Color.parseColor("#B91C1C")}); bg.setStroke(2, Color.parseColor("#F87171")); symbol = "🔥"; }
+                else if (state == 1) { bg.setColors(new int[]{Color.parseColor("#7C2D12"), Color.parseColor("#C2410C")}); bg.setStroke(2, Color.parseColor("#FB923C")); symbol = "💫"; }
+                else { bg.setColors(new int[]{Color.parseColor("#78350F"), Color.parseColor("#D97706")}); bg.setStroke(2, Color.parseColor("#FBBF24")); symbol = "✨"; }
                 break;
-            case 5: // Кристальная матрица (4 состояния)
-                if (state == 0) {
-                    bg.setColors(new int[]{Color.parseColor("#312E81"), Color.parseColor("#4338CA")});
-                    bg.setStroke(3, Color.parseColor("#818CF8"));
-                    symbol = "💎";
-                } else if (state == 1) {
-                    bg.setColors(new int[]{Color.parseColor("#831843"), Color.parseColor("#BE185D")});
-                    bg.setStroke(3, Color.parseColor("#F472B6"));
-                    symbol = "🔮";
-                } else if (state == 2) {
-                    bg.setColors(new int[]{Color.parseColor("#134E4A"), Color.parseColor("#0F766E")});
-                    bg.setStroke(3, Color.parseColor("#2DD4BF"));
-                    symbol = "🌀";
-                } else {
-                    bg.setColors(new int[]{Color.parseColor("#3F3F46"), Color.parseColor("#71717A")});
-                    bg.setStroke(3, Color.parseColor("#A1A1AA"));
-                    symbol = "⚛";
-                }
+            case 5:
+                if (state == 0) { bg.setColors(new int[]{Color.parseColor("#312E81"), Color.parseColor("#4338CA")}); bg.setStroke(2, Color.parseColor("#818CF8")); symbol = "💎"; }
+                else if (state == 1) { bg.setColors(new int[]{Color.parseColor("#831843"), Color.parseColor("#BE185D")}); bg.setStroke(2, Color.parseColor("#F472B6")); symbol = "🔮"; }
+                else if (state == 2) { bg.setColors(new int[]{Color.parseColor("#134E4A"), Color.parseColor("#0F766E")}); bg.setStroke(2, Color.parseColor("#2DD4BF")); symbol = "🌀"; }
+                else { bg.setColors(new int[]{Color.parseColor("#3F3F46"), Color.parseColor("#71717A")}); bg.setStroke(2, Color.parseColor("#A1A1AA")); symbol = "⚛"; }
                 break;
-            case 6: // Ультимативное ядро (4 состояния)
-                if (state == 0) {
-                    bg.setColors(new int[]{Color.parseColor("#581C87"), Color.parseColor("#7E22CE")});
-                    bg.setStroke(3, Color.parseColor("#D8B4FE"));
-                    symbol = "⭐";
-                } else if (state == 1) {
-                    bg.setColors(new int[]{Color.parseColor("#065F46"), Color.parseColor("#059669")});
-                    bg.setStroke(3, Color.parseColor("#A7F3D0"));
-                    symbol = "🌟";
-                } else if (state == 2) {
-                    bg.setColors(new int[]{Color.parseColor("#991B1B"), Color.parseColor("#DC2626")});
-                    bg.setStroke(3, Color.parseColor("#FCA5A5"));
-                    symbol = "💫";
-                } else {
-                    bg.setColors(new int[]{Color.parseColor("#1E3A8A"), Color.parseColor("#3B82F6")});
-                    bg.setStroke(3, Color.parseColor("#BFDBFE"));
-                    symbol = "✨";
-                }
+            case 6:
+                if (state == 0) { bg.setColors(new int[]{Color.parseColor("#581C87"), Color.parseColor("#7E22CE")}); bg.setStroke(2, Color.parseColor("#D8B4FE")); symbol = "⭐"; }
+                else if (state == 1) { bg.setColors(new int[]{Color.parseColor("#065F46"), Color.parseColor("#059669")}); bg.setStroke(2, Color.parseColor("#A7F3D0")); symbol = "🌟"; }
+                else if (state == 2) { bg.setColors(new int[]{Color.parseColor("#991B1B"), Color.parseColor("#DC2626")}); bg.setStroke(2, Color.parseColor("#FCA5A5")); symbol = "💫"; }
+                else { bg.setColors(new int[]{Color.parseColor("#1E3A8A"), Color.parseColor("#3B82F6")}); bg.setStroke(2, Color.parseColor("#BFDBFE")); symbol = "✨"; }
                 break;
         }
 
@@ -438,8 +463,19 @@ public class MainActivity extends Activity {
         return true;
     }
 
+    private void checkGameOverCondition() {
+        if (movesOnLevel >= maxAllowedMoves) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("💥 КРАХ КВАНТОВОГО ЯДРА!");
+            builder.setMessage("Лимит ходов исчерпан. Система дестабилизирована и взорвалась!\n\nПопробуйте сектор заново.");
+            builder.setCancelable(false);
+            builder.setPositiveButton("🔄 Возобновить игру", (dialog, which) -> loadLevel(currentLevel));
+            builder.show();
+        }
+    }
+
     private void calculateScoreAndAdvance() {
-        int levelBonus = Math.max(150 - (movesOnLevel * 5), 40) * currentLevel;
+        int levelBonus = Math.max(150 - (movesOnLevel * 4), 40) * currentLevel;
         totalScore += levelBonus;
         scoreTextView.setText("ОЧКИ: " + totalScore);
 
