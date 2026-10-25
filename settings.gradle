@@ -1,2 +1,2 @@
-rootProject.name = "ENTROPY: Quantum Shift"
+rootProject.name = "EntropyQuantum Shift"
 include ':app'
