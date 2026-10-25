@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.monsterkompiler.app'
+    namespace 'com.vzlom.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.monsterkompiler.app"
+        applicationId "com.vzlom.app"
         minSdk 21
         targetSdk 34
         versionCode 1
-        versionName "20"
+        versionName "1.1"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "Monster_Kompiler-v20-" + variant.name + ".apk"
+            outputFileName = "Vzlom-v1.1-" + variant.name + ".apk"
         }
     }
 }
