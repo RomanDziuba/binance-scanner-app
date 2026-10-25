@@ -162,10 +162,6 @@ public class MainActivity extends Activity {
         infoTextView.setLayoutParams(infoParams);
         card.addView(infoTextView);
 
-        // ==========================================
-        // ТОЧНЫЙ ПОРЯДОК КНОПОК ПО ЗАПРОСУ ПОЛЬЗОВАТЕЛЯ
-        // ==========================================
-
         // 1. Скомпилировать
         btnBuild = createStyledButton("", "#2563EB");
         btnBuild.setOnClickListener(v -> triggerGitHubBuild());
