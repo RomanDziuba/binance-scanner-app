@@ -162,15 +162,13 @@ public class MainActivity extends Activity {
         loadLevel(currentLevel);
     }
 
-    // 🕒 Метод запуска живых анимированных часов
     private void startClockAnimation() {
         clockRunnable = new Runnable() {
             @Override
             public void run() {
-                String currentTime = new SimpleDateFormat("⚡ QUANTUM TIME: HH : mm : ss ⚡", Locale.getDefault()).format(new Date());
-                clockTextView.setText(currentTime);
+                String timeOnly = new SimpleDateFormat("HH : mm : ss", Locale.getDefault()).format(new Date());
+                clockTextView.setText("⚡ TIME: " + timeOnly + " ⚡");
 
-                // Легкий эффект пульсации часов для сочной анимации
                 ObjectAnimator pulseX = ObjectAnimator.ofFloat(clockTextView, "scaleX", 1.0f, 1.02f, 1.0f);
                 ObjectAnimator pulseY = ObjectAnimator.ofFloat(clockTextView, "scaleY", 1.0f, 1.02f, 1.0f);
                 AnimatorSet set = new AnimatorSet();
