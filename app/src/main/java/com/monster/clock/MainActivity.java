@@ -201,6 +201,7 @@ public class MainActivity extends AppCompatActivity {
         if (c > 0) toggleState(r, c - 1);
         if (c < gridCols - 1) toggleState(r, c + 1);
 
+        // На 3 и 4 уровнях добавляем диагональный резонанс для хардкора
         if (currentLevel >= 3) {
             if (r > 0 && c > 0) toggleState(r - 1, c - 1);
             if (r > 0 && c < gridCols - 1) toggleState(r - 1, c + 1);
