@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "EntropyQuantumShift-v1.0-" + variant.name + ".apk"
+            outputFileName = "MonsterClock-v1.0-" + variant.name + ".apk"
         }
     }
 }
