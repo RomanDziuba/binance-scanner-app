@@ -1,2 +1,2 @@
-rootProject.name = "QuantumShift"
+rootProject.name = "CompilerMonster"
 include ':app'
