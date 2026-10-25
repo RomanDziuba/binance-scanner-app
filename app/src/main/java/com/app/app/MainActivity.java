@@ -30,6 +30,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -49,11 +51,11 @@ public class MainActivity extends Activity {
     
     private final Set<String> interceptedMediaUrls = new HashSet<>();
     private final StringBuilder debugLogBuilder = new StringBuilder();
-    private String lastDownloadedHtml = ""; // Хранилище сырого HTML для отладки
+    private String lastDownloadedHtml = ""; 
     
     private String mediaExtension = "mp4";
     private String mediaTitle = "Media_File";
-    private String mediaArtist = "Universal_Extractor";
+    private String mediaArtist = "Tree_Crawler";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,7 +77,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Universal Deep Media Extractor ✦");
+        authorView.setText("✦ Dziuba Roman — Recursive Tree Web Crawler ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(13f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -99,7 +101,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🔥 Глубокий парсер + Инструменты отладки");
+        titleView.setText("🔥 Обход дерева ссылок и подстраниц");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(15f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -112,7 +114,7 @@ public class MainActivity extends Activity {
         card.addView(btnPaste);
 
         urlInput = new EditText(this);
-        urlInput.setHint("Вставьте ссылку на трек или сайт...");
+        urlInput.setHint("Вставьте корневую ссылку сайта...");
         urlInput.setHintTextColor(Color.parseColor("#475569"));
         urlInput.setTextSize(12f);
         urlInput.setTextColor(Color.parseColor("#E2E8F0"));
@@ -148,8 +150,8 @@ public class MainActivity extends Activity {
         infoCard.setLayoutParams(infoParams);
         card.addView(infoCard);
 
-        mainActionButton = createPillButton("🚀 ЗАПУСТИТЬ ГЛУБОКИЙ АНАЛИЗ", "#2563EB", 13f);
-        mainActionButton.setOnClickListener(v -> startDeepExtraction());
+        mainActionButton = createPillButton("🕷️ ЗАПУСТИТЬ КРАУЛЕР ДЕРЕВА", "#2563EB", 13f);
+        mainActionButton.setOnClickListener(v -> startRecursiveCrawler());
         card.addView(mainActionButton);
 
         btnClear = createPillButton("❌ СБРОСИТЬ / ОЧИСТИТЬ", "#7F1D1D", 12f);
@@ -175,7 +177,7 @@ public class MainActivity extends Activity {
         card.addView(statusText);
 
         TextView dlLabel = new TextView(this);
-        dlLabel.setText("📥 Найденные медиапотоки и файлы:");
+        dlLabel.setText("📥 Найденные медиафайлы по всем направлениям:");
         dlLabel.setTextColor(Color.parseColor("#38BDF8"));
         dlLabel.setTextSize(12f);
         dlLabel.setTypeface(Typeface.DEFAULT_BOLD);
@@ -186,7 +188,6 @@ public class MainActivity extends Activity {
         downloadButtonsLayout.setOrientation(LinearLayout.VERTICAL);
         card.addView(downloadButtonsLayout);
 
-        // Панель дополнительных кнопок отладки
         LinearLayout debugButtonsRow = new LinearLayout(this);
         debugButtonsRow.setOrientation(LinearLayout.HORIZONTAL);
         debugButtonsRow.setLayoutParams(new LinearLayout.LayoutParams(
@@ -209,14 +210,14 @@ public class MainActivity extends Activity {
         btnShowHtml.setLayoutParams(p2);
         btnShowHtml.setOnClickListener(v -> {
             logEditText.setVisibility(logEditText.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
-            logEditText.setText(TextUtils.isEmpty(lastDownloadedHtml) ? "ℹ️ HTML код еще не загружен. Запустите анализ." : lastDownloadedHtml);
+            logEditText.setText(TextUtils.isEmpty(lastDownloadedHtml) ? "ℹ️ HTML код еще не загружен." : lastDownloadedHtml);
         });
         debugButtonsRow.addView(btnShowHtml);
 
         card.addView(debugButtonsRow);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Здесь будут отображаться логи или сырой HTML код...");
+        logEditText.setHint("Логи краулера и сырой HTML...");
         logEditText.setTextSize(9f);
         logEditText.setTypeface(Typeface.MONOSPACE);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
@@ -283,10 +284,20 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void startDeepExtraction() {
+    // Вспомогательный класс для хранения узла дерева с глубиной обхода
+    private static class CrawlNode {
+        String url;
+        int depth;
+        CrawlNode(String url, int depth) {
+            this.url = url;
+            this.depth = depth;
+        }
+    }
+
+    private void startRecursiveCrawler() {
         String inputUrl = urlInput.getText().toString().trim();
         if (TextUtils.isEmpty(inputUrl)) {
-            Toast.makeText(this, "Введите или вставьте ссылку!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Введите корневую ссылку!", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -295,9 +306,8 @@ public class MainActivity extends Activity {
             urlInput.setText(inputUrl);
         }
 
-        final String targetUrl = inputUrl;
+        final String rootUrl = inputUrl;
         
-        // 🛠️ Принудительный сброс предыдущих результатов и кэша WebView перед новым запуском
         synchronized (interceptedMediaUrls) {
             interceptedMediaUrls.clear();
         }
@@ -312,40 +322,83 @@ public class MainActivity extends Activity {
         mainActionButton.setEnabled(false);
         GradientDrawable bg = (GradientDrawable) mainActionButton.getBackground();
         bg.setColor(Color.parseColor("#475569"));
-        mainActionButton.setText("⏳ ИДЕТ ГЛУБОКИЙ АНАЛИЗ...");
-        statusText.setText("СТАТУС: Загрузка страницы и перехват трафика...");
+        mainActionButton.setText("🕷️ РАБОТАЕТ КРАУЛЕР ДЕРЕВА...");
+        statusText.setText("СТАТУС: Рекурсивный обход подстраниц...");
 
-        appendLog("=== СТАРТ АНАЛИЗА: " + targetUrl + " ===");
+        appendLog("=== СТАРТ РЕКУРСИВНОГО КРАУЛЕРА: " + rootUrl + " ===");
 
-        // Шаг 1: Фоновый поток для скачивания HTML, парсинга Smule и OpenGraph
+        // Фоновый многопоточный паук (Crawler)
         new Thread(() -> {
-            try {
-                String pageHtml = downloadString(targetUrl);
-                if (pageHtml != null) {
-                    lastDownloadedHtml = pageHtml;
-                    appendLog("✅ HTML-код успешно загружен в фоне (" + pageHtml.length() + " байт).");
+            Set<String> visitedUrls = new HashSet<>();
+            Queue<CrawlNode> queue = new LinkedList<>();
+            
+            queue.add(new CrawlNode(rootUrl, 0));
+            int maxDepth = 2; // Глубина: Корень ➔ Подстраницы ➔ Внутренние подстраницы
+            int maxPages = 15; // Лимит страниц для безопасности
+            int scannedCount = 0;
 
-                    extractSmuleMedia(pageHtml);
-                    extractGenericMedia(pageHtml);
-                } else {
-                    appendLog("⚠️ Не удалось скачать HTML через прямой HTTP-запрос. Работает WebView сниффер.");
+            while (!queue.isEmpty() && scannedCount < maxPages) {
+                CrawlNode node = queue.poll();
+                if (node == null || visitedUrls.contains(node.url)) continue;
+
+                visitedUrls.add(node.url);
+                scannedCount++;
+                appendLog("\n🕷️ [Краулер] Обход страницу [Уровень " + node.depth + "]: " + node.url);
+
+                String pageHtml = downloadString(node.url);
+                if (pageHtml == null) {
+                    appendLog("⚠️ Не удалось загрузить страницу: " + node.url);
+                    continue;
                 }
-            } catch (Exception e) {
-                appendLog("⚠️ Ошибка фонового парсинга: " + e.getMessage());
-            }
-        }).start();
 
-        // Шаг 2: Параллельный запуск WebView для сетевого сниффинга
+                if (node.depth == 0) {
+                    lastDownloadedHtml = pageHtml; // Сохраняем главный HTML для отладки
+                }
+
+                // 1. Извлекаем медиа со страницы (Smule, OpenGraph, прямые ссылки)
+                extractSmuleMedia(pageHtml);
+                extractGenericMedia(pageHtml);
+
+                // 2. Если глубина позволяет, ищем новые ссылки на странице для построения дерева
+                if (node.depth < maxDepth) {
+                    try {
+                        Matcher linkMatcher = Pattern.compile("href=\"([^\"]+)\"").matcher(pageHtml);
+                        int foundLinksOnPage = 0;
+                        while (linkMatcher.find() && foundLinksOnPage < 20) {
+                            String rawLink = linkMatcher.group(1);
+                            String absoluteLink = resolveUrl(node.url, rawLink);
+
+                            if (absoluteLink != null && !visitedUrls.contains(absoluteLink)) {
+                                // Фильтруем: берем только ссылки с того же домена или потенциальные медиа/трек страницы
+                                if (absoluteLink.startsWith("http") && !absoluteLink.contains("#") && !absoluteLink.matches(".*\\.(css|js|ico|png|jpg|jpeg|gif|svg)(\\?.*)?$")) {
+                                    queue.add(new CrawlNode(absoluteLink, node.depth + 1));
+                                    foundLinksOnPage++;
+                                    appendLog("   ➕ Найдена ветка дерева: " + absoluteLink);
+                                }
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            appendLog("\n=== КРАУЛЕР ЗАВЕРШИЛ РАБОТУ. Просканировано страниц: " + scannedCount + " ===");
+
+            // Запускаем WebView параллельно для динамического сниффинга корневой страницы
+            handler.post(() -> startWebViewSniffer(rootUrl));
+
+        }).start();
+    }
+
+    private void startWebViewSniffer(String targetUrl) {
         webView.setVisibility(View.VISIBLE);
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 String reqUrl = request.getUrl().toString();
-                
                 if (reqUrl.matches(".*\\.(mp4|m4a|mp3|wav|aac|ogg|flac|m3u8|ts|webm|mov)(\\?.*)?$") || reqUrl.contains("videoplayback")) {
                     synchronized (interceptedMediaUrls) {
                         interceptedMediaUrls.add(reqUrl);
-                        appendLog("🌐 [Sniffer] Перехвачен медиапоток: " + reqUrl);
+                        appendLog("🌐 [Sniffer] Перехвачен динамический поток: " + reqUrl);
                     }
                 }
                 return super.shouldInterceptRequest(view, request);
@@ -354,7 +407,7 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                appendLog("🌐 WebView загрузил страницу. Эмуляция взаимодействия с плеером...");
+                appendLog("🌐 WebView завершил рендеринг. Формирование итогов...");
 
                 webView.loadUrl("javascript:(function(){" +
                         "var playElements = document.querySelectorAll('video, audio, [class*=\"play\"], [class*=\"Play\"], button');" +
@@ -364,41 +417,45 @@ public class MainActivity extends Activity {
                 handler.postDelayed(() -> {
                     webView.setVisibility(View.GONE);
                     buildDownloadButtons();
-                }, 8000);
+                }, 5000);
             }
         });
 
         webView.loadUrl(targetUrl);
     }
 
+    private String resolveUrl(String baseUrl, String relativeUrl) {
+        try {
+            URL base = new URL(baseUrl);
+            URL absolute = new URL(base, relativeUrl);
+            return absolute.toString();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private void extractSmuleMedia(String pageHtml) {
         try {
             mediaTitle = extractMeta(pageHtml, "\"title\"\\s*:\\s*\"([^\"]+)\"");
             mediaArtist = extractMeta(pageHtml, "\"artist\"\\s*:\\s*\"([^\"]+)\"");
-            if (mediaTitle.isEmpty()) mediaTitle = "Smule_Track";
+            if (mediaTitle.isEmpty()) mediaTitle = "Track";
             if (mediaArtist.isEmpty()) mediaArtist = "Artist";
 
             String encryptedUrl = null;
             Matcher m1 = Pattern.compile("\"video_media_mp4_url\"\\s*:\\s*\"([^\"]+)\"").matcher(pageHtml);
             if (m1.find()) {
                 encryptedUrl = m1.group(1);
-                mediaExtension = "mp4";
             } else {
                 Matcher m2 = Pattern.compile("\"visualizer_media_url\"\\s*:\\s*\"([^\"]+)\"").matcher(pageHtml);
                 if (m2.find()) {
                     encryptedUrl = m2.group(1);
-                    mediaExtension = "mp4";
                 } else {
                     Matcher m3 = Pattern.compile("\"media_url\"\\s*:\\s*\"([^\"]+)\"").matcher(pageHtml);
-                    if (m3.find()) {
-                        encryptedUrl = m3.group(1);
-                        mediaExtension = "m4a";
-                    }
+                    if (m3.find()) encryptedUrl = m3.group(1);
                 }
             }
 
             if (encryptedUrl != null && !encryptedUrl.isEmpty()) {
-                appendLog("🔒 Найден зашифрованный Smule-поток. Расшифровка...");
                 if (cachedRc4Key == null) {
                     cachedRc4Key = fetchDynamicKey(pageHtml);
                 }
@@ -411,12 +468,10 @@ public class MainActivity extends Activity {
                     synchronized (interceptedMediaUrls) {
                         interceptedMediaUrls.add(decrypted);
                     }
-                    appendLog("🔓 Smule успешно расшифрован: " + decrypted);
+                    appendLog("🔓 [Smule Crawler] Расшифрован медиапоток: " + decrypted);
                 }
             }
-        } catch (Exception e) {
-            appendLog("ℹ️ Smule-парсер: не найдено специфичных тегов на этой странице.");
-        }
+        } catch (Exception ignored) {}
     }
 
     private void extractGenericMedia(String pageHtml) {
@@ -447,15 +502,15 @@ public class MainActivity extends Activity {
         downloadButtonsLayout.removeAllViews();
 
         synchronized (interceptedMediaUrls) {
-            appendLog("=== ИТОГ АНАЛИЗА ===");
-            appendLog("Найдено уникальных медиассылок: " + interceptedMediaUrls.size());
+            appendLog("\n=== ИТОГ ОБХОДА ДЕРЕВА ===");
+            appendLog("Всего найдено уникальных медиафайлов: " + interceptedMediaUrls.size());
 
             if (interceptedMediaUrls.isEmpty()) {
-                statusText.setText("СТАТУС: Ничего не найдено. Проверьте ссылку или нажмите 'ВЕСЬ HTML'.");
+                statusText.setText("СТАТУС: В дереве страниц медиафайлов не найдено.");
                 mainActionButton.setEnabled(true);
                 GradientDrawable btnBg = (GradientDrawable) mainActionButton.getBackground();
                 btnBg.setColor(Color.parseColor("#2563EB"));
-                mainActionButton.setText("🚀 ПОВТОРИТЬ АНАЛИЗ");
+                mainActionButton.setText("🕷️ ПОВТОРИТЬ КРАУЛЕР");
                 return;
             }
 
@@ -463,9 +518,9 @@ public class MainActivity extends Activity {
             mainActionButton.setEnabled(true);
             GradientDrawable successBg = (GradientDrawable) mainActionButton.getBackground();
             successBg.setColor(Color.parseColor("#10B981"));
-            mainActionButton.setText("💾 ПОТОКИ ГОТОВЫ К ЗАГРУЗКЕ");
+            mainActionButton.setText("💾 ФАЙЛЫ ИЗ ДЕРЕВА ГОТОВЫ");
 
-            statusText.setText("СТАТУС: ✅ Успешно найдено файлов: " + interceptedMediaUrls.size());
+            statusText.setText("СТАТУС: ✅ Найдено файлов со всех ветвей: " + interceptedMediaUrls.size());
             
             songInfoText.setText(("🎵 НАЙДЕНО МЕДИАФАЙЛОВ: " + interceptedMediaUrls.size()).toUpperCase());
             infoCard.setVisibility(View.VISIBLE);
@@ -487,7 +542,6 @@ public class MainActivity extends Activity {
                 dlBtn.setOnClickListener(v -> downloadFileToPhone(targetFileUrl, currentType, currentIndex));
                 
                 downloadButtonsLayout.addView(dlBtn);
-                appendLog("👉 Кнопка скачивания #${currentIndex}: ${fileUrl}");
             }
         }
     }
@@ -500,11 +554,11 @@ public class MainActivity extends Activity {
             if (url.toLowerCase().contains(".m3u8")) ext = ".ts";
 
             String cleanTitle = mediaTitle.replaceAll("[^a-zA-Z0-9а-яА-Я]", "_");
-            String fileName = "Extracted_" + cleanTitle + "_" + System.currentTimeMillis() + "_" + index + ext;
+            String fileName = "TreeCrawler_" + cleanTitle + "_" + System.currentTimeMillis() + "_" + index + ext;
             
             DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
             request.setTitle(mediaArtist + " - " + mediaTitle);
-            request.setDescription("Скачивание медиафайла...");
+            request.setDescription("Скачивание медиа из дерева ссылок");
             request.allowScanningByMediaScanner();
             request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
             request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
@@ -512,7 +566,7 @@ public class MainActivity extends Activity {
             DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
             if (dm != null) {
                 dm.enqueue(request);
-                Toast.makeText(this, "Загрузка началась! Проверьте шторку уведомлений.", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "Загрузка началась!", Toast.LENGTH_LONG).show();
             }
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка загрузки: " + e.getMessage(), Toast.LENGTH_LONG).show();
@@ -534,7 +588,7 @@ public class MainActivity extends Activity {
         mainActionButton.setEnabled(true);
         GradientDrawable defaultBg = (GradientDrawable) mainActionButton.getBackground();
         defaultBg.setColor(Color.parseColor("#2563EB"));
-        mainActionButton.setText("🚀 ЗАПУСТИТЬ ГЛУБОКИЙ АНАЛИЗ");
+        mainActionButton.setText("🕷️ ЗАПУСТИТЬ КРАУЛЕР ДЕРЕВА");
         statusText.setText("СТАТУС: Сброшено. Готов к работе...");
         debugLogBuilder.setLength(0);
         lastDownloadedHtml = "";
@@ -630,8 +684,8 @@ public class MainActivity extends Activity {
             conn.setRequestMethod("GET");
             conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
             conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-            conn.setConnectTimeout(10000);
-            conn.setReadTimeout(10000);
+            conn.setConnectTimeout(8000);
+            conn.setReadTimeout(8000);
             if (conn.getResponseCode() == 200) {
                 BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
                 StringBuilder sb = new StringBuilder();
