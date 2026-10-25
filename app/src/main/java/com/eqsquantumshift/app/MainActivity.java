@@ -1,27 +1,30 @@
 package com.eqsquantumshift.app;
 
-import android.app.Activity;
-import android.os.Bundle;
-import android.widget.*;
-import android.graphics.*;
-import android.view.*;
-
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
+import android.app.Activity;
+import android.app.AlertDialog;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
+import android.view.animation.OvershootInterpolator;
+import android.widget.Button;
 import android.widget.GridLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.Random;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity {
 
     private int currentLevel = 1;
     private int totalScore = 0;
@@ -29,65 +32,118 @@ public class MainActivity extends AppCompatActivity {
     
     private int gridCols = 3;
     private int gridRows = 3;
-    private int maxStates = 2; // Уровень 1: 2 состояния, дальше — 3
+    private int maxStates = 2;
 
     private TextView[][] cellViews;
     private int[][] states;
     
-    private TextView levelTextView, scoreTextView, movesTextView, titleTextView, logoView;
+    private TextView levelTextView, scoreTextView, movesTextView, titleTextView, logoView, clockTextView;
+    private Button btnExit;
     private GridLayout gridLayout;
+    
+    private Handler clockHandler = new Handler(Looper.getMainLooper());
+    private Runnable clockRunnable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Главный контейнер (темная киберпанк-тема)
+        // Главный контейнер (Космический черный фон)
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
-        rootLayout.setBackgroundColor(Color.parseColor("#060913"));
-        rootLayout.setPadding(32, 32, 32, 32);
+        rootLayout.setBackgroundColor(Color.parseColor("#040711"));
+        rootLayout.setPadding(20, 20, 20, 20);
 
-        // --- ШАПКА ПРИЛОЖЕНИЯ С ЛОГОТИПОМ DRV_2026 ---
+        // --- ШАПКА ПРИЛОЖЕНИЯ (Заголовок, DRV_2026 и Кнопка ВЫХОД) ---
         LinearLayout headerLayout = new LinearLayout(this);
         headerLayout.setOrientation(LinearLayout.HORIZONTAL);
         headerLayout.setGravity(Gravity.CENTER_VERTICAL);
+        headerLayout.setPadding(0, 4, 0, 10);
         headerLayout.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         titleTextView = new TextView(this);
-        titleTextView.setText("EQS: QUANTUM SHIFT");
+        titleTextView.setText("ENTROPY\nQUANTUM SHIFT");
         titleTextView.setTextColor(Color.parseColor("#38BDF8"));
-        titleTextView.setTextSize(18);
-        titleTextView.setTypeface(null, android.graphics.Typeface.BOLD);
+        titleTextView.setTextSize(15);
+        titleTextView.setTypeface(Typeface.DEFAULT_BOLD);
+        titleTextView.setLineSpacing(0f, 0.9f);
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         titleTextView.setLayoutParams(titleParams);
 
-        // Аккуратный фирменный логотип DRV_2026
         logoView = new TextView(this);
         logoView.setText("DRV_2026");
-        logoView.setTextColor(Color.parseColor("#64748B"));
-        logoView.setTextSize(12);
-        logoView.setTypeface(null, android.graphics.Typeface.BOLD);
-        logoView.setPadding(12, 6, 12, 6);
+        logoView.setTextColor(Color.parseColor("#A855F7"));
+        logoView.setTextSize(11);
+        logoView.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        logoView.setPadding(10, 4, 10, 4);
         GradientDrawable logoBg = new GradientDrawable();
-        logoBg.setColor(Color.parseColor("#1E293B"));
-        logoBg.setCornerRadius(12f);
+        logoBg.setColor(Color.parseColor("#1E1035"));
+        logoBg.setCornerRadius(10f);
+        logoBg.setStroke(2, Color.parseColor("#7E22CE"));
         logoView.setBackground(logoBg);
+
+        btnExit = new Button(this);
+        btnExit.setText("❌ ВЫХОД");
+        btnExit.setTextColor(Color.parseColor("#F43F5E"));
+        btnExit.setTextSize(11);
+        btnExit.setTypeface(Typeface.DEFAULT_BOLD);
+        btnExit.setPadding(14, 4, 14, 4);
+        
+        GradientDrawable exitBg = new GradientDrawable();
+        exitBg.setColor(Color.parseColor("#270F19"));
+        exitBg.setCornerRadius(12f);
+        exitBg.setStroke(2, Color.parseColor("#E11D48"));
+        btnExit.setBackground(exitBg);
+        
+        LinearLayout.LayoutParams exitParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        exitParams.setMargins(10, 0, 0, 0);
+        btnExit.setLayoutParams(exitParams);
+
+        btnExit.setOnClickListener(v -> finishAndRemoveTask());
 
         headerLayout.addView(titleTextView);
         headerLayout.addView(logoView);
+        headerLayout.addView(btnExit);
         rootLayout.addView(headerLayout);
 
-        // --- ИНФОРМАЦИОННАЯ ПАНЕЛЬ (Уровень, Счёт, Ходы) ---
+        // --- 🕒 СТИЛЬНЫЕ АНИМИРОВАННЫЕ КВАНТОВЫЕ ЧАСЫ (CHRONOMETER) ---
+        clockTextView = new TextView(this);
+        clockTextView.setTextColor(Color.parseColor("#34D399"));
+        clockTextView.setTextSize(15);
+        clockTextView.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        clockTextView.setGravity(Gravity.CENTER);
+        clockTextView.setPadding(12, 10, 12, 10);
+
+        GradientDrawable clockBg = new GradientDrawable();
+        clockBg.setColor(Color.parseColor("#022C22"));
+        clockBg.setCornerRadius(14f);
+        clockBg.setStroke(2, Color.parseColor("#059669"));
+        clockTextView.setBackground(clockBg);
+
+        LinearLayout.LayoutParams clockParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        clockParams.setMargins(0, 0, 0, 12);
+        clockTextView.setLayoutParams(clockParams);
+        rootLayout.addView(clockTextView);
+
+        startClockAnimation();
+
+        // --- ИНФОРМАЦИОННАЯ ПАНЕЛЬ (Уровень, Очки, Ходы) ---
         LinearLayout statsLayout = new LinearLayout(this);
         statsLayout.setOrientation(LinearLayout.HORIZONTAL);
-        statsLayout.setPadding(0, 24, 0, 24);
-        statsLayout.setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        statsLayout.setPadding(10, 12, 10, 12);
+        
+        GradientDrawable statsBg = new GradientDrawable();
+        statsBg.setColor(Color.parseColor("#0B1120"));
+        statsBg.setCornerRadius(16f);
+        statsBg.setStroke(2, Color.parseColor("#1E293B"));
+        statsLayout.setBackground(statsBg);
 
-        levelTextView = createStatText("Уровень: 1/4");
-        scoreTextView = createStatText("Очки: 0");
-        movesTextView = createStatText("Ходы: 0");
+        levelTextView = createStatText("УР: 1/4", "#38BDF8");
+        scoreTextView = createStatText("ОЧКИ: 0", "#F59E0B");
+        movesTextView = createStatText("ХОДЫ: 0", "#10B981");
 
         statsLayout.addView(levelTextView);
         statsLayout.addView(scoreTextView);
@@ -98,20 +154,50 @@ public class MainActivity extends AppCompatActivity {
         gridLayout = new GridLayout(this);
         LinearLayout.LayoutParams gridParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
+        gridParams.setMargins(0, 16, 0, 0);
         gridLayout.setLayoutParams(gridParams);
         rootLayout.addView(gridLayout);
 
         setContentView(rootLayout);
-
-        // Запуск первого уровня
         loadLevel(currentLevel);
     }
 
-    private TextView createStatText(String text) {
+    // 🕒 Метод запуска живых анимированных часов
+    private void startClockAnimation() {
+        clockRunnable = new Runnable() {
+            @Override
+            public void run() {
+                String currentTime = new SimpleDateFormat("⚡ QUANTUM TIME: HH : mm : ss ⚡", Locale.getDefault()).format(new Date());
+                clockTextView.setText(currentTime);
+
+                // Легкий эффект пульсации часов для сочной анимации
+                ObjectAnimator pulseX = ObjectAnimator.ofFloat(clockTextView, "scaleX", 1.0f, 1.02f, 1.0f);
+                ObjectAnimator pulseY = ObjectAnimator.ofFloat(clockTextView, "scaleY", 1.0f, 1.02f, 1.0f);
+                AnimatorSet set = new AnimatorSet();
+                set.playTogether(pulseX, pulseY);
+                set.setDuration(600);
+                set.start();
+
+                clockHandler.postDelayed(this, 1000);
+            }
+        };
+        clockHandler.post(clockRunnable);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (clockHandler != null && clockRunnable != null) {
+            clockHandler.removeCallbacks(clockRunnable);
+        }
+    }
+
+    private TextView createStatText(String text, String colorHex) {
         TextView tv = new TextView(this);
         tv.setText(text);
-        tv.setTextColor(Color.parseColor("#94A3B8"));
-        tv.setTextSize(14);
+        tv.setTextColor(Color.parseColor(colorHex));
+        tv.setTextSize(12);
+        tv.setTypeface(Typeface.DEFAULT_BOLD);
         tv.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         tv.setLayoutParams(params);
@@ -121,7 +207,6 @@ public class MainActivity extends AppCompatActivity {
     private void loadLevel(int level) {
         movesOnLevel = 0;
         
-        // Настройка параметров в зависимости от уровня
         switch (level) {
             case 1:
                 gridCols = 3; gridRows = 3; maxStates = 2; break;
@@ -133,8 +218,8 @@ public class MainActivity extends AppCompatActivity {
                 gridCols = 5; gridRows = 5; maxStates = 3; break;
         }
 
-        levelTextView.setText("Уровень: " + level + "/4");
-        movesTextView.setText("Ходы: 0");
+        levelTextView.setText("УР: " + level + "/4");
+        movesTextView.setText("ХОДЫ: 0");
 
         cellViews = new TextView[gridRows][gridCols];
         states = new int[gridRows][gridCols];
@@ -151,7 +236,7 @@ public class MainActivity extends AppCompatActivity {
                     states[i][j] = random.nextInt(maxStates);
                 }
             }
-        } while (checkVictoryCondition()); // Убеждаемся, что уровень не стартует решенным
+        } while (checkVictoryCondition());
     }
 
     private void buildGridUI() {
@@ -159,8 +244,8 @@ public class MainActivity extends AppCompatActivity {
         gridLayout.setRowCount(gridRows);
         gridLayout.setColumnCount(gridCols);
 
-        int screenWidth = getResources().getDisplayMetrics().widthPixels - 64;
-        int cellSize = screenWidth / gridCols - 16;
+        int screenWidth = getResources().getDisplayMetrics().widthPixels - 60;
+        int cellSize = screenWidth / gridCols - 10;
 
         for (int i = 0; i < gridRows; i++) {
             for (int j = 0; j < gridCols; j++) {
@@ -171,18 +256,18 @@ public class MainActivity extends AppCompatActivity {
                 GridLayout.LayoutParams params = new GridLayout.LayoutParams();
                 params.width = cellSize;
                 params.height = cellSize;
-                params.setMargins(8, 8, 8, 8);
+                params.setMargins(5, 5, 5, 5);
                 cell.setLayoutParams(params);
                 cell.setGravity(Gravity.CENTER);
-                cell.setTextSize(16);
-                cell.setTypeface(null, android.graphics.Typeface.BOLD);
+                cell.setTextSize(22);
+                cell.setTypeface(Typeface.DEFAULT_BOLD);
 
                 updateCellStyle(cell, states[i][j]);
 
                 cell.setOnClickListener(v -> {
                     triggerQuantumWave(row, col);
                     movesOnLevel++;
-                    movesTextView.setText("Ходы: " + movesOnLevel);
+                    movesTextView.setText("ХОДЫ: " + movesOnLevel);
 
                     if (checkVictoryCondition()) {
                         calculateScoreAndAdvance();
@@ -195,7 +280,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // Квантовая волна: на уровнях 3 и 4 задействует также диагональные связи для хардокрности
     private void triggerQuantumWave(int r, int c) {
         toggleState(r, c);
         if (r > 0) toggleState(r - 1, c);
@@ -203,7 +287,6 @@ public class MainActivity extends AppCompatActivity {
         if (c > 0) toggleState(r, c - 1);
         if (c < gridCols - 1) toggleState(r, c + 1);
 
-        // Усложнение на высоких уровнях (диагональный резонанс)
         if (currentLevel >= 3) {
             if (r > 0 && c > 0) toggleState(r - 1, c - 1);
             if (r > 0 && c < gridCols - 1) toggleState(r - 1, c + 1);
@@ -214,39 +297,44 @@ public class MainActivity extends AppCompatActivity {
 
     private void toggleState(int r, int c) {
         states[r][c] = (states[r][c] + 1) % maxStates;
-        animateCell(cellViews[r][c], states[r][c]);
+        animateCellFancy(cellViews[r][c], states[r][c]);
     }
 
-    private void animateCell(TextView cell, int newState) {
-        ValueAnimator anim = ValueAnimator.ofFloat(1f, 1.12f, 1f);
-        anim.setDuration(200);
-        anim.addUpdateListener(animation -> {
-            float scale = (float) animation.getAnimatedValue();
-            cell.setScaleX(scale);
-            cell.setScaleY(scale);
-        });
-        anim.start();
+    private void animateCellFancy(TextView cell, int newState) {
+        ObjectAnimator scaleX = ObjectAnimator.ofFloat(cell, "scaleX", 0.7f, 1.15f, 1.0f);
+        ObjectAnimator scaleY = ObjectAnimator.ofFloat(cell, "scaleY", 0.7f, 1.15f, 1.0f);
+        ObjectAnimator rotation = ObjectAnimator.ofFloat(cell, "rotation", 0f, 45f, 0f);
+
+        AnimatorSet animatorSet = new AnimatorSet();
+        animatorSet.playTogether(scaleX, scaleY, rotation);
+        animatorSet.setDuration(280);
+        animatorSet.setInterpolator(new OvershootInterpolator());
+        animatorSet.start();
+
         updateCellStyle(cell, newState);
     }
 
     private void updateCellStyle(TextView cell, int state) {
         GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadius(16f);
+        bg.setCornerRadius(18f);
 
         if (state == 0) {
-            bg.setColor(Color.parseColor("#0F172A"));
-            bg.setStroke(2, Color.parseColor("#334155"));
-            cell.setTextColor(Color.parseColor("#64748B"));
-            cell.setText("0");
+            bg.setOrientation(GradientDrawable.Orientation.TL_BR);
+            bg.setColors(new int[]{Color.parseColor("#0F172A"), Color.parseColor("#0284C7")});
+            bg.setStroke(3, Color.parseColor("#38BDF8"));
+            cell.setTextColor(Color.parseColor("#E0F2FE"));
+            cell.setText("⚛");
         } else if (state == 1) {
-            bg.setColor(Color.parseColor("#1E1B4B"));
-            bg.setStroke(2, Color.parseColor("#6366F1"));
-            cell.setTextColor(Color.parseColor("#818CF8"));
-            cell.setText("1");
+            bg.setOrientation(GradientDrawable.Orientation.TL_BR);
+            bg.setColors(new int[]{Color.parseColor("#2E1065"), Color.parseColor("#7E22CE")});
+            bg.setStroke(3, Color.parseColor("#C084FC"));
+            cell.setTextColor(Color.parseColor("#F3E8FF"));
+            cell.setText("🌀");
         } else {
-            bg.setColor(Color.parseColor("#064E3B"));
-            bg.setStroke(2, Color.parseColor("#10B981"));
-            cell.setTextColor(Color.parseColor("#34D399"));
+            bg.setOrientation(GradientDrawable.Orientation.TL_BR);
+            bg.setColors(new int[]{Color.parseColor("#064E3B"), Color.parseColor("#059669")});
+            bg.setStroke(3, Color.parseColor("#34D399"));
+            cell.setTextColor(Color.parseColor("#ECFDF5"));
             cell.setText("⚡");
         }
         cell.setBackground(bg);
@@ -263,30 +351,30 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void calculateScoreAndAdvance() {
-        // Формула очков: чем меньше ходов потрачено, тем выше бонус
-        int levelBonus = Math.max(100 - (movesOnLevel * 5), 20) * currentLevel;
+        int levelBonus = Math.max(120 - (movesOnLevel * 6), 30) * currentLevel;
         totalScore += levelBonus;
-        scoreTextView.setText("Очки: " + totalScore);
+        scoreTextView.setText("ОЧКИ: " + totalScore);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setCancelable(false);
 
         if (currentLevel < 4) {
             builder.setTitle("⚡ СЕКТОР СТАБИЛИЗИРОВАН!");
-            builder.setMessage("Уровень " + currentLevel + " пройден за " + movesOnLevel + " ходов.\nНабрано очков: +" + levelBonus + "\n\nГотов к переходу на следующий уровень сложности?");
-            builder.setPositiveButton("Следующий сектор", (dialog, which) -> {
+            builder.setMessage("Сектор " + currentLevel + " пройден за " + movesOnLevel + " ходов.\nНабрано очков: +" + levelBonus + "\n\nПерейти к следующей матрице?");
+            builder.setPositiveButton("Дальше 🚀", (dialog, which) -> {
                 currentLevel++;
                 loadLevel(currentLevel);
             });
         } else {
-            builder.setTitle("🏆 ЯДРО ПОЛНОСТЬЮ СКОМПИЛИРОВАНО!");
-            builder.setMessage("Невероятно! Все 4 уровня пройдены.\nИтоговый счет: " + totalScore + " очков.\n\nВердикт системы: Интеллект напарника подтвержден на 100%. Но кофе за этот шедевр всё равно с него! 😉☕");
-            builder.setPositiveButton("Пройти заново", (dialog, which) -> {
+            builder.setTitle("🏆 КВАНТОВОЕ ЯДРО СКОМПИЛИРОВАНО!");
+            builder.setMessage("Потрясающе! Все 4 сектора стабилизированы.\nИтоговый результат: " + totalScore + " очков.\n\nВердикт: Мозг напарника выдержал перегрузку! ☕ С него кофе за успешную пусконаладку!");
+            builder.setPositiveButton("Заново 🔄", (dialog, which) -> {
                 currentLevel = 1;
                 totalScore = 0;
-                scoreTextView.setText("Очки: 0");
+                scoreTextView.setText("ОЧКИ: 0");
                 loadLevel(currentLevel);
             });
+            builder.setNegativeButton("Выход ❌", (dialog, which) -> finishAndRemoveTask());
         }
         builder.show();
     }
