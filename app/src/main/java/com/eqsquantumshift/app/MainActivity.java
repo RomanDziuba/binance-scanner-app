@@ -1,7 +1,5 @@
 package com.eqsquantumshift.app;
 
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.animation.ArgbEvaluator;
@@ -94,7 +92,6 @@ public class MainActivity extends Activity {
         hintBg.setCornerRadius(10f);
         btnHintSquare.setBackground(hintBg);
         
-        // Запуск бесконечного RGB-перелива цвета для подсказки
         rgbAnimator = ValueAnimator.ofObject(new ArgbEvaluator(), 
                 Color.parseColor("#3B82F6"), Color.parseColor("#EC4899"), 
                 Color.parseColor("#10B981"), Color.parseColor("#F59E0B"), Color.parseColor("#3B82F6"));
@@ -186,7 +183,7 @@ public class MainActivity extends Activity {
 
         // --- КРАТКАЯ ИНСТРУКЦИЯ ВНИЗУ ---
         instructionView = new TextView(this);
-        instructionView.setText("📖 Цель: сделать ВСЕ клетки одинаковыми.\n💡 RGB-кнопка = точный шаг (-2 хода). Превысишь ходы — взрыв якра!");
+        instructionView.setText("📖 Цель: сделать ВСЕ клетки одинаковыми.\n💡 RGB-кнопка = точный шаг (-2 хода). Превысишь ходы — взрыв ядра!");
         instructionView.setTextColor(Color.parseColor("#64748B"));
         instructionView.setTextSize(10);
         instructionView.setGravity(Gravity.CENTER);
@@ -232,18 +229,16 @@ public class MainActivity extends Activity {
         return tv;
     }
 
-    // 💡 ЛОГИЧЕСКАЯ ПОДСКАЗКА: находит идеальный ход и штрафует на 2 хода
+    // 💡 ЛОГИЧЕСКАЯ ПОДСКАЗКА
     private void useSmartHint() {
         movesOnLevel += 2; // Штраф 2 хода за подсказку
         updateMovesDisplay();
 
-        // Проверяем лимит ходов после подсказки
         if (movesOnLevel > maxAllowedMoves) {
             triggerExplosionGameOver();
             return;
         }
 
-        // Ищем клетку, нажатие на которую максимально выравнивает соседние состояния
         int bestR = 0, bestC = 0;
         int minMismatch = 999;
 
@@ -258,8 +253,7 @@ public class MainActivity extends Activity {
             }
         }
 
-        // Подсвечиваем или автоматически делаем умный ход
-        Toast.STRINGS: Toast.makeText(this, "🤓 Подсказка Профессора: жми на [" + (bestR + 1) + ", " + (bestC + 1) + "] (-2 хода)", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "🤓 Подсказка: жми на [" + (bestR + 1) + ", " + (bestC + 1) + "] (-2 хода)", Toast.LENGTH_LONG).show();
         triggerQuantumWave(bestR, bestC);
         
         if (checkVictoryCondition()) {
@@ -268,13 +262,11 @@ public class MainActivity extends Activity {
     }
 
     private int countMismatchesAfterSimulatedClick(int r, int c) {
-        // Симулируем клик и считаем разнобой
         int[][] tempStates = new int[gridRows][gridCols];
         for(int i=0; i<gridRows; i++) {
             System.arraycopy(states[i], 0, tempStates[i], 0, gridCols);
         }
         
-        // Применяем волну симуляции
         simulateWave(tempStates, r, c);
 
         int target = tempStates[0][0];
@@ -313,7 +305,6 @@ public class MainActivity extends Activity {
             case 6: gridCols = 6; gridRows = 6; maxStates = 4; break;
         }
 
-        // Автоматический расчет лимита ходов с запасом в 2 раза
         maxAllowedMoves = (gridCols * gridRows * maxStates) + (level * 4);
 
         levelTextView.setText("УР: " + level + "/6");
@@ -364,7 +355,7 @@ public class MainActivity extends Activity {
                 cell.setTextSize(24);
 
                 updateCellStyle(cell, states[i][j], currentLevel);
-                startLivingCellAnimation(cell); // Анимация «живых» элементов внутри ячеек
+                startLivingCellAnimation(cell);
 
                 cell.setOnClickListener(v -> {
                     triggerQuantumWave(row, col);
@@ -387,7 +378,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // 🔥 Живая непрерывная анимация значков внутри ячеек
     private void startLivingCellAnimation(View cell) {
         ObjectAnimator pulseX = ObjectAnimator.ofFloat(cell, "scaleX", 1.0f, 1.08f, 1.0f);
         ObjectAnimator pulseY = ObjectAnimator.ofFloat(cell, "scaleY", 1.0f, 1.08f, 1.0f);
@@ -552,7 +542,6 @@ public class MainActivity extends Activity {
         return true;
     }
 
-    // 💥 ВЗРЫВ ПРИ ПРЕВЫШЕНИИ ЛИМИТА ХОДОВ
     private void triggerExplosionGameOver() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setCancelable(false);
