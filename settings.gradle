@@ -1,2 +1,2 @@
-rootProject.name = "Java_apk"
+rootProject.name = "JavaApk"
 include ':app'
