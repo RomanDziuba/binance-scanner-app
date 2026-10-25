@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.monstercompiler.app'
+    namespace 'com.entropyquantumshift.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.monstercompiler.app"
+        applicationId "com.entropyquantumshift.app"
         minSdk 21
         targetSdk 34
-        versionCode 13
+        versionCode 14
         versionName "1.0"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "RomaMonsterApp-v1.0-" + variant.name + ".apk"
+            outputFileName = "EntropyQuantumShift-v1.0-" + variant.name + ".apk"
         }
     }
 }
