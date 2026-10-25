@@ -9,7 +9,7 @@ android {
         applicationId "com.entropyquantumshift.app"
         minSdk 26
         targetSdk 34
-        versionCode 9
+        versionCode 10
         versionName "1.0"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "ENTROPY: Quantum Shift-v1.0-" + variant.name + ".apk"
+            outputFileName = "EntropyQuantum Shift-v1.0-" + variant.name + ".apk"
         }
     }
 }
