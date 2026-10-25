@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.vzlom.app'
+    namespace 'com.entropy.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.vzlom.app"
+        applicationId "com.entropy.app"
         minSdk 21
         targetSdk 34
-        versionCode 25
-        versionName "2.1"
+        versionCode 26
+        versionName "1.0"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "vzlom-v2.1-" + variant.name + ".apk"
+            outputFileName = "ENTROPY-v1.0-" + variant.name + ".apk"
         }
     }
 }
