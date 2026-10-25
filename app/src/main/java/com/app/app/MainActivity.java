@@ -118,9 +118,10 @@ public class MainActivity extends Activity {
         cardBg.setStroke(2, Color.parseColor("#1E293B"));
         card.setBackground(cardBg);
 
-        card.setLayoutParams(new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        ));
+        );
+        card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
         titleView.setText("🎙️ Центр восстановления архива и друзей");
@@ -136,7 +137,7 @@ public class MainActivity extends Activity {
         card.addView(btnPaste);
 
         urlInput = new EditText(this);
-        urlInput.setText("https://www.smule.com/sing-profile/nowfearless");
+        urlInput.setText("https://www.smule.com/nowfearless");
         urlInput.setHint("Ссылка на профиль Smule...");
         urlInput.setHintTextColor(Color.parseColor("#475569"));
         urlInput.setTextSize(12f);
@@ -254,7 +255,7 @@ public class MainActivity extends Activity {
         card.addView(debugButtonsRow);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Подробности процесса...");
+        logEditText.setHint("Логи...");
         logEditText.setTextSize(9f);
         logEditText.setTypeface(Typeface.MONOSPACE);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
@@ -268,6 +269,7 @@ public class MainActivity extends Activity {
         WebSettings ws = webView.getSettings();
         ws.setJavaScriptEnabled(true);
         ws.setDomStorageEnabled(true);
+        ws.setMediaPlaybackRequiresUserGesture(false);
         ws.setUserAgentString("Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
         
         container.addView(webView);
@@ -340,39 +342,31 @@ public class MainActivity extends Activity {
         debugLogBuilder.setLength(0);
         lastDownloadedHtml = "";
 
+        webView.clearCache(true);
+        webView.clearHistory();
+
         mainActionButton.setEnabled(false);
         GradientDrawable bg = (GradientDrawable) mainActionButton.getBackground();
         bg.setColor(Color.parseColor("#475569"));
-        mainActionButton.setText("⏳ ИЗВЛЕЧЕНИЕ АРХИВА...");
-        statusText.setText("СТАТУС: Загрузка профиля и прокрутка ленты...");
+        mainActionButton.setText("⏳ ИЗВЛЕЧЕНИЕ ЧЕРЕЗ WEBVIEW...");
+        statusText.setText("СТАТУС: Загрузка страницы в браузере и сниффинг...");
 
-        appendLog("=== СТАРТ СБОРА АРХИВА: " + targetUrl + " ===");
+        appendLog("=== СТАРТ СНИФФЕРА: " + targetUrl + " ===");
 
-        new Thread(() -> {
-            try {
-                String pageHtml = downloadString(targetUrl);
-                if (pageHtml != null) {
-                    lastDownloadedHtml = pageHtml;
-                    appendLog("✅ HTML профиля получен (" + pageHtml.length() + " байт).");
-                    parseFriendsAndDuets(pageHtml);
-                    extractSmuleMedia(pageHtml);
-                }
-            } catch (Exception e) {
-                appendLog("⚠️ Ошибка фона: " + e.getMessage());
-            }
-        }).start();
-
-        // Запуск WebView со скроллингом для имитации пользователя и подгрузки записей
+        // Запускаем мощный WebView сниффер, который перехватывает трафик «на лету»
         webView.setVisibility(View.VISIBLE);
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 String reqUrl = request.getUrl().toString();
-                if (reqUrl.contains("mp4") || reqUrl.contains("m4a") || reqUrl.contains("mp3") || reqUrl.contains("m3u8") || reqUrl.contains("videoplayback")) {
+                
+                // Перехватываем видео, аудио и потоки
+                if (reqUrl.contains("mp4") || reqUrl.contains("m4a") || reqUrl.contains("mp3") || reqUrl.contains("m3u8") || reqUrl.contains("ts") || reqUrl.contains("videoplayback")) {
                     synchronized (mediaItemsList) {
                         String fmt = reqUrl.contains("mp4") ? "mp4" : "m4a";
-                        mediaItemsList.add(new MediaItem(reqUrl, "Запись из ленты", profileHandle, fmt));
-                        appendLog("🌐 [Sniffer] Перехвачен файл: " + reqUrl);
+                        if (reqUrl.contains("mp3")) fmt = "mp3";
+                        mediaItemsList.add(new MediaItem(reqUrl, "Потоковая запись Smule", profileHandle, fmt));
+                        appendLog("🌐 [Sniffer] Пойман медиафайл: " + reqUrl);
                     }
                 }
                 return super.shouldInterceptRequest(view, request);
@@ -381,85 +375,23 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                appendLog("🌐 WebView прогрузился. Запуск автопрокрутки для загрузки всех треков...");
+                appendLog("🌐 WebView страница прогружена. Сбор данных...");
 
-                // Автоматически прокручиваем страницу вниз несколько раз, чтобы подгрузить все элементы
-                webView.loadUrl("javascript:(function() {" +
-                        "window.scrollTo(0, document.body.scrollHeight);" +
-                        "setTimeout(function(){ window.scrollTo(0, document.body.scrollHeight); }, 2000);" +
-                        "setTimeout(function(){ window.scrollTo(0, document.body.scrollHeight); }, 4000);" +
+                // Автоматически запускаем плееры для инициации загрузки потоков в сети
+                webView.loadUrl("javascript:(function(){" +
+                        "var vids = document.querySelectorAll('video, audio');" +
+                        "for(var i=0; i<vids.length; i++) { try { vids[i].play(); } catch(e){} }" +
                         "})();");
 
+                // Даем время на сбор данных и отрисовываем интерфейс
                 handler.postDelayed(() -> {
                     webView.setVisibility(View.GONE);
                     renderUI();
-                }, 8000);
+                }, 7000);
             }
         });
 
         webView.loadUrl(targetUrl);
-    }
-
-    private void parseFriendsAndDuets(String html) {
-        try {
-            Matcher m = Pattern.compile("\"performers\"\\s*:\\s*\\[([^\\]]+)\\]").matcher(html);
-            while (m.find()) {
-                String group = m.group(1);
-                Matcher userM = Pattern.compile("\"handle\"\\s*:\\s*\"([^\"]+)\"").matcher(group);
-                while (userM.find()) {
-                    String friendHandle = userM.group(1);
-                    if (!friendHandle.equalsIgnoreCase(profileHandle)) {
-                        int count = friendsMap.containsKey(friendHandle) ? friendsMap.get(friendHandle) : 0;
-                        friendsMap.put(friendHandle, count + 1);
-                    }
-                }
-            }
-
-            Matcher performerNameMatcher = Pattern.compile("19_[A-Za-z0-9_]+|[A-Za-z0-9_]+_George_[0-9]+|[A-Za-z0-9_]+_86").matcher(html);
-            while (performerNameMatcher.find()) {
-                String friend = performerNameMatcher.group(0);
-                if (!friendsMap.containsKey(friend)) {
-                    friendsMap.put(friend, 1);
-                }
-            }
-            appendLog("👥 Найдено упоминаний соавторов: " + friendsMap.size());
-        } catch (Exception e) {
-            appendLog("ℹ️ Парсинг друзей: " + e.getMessage());
-        }
-    }
-
-    private void extractSmuleMedia(String pageHtml) {
-        try {
-            String title = extractMeta(pageHtml, "\"title\"\\s*:\\s*\"([^\"]+)\"");
-            String artist = extractMeta(pageHtml, "\"artist\"\\s*:\\s*\"([^\"]+)\"");
-            if (TextUtils.isEmpty(title)) title = "Дуэт / Выступление";
-
-            String encryptedUrl = null;
-            String ext = "mp4";
-            Matcher m1 = Pattern.compile("\"video_media_mp4_url\"\\s*:\\s*\"([^\"]+)\"").matcher(pageHtml);
-            if (m1.find()) {
-                encryptedUrl = m1.group(1);
-            } else {
-                Matcher m3 = Pattern.compile("\"media_url\"\\s*:\\s*\"([^\"]+)\"").matcher(pageHtml);
-                if (m3.find()) {
-                    encryptedUrl = m3.group(1);
-                    ext = "m4a";
-                }
-            }
-
-            if (encryptedUrl != null && !encryptedUrl.isEmpty()) {
-                if (cachedRc4Key == null) cachedRc4Key = fetchDynamicKey(pageHtml);
-                if (cachedRc4Key == null) cachedRc4Key = decodeBase64Custom("TT18WlV5TXVeLXFXYn1WTF5qSmR9TXYpOHklYlFXWGY+SUZCRGNKPiU0emcyQ2l8dGVsamBkVlpA");
-
-                String decrypted = rc4Decrypt(encryptedUrl, cachedRc4Key);
-                if (decrypted != null && decrypted.startsWith("http")) {
-                    synchronized (mediaItemsList) {
-                        mediaItemsList.add(new MediaItem(decrypted, title, artist, ext));
-                    }
-                    appendLog("🔓 Расшифрован трек: " + title);
-                }
-            }
-        } catch (Exception ignored) {}
     }
 
     private void renderUI() {
@@ -467,38 +399,16 @@ public class MainActivity extends Activity {
         mediaContainer.removeAllViews();
 
         profileHeaderTitle.setText("👤 ПРОФИЛЬ: @" + profileHandle.toUpperCase());
-        profileStatsText.setText("Соавторов: " + friendsMap.size() + " | Треков: " + mediaItemsList.size());
+        profileStatsText.setText("Найдено файлов/потоков: " + mediaItemsList.size());
         profileCard.setVisibility(View.VISIBLE);
-
-        if (friendsMap.isEmpty()) {
-            TextView noFriends = new TextView(this);
-            noFriends.setText("ℹ️ Прямые соавторы в текущей выдаче не обнаружены.");
-            noFriends.setTextColor(Color.parseColor("#94A3B8"));
-            noFriends.setTextSize(11f);
-            friendsContainer.addView(noFriends);
-        } else {
-            for (Map.Entry<String, Integer> entry : friendsMap.entrySet()) {
-                String friendName = entry.getKey();
-                int jointCount = entry.getValue();
-
-                Button friendBtn = createPillButton("🎤 @" + friendName + " (" + jointCount + " зап.)", "#334155", 11f);
-                friendBtn.setOnClickListener(v -> {
-                    String friendUrl = "https://www.smule.com/" + friendName;
-                    ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-                    clipboard.setPrimaryClip(ClipData.newPlainText("Friend Profile", friendUrl));
-                    Toast.makeText(this, "Ссылка @" + friendName + " скопирована!", Toast.LENGTH_SHORT).show();
-                });
-                friendsContainer.addView(friendBtn);
-            }
-        }
 
         synchronized (mediaItemsList) {
             if (mediaItemsList.isEmpty()) {
-                statusText.setText("СТАТУС: Потоки не пойманы. Проверьте 'ВЕСЬ HTML'.");
+                statusText.setText("СТАТУС: Потоки не пойманы. Прокрутите страницу в браузере.");
                 mainActionButton.setEnabled(true);
                 GradientDrawable btnBg = (GradientDrawable) mainActionButton.getBackground();
                 btnBg.setColor(Color.parseColor("#2563EB"));
-                mainActionButton.setText("🚀 ПОВТОРИТЬ ИЗВЛЕЧЕНИЕ");
+                mainActionButton.setText("🚀 ПОВТОРИТЬ");
                 return;
             }
 
@@ -508,30 +418,29 @@ public class MainActivity extends Activity {
                 final int currentIndex = index;
                 final MediaItem currentItem = item;
 
-                String btnLabel = "📥 [" + item.format.toUpperCase() + "] " + item.artist + " — " + item.title;
+                String btnLabel = "📥 [" + item.format.toUpperCase() + "] " + item.title + " #" + currentIndex;
                 Button dlBtn = createPillButton(btnLabel, currentIndex % 2 == 0 ? "#059669" : "#2563EB", 11f);
                 
                 dlBtn.setOnClickListener(v -> downloadMediaFile(currentItem, currentIndex));
                 mediaContainer.addView(dlBtn);
+                appendLog("👉 Кнопка создана для: " + item.url);
             }
 
             statusText.setText("СТАТУС: ✅ Успешно найдено файлов: " + mediaItemsList.size());
             mainActionButton.setEnabled(true);
             GradientDrawable btnBg = (GradientDrawable) mainActionButton.getBackground();
             btnBg.setColor(Color.parseColor("#10B981"));
-            mainActionButton.setText("💾 ДАННЫЕ ГОТОВЫ К ЗАГРУЗКЕ");
+            mainActionButton.setText("💾 ФАЙЛЫ ГОТОВЫ К СКАЧИВАНИЮ");
         }
     }
 
     private void downloadMediaFile(MediaItem item, int index) {
         try {
-            String cleanTitle = item.title.replaceAll("[^a-zA-Z0-9а-яА-Я]", "_");
-            String cleanArtist = item.artist.replaceAll("[^a-zA-Z0-9а-яА-Я]", "_");
-            String fileName = "Smule_" + cleanArtist + "_" + cleanTitle + "_" + System.currentTimeMillis() + "_" + index + "." + item.format;
+            String fileName = "SmuleArchive_" + System.currentTimeMillis() + "_" + index + "." + item.format;
             
             DownloadManager.Request request = new DownloadManager.Request(Uri.parse(item.url));
-            request.setTitle(item.artist + " - " + item.title);
-            request.setDescription("Скачивание архивного трека Smule");
+            request.setTitle("Smule Track #" + index);
+            request.setDescription("Скачивание медиа из архива...");
             request.allowScanningByMediaScanner();
             request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
             request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
@@ -558,7 +467,7 @@ public class MainActivity extends Activity {
         friendsContainer.removeAllViews();
         mediaContainer.removeAllViews();
         profileCard.setVisibility(View.GONE);
-        urlInput.setText("https://www.smule.com/sing-profile/nowfearless");
+        urlInput.setText("https://www.smule.com/nowfearless");
         mainActionButton.setEnabled(true);
         GradientDrawable defaultBg = (GradientDrawable) mainActionButton.getBackground();
         defaultBg.setColor(Color.parseColor("#2563EB"));
@@ -570,96 +479,5 @@ public class MainActivity extends Activity {
         logEditText.setVisibility(View.GONE);
 
         Toast.makeText(this, "Сброшено!", Toast.LENGTH_SHORT).show();
-    }
-
-    private String extractMeta(String html, String regex) {
-        try {
-            Matcher m = Pattern.compile(regex).matcher(html);
-            if (m.find()) return m.group(1);
-        } catch (Exception ignored) {}
-        return "";
-    }
-
-    private String fetchDynamicKey(String pageHtml) {
-        try {
-            Matcher coreMatcher = Pattern.compile("src=\"([^\"]*community_core-[a-f0-9]+\\.js)\"").matcher(pageHtml);
-            String coreUrl;
-            if (coreMatcher.find()) {
-                coreUrl = coreMatcher.group(1);
-                if (coreUrl.startsWith("//")) coreUrl = "https:" + coreUrl;
-            } else {
-                coreUrl = "https://w1-fa.cdn.smule.com/assets/community_core-f1e2b046e16d487330152631ceb1fdee.js";
-            }
-
-            String coreJsText = downloadString(coreUrl);
-            if (coreJsText == null) return null;
-
-            Matcher keyMatcher = Pattern.compile("var\\s+v\\s*=\\s*p\\(\"([^\"]+)\"\\)").matcher(coreJsText);
-            if (keyMatcher.find()) return decodeBase64Custom(keyMatcher.group(1));
-        } catch (Exception ignored) {}
-        return null;
-    }
-
-    private String decodeBase64Custom(String b64) {
-        try {
-            String fixed = b64.replace('-', '+').replace('_', '/');
-            byte[] decodedBytes = Base64.decode(fixed, Base64.DEFAULT);
-            return new String(decodedBytes, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            return b64;
-        }
-    }
-
-    private String rc4Decrypt(String encUrl, String key) {
-        if (encUrl == null || !encUrl.startsWith("e:")) return encUrl;
-        try {
-            String b64 = encUrl.substring(2);
-            byte[] cipherBytes = Base64.decode(b64, Base64.DEFAULT);
-            int[] iArray = new int[cipherBytes.length];
-            for (int k = 0; k < cipherBytes.length; k++) iArray[k] = cipherBytes[k] & 0xFF;
-
-            int[] r = new int[256];
-            for (int a = 0; a < 256; a++) r[a] = a;
-
-            int s = 0;
-            for (int a = 0; a < 256; a++) {
-                s = (s + r[a] + key.charAt(a % key.length())) % 256;
-                int temp = r[a]; r[a] = r[s]; r[s] = temp;
-            }
-
-            int a = 0; s = 0;
-            StringBuilder decrypted = new StringBuilder();
-            for (int l = 0; l < iArray.length; l++) {
-                a = (a + 1) % 256;
-                s = (s + r[a]) % 256;
-                int temp = r[a]; r[a] = r[s]; r[s] = temp;
-                int keyStreamByte = r[(r[a] + r[s]) % 256];
-                decrypted.append((char) (iArray[l] ^ keyStreamByte));
-            }
-
-            return decrypted.toString();
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private String downloadString(String targetUrl) {
-        try {
-            HttpURLConnection conn = (HttpURLConnection) new URL(targetUrl).openConnection();
-            conn.setRequestMethod("GET");
-            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
-            conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-            conn.setConnectTimeout(8000);
-            conn.setReadTimeout(8000);
-            if (conn.getResponseCode() == 200) {
-                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = br.readLine()) != null) sb.append(line).append("\n");
-                br.close();
-                return sb.toString();
-            }
-        } catch (Exception ignored) {}
-        return null;
     }
 }
