@@ -9,8 +9,8 @@ android {
         applicationId "com.eqsquantumshift.app"
         minSdk 21
         targetSdk 34
-        versionCode 23
-        versionName "3"
+        versionCode 24
+        versionName "4"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "EQSquantumShift-v3-" + variant.name + ".apk"
+            outputFileName = "EQSquantumShift-v4-" + variant.name + ".apk"
         }
     }
 }
