@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.monstercompiler.app'
+    namespace 'com.entropyquantumshift.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.monstercompiler.app"
+        applicationId "com.entropyquantumshift.app"
         minSdk 21
         targetSdk 34
-        versionCode 18
-        versionName "8.0"
+        versionCode 19
+        versionName "1"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "CompilerMonster-v8.0-" + variant.name + ".apk"
+            outputFileName = "ENTROPYquantum Shift-v1-" + variant.name + ".apk"
         }
     }
 }
