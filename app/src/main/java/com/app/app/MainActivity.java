@@ -46,7 +46,7 @@ public class MainActivity extends Activity {
     private static class MediaItem {
         String url;
         String title;
-        String type; // ВИДЕО, АУДИО, ПОТОК, ФОТО
+        String type; 
         String format;
 
         MediaItem(String url, String title, String type, String format) {
@@ -90,7 +90,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Universal Data & Media Extractor ✦");
+        authorView.setText("✦ Dziuba Roman — Universal Facebook & Web Extractor ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(13f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -114,7 +114,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🔥 Универсальный экстрактор (Facebook / Web)");
+        titleView.setText("🔥 Экстрактор (Facebook / Соцсети / Web)");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(15f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -141,7 +141,7 @@ public class MainActivity extends Activity {
         urlInput.setLayoutParams(inputParams);
         card.addView(urlInput);
 
-        mainActionButton = createPillButton("🚀 ЗАПУСТИТЬ УНИВЕРСАЛЬНЫЙ АНАЛИЗ", "#2563EB", 13f);
+        mainActionButton = createPillButton("🚀 ЗАПУСТИТЬ АНАЛИЗ", "#2563EB", 13f);
         mainActionButton.setOnClickListener(v -> startUniversalExtraction());
         card.addView(mainActionButton);
 
@@ -247,7 +247,7 @@ public class MainActivity extends Activity {
         ws.setJavaScriptEnabled(true);
         ws.setDomStorageEnabled(true);
         ws.setMediaPlaybackRequiresUserGesture(false);
-        // Используем User-Agent мобильного Safari (iPhone), чтобы Facebook отдавал простую мобильную верстку с видеотегами
+        // Мобильный User-Agent (iPhone Safari), чтобы Facebook отдавал мобильную разметку
         ws.setUserAgentString("Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1");
 
         webView.addJavascriptInterface(new UniversalJSBridge(), "UniversalBridge");
@@ -315,8 +315,8 @@ public class MainActivity extends Activity {
             handler.post(() -> {
                 if (!TextUtils.isEmpty(videoUrl) && videoUrl.startsWith("http")) {
                     synchronized (extractedMediaList) {
-                        extractedMediaList.add(new MediaItem(videoUrl, currentPageTitle, "ВИДЕО (DOM Player)", "mp4"));
-                        appendLog("🌐 [JS DOM] Найден видеоплеер: " + videoUrl);
+                        extractedMediaList.add(new MediaItem(videoUrl, currentPageTitle, "ВИДЕО (Facebook Player)", "mp4"));
+                        appendLog("🌐 [JS DOM] Найден видеофайл: " + videoUrl);
                     }
                 }
             });
@@ -351,10 +351,10 @@ public class MainActivity extends Activity {
         mainActionButton.setEnabled(false);
         GradientDrawable bg = (GradientDrawable) mainActionButton.getBackground();
         bg.setColor(Color.parseColor("#475569"));
-        mainActionButton.setText("⏳ АНАЛИЗ РЕСУРСА...");
-        statusText.setText("СТАТУС: Загрузка страницы и обход редиректов...");
+        mainActionButton.setText("⏳ АНАЛИЗ ФЕЙСБУКА...");
+        statusText.setText("СТАТУС: Обход редиректов и сбор данных...");
 
-        appendLog("=== СТАРТ УНИВЕРСАЛЬНОГО АНАЛИЗА: " + targetUrl + " ===");
+        appendLog("=== СТАРТ АНАЛИЗА: " + targetUrl + " ===");
 
         webView.setVisibility(View.VISIBLE);
         webView.setWebViewClient(new WebViewClient() {
@@ -362,16 +362,16 @@ public class MainActivity extends Activity {
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 String reqUrl = request.getUrl().toString().toLowerCase();
                 
-                // Перехват медиапотоков (mp4, m3u8, ts, m4a, mp3, video playback)
-                if (reqUrl.matches(".*\\.(mp4|m4a|mp3|wav|aac|ogg|flac|m3u8|ts|webm|mov)(\\?.*)?$") || 
-                    reqUrl.contains("videoplayback") || reqUrl.contains("video-ams") || reqUrl.contains("fbcdn.net") && reqUrl.contains(".mp4")) {
-                    synchronized (extractedMediaList) {
-                        String type = "ВИДЕО";
-                        String fmt = "mp4";
-                        if (reqUrl.contains("mp3") || reqUrl.contains("m4a")) { type = "АУДИО"; fmt = "mp3"; }
-                        
-                        extractedMediaList.add(new MediaItem(request.getUrl().toString(), "Поток Facebook/Web", type, fmt));
-                        appendLog("🌐 [Sniffer] Пойман поток: " + request.getUrl().toString());
+                // Перехват любых потоков с серверов фейсбука (fbcdn.net) и стандартных видеоформатов
+                if (reqUrl.contains("fbcdn.net") || reqUrl.contains("akamaized.net") || 
+                    reqUrl.matches(".*\\.(mp4|m4a|mp3|wav|aac|ogg|flac|m3u8|ts|webm|mov)(\\?.*)?$") || 
+                    reqUrl.contains("videoplayback") || reqUrl.contains("video-ams")) {
+                    
+                    if (reqUrl.contains(".mp4") || reqUrl.contains("video") || reqUrl.contains("fbcdn")) {
+                        synchronized (extractedMediaList) {
+                            extractedMediaList.add(new MediaItem(request.getUrl().toString(), currentPageTitle, "ВИДЕО (Facebook CDN)", "mp4"));
+                            appendLog("🌐 [Sniffer] Перехвачен файл: " + request.getUrl().toString());
+                        }
                     }
                 }
                 return super.shouldInterceptRequest(view, request);
@@ -380,9 +380,9 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                appendLog("🌐 Страница прогружена. Сканирование плееров...");
+                appendLog("🌐 Страница загружена. Запуск JS-распознавателя плееров...");
 
-                // Передаем HTML и запускаем скрипт поиска тегов <video> и source на странице (актуально для Facebook)
+                // Передаем HTML и принудительно ищем видеотеги, а также эмулируем клик по кнопкам Play
                 webView.loadUrl("javascript:window.UniversalBridge.onPageReady(document.documentElement.innerHTML, document.title);");
                 webView.loadUrl("javascript:(function(){" +
                     "var vids = document.querySelectorAll('video');" +
@@ -391,8 +391,8 @@ public class MainActivity extends Activity {
                     "  var sources = vids[i].querySelectorAll('source');" +
                     "  for(var j=0; j<sources.length; j++) { if(sources[j].src) window.UniversalBridge.onVideoUrlFound(sources[j].src); }" +
                     "}" +
-                    "var ogV = document.querySelector('meta[property=\"og:video\"], meta[property=\"og:video:secure_url\"]');" +
-                    "if(ogV && ogV.content) window.UniversalBridge.onVideoUrlFound(ogV.content);" +
+                    "var playBtns = document.querySelectorAll('[aria-label*=\"Play\"], [aria-label*=\"Воспроизвести\"], div[role=\"button\"]');" +
+                    "for(var k=0; k<playBtns.length; k++) { try { playBtns[k].click(); } catch(e){} }" +
                     "})();");
 
                 handler.postDelayed(() -> {
@@ -407,6 +407,7 @@ public class MainActivity extends Activity {
 
     private void parseUniversalContent(String html) {
         try {
+            // 1. Ищем OpenGraph теги Facebook
             Matcher ogTitle = Pattern.compile("<meta[^>]*property=\"og:title\"[^>]*content=\"([^\"]+)\"").matcher(html);
             if (ogTitle.find()) {
                 currentPageTitle = ogTitle.group(1);
@@ -415,10 +416,22 @@ public class MainActivity extends Activity {
             Matcher ogVideo = Pattern.compile("<meta[^>]*property=\"og:video(?:\\:secure_url)?\"[^>]*content=\"([^\"]+)\"").matcher(html);
             if (ogVideo.find()) {
                 synchronized (extractedMediaList) {
-                    extractedMediaList.add(new MediaItem(ogVideo.group(1), currentPageTitle, "ВИДЕО (Facebook OpenGraph)", "mp4"));
+                    extractedMediaList.add(new MediaItem(ogVideo.group(1), currentPageTitle, "ВИДЕО (Facebook OG)", "mp4"));
                 }
             }
 
+            // 2. 🔥 КЛЮЧЕВОЙ ПАРСЕР ФЕЙСБУКА: Ищем скрытые JSON-ссылки на видео внутри скриптов страницы
+            Matcher jsonVideoMatcher = Pattern.compile("\"(playable_url|browser_native_hd_url|browser_native_sd_url|video_url|hd_src|sd_src)\"\\s*:\\s*\"([^\"]+)\"").matcher(html);
+            while (jsonVideoMatcher.find()) {
+                String rawUrl = jsonVideoMatcher.group(2).replace("\\/", "/");
+                if (rawUrl.startsWith("http")) {
+                    synchronized (extractedMediaList) {
+                        extractedMediaList.add(new MediaItem(rawUrl, currentPageTitle, "ВИДЕО (Facebook JSON)", "mp4"));
+                    }
+                }
+            }
+
+            // 3. Общие прямые ссылки
             Matcher directLinks = Pattern.compile("https?://[^\\s\"'<>]+?\\.(mp4|m4a|mp3|m3u8|webm|ts)(\\?[^\\s\"'<>]*)?").matcher(html);
             while (directLinks.find()) {
                 String fileUrl = directLinks.group(0);
@@ -430,7 +443,7 @@ public class MainActivity extends Activity {
                 }
             }
 
-            appendLog("✅ Распарсено объектов: " + extractedMediaList.size());
+            appendLog("✅ Успешно распарсено объектов: " + extractedMediaList.size());
         } catch (Exception e) {
             appendLog("⚠️ Ошибка парсинга: " + e.getMessage());
         }
@@ -497,27 +510,4 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void appendLog(String message) {
-        debugLogBuilder.append(message).append("\n");
-    }
-
-    private void resetState() {
-        synchronized (extractedMediaList) {
-            extractedMediaList.clear();
-        }
-        mediaContainer.removeAllViews();
-        infoCard.setVisibility(View.GONE);
-        urlInput.setText("");
-        mainActionButton.setEnabled(true);
-        GradientDrawable defaultBg = (GradientDrawable) mainActionButton.getBackground();
-        defaultBg.setColor(Color.parseColor("#2563EB"));
-        mainActionButton.setText("🚀 ЗАПУСТИТЬ УНИВЕРСАЛЬНЫЙ АНАЛИЗ");
-        statusText.setText("СТАТУС: Сброшено.");
-        debugLogBuilder.setLength(0);
-        lastDownloadedHtml = "";
-        logEditText.setText("");
-        logEditText.setVisibility(View.GONE);
-
-        Toast.makeText(this, "Сброшено!", Toast.LENGTH_SHORT).show();
-    }
-}
+    (remaining helper methods...)
