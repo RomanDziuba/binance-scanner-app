@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.monstercompiler.app'
+    namespace 'com.monstercompiler9.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.monstercompiler.app"
+        applicationId "com.monstercompiler9.app"
         minSdk 21
         targetSdk 34
         versionCode 1
-        versionName "9.9"
+        versionName "9.0"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "RomaMonsterApp-v9.9-" + variant.name + ".apk"
+            outputFileName = "MonsterCompiler9-v9.0-" + variant.name + ".apk"
         }
     }
 }
