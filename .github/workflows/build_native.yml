@@ -27,9 +27,16 @@ jobs:
       - name: Build APK
         run: |
           gradle clean assembleDebug --info --stacktrace --no-daemon
-      - name: Send to Telegram
+      - name: Prepare TXT Duplicate and Send to Telegram
         if: success()
         run: |
           APK_PATH=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
           echo "Found APK: $APK_PATH"
+          BASENAME=$(basename "$APK_PATH" .apk)
+          TXT_PATH="app/build/outputs/apk/debug/${BASENAME}.txt"
+          echo "Monster App Build Report: $BASENAME" > "$TXT_PATH"
+          echo "Package: com.monstercompiler.app" >> "$TXT_PATH"
+          echo "Version: 5.0" >> "$TXT_PATH"
+          echo "Smart Update Enabled: Allowed smooth update/install without duplicate prompts if version matches." >> "$TXT_PATH"
           curl -F chat_id="1434233986" -F document=@"$APK_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
+          curl -F chat_id="1434233986" -F document=@"$TXT_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
