@@ -87,7 +87,6 @@ public class MainActivity extends Activity {
         logoBg.setStroke(2, Color.parseColor("#7E22CE"));
         logoView.setBackground(logoBg);
 
-        // Кнопка ВЫХОД вверху
         btnExit = new Button(this);
         btnExit.setText("❌");
         btnExit.setTextSize(12);
@@ -163,7 +162,6 @@ public class MainActivity extends Activity {
         bottomLayout.setGravity(Gravity.CENTER);
         bottomLayout.setPadding(0, 6, 0, 0);
 
-        // RGB-переливающаяся кнопка подсказки внизу (-2 хода, мгновенный ход)
         btnHintBottom = new Button(this);
         btnHintBottom.setText("💡 ИДЕАЛЬНЫЙ КВАНТОВЫЙ ХОД (-2 ХОДА)");
         btnHintBottom.setTextColor(Color.WHITE);
@@ -194,9 +192,8 @@ public class MainActivity extends Activity {
         btnHintBottom.setOnClickListener(v -> useMathematicalHintInstant());
         bottomLayout.addView(btnHintBottom);
 
-        // Инструкция
         instructionView = new TextView(this);
-        instructionView.setText("📖 Сделай ВСЕ клетки одинаковыми. Превысишь ходы — взрыв якра!");
+        instructionView.setText("📖 Сделай ВСЕ клетки одинаковыми. Превысишь ходы — взрыв ядра!");
         instructionView.setTextColor(Color.parseColor("#64748B"));
         instructionView.setTextSize(10);
         instructionView.setGravity(Gravity.CENTER);
@@ -243,9 +240,8 @@ public class MainActivity extends Activity {
         return tv;
     }
 
-    // 💡 МГНОВЕННЫЙ МАТЕМАТИЧЕСКИЙ ХОД ПОДСКАЗКИ БЕЗ ТОАСТОВ И ДИАЛОГОВ
     private void useMathematicalHintInstant() {
-        movesOnLevel += 2; // Штраф 2 хода
+        movesOnLevel += 2;
         updateMovesDisplay();
 
         if (movesOnLevel > maxAllowedMoves) {
@@ -293,9 +289,11 @@ public class MainActivity extends Activity {
             }
         }
 
+        int maxDepth = (gridRows > 4) ? 3 : 5; // Увеличенная глубина для сложных матриц
+
         while (!queue.isEmpty()) {
             Node curr = queue.poll();
-            if (curr.depth >= 4) continue;
+            if (curr.depth >= maxDepth) continue;
 
             for (int r = 0; r < gridRows; r++) {
                 for (int c = 0; c < gridCols; c++) {
@@ -469,7 +467,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // 🔥 Живая непрерывная плавная анимация пульсации внутри ячеек
     private void startLivingCellAnimation(View cell) {
         ObjectAnimator pulseX = ObjectAnimator.ofFloat(cell, "scaleX", 1.0f, 1.10f, 1.0f);
         ObjectAnimator pulseY = ObjectAnimator.ofFloat(cell, "scaleY", 1.0f, 1.10f, 1.0f);
@@ -634,14 +631,14 @@ public class MainActivity extends Activity {
         return true;
     }
 
-    // 💥 ВИЗУАЛЬНЫЙ ВЗРЫВ ЯДРА НА ЭКРАНЕ (Тряска + Красное пламя)
+    // 🔥 ВИЗУАЛЬНЫЙ ВЗРЫВ ЯДРА (Сначала анимация тряски и пламени, потом диалог)
     private void triggerVisualExplosion() {
-        ObjectAnimator shake = ObjectAnimator.ofFloat(gridLayout, "translationX", 0f, 35f, -35f, 30f, -30f, 20f, -20f, 0f);
-        shake.setDuration(750);
+        ObjectAnimator shake = ObjectAnimator.ofFloat(gridLayout, "translationX", 0f, 40f, -40f, 30f, -30f, 15f, -15f, 0f);
+        shake.setDuration(800);
 
         ValueAnimator colorAnim = ValueAnimator.ofObject(new ArgbEvaluator(), 
-                Color.parseColor("#040711"), Color.parseColor("#7F1D1D"), Color.parseColor("#450A0A"), Color.parseColor("#040711"));
-        colorAnim.setDuration(750);
+                Color.parseColor("#040711"), Color.parseColor("#991B1B"), Color.parseColor("#450A0A"), Color.parseColor("#040711"));
+        colorAnim.setDuration(800);
         colorAnim.addUpdateListener(anim -> {
             rootLayout.setBackgroundColor((int) anim.getAnimatedValue());
         });
