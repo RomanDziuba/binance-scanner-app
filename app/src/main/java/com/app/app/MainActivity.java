@@ -38,7 +38,7 @@ public class MainActivity extends Activity {
 
     private EditText urlInput, logEditText;
     private TextView statusText, songInfoText;
-    private Button mainActionButton, btnClear, btnPaste, btnToggleLogs;
+    private Button mainActionButton, btnClear, btnPaste, btnToggleLogs, btnShowHtml;
     private LinearLayout infoCard, downloadButtonsLayout;
     private WebView webView;
     private Handler handler = new Handler(Looper.getMainLooper());
@@ -49,6 +49,7 @@ public class MainActivity extends Activity {
     
     private final Set<String> interceptedMediaUrls = new HashSet<>();
     private final StringBuilder debugLogBuilder = new StringBuilder();
+    private String lastDownloadedHtml = ""; // Хранилище сырого HTML для отладки
     
     private String mediaExtension = "mp4";
     private String mediaTitle = "Media_File";
@@ -73,7 +74,6 @@ public class MainActivity extends Activity {
         container.setOrientation(LinearLayout.VERTICAL);
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
-        // Авторский заголовок
         TextView authorView = new TextView(this);
         authorView.setText("✦ Dziuba Roman — Universal Deep Media Extractor ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
@@ -99,7 +99,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🔥 Глубокий парсер (Smule, YouTube, Web)");
+        titleView.setText("🔥 Глубокий парсер + Инструменты отладки");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(15f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -107,12 +107,10 @@ public class MainActivity extends Activity {
         titleView.setPadding(0, 0, 0, 12);
         card.addView(titleView);
 
-        // Кнопка вставки из буфера
         btnPaste = createPillButton("📋 ВСТАВИТЬ ИЗ БУФЕРА", "#334155", 12f);
         btnPaste.setOnClickListener(v -> pasteFromClipboard());
         card.addView(btnPaste);
 
-        // Поле ввода ссылки
         urlInput = new EditText(this);
         urlInput.setHint("Вставьте ссылку на трек или сайт...");
         urlInput.setHintTextColor(Color.parseColor("#475569"));
@@ -150,12 +148,10 @@ public class MainActivity extends Activity {
         infoCard.setLayoutParams(infoParams);
         card.addView(infoCard);
 
-        // Главная кнопка действия
         mainActionButton = createPillButton("🚀 ЗАПУСТИТЬ ГЛУБОКИЙ АНАЛИЗ", "#2563EB", 13f);
         mainActionButton.setOnClickListener(v -> startDeepExtraction());
         card.addView(mainActionButton);
 
-        // Кнопка сброса
         btnClear = createPillButton("❌ СБРОСИТЬ / ОЧИСТИТЬ", "#7F1D1D", 12f);
         btnClear.setOnClickListener(v -> resetState());
         card.addView(btnClear);
@@ -178,7 +174,6 @@ public class MainActivity extends Activity {
         statusText.setLayoutParams(statusParams);
         card.addView(statusText);
 
-        // Контейнер для динамических кнопок скачивания всех найденных медиафайлов
         TextView dlLabel = new TextView(this);
         dlLabel.setText("📥 Найденные медиапотоки и файлы:");
         dlLabel.setTextColor(Color.parseColor("#38BDF8"));
@@ -191,19 +186,37 @@ public class MainActivity extends Activity {
         downloadButtonsLayout.setOrientation(LinearLayout.VERTICAL);
         card.addView(downloadButtonsLayout);
 
-        // Лог отладки (скрытый по умолчанию, с возможностью просмотра)
-        btnToggleLogs = createPillButton("📋 ПОКАЗАТЬ / СКРЫТЬ ЛОГИ", "#475569", 11f);
+        // Панель дополнительных кнопок отладки
+        LinearLayout debugButtonsRow = new LinearLayout(this);
+        debugButtonsRow.setOrientation(LinearLayout.HORIZONTAL);
+        debugButtonsRow.setLayoutParams(new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+
+        btnToggleLogs = createPillButton("📋 ВСЕ ЛОГИ", "#475569", 10f);
+        LinearLayout.LayoutParams p1 = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        p1.setMargins(2, 4, 2, 4);
+        btnToggleLogs.setLayoutParams(p1);
         btnToggleLogs.setOnClickListener(v -> {
-            if (logEditText.getVisibility() == View.VISIBLE) {
-                logEditText.setVisibility(View.GONE);
-            } else {
-                logEditText.setVisibility(View.VISIBLE);
-            }
+            logEditText.setVisibility(logEditText.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
+            logEditText.setText(debugLogBuilder.toString());
         });
-        card.addView(btnToggleLogs);
+        debugButtonsRow.addView(btnToggleLogs);
+
+        btnShowHtml = createPillButton("🌐 ВЕСЬ HTML", "#0D9488", 10f);
+        LinearLayout.LayoutParams p2 = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        p2.setMargins(2, 4, 2, 4);
+        btnShowHtml.setLayoutParams(p2);
+        btnShowHtml.setOnClickListener(v -> {
+            logEditText.setVisibility(logEditText.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
+            logEditText.setText(TextUtils.isEmpty(lastDownloadedHtml) ? "ℹ️ HTML код еще не загружен. Запустите анализ." : lastDownloadedHtml);
+        });
+        debugButtonsRow.addView(btnShowHtml);
+
+        card.addView(debugButtonsRow);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Технические логи отладки...");
+        logEditText.setHint("Здесь будут отображаться логи или сырой HTML код...");
         logEditText.setTextSize(9f);
         logEditText.setTypeface(Typeface.MONOSPACE);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
@@ -213,7 +226,6 @@ public class MainActivity extends Activity {
         logEditText.setVisibility(View.GONE);
         card.addView(logEditText);
 
-        // Скрытый мощный WebView для сниффинга сетевых запросов и выполнения JS
         webView = new WebView(this);
         webView.setVisibility(View.GONE);
         WebSettings ws = webView.getSettings();
@@ -284,45 +296,52 @@ public class MainActivity extends Activity {
         }
 
         final String targetUrl = inputUrl;
-        interceptedMediaUrls.clear();
+        
+        // 🛠️ Принудительный сброс предыдущих результатов и кэша WebView перед новым запуском
+        synchronized (interceptedMediaUrls) {
+            interceptedMediaUrls.clear();
+        }
         downloadButtonsLayout.removeAllViews();
         debugLogBuilder.setLength(0);
+        lastDownloadedHtml = "";
+
+        webView.clearCache(true);
+        webView.clearHistory();
 
         currentState = State.ANALYZING;
         mainActionButton.setEnabled(false);
         GradientDrawable bg = (GradientDrawable) mainActionButton.getBackground();
         bg.setColor(Color.parseColor("#475569"));
         mainActionButton.setText("⏳ ИДЕТ ГЛУБОКИЙ АНАЛИЗ...");
-        statusText.setText("СТАТУС: Сканирование исходного кода и перехват трафика...");
+        statusText.setText("СТАТУС: Загрузка страницы и перехват трафика...");
 
         appendLog("=== СТАРТ АНАЛИЗА: " + targetUrl + " ===");
 
-        // Шаг 1: Поток для глубокого парсинга (Smule, OpenGraph, JSON-структуры)
+        // Шаг 1: Фоновый поток для скачивания HTML, парсинга Smule и OpenGraph
         new Thread(() -> {
             try {
                 String pageHtml = downloadString(targetUrl);
                 if (pageHtml != null) {
-                    appendLog("✅ HTML-код страницы успешно загружен (" + pageHtml.length() + " байт).");
+                    lastDownloadedHtml = pageHtml;
+                    appendLog("✅ HTML-код успешно загружен в фоне (" + pageHtml.length() + " байт).");
 
-                    // Проверяем Smule-специфичные паттерны и дешифруем через RC4 если есть
                     extractSmuleMedia(pageHtml);
-
-                    // Проверяем универсальные теги (OpenGraph видео/аудио, прямые mp4/m3u8/mp3 в тексте)
                     extractGenericMedia(pageHtml);
+                } else {
+                    appendLog("⚠️ Не удалось скачать HTML через прямой HTTP-запрос. Работает WebView сниффер.");
                 }
             } catch (Exception e) {
                 appendLog("⚠️ Ошибка фонового парсинга: " + e.getMessage());
             }
         }).start();
 
-        // Шаг 2: Параллельно запускаем WebView для сниффинга динамических сетевых запросов (видео, аудио, стримы)
+        // Шаг 2: Параллельный запуск WebView для сетевого сниффинга
         webView.setVisibility(View.VISIBLE);
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 String reqUrl = request.getUrl().toString();
                 
-                // Перехватываем любые медиаформаты и потоки (включая m3u8, ts, mp4, m4a, mp3, webm, ogg)
                 if (reqUrl.matches(".*\\.(mp4|m4a|mp3|wav|aac|ogg|flac|m3u8|ts|webm|mov)(\\?.*)?$") || reqUrl.contains("videoplayback")) {
                     synchronized (interceptedMediaUrls) {
                         interceptedMediaUrls.add(reqUrl);
@@ -335,15 +354,13 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                appendLog("🌐 Страница отрендерена в WebView. Сбор динамических элементов...");
+                appendLog("🌐 WebView загрузил страницу. Эмуляция взаимодействия с плеером...");
 
-                // Автоматически эмулируем клик по плеерам/кнопкам воспроизведения для инициации загрузки потоков
                 webView.loadUrl("javascript:(function(){" +
                         "var playElements = document.querySelectorAll('video, audio, [class*=\"play\"], [class*=\"Play\"], button');" +
                         "for(var i=0; i<playElements.length; i++) { try { playElements[i].play(); playElements[i].click(); } catch(e){} }" +
                         "})();");
 
-                // Даем время на сбор всех асинхронных запросов и формируем результат
                 handler.postDelayed(() -> {
                     webView.setVisibility(View.GONE);
                     buildDownloadButtons();
@@ -398,13 +415,12 @@ public class MainActivity extends Activity {
                 }
             }
         } catch (Exception e) {
-            appendLog("ℹ️ Smule-парсер: не целевая страница или формат изменен.");
+            appendLog("ℹ️ Smule-парсер: не найдено специфичных тегов на этой странице.");
         }
     }
 
     private void extractGenericMedia(String pageHtml) {
         try {
-            // Поиск OpenGraph тегов видео/аудио
             Matcher ogVideo = Pattern.compile("<meta[^>]*property=\"og:video\"[^>]*content=\"([^\"]+)\"").matcher(pageHtml);
             if (ogVideo.find()) {
                 synchronized (interceptedMediaUrls) {
@@ -418,7 +434,6 @@ public class MainActivity extends Activity {
                 }
             }
 
-            // Поиск любых прямых ссылок на mp4/webm/m3u8 в исходном коде
             Matcher directLinks = Pattern.compile("https?://[^\\s\"']+\\.(mp4|m4a|mp3|m3u8|webm|ts)(\\?[^\\s\"']*)?").matcher(pageHtml);
             while (directLinks.find()) {
                 synchronized (interceptedMediaUrls) {
@@ -436,7 +451,7 @@ public class MainActivity extends Activity {
             appendLog("Найдено уникальных медиассылок: " + interceptedMediaUrls.size());
 
             if (interceptedMediaUrls.isEmpty()) {
-                statusText.setText("СТАТУС: Прямые файлы не найдены. Попробуйте воспроизвести видео на странице.");
+                statusText.setText("СТАТУС: Ничего не найдено. Проверьте ссылку или нажмите 'ВЕСЬ HTML'.");
                 mainActionButton.setEnabled(true);
                 GradientDrawable btnBg = (GradientDrawable) mainActionButton.getBackground();
                 btnBg.setColor(Color.parseColor("#2563EB"));
@@ -448,7 +463,7 @@ public class MainActivity extends Activity {
             mainActionButton.setEnabled(true);
             GradientDrawable successBg = (GradientDrawable) mainActionButton.getBackground();
             successBg.setColor(Color.parseColor("#10B981"));
-            mainActionButton.setText("💾 ВСЕ ПОТОКИ ГОТОВЫ");
+            mainActionButton.setText("💾 ПОТОКИ ГОТОВЫ К ЗАГРУЗКЕ");
 
             statusText.setText("СТАТУС: ✅ Успешно найдено файлов: " + interceptedMediaUrls.size());
             
@@ -474,8 +489,6 @@ public class MainActivity extends Activity {
                 downloadButtonsLayout.addView(dlBtn);
                 appendLog("👉 Кнопка скачивания #${currentIndex}: ${fileUrl}");
             }
-
-            logEditText.setText(debugLogBuilder.toString());
         }
     }
 
@@ -512,7 +525,9 @@ public class MainActivity extends Activity {
 
     private void resetState() {
         currentState = State.IDLE;
-        interceptedMediaUrls.clear();
+        synchronized (interceptedMediaUrls) {
+            interceptedMediaUrls.clear();
+        }
         downloadButtonsLayout.removeAllViews();
         urlInput.setText("");
         infoCard.setVisibility(View.GONE);
@@ -522,7 +537,9 @@ public class MainActivity extends Activity {
         mainActionButton.setText("🚀 ЗАПУСТИТЬ ГЛУБОКИЙ АНАЛИЗ");
         statusText.setText("СТАТУС: Сброшено. Готов к работе...");
         debugLogBuilder.setLength(0);
+        lastDownloadedHtml = "";
         logEditText.setText("");
+        logEditText.setVisibility(View.GONE);
 
         try {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
