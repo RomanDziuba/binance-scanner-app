@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.entropyquantumshift.app'
+    namespace 'com.monstercompiler.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.entropyquantumshift.app"
+        applicationId "com.monstercompiler.app"
         minSdk 21
         targetSdk 34
         versionCode 14
