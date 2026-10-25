@@ -49,13 +49,18 @@ public class MainActivity extends Activity {
     private String repoOwner = "RomanDziuba";
     private String repoName = "binance-scanner-app";
     
-    private String appTitle = "RomaMonsterApp";
+    private String appTitle = "EQS Quantum Shift";
     private String appVersion = "1.0";
     private int versionCode = 1;
-    private String packageName = "com.roma.monster";
-    private String currentJavaFileName = "😛";
+    private String packageName = "com.entropy.quantumshift.app";
+    private String currentJavaFileName = "EQS_QuantumShift.java";
     private boolean iconCustomized = true;
     private String targetUploadFolder = "";
+
+    // Буфер для копирования / вырезания файлов в файловом менеджере
+    private String clipboardFilePath = null;
+    private byte[] clipboardFileBytes = null;
+    private boolean clipboardIsCut = false;
 
     private int minSdk = 21;
     private int compileSdk = 34;
@@ -112,7 +117,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v5.0 ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v7.0 (Omnivorous) ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -162,59 +167,52 @@ public class MainActivity extends Activity {
         infoTextView.setLayoutParams(infoParams);
         card.addView(infoTextView);
 
-        // 1. Скомпилировать
+        // ==========================================
+        // КНОПКИ УПРАВЛЕНИЯ
+        // ==========================================
+
         btnBuild = createStyledButton("", "#2563EB");
         btnBuild.setOnClickListener(v -> triggerGitHubBuild());
         card.addView(btnBuild);
 
-        // 2. Версия
         btnVersion = createStyledButton("", "#334155");
         btnVersion.setOnClickListener(v -> showEditVersionDialog());
         card.addView(btnVersion);
 
-        // 3. Имя
         btnTitle = createStyledButton("", "#334155");
         btnTitle.setOnClickListener(v -> showEditTitleDialog());
         card.addView(btnTitle);
 
-        // 4. Иконка
         btnIcon = createStyledButton("", "#6D28D9");
         btnIcon.setOnClickListener(v -> openIconFilePicker());
         card.addView(btnIcon);
 
-        // 5. Редактор кода
         btnCodeEditor = createStyledButton("📝 Редактор кода", "#0A0F1D");
         btnCodeEditor.setOnClickListener(v -> openCodeEditorDialog());
         card.addView(btnCodeEditor);
 
-        // 6. Загрузи файл
         btnUploadJava = createStyledButton("", "#0D9488");
         btnUploadJava.setOnClickListener(v -> openJavaFilePicker());
         card.addView(btnUploadJava);
 
-        // Кнопка повтора отправки при сбое сети
         btnRetryUpload = createStyledButton("🔄 Повторить отправку файла на сервер", "#D97706");
         btnRetryUpload.setVisibility(View.GONE);
         btnRetryUpload.setOnClickListener(v -> retryLastUpload());
         card.addView(btnRetryUpload);
 
-        // 7. Декомпилировать
         btnDecompileApk = createStyledButton("📦 Декомпилировать файл/APK в код", "#475569");
         btnDecompileApk.setOnClickListener(v -> openUniversalFilePicker());
         card.addView(btnDecompileApk);
 
-        // 8. Сброс к часам
         btnResetClock = createStyledButton("🔄 Сбросить к часам (Monster Clock)", "#B45309");
         btnResetClock.setOnClickListener(v -> confirmResetProject());
         card.addView(btnResetClock);
 
-        // 9. Стоп (Экстренный стоп сборки)
         btnStopBuild = createStyledButton("🛑 Экстренный стоп сборки", "#DC2626");
         btnStopBuild.setOnClickListener(v -> emergencyStopBuild());
         card.addView(btnStopBuild);
 
-        // Дополнительные утилитарные кнопки панели
-        btnFileManager = createStyledButton("📁 Файловый менеджер репозитория", "#8B5CF6");
+        btnFileManager = createStyledButton("📁 Полноценный файловый менеджер репозитория", "#8B5CF6");
         btnFileManager.setOnClickListener(v -> openRepositoryFileManager());
         card.addView(btnFileManager);
 
@@ -269,7 +267,7 @@ public class MainActivity extends Activity {
         setContentView(rootLayout);
 
         updateAllButtonLabels();
-        logEditText.setText("=== 🚀 MONSTER COMPILER PRO ЗАПУЩЕН ===\n" +
+        logEditText.setText("=== 🚀 MONSTER COMPILER PRO (OMNIVOROUS) ЗАПУЩЕН ===\n" +
                             "• Текущее имя: " + appTitle + "\n" +
                             "• Пакет: " + packageName + "\n" +
                             "• Версия: " + appVersion + " (Code: " + versionCode + ")\n" +
@@ -397,13 +395,16 @@ public class MainActivity extends Activity {
         }).start();
     }
 
+    // ==========================================
+    // ПОЛНОЦЕННЫЙ ФАЙЛОВЫЙ МЕНЕДЖЕР РЕПОЗИТОРИЯ
+    // ==========================================
     private void openRepositoryFileManager() {
         if (githubToken.isEmpty()) {
             Toast.makeText(this, "⚠️ Введите GitHub Token в настройках!", Toast.LENGTH_LONG).show();
             showSettingsDialog();
             return;
         }
-        statusTextView.setText("Статус: 🔄 Загрузка структуры репозитория...");
+        statusTextView.setText("Статус: 🔄 Загрузка дерева репозитория...");
         new Thread(() -> {
             try {
                 String treeUrl = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/git/trees/main?recursive=1";
@@ -529,7 +530,7 @@ public class MainActivity extends Activity {
         listView.setAdapter(adapter);
         
         LinearLayout.LayoutParams listParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 550
+            LinearLayout.LayoutParams.MATCH_PARENT, 500
         );
         listView.setLayoutParams(listParams);
 
@@ -544,33 +545,150 @@ public class MainActivity extends Activity {
             } else if (isFolder) {
                 showDirectoryBrowser(selectedPath, allItems);
             } else {
-                showFileOptionsDialog(selectedPath);
+                showFileWithOptionsDialog(selectedPath);
             }
         });
 
         dialogLayout.addView(listView);
 
-        Button btnUploadHere = createStyledButton("➕ Загрузить файл в эту папку", "#0D9488");
+        // Панель действий внизу менеджера (Создать папку, Загрузить файл, Вставить)
+        LinearLayout actionsLayout = new LinearLayout(this);
+        actionsLayout.setOrientation(LinearLayout.HORIZONTAL);
+        actionsLayout.setGravity(Gravity.CENTER);
+        actionsLayout.setPadding(0, 8, 0, 0);
+
+        Button btnNewFolder = createStyledButton("➕ Папка", "#1E293B");
+        btnNewFolder.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        btnNewFolder.setOnClickListener(v -> promptCreateFolder(currentDir));
+        actionsLayout.addView(btnNewFolder);
+
+        Button btnUploadHere = createStyledButton("➕ Файл", "#0D9488");
+        btnUploadHere.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         btnUploadHere.setOnClickListener(v -> openFilePickerForFolder(currentDir));
-        dialogLayout.addView(btnUploadHere);
+        actionsLayout.addView(btnUploadHere);
+
+        if (clipboardFilePath != null) {
+            Button btnPaste = createStyledButton("📋 Вставить", "#2563EB");
+            btnPaste.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+            btnPaste.setOnClickListener(v -> executePaste(currentDir));
+            actionsLayout.addView(btnPaste);
+        }
+
+        dialogLayout.addView(actionsLayout);
 
         new AlertDialog.Builder(this)
-            .setTitle("📁 Менеджер репозитория")
+            .setTitle("📁 Диспетчер репозитория")
             .setView(dialogLayout)
             .setPositiveButton("Закрыть", null)
             .show();
     }
 
-    private void showFileOptionsDialog(String filePath) {
-        CharSequence[] options = {"📝 Редактировать", "🗑 Удалить"};
+    private void promptCreateFolder(String currentDir) {
+        final EditText input = new EditText(this);
+        input.setHint("Имя новой папки");
         new AlertDialog.Builder(this)
-            .setTitle("Файл: " + filePath)
-            .setItems(options, (dialog, which) -> {
-                if (which == 0) openFileEditorForPath(filePath);
-                else if (which == 1) confirmDeleteSingleFile(filePath);
+            .setTitle("Создать папку")
+            .setView(input)
+            .setPositiveButton("Создать", (dialog, which) -> {
+                String folderName = input.getText().toString().trim();
+                if (!folderName.isEmpty()) {
+                    String dummyPath = currentDir.isEmpty() ? folderName + "/.gitkeep" : currentDir + "/" + folderName + "/.gitkeep";
+                    statusTextView.setText("Статус: ⚙️ Создание папки...");
+                    new Thread(() -> {
+                        boolean success = pushFileToGitHub(dummyPath, "", "Create folder: " + folderName);
+                        handler.post(() -> {
+                            if (success) {
+                                Toast.makeText(this, "Папка создана!", Toast.LENGTH_SHORT).show();
+                                openRepositoryFileManager();
+                            } else {
+                                Toast.makeText(this, "Ошибка создания папки", Toast.LENGTH_SHORT).show();
+                            }
+                            statusTextView.setText("Статус: Готов к работе 🚀");
+                        });
+                    }).start();
+                }
             })
             .setNegativeButton("Отмена", null)
             .show();
+    }
+
+    private void showFileWithOptionsDialog(String filePath) {
+        CharSequence[] options = {"📝 Редактировать", "📋 Копировать", "✂️ Вырезать", "🗑 Удалить"};
+        new AlertDialog.Builder(this)
+            .setTitle("Файл: " + filePath)
+            .setItems(options, (dialog, which) -> {
+                if (which == 0) {
+                    openFileEditorForPath(filePath);
+                } else if (which == 1) {
+                    prepareCopyOrCut(filePath, false);
+                } else if (which == 2) {
+                    prepareCopyOrCut(filePath, true);
+                } else if (which == 3) {
+                    confirmDeleteSingleFile(filePath);
+                }
+            })
+            .setNegativeButton("Отмена", null)
+            .show();
+    }
+
+    private void prepareCopyOrCut(String filePath, boolean isCut) {
+        statusTextView.setText("Статус: 🔄 Загрузка файла для буфера...");
+        new Thread(() -> {
+            try {
+                String urlStr = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/contents/" + filePath;
+                HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("Authorization", "Bearer " + githubToken);
+                conn.setRequestProperty("Accept", "application/vnd.github+json");
+
+                if (conn.getResponseCode() == 200) {
+                    BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) sb.append(line);
+                    JSONObject json = new JSONObject(sb.toString());
+                    String contentB64 = json.getString("content").replaceAll("\\s", "");
+                    clipboardFileBytes = android.util.Base64.decode(contentB64, android.util.Base64.DEFAULT);
+                    clipboardFilePath = filePath;
+                    clipboardIsCut = isCut;
+
+                    handler.post(() -> {
+                        statusTextView.setText("Статус: Готов к работе 🚀");
+                        Toast.makeText(this, (isCut ? "Вырезано: " : "Скопировано: ") + filePath, Toast.LENGTH_SHORT).show();
+                        openRepositoryFileManager();
+                    });
+                }
+            } catch (Exception e) {
+                handler.post(() -> statusTextView.setText("Статус: ❌ Ошибка копирования файла"));
+            }
+        }).start();
+    }
+
+    private void executePaste(String targetDir) {
+        if (clipboardFilePath == null || clipboardFileBytes == null) return;
+        String fileName = new File(clipboardFilePath).getName();
+        String destPath = targetDir.isEmpty() ? fileName : targetDir + "/" + fileName;
+
+        statusTextView.setText("Статус: ⚙️ Вставка файла...");
+        new Thread(() -> {
+            boolean success = pushBytesToGitHub(destPath, clipboardFileBytes, "Paste file: " + destPath);
+            if (success && clipboardIsCut) {
+                deleteGitHubFile(clipboardFilePath, "Cut and move file");
+            }
+            handler.post(() -> {
+                if (success) {
+                    Toast.makeText(this, "Файл успешно вставлен!", Toast.LENGTH_SHORT).show();
+                    if (clipboardIsCut) {
+                        clipboardFilePath = null;
+                        clipboardFileBytes = null;
+                    }
+                    openRepositoryFileManager();
+                } else {
+                    Toast.makeText(this, "Ошибка вставки файла", Toast.LENGTH_SHORT).show();
+                }
+                statusTextView.setText("Статус: Готов к работе 🚀");
+            });
+        }).start();
     }
 
     private void openFileEditorForPath(String filePath) {
@@ -1799,7 +1917,7 @@ public class MainActivity extends Activity {
                "    <uses-permission android:name=\"com.android.vending.BILLING\" />\n" +
                "    <uses-permission android:name=\"android.permission.BODY_SENSORS\" />\n" +
                "    <uses-permission android:name=\"android.permission.BODY_SENSORS_BACKGROUND\" />\n" +
-               "    <application android:allowBackup=\"true\" android:icon=\"@mipmap/ic_launcher\" android:label=\"" + appTitle + "\" android:theme=\"@android:style/Theme.Material.Light.NoActionBar\">\n" +
+               "    <application android:allowBackup=\"true\" android:icon=\"@mipmap/ic_launcher\" android:label=\"" + appTitle + "\" android:theme=\"@style/Theme.AppCompat.Light.NoActionBar\">\n" +
                "        <activity android:name=\".MainActivity\" android:exported=\"true\">\n" +
                "            <intent-filter>\n" +
                "                <action android:name=\"android.intent.action.MAIN\" />\n" +
