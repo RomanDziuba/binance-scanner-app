@@ -158,11 +158,6 @@ public class MainActivity extends Activity {
         infoTextView.setLayoutParams(infoParams);
         card.addView(infoTextView);
 
-        // ==========================================
-        // РАСПОЛОЖЕНИЕ КНОПОК ПО ВАШЕМУ ПОРЯДКУ
-        // ==========================================
-
-        // 1. Скомпилировать
         btnBuild = createStyledButton("", "#2563EB");
         btnBuild.setOnClickListener(v -> triggerGitHubBuild());
         card.addView(btnBuild);
@@ -171,50 +166,50 @@ public class MainActivity extends Activity {
         btnStopBuild.setOnClickListener(v -> emergencyStopBuild());
         card.addView(btnStopBuild);
 
-        // 2. Версия
-        btnVersion = createStyledButton("", "#334155");
-        btnVersion.setOnClickListener(v -> showEditVersionDialog());
-        card.addView(btnVersion);
-
-        // 3. Имя
-        btnTitle = createStyledButton("", "#334155");
-        btnTitle.setOnClickListener(v -> showEditTitleDialog());
-        card.addView(btnTitle);
-
-        // 4. Иконка
-        btnIcon = createStyledButton("", "#6D28D9");
-        btnIcon.setOnClickListener(v -> openIconFilePicker());
-        card.addView(btnIcon);
-
-        // 5. Редактор кода
-        btnCodeEditor = createStyledButton("📝 Редактор кода", "#0A0F1D");
-        btnCodeEditor.setOnClickListener(v -> openCodeEditorDialog());
-        card.addView(btnCodeEditor);
-
-        // 6. Загрузи файл
-        btnUploadJava = createStyledButton("", "#0D9488");
-        btnUploadJava.setOnClickListener(v -> openJavaFilePicker());
-        card.addView(btnUploadJava);
-
-        btnAiFix = createStyledButton("🎓 Smart AI-Профессор: Экспертный анализ ошибок", "#7C3AED");
-        btnAiFix.setOnClickListener(v -> runAiCodeDoctor());
-        card.addView(btnAiFix);
-
-        // 7. Декомпилировать
-        btnDecompileApk = createStyledButton("📦 Декомпилировать файл/APK в код", "#475569");
-        btnDecompileApk.setOnClickListener(v -> openUniversalFilePicker());
-        card.addView(btnDecompileApk);
-
         btnFileManager = createStyledButton("📁 Файловый менеджер репозитория", "#8B5CF6");
         btnFileManager.setOnClickListener(v -> openRepositoryFileManager());
         card.addView(btnFileManager);
 
-        // 8. Сброс к часам
+        // Кнопка редактора кода (темно-синий/почти черный фон, без слова "с подсказками")
+        btnCodeEditor = createStyledButton("📝 Редактор кода", "#0A0F1D");
+        btnCodeEditor.setOnClickListener(v -> openCodeEditorDialog());
+        card.addView(btnCodeEditor);
+
+        btnUploadJava = createStyledButton("", "#0D9488");
+        btnUploadJava.setOnClickListener(v -> openJavaFilePicker());
+        card.addView(btnUploadJava);
+
+        // Улучшенная кнопка AI-Профессора
+        btnAiFix = createStyledButton("🎓 Smart AI-Профессор: Экспертный анализ ошибок", "#7C3AED");
+        btnAiFix.setOnClickListener(v -> runAiCodeDoctor());
+        card.addView(btnAiFix);
+
+        btnDecompileApk = createStyledButton("📦 Декомпилировать файл/APK в код", "#475569");
+        btnDecompileApk.setOnClickListener(v -> openUniversalFilePicker());
+        card.addView(btnDecompileApk);
+
+        // Часть 1 сброса: Сброс часов
         btnResetClock = createStyledButton("🔄 Сбросить к часам (Monster Clock)", "#B45309");
         btnResetClock.setOnClickListener(v -> confirmResetProject());
         card.addView(btnResetClock);
 
-        // Настройки внизу
+        // Часть 2 сброса: Полная очистка репозитория 
+        btnFullRepoClean = createStyledButton("🗑 Полная очистка репозитория 👈", "#991B1B");
+        btnFullRepoClean.setOnClickListener(v -> confirmFullRepositoryClean());
+        card.addView(btnFullRepoClean);
+
+        btnTitle = createStyledButton("", "#334155");
+        btnTitle.setOnClickListener(v -> showEditTitleDialog());
+        card.addView(btnTitle);
+
+        btnVersion = createStyledButton("", "#334155");
+        btnVersion.setOnClickListener(v -> showEditVersionDialog());
+        card.addView(btnVersion);
+
+        btnIcon = createStyledButton("", "#6D28D9");
+        btnIcon.setOnClickListener(v -> openIconFilePicker());
+        card.addView(btnIcon);
+
         btnSettings = createStyledButton("⚙️ Настройки GitHub, Telegram & SDK", "#1E293B");
         btnSettings.setOnClickListener(v -> showSettingsDialog());
         card.addView(btnSettings);
@@ -683,6 +678,7 @@ public class MainActivity extends Activity {
         startActivityForResult(Intent.createChooser(intent, "Выберите Java файл"), PICK_JAVA_REQUEST);
     }
 
+    // Улучшенный выбор файлов с явной поддержкой APK и архивов без скрытия системой
     private void openUniversalFilePicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
@@ -839,6 +835,9 @@ public class MainActivity extends Activity {
         }
     }
 
+    // ==========================================
+    // 🎓 SMART AI-ПРОФЕССОР: ГЛУБИННЫЙ АНАЛИЗАТОР ОШИБОК
+    // ==========================================
     private void runAiCodeDoctor() {
         if (lastErrorLog.isEmpty()) {
             Toast.makeText(this, "ℹ️ Нет ошибок для анализа. Сначала запустите сборку!", Toast.LENGTH_LONG).show();
@@ -856,6 +855,7 @@ public class MainActivity extends Activity {
 
                 report.append("🔬 Скан логов завершен. Обнаружены следующие аномалии:\n\n");
 
+                // 1. Недостающие импорты WebKit
                 if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("WebView") || lastErrorLog.contains("WebSettings") || lastErrorLog.contains("WebViewClient"))) {
                     report.append("• 🧬 Проблема: Отсутствуют импорты графического компонента WebView.\n");
                     if (!fixedCode.contains("import android.webkit.WebView;")) {
@@ -865,6 +865,7 @@ public class MainActivity extends Activity {
                     }
                 }
 
+                // 2. Отсутствие AppCompat / AndroidX
                 if (lastErrorLog.contains("AppCompatActivity") || lastErrorLog.contains("androidx.")) {
                     report.append("• 🧬 Проблема: Требуются библиотеки совместимости AndroidX.\n");
                     if (!fixedCode.contains("import androidx.appcompat.app.AppCompatActivity;")) {
@@ -874,6 +875,7 @@ public class MainActivity extends Activity {
                     }
                 }
 
+                // 3. Отсутствие утилит коллекций или регулярных выражений (List, Pattern, Matcher)
                 if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("List") || lastErrorLog.contains("Pattern") || lastErrorLog.contains("Matcher") || lastErrorLog.contains("Set"))) {
                     report.append("• 🧬 Проблема: Не найдены классы работы с коллекциями или regex (java.util).\n");
                     if (!fixedCode.contains("import java.util.*;")) {
@@ -883,11 +885,13 @@ public class MainActivity extends Activity {
                     }
                 }
 
+                // 4. Ошибки синтаксиса переменных (final / lambda)
                 if (lastErrorLog.contains("should be final or effectively final")) {
                     report.append("• 🧬 Проблема: Переменная используется внутри лямбда-выражения без ключевого слова final.\n");
                     report.append("  ➜ 💡 Рекомендация Профессора: Объявите переменную через final перед ее передачей в поток или обработчик.\n");
                 }
 
+                // 5. Ошибки ресурсов R
                 if (lastErrorLog.contains("R cannot be resolved") || lastErrorLog.contains("error: cannot find symbol variable R")) {
                     report.append("• 🧬 Проблема: Ссылка на несуществующий XML-ресурс (R.id / R.layout).\n");
                     fixedCode = fixedCode.replaceAll("R\\.[a-z]+\\.[a-zA-Z0-9_]+", "/* Авто-исправление неверного ресурса */ View.VISIBLE");
@@ -1228,6 +1232,9 @@ public class MainActivity extends Activity {
         }).start();
     }
 
+    // ==========================================
+    // 🔍 РАСШИРЕННЫЙ АНАЛИЗАТОР ЛОГОВ (НАХОДИТ ВСЕ ОШИБКИ И ИСКЛЮЧЕНИЯ)
+    // ==========================================
     private void fetchLogsAsync(long runId) {
         new Thread(() -> {
             try {
@@ -1419,13 +1426,8 @@ public class MainActivity extends Activity {
         spinner.setSelection(javaVersion.equals("8") ? 0 : 1);
         layout.addView(spinner);
 
-        // Кнопка полной очистки репозитория перенесена в настройки
-        Button btnCleanRepoInSettings = createStyledButton("🗑 Полная очистка репозитория 👈", "#991B1B");
-        btnCleanRepoInSettings.setOnClickListener(v -> confirmFullRepositoryClean());
-        layout.addView(btnCleanRepoInSettings);
-
         new AlertDialog.Builder(this)
-            .setTitle("⚙️ Настройки GitHub, Telegram & SDK")
+            .setTitle("⚙️ Настройки")
             .setView(layout)
             .setPositiveButton("Сохранить", (dialog, which) -> {
                 githubToken = inputGithub.getText().toString().trim();
@@ -1490,10 +1492,64 @@ public class MainActivity extends Activity {
     private String generateManifest() {
         return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
                "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n" +
+               // --- СЕТЬ И WI-FI ---
                "    <uses-permission android:name=\"android.permission.INTERNET\" />\n" +
                "    <uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.CHANGE_WIFI_STATE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.CHANGE_NETWORK_STATE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.CHANGE_WIFI_MULTICAST_STATE\" />\n" +
+               // --- ПОЛНЫЙ ДОСТУП К ФАЙЛАМ И ПАМЯТИ (ВСЕ ВЕРСИИ ANDROID) ---
+               "    <uses-permission android:name=\"android.permission.MANAGE_EXTERNAL_STORAGE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\" android:maxSdkVersion=\"33\" />\n" +
+               "    <uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\" android:maxSdkVersion=\"33\" />\n" +
+               "    <uses-permission android:name=\"android.permission.READ_MEDIA_AUDIO\" />\n" +
+               "    <uses-permission android:name=\"android.permission.READ_MEDIA_IMAGES\" />\n" +
+               "    <uses-permission android:name=\"android.permission.READ_MEDIA_VIDEO\" />\n" +
+               "    <uses-permission android:name=\"android.permission.READ_MEDIA_VISUAL_USER_SELECTED\" />\n" +
+               // --- АУДИО И МИКРОФОН ---
+               "    <uses-permission android:name=\"android.permission.RECORD_AUDIO\" />\n" +
+               "    <uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\" />\n" +
+               "    <uses-permission android:name=\"android.permission.CAPTURE_AUDIO_OUTPUT\" />\n" +
+               // --- КАМЕРА И ФОНАРИК ---
                "    <uses-permission android:name=\"android.permission.CAMERA\" />\n" +
                "    <uses-permission android:name=\"android.permission.FLASHLIGHT\" />\n" +
+               // --- BLUETOOTH И NFC ---
+               "    <uses-permission android:name=\"android.permission.BLUETOOTH\" />\n" +
+               "    <uses-permission android:name=\"android.permission.BLUETOOTH_ADMIN\" />\n" +
+               "    <uses-permission android:name=\"android.permission.BLUETOOTH_CONNECT\" />\n" +
+               "    <uses-permission android:name=\"android.permission.BLUETOOTH_SCAN\" />\n" +
+               "    <uses-permission android:name=\"android.permission.BLUETOOTH_ADVERTISE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.NFC\" />\n" +
+               // --- ГЕОЛОКАЦИЯ ---
+               "    <uses-permission android:name=\"android.permission.ACCESS_FINE_LOCATION\" />\n" +
+               "    <uses-permission android:name=\"android.permission.ACCESS_COARSE_LOCATION\" />\n" +
+               "    <uses-permission android:name=\"android.permission.ACCESS_BACKGROUND_LOCATION\" />\n" +
+               // --- ФОНОВЫЕ СЛУЖБЫ (FOREGROUND SERVICES) ---
+               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MICROPHONE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_CAMERA\" />\n" +
+               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_LOCATION\" />\n" +
+               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_DATA_SYNC\" />\n" +
+               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK\" />\n" +
+               // --- СИСТЕМНЫЕ УВЕДОМЛЕНИЯ И ПИТАНИЕ ---
+               "    <uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\" />\n" +
+               "    <uses-permission android:name=\"android.permission.WAKE_LOCK\" />\n" +
+               "    <uses-permission android:name=\"android.permission.VIBRATE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.RECEIVE_BOOT_COMPLETED\" />\n" +
+               "    <uses-permission android:name=\"android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS\" />\n" +
+               // --- СИСТЕМНЫЕ ОКНА И НАСТРОЙКИ ---
+               "    <uses-permission android:name=\"android.permission.SYSTEM_ALERT_WINDOW\" />\n" +
+               "    <uses-permission android:name=\"android.permission.WRITE_SETTINGS\" />\n" +
+               "    <uses-permission android:name=\"android.permission.EXPAND_STATUS_BAR\" />\n" +
+               "    <uses-permission android:name=\"android.permission.REQUEST_INSTALL_PACKAGES\" />\n" +
+               "    <uses-permission android:name=\"android.permission.USE_FULL_SCREEN_INTENT\" />\n" +
+               "    <uses-permission android:name=\"android.permission.SCHEDULE_EXACT_ALARM\" />\n" +
+               // --- ПОКУПКИ И ДАТЧИКИ ---
+               "    <uses-permission android:name=\"com.android.vending.BILLING\" />\n" +
+               "    <uses-permission android:name=\"android.permission.BODY_SENSORS\" />\n" +
+               "    <uses-permission android:name=\"android.permission.BODY_SENSORS_BACKGROUND\" />\n" +
                "    <application android:allowBackup=\"true\" android:icon=\"@mipmap/ic_launcher\" android:label=\"" + appTitle + "\" android:theme=\"@android:style/Theme.Material.Light.NoActionBar\">\n" +
                "        <activity android:name=\".MainActivity\" android:exported=\"true\">\n" +
                "            <intent-filter>\n" +
