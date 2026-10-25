@@ -163,7 +163,7 @@ public class MainActivity extends Activity {
         bottomLayout.setPadding(0, 6, 0, 0);
 
         btnHintBottom = new Button(this);
-        btnHintBottom.setText("💡 ИДЕАЛЬНЫЙ КВАНТОВЫЙ ХОД (-2 ХОДА)");
+        btnHintBottom.setText("💡 РАСЧЕТ ИДЕАЛЬНОГО ХОДА...");
         btnHintBottom.setTextColor(Color.WHITE);
         btnHintBottom.setTextSize(12);
         btnHintBottom.setTypeface(Typeface.DEFAULT_BOLD);
@@ -252,6 +252,7 @@ public class MainActivity extends Activity {
         int[] bestMove = calculateOptimalHintMove();
         if (bestMove != null) {
             triggerQuantumWave(bestMove[0], bestMove[1]);
+            updateHintButtonText();
             
             if (checkVictoryCondition()) {
                 calculateScoreAndAdvance();
@@ -263,19 +264,19 @@ public class MainActivity extends Activity {
         class Node {
             int[][] board;
             int firstR, firstC;
-            int depth;
-            Node(int[][] b, int r, int c, int d) {
+            int stepsFromStart;
+            Node(int[][] b, int r, int c, int steps) {
                 board = cloneBoard(b);
                 firstR = r;
                 firstC = c;
-                depth = d;
+                stepsFromStart = steps;
             }
         }
 
+        if (isUniform(states)) return null;
+
         Queue<Node> queue = new LinkedList<>();
         Set<String> visited = new HashSet<>();
-
-        if (isUniform(states)) return null;
 
         for (int r = 0; r < gridRows; r++) {
             for (int c = 0; c < gridCols; c++) {
@@ -289,11 +290,10 @@ public class MainActivity extends Activity {
             }
         }
 
-        int maxDepth = (gridRows > 4) ? 4 : 6;
-
         while (!queue.isEmpty()) {
             Node curr = queue.poll();
-            if (curr.depth >= maxDepth) continue;
+
+            if (curr.stepsFromStart >= 5) continue;
 
             for (int r = 0; r < gridRows; r++) {
                 for (int c = 0; c < gridCols; c++) {
@@ -305,9 +305,9 @@ public class MainActivity extends Activity {
                     }
 
                     String key = boardToString(nextBoard);
-                    if (!visited.contains(key)) {
+                    if (!visited.contains(key) && visited.size() < 4000) {
                         visited.add(key);
-                        queue.add(new Node(nextBoard, curr.firstR, curr.firstC, curr.depth + 1));
+                        queue.add(new Node(nextBoard, curr.firstR, curr.firstC, curr.stepsFromStart + 1));
                     }
                 }
             }
@@ -325,6 +325,54 @@ public class MainActivity extends Activity {
             }
         }
         return new int[]{bestR, bestC};
+    }
+
+    private int countRemainingMovesToVictory() {
+        class SearchNode {
+            int[][] board;
+            int steps;
+            SearchNode(int[][] b, int s) {
+                board = cloneBoard(b);
+                steps = s;
+            }
+        }
+        if (isUniform(states)) return 0;
+
+        Queue<SearchNode> q = new LinkedList<>();
+        Set<String> seen = new HashSet<>();
+
+        q.add(new SearchNode(states, 0));
+        seen.add(boardToString(states));
+
+        while (!q.isEmpty()) {
+            SearchNode curr = q.poll();
+            if (curr.steps >= 5) break; 
+
+            for (int r = 0; r < gridRows; r++) {
+                for (int c = 0; c < gridCols; c++) {
+                    int[][] nextB = cloneBoard(curr.board);
+                    applyWaveToBoard(nextB, r, c);
+                    if (isUniform(nextB)) {
+                        return curr.steps + 1;
+                    }
+                    String key = boardToString(nextB);
+                    if (!seen.contains(key) && seen.size() < 1500) {
+                        seen.add(key);
+                        q.add(new SearchNode(nextB, curr.steps + 1));
+                    }
+                }
+            }
+        }
+        return -1;
+    }
+
+    private void updateHintButtonText() {
+        int rem = countRemainingMovesToVictory();
+        if (rem > 0) {
+            btnHintBottom.setText("💡 КВАНТОВЫЙ ХОД (ДО ПОБЕДЫ: " + rem + " ХОД.)");
+        } else {
+            btnHintBottom.setText("💡 СДЕЛАТЬ ОПТИМАЛЬНЫЙ КВАНТОВЫЙ ХОД");
+        }
     }
 
     private boolean isUniform(int[][] b) {
@@ -394,61 +442,20 @@ public class MainActivity extends Activity {
             case 6: gridCols = 6; gridRows = 6; maxStates = 4; break;
         }
 
-        // 1. Сначала выделяем память под массивы
         cellViews = new TextView[gridRows][gridCols];
         states = new int[gridRows][gridCols];
 
-        // 2. Заполняем поле рандомными значениями
         initQuantumField();
 
-        // 3. Точный математический расчет минимального числа ходов
-        int exactMinMoves = calculateExactMinStepsToSolve();
-        maxAllowedMoves = Math.max(exactMinMoves * 2, gridCols * 2);
+        int exactMinMoves = countRemainingMovesToVictory();
+        if (exactMinMoves <= 0) exactMinMoves = gridCols * 2;
+        maxAllowedMoves = exactMinMoves * 2;
 
         levelTextView.setText("УР: " + level + "/6");
         updateMovesDisplay();
 
-        // 4. Строим UI сетки
         buildGridUI();
-    }
-
-    private int calculateExactMinStepsToSolve() {
-        class SearchNode {
-            int[][] board;
-            int steps;
-            SearchNode(int[][] b, int s) {
-                board = cloneBoard(b);
-                steps = s;
-            }
-        }
-        Queue<SearchNode> q = new LinkedList<>();
-        Set<String> seen = new HashSet<>();
-
-        if (isUniform(states)) return 0;
-
-        q.add(new SearchNode(states, 0));
-        seen.add(boardToString(states));
-
-        while (!q.isEmpty()) {
-            SearchNode curr = q.poll();
-            if (curr.steps >= 6) break;
-
-            for (int r = 0; r < gridRows; r++) {
-                for (int c = 0; c < gridCols; c++) {
-                    int[][] nextB = cloneBoard(curr.board);
-                    applyWaveToBoard(nextB, r, c);
-                    if (isUniform(nextB)) {
-                        return curr.steps + 1;
-                    }
-                    String key = boardToString(nextB);
-                    if (!seen.contains(key)) {
-                        seen.add(key);
-                        q.add(new SearchNode(nextB, curr.steps + 1));
-                    }
-                }
-            }
-        }
-        return (gridCols * gridRows) / 2;
+        updateHintButtonText();
     }
 
     private void updateMovesDisplay() {
@@ -495,6 +502,7 @@ public class MainActivity extends Activity {
                     triggerQuantumWave(row, col);
                     movesOnLevel++;
                     updateMovesDisplay();
+                    updateHintButtonText();
 
                     if (movesOnLevel > maxAllowedMoves) {
                         triggerVisualExplosion();
@@ -512,19 +520,26 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void startLivingCellAnimation(View cell) {
-        ObjectAnimator pulseX = ObjectAnimator.ofFloat(cell, "scaleX", 1.0f, 1.10f, 1.0f);
-        ObjectAnimator pulseY = ObjectAnimator.ofFloat(cell, "scaleY", 1.0f, 1.10f, 1.0f);
-        pulseX.setRepeatCount(ValueAnimator.INFINITE);
-        pulseY.setRepeatCount(ValueAnimator.INFINITE);
-        
-        long duration = 3000 + new Random().nextInt(1000);
-        pulseX.setDuration(duration);
-        pulseY.setDuration(duration);
-
-        AnimatorSet set = new AnimatorSet();
-        set.playTogether(pulseX, pulseY);
-        set.start();
+    private void startLivingCellAnimation(final View cell) {
+        cell.animate()
+            .scaleX(1.05f)
+            .scaleY(1.05f)
+            .setDuration(1200 + new Random().nextInt(400))
+            .setListener(new android.animation.AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(android.animation.Animator animation) {
+                    cell.animate()
+                        .scaleX(1.0f)
+                        .scaleY(1.0f)
+                        .setDuration(1200)
+                        .setListener(new android.animation.AnimatorListenerAdapter() {
+                            @Override
+                            public void onAnimationEnd(android.animation.Animator anim) {
+                                startLivingCellAnimation(cell);
+                            }
+                        }).start();
+                }
+            }).start();
     }
 
     private void triggerQuantumWave(int r, int c) {
@@ -548,14 +563,14 @@ public class MainActivity extends Activity {
     }
 
     private void animateCellFancy(TextView cell, int newState, int level) {
-        ObjectAnimator scaleX = ObjectAnimator.ofFloat(cell, "scaleX", 0.6f, 1.25f, 1.0f);
-        ObjectAnimator scaleY = ObjectAnimator.ofFloat(cell, "scaleY", 0.6f, 1.25f, 1.0f);
-        ObjectAnimator rotation = ObjectAnimator.ofFloat(cell, "rotation", 0f, 360f, 0f);
+        ObjectAnimator scaleX = ObjectAnimator.ofFloat(cell, "scaleX", 0.8f, 1.15f, 1.0f);
+        ObjectAnimator scaleY = ObjectAnimator.ofFloat(cell, "scaleY", 0.8f, 1.15f, 1.0f);
+        ObjectAnimator rotation = ObjectAnimator.ofFloat(cell, "rotation", 0f, 180f, 0f);
 
         AnimatorSet animatorSet = new AnimatorSet();
         animatorSet.playTogether(scaleX, scaleY, rotation);
-        animatorSet.setDuration(3200);
-        animatorSet.setInterpolator(new OvershootInterpolator(1.5f));
+        animatorSet.setDuration(300); 
+        animatorSet.setInterpolator(new OvershootInterpolator(1.2f));
         animatorSet.start();
 
         updateCellStyle(cell, newState, level);
@@ -678,14 +693,12 @@ public class MainActivity extends Activity {
 
     private void triggerVisualExplosion() {
         ObjectAnimator shake = ObjectAnimator.ofFloat(gridLayout, "translationX", 0f, 40f, -40f, 30f, -30f, 15f, -15f, 0f);
-        shake.setDuration(1500);
+        shake.setDuration(1000);
 
         ValueAnimator colorAnim = ValueAnimator.ofObject(new ArgbEvaluator(), 
                 Color.parseColor("#040711"), Color.parseColor("#991B1B"), Color.parseColor("#450A0A"), Color.parseColor("#040711"));
-        colorAnim.setDuration(1500);
-        colorAnim.addUpdateListener(anim -> {
-            rootLayout.setBackgroundColor((int) anim.getAnimatedValue());
-        });
+        colorAnim.setDuration(1000);
+        colorAnim.addUpdateListener(anim -> rootLayout.setBackgroundColor((int) anim.getAnimatedValue()));
 
         AnimatorSet explosionSet = new AnimatorSet();
         explosionSet.playTogether(shake, colorAnim);
@@ -703,9 +716,7 @@ public class MainActivity extends Activity {
         builder.setCancelable(false);
         builder.setTitle("💥 КРАХ ЯДРА! ПЕРЕГРУЗКА!");
         builder.setMessage("Лимит ходов исчерпан. Квантовая матрица взорвалась!\n\nХочешь возобновить игру и попробовать снова?");
-        builder.setPositiveButton("ВОЗОБНОВИТЬ ИГРУ 🔄", (dialog, which) -> {
-            loadLevel(currentLevel);
-        });
+        builder.setPositiveButton("ВОЗОБНОВИТЬ ИГРУ 🔄", (dialog, which) -> loadLevel(currentLevel));
         builder.setNegativeButton("Выход ❌", (dialog, which) -> finishAndRemoveTask());
         builder.show();
     }
