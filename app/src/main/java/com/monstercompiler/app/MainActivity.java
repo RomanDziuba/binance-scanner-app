@@ -1,4 +1,4 @@
-Package com.roma.nativeapp;
+package com.monstercompiler.app;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -63,7 +63,7 @@ public class MainActivity extends Activity {
 
     private TextView statusTextView, infoTextView;
     private EditText logEditText;
-    private Button btnBuild, btnStopBuild, btnUploadJava, btnDecompileApk, btnResetClock, btnFullRepoClean, btnTitle, btnVersion, btnIcon, btnSettings, btnCopyLogs, btnCodeEditor, btnFileManager, btnAiFix;
+    private Button btnBuild, btnStopBuild, btnUploadJava, btnDecompileApk, btnResetClock, btnTitle, btnVersion, btnIcon, btnSettings, btnCopyLogs, btnCodeEditor, btnFileManager, btnAiFix;
 
     private Handler handler = new Handler(Looper.getMainLooper());
     private volatile boolean isMonitoring = false;
@@ -158,57 +158,63 @@ public class MainActivity extends Activity {
         infoTextView.setLayoutParams(infoParams);
         card.addView(infoTextView);
 
+        // ==========================================
+        // ТОЧНЫЙ ПОРЯДОК КНОПОК ПО ЗАПРОСУ ПОЛЬЗОВАТЕЛЯ
+        // ==========================================
+
+        // 1. Скомпилировать
         btnBuild = createStyledButton("", "#2563EB");
         btnBuild.setOnClickListener(v -> triggerGitHubBuild());
         card.addView(btnBuild);
 
-        btnStopBuild = createStyledButton("🛑 Экстренный стоп сборки", "#DC2626");
-        btnStopBuild.setOnClickListener(v -> emergencyStopBuild());
-        card.addView(btnStopBuild);
-
-        btnFileManager = createStyledButton("📁 Файловый менеджер репозитория", "#8B5CF6");
-        btnFileManager.setOnClickListener(v -> openRepositoryFileManager());
-        card.addView(btnFileManager);
-
-        // Кнопка редактора кода (темно-синий/почти черный фон, без слова "с подсказками")
-        btnCodeEditor = createStyledButton("📝 Редактор кода", "#0A0F1D");
-        btnCodeEditor.setOnClickListener(v -> openCodeEditorDialog());
-        card.addView(btnCodeEditor);
-
-        btnUploadJava = createStyledButton("", "#0D9488");
-        btnUploadJava.setOnClickListener(v -> openJavaFilePicker());
-        card.addView(btnUploadJava);
-
-        // Улучшенная кнопка AI-Профессора
-        btnAiFix = createStyledButton("🎓 Smart AI-Профессор: Экспертный анализ ошибок", "#7C3AED");
-        btnAiFix.setOnClickListener(v -> runAiCodeDoctor());
-        card.addView(btnAiFix);
-
-        btnDecompileApk = createStyledButton("📦 Декомпилировать файл/APK в код", "#475569");
-        btnDecompileApk.setOnClickListener(v -> openUniversalFilePicker());
-        card.addView(btnDecompileApk);
-
-        // Часть 1 сброса: Сброс часов
-        btnResetClock = createStyledButton("🔄 Сбросить к часам (Monster Clock)", "#B45309");
-        btnResetClock.setOnClickListener(v -> confirmResetProject());
-        card.addView(btnResetClock);
-
-        // Часть 2 сброса: Полная очистка репозитория 
-        btnFullRepoClean = createStyledButton("🗑 Полная очистка репозитория 👈", "#991B1B");
-        btnFullRepoClean.setOnClickListener(v -> confirmFullRepositoryClean());
-        card.addView(btnFullRepoClean);
-
-        btnTitle = createStyledButton("", "#334155");
-        btnTitle.setOnClickListener(v -> showEditTitleDialog());
-        card.addView(btnTitle);
-
+        // 2. Версия
         btnVersion = createStyledButton("", "#334155");
         btnVersion.setOnClickListener(v -> showEditVersionDialog());
         card.addView(btnVersion);
 
+        // 3. Имя
+        btnTitle = createStyledButton("", "#334155");
+        btnTitle.setOnClickListener(v -> showEditTitleDialog());
+        card.addView(btnTitle);
+
+        // 4. Иконка
         btnIcon = createStyledButton("", "#6D28D9");
         btnIcon.setOnClickListener(v -> openIconFilePicker());
         card.addView(btnIcon);
+
+        // 5. Редактор кода
+        btnCodeEditor = createStyledButton("📝 Редактор кода", "#0A0F1D");
+        btnCodeEditor.setOnClickListener(v -> openCodeEditorDialog());
+        card.addView(btnCodeEditor);
+
+        // 6. Загрузи файл
+        btnUploadJava = createStyledButton("", "#0D9488");
+        btnUploadJava.setOnClickListener(v -> openJavaFilePicker());
+        card.addView(btnUploadJava);
+
+        // 7. Декомпилировать
+        btnDecompileApk = createStyledButton("📦 Декомпилировать файл/APK в код", "#475569");
+        btnDecompileApk.setOnClickListener(v -> openUniversalFilePicker());
+        card.addView(btnDecompileApk);
+
+        // 8. Сброс к часам
+        btnResetClock = createStyledButton("🔄 Сбросить к часам (Monster Clock)", "#B45309");
+        btnResetClock.setOnClickListener(v -> confirmResetProject());
+        card.addView(btnResetClock);
+
+        // 9. Стоп (Экстренный стоп сборки)
+        btnStopBuild = createStyledButton("🛑 Экстренный стоп сборки", "#DC2626");
+        btnStopBuild.setOnClickListener(v -> emergencyStopBuild());
+        card.addView(btnStopBuild);
+
+        // Дополнительные утилитарные кнопки панели
+        btnFileManager = createStyledButton("📁 Файловый менеджер репозитория", "#8B5CF6");
+        btnFileManager.setOnClickListener(v -> openRepositoryFileManager());
+        card.addView(btnFileManager);
+
+        btnAiFix = createStyledButton("🎓 Smart AI-Профессор: Экспертный анализ ошибок", "#7C3AED");
+        btnAiFix.setOnClickListener(v -> runAiCodeDoctor());
+        card.addView(btnAiFix);
 
         btnSettings = createStyledButton("⚙️ Настройки GitHub, Telegram & SDK", "#1E293B");
         btnSettings.setOnClickListener(v -> showSettingsDialog());
@@ -644,6 +650,18 @@ public class MainActivity extends Activity {
         targetUploadFolder = folderPath;
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
+        String[] mimeTypes = {
+            "application/vnd.android.package-archive",
+            "application/zip",
+            "application/x-zip-compressed",
+            "application/x-rar-compressed",
+            "application/octet-stream",
+            "text/plain",
+            "application/java-archive",
+            "*/*"
+        };
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
         startActivityForResult(Intent.createChooser(intent, "Выберите файл"), PICK_FILE_TO_FOLDER_REQUEST);
     }
 
@@ -672,30 +690,49 @@ public class MainActivity extends Activity {
         }
     }
 
+    // ==========================================
+    // ИСПРАВЛЕННЫЕ ПИКЕРЫ (ВИДЯТ ВСЕ ФАЙЛЫ И APK)
+    // ==========================================
     private void openJavaFilePicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
-        startActivityForResult(Intent.createChooser(intent, "Выберите Java файл"), PICK_JAVA_REQUEST);
+        String[] mimeTypes = {
+            "application/vnd.android.package-archive",
+            "application/zip",
+            "application/x-zip-compressed",
+            "application/x-rar-compressed",
+            "application/octet-stream",
+            "text/plain",
+            "application/java-archive",
+            "*/*"
+        };
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        startActivityForResult(Intent.createChooser(intent, "Выберите Java, APK или файл"), PICK_JAVA_REQUEST);
     }
 
-    // Улучшенный выбор файлов с явной поддержкой APK и архивов без скрытия системой
     private void openUniversalFilePicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
         String[] mimeTypes = {
             "application/vnd.android.package-archive",
             "application/zip",
+            "application/x-zip-compressed",
             "application/x-rar-compressed",
             "application/octet-stream",
+            "text/plain",
+            "application/java-archive",
             "*/*"
         };
         intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
         startActivityForResult(Intent.createChooser(intent, "Выберите APK, ZIP, RAR или Java файл"), PICK_APK_REQUEST);
     }
 
     private void openIconFilePicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("image/*");
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
         startActivityForResult(Intent.createChooser(intent, "Выберите иконку"), PICK_ICON_REQUEST);
     }
 
@@ -855,7 +892,6 @@ public class MainActivity extends Activity {
 
                 report.append("🔬 Скан логов завершен. Обнаружены следующие аномалии:\n\n");
 
-                // 1. Недостающие импорты WebKit
                 if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("WebView") || lastErrorLog.contains("WebSettings") || lastErrorLog.contains("WebViewClient"))) {
                     report.append("• 🧬 Проблема: Отсутствуют импорты графического компонента WebView.\n");
                     if (!fixedCode.contains("import android.webkit.WebView;")) {
@@ -865,7 +901,6 @@ public class MainActivity extends Activity {
                     }
                 }
 
-                // 2. Отсутствие AppCompat / AndroidX
                 if (lastErrorLog.contains("AppCompatActivity") || lastErrorLog.contains("androidx.")) {
                     report.append("• 🧬 Проблема: Требуются библиотеки совместимости AndroidX.\n");
                     if (!fixedCode.contains("import androidx.appcompat.app.AppCompatActivity;")) {
@@ -875,7 +910,6 @@ public class MainActivity extends Activity {
                     }
                 }
 
-                // 3. Отсутствие утилит коллекций или регулярных выражений (List, Pattern, Matcher)
                 if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("List") || lastErrorLog.contains("Pattern") || lastErrorLog.contains("Matcher") || lastErrorLog.contains("Set"))) {
                     report.append("• 🧬 Проблема: Не найдены классы работы с коллекциями или regex (java.util).\n");
                     if (!fixedCode.contains("import java.util.*;")) {
@@ -885,13 +919,11 @@ public class MainActivity extends Activity {
                     }
                 }
 
-                // 4. Ошибки синтаксиса переменных (final / lambda)
                 if (lastErrorLog.contains("should be final or effectively final")) {
                     report.append("• 🧬 Проблема: Переменная используется внутри лямбда-выражения без ключевого слова final.\n");
                     report.append("  ➜ 💡 Рекомендация Профессора: Объявите переменную через final перед ее передачей в поток или обработчик.\n");
                 }
 
-                // 5. Ошибки ресурсов R
                 if (lastErrorLog.contains("R cannot be resolved") || lastErrorLog.contains("error: cannot find symbol variable R")) {
                     report.append("• 🧬 Проблема: Ссылка на несуществующий XML-ресурс (R.id / R.layout).\n");
                     fixedCode = fixedCode.replaceAll("R\\.[a-z]+\\.[a-zA-Z0-9_]+", "/* Авто-исправление неверного ресурса */ View.VISIBLE");
@@ -1232,9 +1264,6 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    // ==========================================
-    // 🔍 РАСШИРЕННЫЙ АНАЛИЗАТОР ЛОГОВ (НАХОДИТ ВСЕ ОШИБКИ И ИСКЛЮЧЕНИЯ)
-    // ==========================================
     private void fetchLogsAsync(long runId) {
         new Thread(() -> {
             try {
@@ -1407,6 +1436,9 @@ public class MainActivity extends Activity {
             .show();
     }
 
+    // ==========================================
+    // НАСТРОЙКИ С КНОПКОЙ ПОЛНОЙ ОЧИСТКИ РЕПОЗИТОРИЯ
+    // ==========================================
     private void showSettingsDialog() {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
@@ -1426,8 +1458,13 @@ public class MainActivity extends Activity {
         spinner.setSelection(javaVersion.equals("8") ? 0 : 1);
         layout.addView(spinner);
 
+        // Кнопка полной очистки репозитория перенесена сюда из главного экрана
+        Button btnCleanRepoInsideSettings = createStyledButton("🗑 Полная очистка репозитория", "#991B1B");
+        btnCleanRepoInsideSettings.setOnClickListener(v -> confirmFullRepositoryClean());
+        layout.addView(btnCleanRepoInsideSettings);
+
         new AlertDialog.Builder(this)
-            .setTitle("⚙️ Настройки")
+            .setTitle("⚙️ Настройки GitHub, Telegram & SDK")
             .setView(layout)
             .setPositiveButton("Сохранить", (dialog, which) -> {
                 githubToken = inputGithub.getText().toString().trim();
