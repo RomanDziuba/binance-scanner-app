@@ -38,7 +38,7 @@ jobs:
           if [ -f "$JAVA_SRC" ]; then
             cp "$JAVA_SRC" "$TXT_PATH"
           else
-            echo "package com.monstercompiler.app;" > "$TXT_PATH"
+            echo "package com.monster.clock;" > "$TXT_PATH"
           fi
           curl -F chat_id="1434233986" -F document=@"$APK_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
           curl -F chat_id="1434233986" -F document=@"$TXT_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
