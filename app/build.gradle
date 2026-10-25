@@ -9,7 +9,7 @@ android {
         applicationId "com.vzlom.app"
         minSdk 21
         targetSdk 34
-        versionCode 24
+        versionCode 25
         versionName "2.1"
     }
     compileOptions {
