@@ -18,6 +18,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.*;
+import androidx.core.content.FileProvider;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -108,7 +109,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v5.0 ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v5.1 (Smart Update) ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -192,7 +193,7 @@ public class MainActivity extends Activity {
         btnUploadJava.setOnClickListener(v -> openJavaFilePicker());
         card.addView(btnUploadJava);
 
-        // 7. Декомпилировать
+        // 7. Декомпилировать (Исправлено для видимости APK)
         btnDecompileApk = createStyledButton("📦 Декомпилировать файл/APK в код", "#475569");
         btnDecompileApk.setOnClickListener(v -> openUniversalFilePicker());
         card.addView(btnDecompileApk);
@@ -691,30 +692,28 @@ public class MainActivity extends Activity {
     }
 
     // ==========================================
-    // ИСПРАВЛЕННЫЕ ПИКЕРЫ (ВИДЯТ ВСЕ ФАЙЛЫ И APK)
+    // ИСПРАВЛЕННЫЕ ПИКЕРЫ (ПОЛНОЦЕННО ВИДЯТ APK И ФАЙЛЫ В ТЕЛЕФОНЕ)
     // ==========================================
     private void openJavaFilePicker() {
-        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
-        String[] mimeTypes = {
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
             "application/vnd.android.package-archive",
             "application/zip",
-            "application/x-zip-compressed",
-            "application/x-rar-compressed",
             "application/octet-stream",
             "text/plain",
             "application/java-archive",
             "*/*"
-        };
-        intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        });
         startActivityForResult(Intent.createChooser(intent, "Выберите Java, APK или файл"), PICK_JAVA_REQUEST);
     }
 
     private void openUniversalFilePicker() {
-        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
-        String[] mimeTypes = {
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
             "application/vnd.android.package-archive",
             "application/zip",
             "application/x-zip-compressed",
@@ -723,16 +722,14 @@ public class MainActivity extends Activity {
             "text/plain",
             "application/java-archive",
             "*/*"
-        };
-        intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        });
         startActivityForResult(Intent.createChooser(intent, "Выберите APK, ZIP, RAR или Java файл"), PICK_APK_REQUEST);
     }
 
     private void openIconFilePicker() {
-        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-        intent.setType("image/*");
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("image/*");
         startActivityForResult(Intent.createChooser(intent, "Выберите иконку"), PICK_ICON_REQUEST);
     }
 
@@ -741,6 +738,10 @@ public class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode == RESULT_OK && data != null && data.getData() != null) {
             Uri uri = data.getData();
+            try {
+                getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            } catch (Exception ignored) {}
+
             if (requestCode == PICK_JAVA_REQUEST) processSelectedJavaFile(uri);
             else if (requestCode == PICK_APK_REQUEST) processUniversalFileForDecompilation(uri);
             else if (requestCode == PICK_ICON_REQUEST) processSelectedIcon(uri);
@@ -1123,7 +1124,7 @@ public class MainActivity extends Activity {
                 if (conn.getResponseCode() == 204 || conn.getResponseCode() == 201) {
                     handler.post(() -> {
                         statusTextView.setText("Статус: 🚀 Сборка запущена! Ожидание APK...");
-                        logEditText.setText("GitHub Actions компилирует ваш проект...\nКак только сборка завершится, бот пришлет APK в Telegram.");
+                        logEditText.setText("GitHub Actions компилирует ваш проект...\nКак только сборка завершится, бот пришлет APK и TXT-дубликат в Telegram.");
                         startMonitoringBuild();
                     });
                 } else {
@@ -1247,8 +1248,8 @@ public class MainActivity extends Activity {
                                     btnBuild.setBackgroundColor(Color.parseColor("#2563EB"));
                                     updateAllButtonLabels();
                                     if ("success".equals(conclusion)) {
-                                        statusTextView.setText("Статус: ✅ Успех! APK отправлен в Telegram.");
-                                        logEditText.setText("Сборка завершена успешно! Бот отправил готовый файл в ваш Telegram чат.");
+                                        statusTextView.setText("Статус: ✅ Успех! APK и TXT отправлены в Telegram.");
+                                        logEditText.setText("Сборка завершена успешно! Бот отправил готовый APK и его .txt дубликат в ваш Telegram чат.");
                                     } else {
                                         statusTextView.setText("Статус: ❌ Ошибка компиляции");
                                         fetchLogsAsync(latestRunId);
@@ -1436,9 +1437,6 @@ public class MainActivity extends Activity {
             .show();
     }
 
-    // ==========================================
-    // НАСТРОЙКИ С КНОПКОЙ ПОЛНОЙ ОЧИСТКИ РЕПОЗИТОРИЯ
-    // ==========================================
     private void showSettingsDialog() {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
@@ -1458,7 +1456,6 @@ public class MainActivity extends Activity {
         spinner.setSelection(javaVersion.equals("8") ? 0 : 1);
         layout.addView(spinner);
 
-        // Кнопка полной очистки репозитория перенесена сюда из главного экрана
         Button btnCleanRepoInsideSettings = createStyledButton("🗑 Полная очистка репозитория", "#991B1B");
         btnCleanRepoInsideSettings.setOnClickListener(v -> confirmFullRepositoryClean());
         layout.addView(btnCleanRepoInsideSettings);
@@ -1506,6 +1503,9 @@ public class MainActivity extends Activity {
         return "rootProject.name = \"" + appTitle + "\"\ninclude ':app'\n";
     }
 
+    // ==========================================
+    // WORKFLOW С АВТОМАТИЧЕСКОЙ ГЕНЕРАЦИЕЙ И ОТПРАВКОЙ APK И .TXT ДУБЛИКАТА
+    // ==========================================
     private String getWorkflowContent() {
         return "name: Build Monster APK\n" +
                "on:\n  workflow_dispatch:\n\n" +
@@ -1520,10 +1520,17 @@ public class MainActivity extends Activity {
                "      - name: Setup Gradle\n        uses: gradle/actions/setup-gradle@v3\n        with:\n          gradle-version: '8.5'\n          cache-disabled: true\n" +
                "      - name: Build APK\n        run: |\n" +
                "          gradle clean assembleDebug --info --stacktrace --no-daemon\n" +
-               "      - name: Send to Telegram\n        if: success()\n        run: |\n" +
+               "      - name: Prepare TXT Duplicate and Send to Telegram\n        if: success()\n        run: |\n" +
                "          APK_PATH=$(find app/build/outputs/apk/debug/ -name \"*.apk\" | head -n 1)\n" +
                "          echo \"Found APK: $APK_PATH\"\n" +
-               "          curl -F chat_id=\"" + chatId + "\" -F document=@\"$APK_PATH\" https://api.telegram.org/bot" + botToken + "/sendDocument\n";
+               "          BASENAME=$(basename \"$APK_PATH\" .apk)\n" +
+               "          TXT_PATH=\"app/build/outputs/apk/debug/${BASENAME}.txt\"\n" +
+               "          echo \"Monster App Build Report: $BASENAME\" > \"$TXT_PATH\"\n" +
+               "          echo \"Package: " + packageName + "\" >> \"$TXT_PATH\"\n" +
+               "          echo \"Version: " + appVersion + "\" >> \"$TXT_PATH\"\n" +
+               "          echo \"Smart Update Enabled: Allowed smooth update/install without duplicate prompts if version matches.\" >> \"$TXT_PATH\"\n" +
+               "          curl -F chat_id=\"" + chatId + "\" -F document=@\"$APK_PATH\" https://api.telegram.org/bot" + botToken + "/sendDocument\n" +
+               "          curl -F chat_id=\"" + chatId + "\" -F document=@\"$TXT_PATH\" https://api.telegram.org/bot" + botToken + "/sendDocument\n";
     }
 
     private String generateManifest() {
@@ -1531,8 +1538,52 @@ public class MainActivity extends Activity {
                "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n" +
                "    <uses-permission android:name=\"android.permission.INTERNET\" />\n" +
                "    <uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.CHANGE_WIFI_STATE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.CHANGE_NETWORK_STATE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.CHANGE_WIFI_MULTICAST_STATE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.MANAGE_EXTERNAL_STORAGE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\" android:maxSdkVersion=\"33\" />\n" +
+               "    <uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\" android:maxSdkVersion=\"33\" />\n" +
+               "    <uses-permission android:name=\"android.permission.READ_MEDIA_AUDIO\" />\n" +
+               "    <uses-permission android:name=\"android.permission.READ_MEDIA_IMAGES\" />\n" +
+               "    <uses-permission android:name=\"android.permission.READ_MEDIA_VIDEO\" />\n" +
+               "    <uses-permission android:name=\"android.permission.READ_MEDIA_VISUAL_USER_SELECTED\" />\n" +
+               "    <uses-permission android:name=\"android.permission.RECORD_AUDIO\" />\n" +
+               "    <uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\" />\n" +
+               "    <uses-permission android:name=\"android.permission.CAPTURE_AUDIO_OUTPUT\" />\n" +
                "    <uses-permission android:name=\"android.permission.CAMERA\" />\n" +
                "    <uses-permission android:name=\"android.permission.FLASHLIGHT\" />\n" +
+               "    <uses-permission android:name=\"android.permission.BLUETOOTH\" />\n" +
+               "    <uses-permission android:name=\"android.permission.BLUETOOTH_ADMIN\" />\n" +
+               "    <uses-permission android:name=\"android.permission.BLUETOOTH_CONNECT\" />\n" +
+               "    <uses-permission android:name=\"android.permission.BLUETOOTH_SCAN\" />\n" +
+               "    <uses-permission android:name=\"android.permission.BLUETOOTH_ADVERTISE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.NFC\" />\n" +
+               "    <uses-permission android:name=\"android.permission.ACCESS_FINE_LOCATION\" />\n" +
+               "    <uses-permission android:name=\"android.permission.ACCESS_COARSE_LOCATION\" />\n" +
+               "    <uses-permission android:name=\"android.permission.ACCESS_BACKGROUND_LOCATION\" />\n" +
+               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MICROPHONE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_CAMERA\" />\n" +
+               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_LOCATION\" />\n" +
+               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_DATA_SYNC\" />\n" +
+               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK\" />\n" +
+               "    <uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\" />\n" +
+               "    <uses-permission android:name=\"android.permission.WAKE_LOCK\" />\n" +
+               "    <uses-permission android:name=\"android.permission.VIBRATE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.RECEIVE_BOOT_COMPLETED\" />\n" +
+               "    <uses-permission android:name=\"android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS\" />\n" +
+               "    <uses-permission android:name=\"android.permission.SYSTEM_ALERT_WINDOW\" />\n" +
+               "    <uses-permission android:name=\"android.permission.WRITE_SETTINGS\" />\n" +
+               "    <uses-permission android:name=\"android.permission.EXPAND_STATUS_BAR\" />\n" +
+               "    <uses-permission android:name=\"android.permission.REQUEST_INSTALL_PACKAGES\" />\n" +
+               "    <uses-permission android:name=\"android.permission.USE_FULL_SCREEN_INTENT\" />\n" +
+               "    <uses-permission android:name=\"android.permission.SCHEDULE_EXACT_ALARM\" />\n" +
+               "    <uses-permission android:name=\"com.android.vending.BILLING\" />\n" +
+               "    <uses-permission android:name=\"android.permission.BODY_SENSORS\" />\n" +
+               "    <uses-permission android:name=\"android.permission.BODY_SENSORS_BACKGROUND\" />\n" +
                "    <application android:allowBackup=\"true\" android:icon=\"@mipmap/ic_launcher\" android:label=\"" + appTitle + "\" android:theme=\"@android:style/Theme.Material.Light.NoActionBar\">\n" +
                "        <activity android:name=\".MainActivity\" android:exported=\"true\">\n" +
                "            <intent-filter>\n" +
