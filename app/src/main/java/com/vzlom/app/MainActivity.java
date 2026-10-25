@@ -1,6 +1,4 @@
-﻿package com.vzlom.app;
-
-import androidx.appcompat.app.AppCompatActivity;
+package com.vzlom.app;
 
 import android.app.Activity;
 import android.app.DownloadManager;
@@ -311,7 +309,6 @@ public class MainActivity extends Activity {
             if (!TextUtils.isEmpty(cleanText)) {
                 String normalizedText = cleanText.replaceAll("[\\t\\r]+", " ").replaceAll("\\n\\s*\n", "\n").trim();
                 
-                // ИСПРАВЛЕНО: добавлено .length() вместо .length
                 if (normalizedText.length() > 600) {
                     normalizedText = normalizedText.substring(0, 600) + "... [текст обрезано для читаемости]";
                 }
