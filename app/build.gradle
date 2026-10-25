@@ -3,28 +3,22 @@ plugins {
 }
 
 android {
-    namespace 'com.roma.nativeapp'
+    namespace 'com.monstercompiler.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roma.nativeapp"
-        minSdk 21
+        applicationId "com.monstercompiler.app"
+        minSdk 26
         targetSdk 34
-        versionCode 14
+        versionCode 1
         versionName "7"
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
-    applicationVariants.all { variant ->
-        variant.outputs.all { output ->
-            outputFileName = "MonsterCompiler-v7-" + variant.name + ".apk"
-        }
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 }
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
-    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 }
