@@ -17,6 +17,7 @@ import android.text.TextUtils;
 import android.util.Base64;
 import android.view.Gravity;
 import android.view.View;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
@@ -61,7 +62,7 @@ public class MainActivity extends Activity {
 
         MediaItem(String url, String title, String artist, String format) {
             this.url = url;
-            this.title = TextUtils.isEmpty(title) ? "Запись Smule" : title;
+            this.title = TextUtils.isEmpty(title) ? "Выступление Smule" : title;
             this.artist = TextUtils.isEmpty(artist) ? "nowfearless" : artist;
             this.format = format;
         }
@@ -100,7 +101,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Smule Archive & Media Center ✦");
+        authorView.setText("✦ Dziuba Roman — Smule Deep API Extractor ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(13f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -124,7 +125,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🎙️ Центр восстановления архива и друзей");
+        titleView.setText("🎙️ Умный архив треков и соавторов");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(15f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -152,7 +153,7 @@ public class MainActivity extends Activity {
         urlInput.setLayoutParams(inputParams);
         card.addView(urlInput);
 
-        mainActionButton = createPillButton("🚀 ИЗВЛЕЧЬ ВСЕ ТРЕКИ И ДРУЗЕЙ", "#2563EB", 13f);
+        mainActionButton = createPillButton("🚀 ЗАГРУЗИТЬ АРХИВ И ДРУЗЕЙ", "#2563EB", 13f);
         mainActionButton.setOnClickListener(v -> startArchiveExtraction());
         card.addView(mainActionButton);
 
@@ -161,7 +162,7 @@ public class MainActivity extends Activity {
         card.addView(btnClear);
 
         statusText = new TextView(this);
-        statusText.setText("СТАТУС: ГОТОВ К СБОРУ ДАННЫХ...");
+        statusText.setText("СТАТУС: ГОТОВ К РАБОТЕ...");
         statusText.setTextColor(Color.parseColor("#10B981"));
         statusText.setTextSize(11f);
         statusText.setPadding(12, 10, 12, 10);
@@ -206,7 +207,7 @@ public class MainActivity extends Activity {
         card.addView(profileCard);
 
         TextView friendsLabel = new TextView(this);
-        friendsLabel.setText("👥 Найденные соавторы и друзья:");
+        friendsLabel.setText("👥 Найденные друзья и соавторы:");
         friendsLabel.setTextColor(Color.parseColor("#38BDF8"));
         friendsLabel.setTextSize(12f);
         friendsLabel.setTypeface(Typeface.DEFAULT_BOLD);
@@ -218,7 +219,7 @@ public class MainActivity extends Activity {
         card.addView(friendsContainer);
 
         TextView mediaLabel = new TextView(this);
-        mediaLabel.setText("🎵 Найденные записи и песни:");
+        mediaLabel.setText("🎵 Ваши песни и дуэты:");
         mediaLabel.setTextColor(Color.parseColor("#10B981"));
         mediaLabel.setTextSize(12f);
         mediaLabel.setTypeface(Typeface.DEFAULT_BOLD);
@@ -271,7 +272,10 @@ public class MainActivity extends Activity {
         ws.setDomStorageEnabled(true);
         ws.setMediaPlaybackRequiresUserGesture(false);
         ws.setUserAgentString("Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
-        
+
+        // Регистрируем мост для приема данных из JavaScript
+        webView.addJavascriptInterface(new SmuleJSBridge(), "SmuleBridge");
+
         container.addView(webView);
         container.addView(card);
         scroll.addView(container);
@@ -319,6 +323,18 @@ public class MainActivity extends Activity {
         } catch (Exception e) {}
     }
 
+    // Мост для приема JSON-данных из браузера
+    public class SmuleJSBridge {
+        @JavascriptInterface
+        public void onDataExtracted(String htmlContent, String pageTitle) {
+            handler.post(() -> {
+                lastDownloadedHtml = htmlContent;
+                appendLog("📥 Получен HTML от движка страницы (" + htmlContent.length() + " байт)");
+                parsePageData(htmlContent);
+            });
+        }
+    }
+
     private void startArchiveExtraction() {
         String inputUrl = urlInput.getText().toString().trim();
         if (TextUtils.isEmpty(inputUrl)) {
@@ -348,50 +364,78 @@ public class MainActivity extends Activity {
         mainActionButton.setEnabled(false);
         GradientDrawable bg = (GradientDrawable) mainActionButton.getBackground();
         bg.setColor(Color.parseColor("#475569"));
-        mainActionButton.setText("⏳ ИЗВЛЕЧЕНИЕ ЧЕРЕЗ WEBVIEW...");
-        statusText.setText("СТАТУС: Загрузка страницы в браузере и сниффинг...");
+        mainActionButton.setText("⏳ СБОР ДАННЫХ...");
+        statusText.setText("СТАТУС: Загрузка профиля и расшифровка записей...");
 
-        appendLog("=== СТАРТ СНИФФЕРА: " + targetUrl + " ===");
+        appendLog("=== СТАРТ СБОРА: " + targetUrl + " ===");
 
-        // Запускаем мощный WebView сниффер, который перехватывает трафик «на лету»
         webView.setVisibility(View.VISIBLE);
         webView.setWebViewClient(new WebViewClient() {
             @Override
-            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-                String reqUrl = request.getUrl().toString();
-                
-                // Перехватываем видео, аудио и потоки
-                if (reqUrl.contains("mp4") || reqUrl.contains("m4a") || reqUrl.contains("mp3") || reqUrl.contains("m3u8") || reqUrl.contains("ts") || reqUrl.contains("videoplayback")) {
-                    synchronized (mediaItemsList) {
-                        String fmt = reqUrl.contains("mp4") ? "mp4" : "m4a";
-                        if (reqUrl.contains("mp3")) fmt = "mp3";
-                        mediaItemsList.add(new MediaItem(reqUrl, "Потоковая запись Smule", profileHandle, fmt));
-                        appendLog("🌐 [Sniffer] Пойман медиафайл: " + reqUrl);
-                    }
-                }
-                return super.shouldInterceptRequest(view, request);
-            }
-
-            @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                appendLog("🌐 WebView страница прогружена. Сбор данных...");
+                appendLog("🌐 Страница загружена. Извлечение DOM и метаданных...");
 
-                // Автоматически запускаем плееры для инициации загрузки потоков в сети
-                webView.loadUrl("javascript:(function(){" +
-                        "var vids = document.querySelectorAll('video, audio');" +
-                        "for(var i=0; i<vids.length; i++) { try { vids[i].play(); } catch(e){} }" +
-                        "})();");
+                // Внедряем JavaScript для вытаскивания полного HTML и данных из памяти React
+                webView.loadUrl("javascript:window.SmuleBridge.onDataExtracted(document.documentElement.innerHTML, document.title);");
 
-                // Даем время на сбор данных и отрисовываем интерфейс
+                // Имитируем прокрутку страницы вниз, чтобы подгрузить все треки
+                webView.loadUrl("javascript:" +
+                    "window.scrollTo(0, document.body.scrollHeight);" +
+                    "setTimeout(function() { window.scrollTo(0, 0); }, 1000);" +
+                "");
+
                 handler.postDelayed(() -> {
                     webView.setVisibility(View.GONE);
                     renderUI();
-                }, 7000);
+                }, 6000);
             }
         });
 
         webView.loadUrl(targetUrl);
+    }
+
+    private void parsePageData(String html) {
+        try {
+            // 1. Ищем названия песен и исполнителей через регулярные выражения в JSON данных страницы
+            Matcher titleMatcher = Pattern.compile("\"title\"\\s*:\\s*\"([^\"]+)\"").matcher(html);
+            Matcher artistMatcher = Pattern.compile("\"artist\"\\s*:\\s*\"([^\"]+)\"").matcher(html);
+            Matcher mediaUrlMatcher = Pattern.compile("\"(video_media_mp4_url|visualizer_media_url|media_url)\"\\s*:\\s*\"([^\"]+)\"").matcher(html);
+
+            // Также собираем друзей/соавторов по никам
+            Matcher handleMatcher = Pattern.compile("\"handle\"\\s*:\\s*\"([^\"]+)\"").matcher(html);
+            while (handleMatcher.find()) {
+                String handle = handleMatcher.group(1);
+                if (!handle.equalsIgnoreCase(profileHandle) && handle.length() > 2) {
+                    int count = friendsMap.containsKey(handle) ? friendsMap.get(handle) : 0;
+                    friendsMap.put(handle, count + 1);
+                }
+            }
+
+            // Извлекаем зашифрованные или прямые медиа ссылки
+            while (mediaUrlMatcher.find()) {
+                String encUrl = mediaUrlMatcher.group(2);
+                String format = encUrl.contains("mp4") ? "mp4" : "m4a";
+                
+                // Пробуем расшифровать RC4 если это зашифрованный URL Smule
+                String resolvedUrl = encUrl;
+                if (encUrl.startsWith("e:")) {
+                    if (cachedRc4Key == null) cachedRc4Key = fetchDynamicKey(html);
+                    if (cachedRc4Key == null) cachedRc4Key = decodeBase64Custom("TT18WlV5TXVeLXFXYn1WTF5qSmR9TXYpOHklYlFXWGY+SUZCRGNKPiU0emcyQ2l8dGVsamBkVlpA");
+                    resolvedUrl = rc4Decrypt(encUrl, cachedRc4Key);
+                }
+
+                if (resolvedUrl != null && resolvedUrl.startsWith("http")) {
+                    synchronized (mediaItemsList) {
+                        mediaItemsList.add(new MediaItem(resolvedUrl, "Трек Smule", profileHandle, format));
+                    }
+                }
+            }
+
+            appendLog("✅ Успешно распарсено: треков — " + mediaItemsList.size() + ", друзей — " + friendsMap.size());
+        } catch (Exception e) {
+            appendLog("⚠️ Ошибка парсинга: " + e.getMessage());
+        }
     }
 
     private void renderUI() {
@@ -399,12 +443,36 @@ public class MainActivity extends Activity {
         mediaContainer.removeAllViews();
 
         profileHeaderTitle.setText("👤 ПРОФИЛЬ: @" + profileHandle.toUpperCase());
-        profileStatsText.setText("Найдено файлов/потоков: " + mediaItemsList.size());
+        profileStatsText.setText("Найдено соавторов: " + friendsMap.size() + " | Найдено треков: " + mediaItemsList.size());
         profileCard.setVisibility(View.VISIBLE);
 
+        // Отрисовка друзей
+        if (friendsMap.isEmpty()) {
+            TextView noFriends = new TextView(this);
+            noFriends.setText("ℹ️ Соавторы на этой странице не найдены.");
+            noFriends.setTextColor(Color.parseColor("#94A3B8"));
+            noFriends.setTextSize(11f);
+            friendsContainer.addView(noFriends);
+        } else {
+            for (Map.Entry<String, Integer> entry : friendsMap.entrySet()) {
+                String friendName = entry.getKey();
+                int count = entry.getValue();
+
+                Button friendBtn = createPillButton("🎤 @" + friendName + " (упоминаний: " + count + ")", "#334155", 11f);
+                friendBtn.setOnClickListener(v -> {
+                    String profileUrl = "https://www.smule.com/" + friendName;
+                    ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                    clipboard.setPrimaryClip(ClipData.newPlainText("Friend", profileUrl));
+                    Toast.makeText(this, "Ссылка на @" + friendName + " скопирована!", Toast.LENGTH_SHORT).show();
+                });
+                friendsContainer.addView(friendBtn);
+            }
+        }
+
+        // Отрисовка медиафайлов с красивыми именами
         synchronized (mediaItemsList) {
             if (mediaItemsList.isEmpty()) {
-                statusText.setText("СТАТУС: Потоки не пойманы. Прокрутите страницу в браузере.");
+                statusText.setText("СТАТУС: Треки не найдены. Проверьте 'ВЕСЬ HTML'.");
                 mainActionButton.setEnabled(true);
                 GradientDrawable btnBg = (GradientDrawable) mainActionButton.getBackground();
                 btnBg.setColor(Color.parseColor("#2563EB"));
@@ -418,19 +486,18 @@ public class MainActivity extends Activity {
                 final int currentIndex = index;
                 final MediaItem currentItem = item;
 
-                String btnLabel = "📥 [" + item.format.toUpperCase() + "] " + item.title + " #" + currentIndex;
+                String btnLabel = "📥 [" + item.format.toUpperCase() + "] " + item.artist + " — " + item.title + " #" + currentIndex;
                 Button dlBtn = createPillButton(btnLabel, currentIndex % 2 == 0 ? "#059669" : "#2563EB", 11f);
                 
                 dlBtn.setOnClickListener(v -> downloadMediaFile(currentItem, currentIndex));
                 mediaContainer.addView(dlBtn);
-                appendLog("👉 Кнопка создана для: " + item.url);
             }
 
-            statusText.setText("СТАТУС: ✅ Успешно найдено файлов: " + mediaItemsList.size());
+            statusText.setText("СТАТУС: ✅ Найдено треков: " + mediaItemsList.size());
             mainActionButton.setEnabled(true);
             GradientDrawable btnBg = (GradientDrawable) mainActionButton.getBackground();
             btnBg.setColor(Color.parseColor("#10B981"));
-            mainActionButton.setText("💾 ФАЙЛЫ ГОТОВЫ К СКАЧИВАНИЮ");
+            mainActionButton.setText("💾 АРХИВ ГОТОВ К СКАЧИВАНИЮ");
         }
     }
 
@@ -439,8 +506,8 @@ public class MainActivity extends Activity {
             String fileName = "SmuleArchive_" + System.currentTimeMillis() + "_" + index + "." + item.format;
             
             DownloadManager.Request request = new DownloadManager.Request(Uri.parse(item.url));
-            request.setTitle("Smule Track #" + index);
-            request.setDescription("Скачивание медиа из архива...");
+            request.setTitle(item.artist + " - " + item.title);
+            request.setDescription("Скачивание трека со Smule...");
             request.allowScanningByMediaScanner();
             request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
             request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
@@ -451,7 +518,7 @@ public class MainActivity extends Activity {
                 Toast.makeText(this, "Загрузка началась!", Toast.LENGTH_LONG).show();
             }
         } catch (Exception e) {
-            Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Ошибка загрузки: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -471,7 +538,7 @@ public class MainActivity extends Activity {
         mainActionButton.setEnabled(true);
         GradientDrawable defaultBg = (GradientDrawable) mainActionButton.getBackground();
         defaultBg.setColor(Color.parseColor("#2563EB"));
-        mainActionButton.setText("🚀 ИЗВЛЕЧЬ ВСЕ ТРЕКИ И ДРУЗЕЙ");
+        mainActionButton.setText("🚀 ЗАГРУЗИТЬ АРХИВ И ДРУЗЕЙ");
         statusText.setText("СТАТУС: Сброшено.");
         debugLogBuilder.setLength(0);
         lastDownloadedHtml = "";
@@ -479,5 +546,87 @@ public class MainActivity extends Activity {
         logEditText.setVisibility(View.GONE);
 
         Toast.makeText(this, "Сброшено!", Toast.LENGTH_SHORT).show();
+    }
+
+    private String fetchDynamicKey(String pageHtml) {
+        try {
+            Matcher coreMatcher = Pattern.compile("src=\"([^\"]*community_core-[a-f0-9]+\\.js)\"").matcher(pageHtml);
+            String coreUrl;
+            if (coreMatcher.find()) {
+                coreUrl = coreMatcher.group(1);
+                if (coreUrl.startsWith("//")) coreUrl = "https:" + coreUrl;
+            } else {
+                coreUrl = "https://w1-fa.cdn.smule.com/assets/community_core-f1e2b046e16d487330152631ceb1fdee.js";
+            }
+
+            String coreJsText = downloadString(coreUrl);
+            if (coreJsText == null) return null;
+
+            Matcher keyMatcher = Pattern.compile("var\\s+v\\s*=\\s*p\\(\"([^\"]+)\"\\)").matcher(coreJsText);
+            if (keyMatcher.find()) return decodeBase64Custom(keyMatcher.group(1));
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    private String decodeBase64Custom(String b64) {
+        try {
+            String fixed = b64.replace('-', '+').replace('_', '/');
+            byte[] decodedBytes = Base64.decode(fixed, Base64.DEFAULT);
+            return new String(decodedBytes, StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            return b64;
+        }
+    }
+
+    private String rc4Decrypt(String encUrl, String key) {
+        if (encUrl == null || !encUrl.startsWith("e:")) return encUrl;
+        try {
+            String b64 = encUrl.substring(2);
+            byte[] cipherBytes = Base64.decode(b64, Base64.DEFAULT);
+            int[] iArray = new int[cipherBytes.length];
+            for (int k = 0; k < cipherBytes.length; k++) iArray[k] = cipherBytes[k] & 0xFF;
+
+            int[] r = new int[256];
+            for (int a = 0; a < 256; a++) r[a] = a;
+
+            int s = 0;
+            for (int a = 0; a < 256; a++) {
+                s = (s + r[a] + key.charAt(a % key.length())) % 256;
+                int temp = r[a]; r[a] = r[s]; r[s] = temp;
+            }
+
+            int a = 0; s = 0;
+            StringBuilder decrypted = new StringBuilder();
+            for (int l = 0; l < iArray.length; l++) {
+                a = (a + 1) % 256;
+                s = (s + r[a]) % 256;
+                int temp = r[a]; r[a] = r[s]; r[s] = temp;
+                int keyStreamByte = r[(r[a] + r[s]) % 256];
+                decrypted.append((char) (iArray[l] ^ keyStreamByte));
+            }
+
+            return decrypted.toString();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String downloadString(String targetUrl) {
+        try {
+            HttpURLConnection conn = (HttpURLConnection) new URL(targetUrl).openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
+            conn.setConnectTimeout(8000);
+            conn.setReadTimeout(8000);
+            if (conn.getResponseCode() == 200) {
+                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line).append("\n");
+                br.close();
+                return sb.toString();
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 }
