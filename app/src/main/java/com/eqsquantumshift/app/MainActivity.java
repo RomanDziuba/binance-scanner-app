@@ -1,8 +1,8 @@
 package com.eqsquantumshift.app;
 
 import android.animation.AnimatorSet;
-import android.animation.ArgbEvaluator;
 import android.animation.ObjectAnimator;
+import android.animation.ArgbEvaluator;
 import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -13,11 +13,13 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
+import android.view.View;
 import android.view.animation.OvershootInterpolator;
 import android.widget.Button;
 import android.widget.GridLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -29,7 +31,7 @@ public class MainActivity extends Activity {
     private int currentLevel = 1;
     private int totalScore = 0;
     private int movesOnLevel = 0;
-    private int maxAllowedMoves = 30; // Лимит ходов с запасом
+    private int maxAllowedMoves = 10;
     
     private int gridCols = 3;
     private int gridRows = 3;
@@ -39,12 +41,12 @@ public class MainActivity extends Activity {
     private int[][] states;
     
     private TextView levelTextView, scoreTextView, movesTextView, titleTextView, logoView, clockTextView, instructionView;
-    private Button btnExit, btnHint;
+    private Button btnExit, btnHintSquare;
     private GridLayout gridLayout;
     
     private Handler clockHandler = new Handler(Looper.getMainLooper());
     private Runnable clockRunnable;
-    private ValueAnimator rgbAnimator; // Анимация перелива подсказки
+    private ValueAnimator rgbAnimator;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,8 +62,6 @@ public class MainActivity extends Activity {
         headerLayout.setOrientation(LinearLayout.HORIZONTAL);
         headerLayout.setGravity(Gravity.CENTER_VERTICAL);
         headerLayout.setPadding(0, 2, 0, 6);
-        headerLayout.setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         titleTextView = new TextView(this);
         titleTextView.setText("EQS: QUANTUM SHIFT");
@@ -76,33 +76,49 @@ public class MainActivity extends Activity {
         logoView.setTextColor(Color.parseColor("#A855F7"));
         logoView.setTextSize(10);
         logoView.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
-        logoView.setPadding(8, 4, 8, 4);
+        logoView.setPadding(6, 2, 6, 2);
         GradientDrawable logoBg = new GradientDrawable();
         logoBg.setColor(Color.parseColor("#1E1035"));
         logoBg.setCornerRadius(8f);
         logoBg.setStroke(2, Color.parseColor("#7E22CE"));
         logoView.setBackground(logoBg);
 
-        // КНОПКА-ПОДСКАЗКА С ПЕРЕЛИВАЮЩИМСЯ RGB ЦВЕТОМ
-        btnHint = new Button(this);
-        btnHint.setText("💡");
-        btnHint.setTextSize(13);
-        btnHint.setPadding(8, 2, 8, 2);
+        // RGB-переливающийся квадрат подсказки (-2 хода)
+        btnHintSquare = new Button(this);
+        btnHintSquare.setText("💡");
+        btnHintSquare.setTextSize(12);
+        btnHintSquare.setPadding(8, 2, 8, 2);
+        GradientDrawable hintBg = new GradientDrawable();
+        hintBg.setCornerRadius(10f);
+        btnHintSquare.setBackground(hintBg);
+        
+        // Запуск бесконечного RGB-перелива цвета для подсказки
+        rgbAnimator = ValueAnimator.ofObject(new ArgbEvaluator(), 
+                Color.parseColor("#3B82F6"), Color.parseColor("#EC4899"), 
+                Color.parseColor("#10B981"), Color.parseColor("#F59E0B"), Color.parseColor("#3B82F6"));
+        rgbAnimator.setDuration(3000);
+        rgbAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        rgbAnimator.addUpdateListener(animator -> {
+            int color = (int) animator.getAnimatedValue();
+            hintBg.setColor(color);
+            hintBg.setStroke(2, Color.WHITE);
+        });
+        rgbAnimator.start();
+
         LinearLayout.LayoutParams hintParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         hintParams.setMargins(6, 0, 0, 0);
-        btnHint.setLayoutParams(hintParams);
-        btnHint.setOnClickListener(v -> useLogicalHint());
-        startRgbHintAnimation(btnHint);
+        btnHintSquare.setLayoutParams(hintParams);
+        btnHintSquare.setOnClickListener(v -> useSmartHint());
 
-        // КНОПКА ВЫХОД
+        // Кнопка ВЫХОД
         btnExit = new Button(this);
         btnExit.setText("❌");
-        btnExit.setTextSize(13);
+        btnExit.setTextSize(12);
         btnExit.setPadding(8, 2, 8, 2);
         GradientDrawable exitBg = new GradientDrawable();
         exitBg.setColor(Color.parseColor("#270F19"));
-        exitBg.setCornerRadius(8f);
+        exitBg.setCornerRadius(10f);
         exitBg.setStroke(2, Color.parseColor("#E11D48"));
         btnExit.setBackground(exitBg);
         LinearLayout.LayoutParams exitParams = new LinearLayout.LayoutParams(
@@ -113,7 +129,7 @@ public class MainActivity extends Activity {
 
         headerLayout.addView(titleTextView);
         headerLayout.addView(logoView);
-        headerLayout.addView(btnHint);
+        headerLayout.addView(btnHintSquare);
         headerLayout.addView(btnExit);
         rootLayout.addView(headerLayout);
 
@@ -151,7 +167,7 @@ public class MainActivity extends Activity {
 
         levelTextView = createStatText("УР: 1/6", "#38BDF8");
         scoreTextView = createStatText("ОЧКИ: 0", "#F59E0B");
-        movesTextView = createStatText("ХОДЫ: 30", "#10B981");
+        movesTextView = createStatText("ХОДЫ: 0/0", "#10B981");
 
         statsLayout.addView(levelTextView);
         statsLayout.addView(scoreTextView);
@@ -162,39 +178,21 @@ public class MainActivity extends Activity {
         gridLayout = new GridLayout(this);
         LinearLayout.LayoutParams gridParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
-        gridParams.setMargins(0, 8, 0, 8);
+        gridParams.setMargins(0, 8, 0, 0);
         gridLayout.setLayoutParams(gridParams);
         rootLayout.addView(gridLayout);
 
         // --- КРАТКАЯ ИНСТРУКЦИЯ ВНИЗУ ---
         instructionView = new TextView(this);
-        instructionView.setText("📖 Цель: Кликайте на ячейки, чтобы синхронизировать всю матрицу в один знак. 💡 Подсказка указывает лучший ход (-2 хода). Превышение лимита ходов = Крах!");
+        instructionView.setText("📖 Цель: сделать ВСЕ клетки одинаковыми.\n💡 RGB-кнопка = точный шаг (-2 хода). Превысишь ходы — взрыв якра!");
         instructionView.setTextColor(Color.parseColor("#64748B"));
         instructionView.setTextSize(10);
         instructionView.setGravity(Gravity.CENTER);
-        instructionView.setPadding(4, 4, 4, 4);
+        instructionView.setPadding(4, 6, 4, 4);
         rootLayout.addView(instructionView);
 
         setContentView(rootLayout);
         loadLevel(currentLevel);
-    }
-
-    // 🌈 ПЕРЕЛИВАЮЩАЯСЯ RGB АНИМАЦИЯ КНОПКИ-ПОДСКАЗКИ
-    private void startRgbHintAnimation(Button btn) {
-        rgbAnimator = ValueAnimator.ofObject(new ArgbEvaluator(), 
-                Color.parseColor("#3B82F6"), Color.parseColor("#EC4899"), 
-                Color.parseColor("#10B981"), Color.parseColor("#F59E0B"), Color.parseColor("#3B82F6"));
-        rgbAnimator.setDuration(4000);
-        rgbAnimator.setRepeatCount(ValueAnimator.INFINITE);
-        rgbAnimator.addUpdateListener(animator -> {
-            int color = (int) animator.getAnimatedValue();
-            GradientDrawable hintBg = new GradientDrawable();
-            hintBg.setColor(Color.parseColor("#172554"));
-            hintBg.setCornerRadius(8f);
-            hintBg.setStroke(3, color);
-            btn.setBackground(hintBg);
-        });
-        rgbAnimator.start();
     }
 
     private void startClockAnimation() {
@@ -212,8 +210,12 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (clockHandler != null && clockRunnable != null) clockHandler.removeCallbacks(clockRunnable);
-        if (rgbAnimator != null) rgbAnimator.cancel();
+        if (clockHandler != null && clockRunnable != null) {
+            clockHandler.removeCallbacks(clockRunnable);
+        }
+        if (rgbAnimator != null) {
+            rgbAnimator.cancel();
+        }
     }
 
     private TextView createStatText(String text, String colorHex) {
@@ -228,68 +230,89 @@ public class MainActivity extends Activity {
         return tv;
     }
 
-    // 💡 ЛОГИЧЕСКАЯ ПОДСКАЗКА (-2 хода)
-    private void useLogicalHint() {
-        if (movesOnLevel + 2 > maxAllowedMoves) {
-            new AlertDialog.Builder(this)
-                    .setTitle("⚠️ Ошибка квантования")
-                    .setMessage("Недостаточно ходов для использования подсказки (-2 хода)!")
-                    .setPositiveButton("ОК", null)
-                    .show();
+    // 💡 ЛОГИЧЕСКАЯ ПОДСКАЗКА: находит идеальный ход и штрафует на 2 хода
+    private void useSmartHint() {
+        movesOnLevel += 2; // Штраф 2 хода за подсказку
+        updateMovesDisplay();
+
+        // Проверяем лимит ходов после подсказки
+        if (movesOnLevel > maxAllowedMoves) {
+            triggerExplosionGameOver();
             return;
         }
 
-        // Вычисляем оптимальный узел: сканируем ячейку, которая меняет больше всего разнородных соседей
-        int bestR = 0, bestC = 0, maxScoreChanges = -1;
-        int targetState = states[0][0];
+        // Ищем клетку, нажатие на которую максимально выравнивает соседние состояния
+        int bestR = 0, bestC = 0;
+        int minMismatch = 999;
 
-        for (int r = 0; r < gridRows; r++) {
-            for (int c = 0; c < gridCols; c++) {
-                int diffs = 0;
-                // Проверяем влияние клика на соседей
-                if (states[r][c] != targetState) diffs += 2;
-                if (r > 0 && states[r-1][c] != targetState) diffs++;
-                if (r < gridRows-1 && states[r+1][c] != targetState) diffs++;
-                if (c > 0 && states[r][c-1] != targetState) diffs++;
-                if (c < gridCols-1 && states[r][c+1] != targetState) diffs++;
-
-                if (diffs > maxScoreChanges) {
-                    maxScoreChanges = diffs;
-                    bestR = r;
-                    bestC = c;
+        for (int i = 0; i < gridRows; i++) {
+            for (int j = 0; j < gridCols; j++) {
+                int mismatch = countMismatchesAfterSimulatedClick(i, j);
+                if (mismatch < minMismatch) {
+                    minMismatch = mismatch;
+                    bestR = i;
+                    bestC = j;
                 }
             }
         }
 
-        movesOnLevel += 2; // Штраф -2 хода
-        updateMovesDisplay();
+        // Подсвечиваем или автоматически делаем умный ход
+        Toast.STRINGS: Toast.makeText(this, "🤓 Подсказка Профессора: жми на [" + (bestR + 1) + ", " + (bestC + 1) + "] (-2 хода)", Toast.LENGTH_LONG).show();
+        triggerQuantumWave(bestR, bestC);
+        
+        if (checkVictoryCondition()) {
+            calculateScoreAndAdvance();
+        }
+    }
 
-        // Подсвечиваем ячейку-подсказку пульсацией рамки
-        TextView targetCell = cellViews[bestR][bestC];
-        ObjectAnimator glow = ObjectAnimator.ofFloat(targetCell, "alpha", 0.3f, 1.0f, 0.3f, 1.0f);
-        glow.setDuration(800);
-        glow.start();
+    private int countMismatchesAfterSimulatedClick(int r, int c) {
+        // Симулируем клик и считаем разнобой
+        int[][] tempStates = new int[gridRows][gridCols];
+        for(int i=0; i<gridRows; i++) {
+            System.arraycopy(states[i], 0, tempStates[i], 0, gridCols);
+        }
+        
+        // Применяем волну симуляции
+        simulateWave(tempStates, r, c);
 
-        new AlertDialog.Builder(this)
-                .setTitle("🤓 Квантовая подсказка ДРВ")
-                .setMessage("Система вычислила оптимальный узел сингулярности: Строка " + (bestR + 1) + ", Столбец " + (bestC + 1) + ".\nСписано штрафных ходов: 2.")
-                .setPositiveButton("Понял 🚀", null)
-                .show();
+        int target = tempStates[0][0];
+        int count = 0;
+        for (int i = 0; i < gridRows; i++) {
+            for (int j = 0; j < gridCols; j++) {
+                if (tempStates[i][j] != target) count++;
+            }
+        }
+        return count;
+    }
 
-        checkGameOverCondition();
+    private void simulateWave(int[][] s, int r, int c) {
+        s[r][c] = (s[r][c] + 1) % maxStates;
+        if (r > 0) s[r - 1][c] = (s[r - 1][c] + 1) % maxStates;
+        if (r < gridRows - 1) s[r + 1][c] = (s[r + 1][c] + 1) % maxStates;
+        if (c > 0) s[r][c - 1] = (s[r][c - 1] + 1) % maxStates;
+        if (c < gridCols - 1) s[r][c + 1] = (s[r][c + 1] + 1) % maxStates;
+        if (currentLevel >= 3) {
+            if (r > 0 && c > 0) s[r - 1][c - 1] = (s[r - 1][c - 1] + 1) % maxStates;
+            if (r > 0 && c < gridCols - 1) s[r - 1][c + 1] = (s[r - 1][c + 1] + 1) % maxStates;
+            if (r < gridRows - 1 && c > 0) s[r + 1][c - 1] = (s[r + 1][c - 1] + 1) % maxStates;
+            if (r < gridRows - 1 && c < gridCols - 1) s[r + 1][c + 1] = (s[r + 1][c + 1] + 1) % maxStates;
+        }
     }
 
     private void loadLevel(int level) {
         movesOnLevel = 0;
         
         switch (level) {
-            case 1: gridCols = 3; gridRows = 3; maxStates = 2; maxAllowedMoves = 14; break;
-            case 2: gridCols = 4; gridRows = 4; maxStates = 2; maxAllowedMoves = 22; break;
-            case 3: gridCols = 4; gridRows = 4; maxStates = 3; maxAllowedMoves = 28; break;
-            case 4: gridCols = 5; gridRows = 5; maxStates = 3; maxAllowedMoves = 38; break;
-            case 5: gridCols = 5; gridRows = 5; maxStates = 4; maxAllowedMoves = 46; break;
-            case 6: gridCols = 6; gridRows = 6; maxStates = 4; maxAllowedMoves = 60; break;
+            case 1: gridCols = 3; gridRows = 3; maxStates = 2; break;
+            case 2: gridCols = 4; gridRows = 4; maxStates = 2; break;
+            case 3: gridCols = 4; gridRows = 4; maxStates = 3; break;
+            case 4: gridCols = 5; gridRows = 5; maxStates = 3; break;
+            case 5: gridCols = 5; gridRows = 5; maxStates = 4; break;
+            case 6: gridCols = 6; gridRows = 6; maxStates = 4; break;
         }
+
+        // Автоматический расчет лимита ходов с запасом в 2 раза
+        maxAllowedMoves = (gridCols * gridRows * maxStates) + (level * 4);
 
         levelTextView.setText("УР: " + level + "/6");
         updateMovesDisplay();
@@ -302,13 +325,7 @@ public class MainActivity extends Activity {
     }
 
     private void updateMovesDisplay() {
-        int leftMoves = maxAllowedMoves - movesOnLevel;
-        movesTextView.setText("ХОДЫ: " + leftMoves + "/" + maxAllowedMoves);
-        if (leftMoves <= 5) {
-            movesTextView.setTextColor(Color.parseColor("#F43F5E")); // Тревожный красный при нехватке ходов
-        } else {
-            movesTextView.setTextColor(Color.parseColor("#10B981"));
-        }
+        movesTextView.setText("ХОДЫ: " + movesOnLevel + "/" + maxAllowedMoves);
     }
 
     private void initQuantumField() {
@@ -327,8 +344,8 @@ public class MainActivity extends Activity {
         gridLayout.setRowCount(gridRows);
         gridLayout.setColumnCount(gridCols);
 
-        int screenWidth = getResources().getDisplayMetrics().widthPixels - 40;
-        int cellSize = screenWidth / gridCols - 6;
+        int screenWidth = getResources().getDisplayMetrics().widthPixels - 50;
+        int cellSize = screenWidth / gridCols - 8;
 
         for (int i = 0; i < gridRows; i++) {
             for (int j = 0; j < gridCols; j++) {
@@ -339,23 +356,26 @@ public class MainActivity extends Activity {
                 GridLayout.LayoutParams params = new GridLayout.LayoutParams();
                 params.width = cellSize;
                 params.height = cellSize;
-                params.setMargins(3, 3, 3, 3);
+                params.setMargins(4, 4, 4, 4);
                 cell.setLayoutParams(params);
                 cell.setGravity(Gravity.CENTER);
                 cell.setTextSize(24);
 
                 updateCellStyle(cell, states[i][j], currentLevel);
-                startLivingAnimation(cell); // 🔥 Живая анимация элементов
+                startLivingCellAnimation(cell); // Анимация «живых» элементов внутри ячеек
 
                 cell.setOnClickListener(v -> {
                     triggerQuantumWave(row, col);
                     movesOnLevel++;
                     updateMovesDisplay();
 
+                    if (movesOnLevel > maxAllowedMoves) {
+                        triggerExplosionGameOver();
+                        return;
+                    }
+
                     if (checkVictoryCondition()) {
                         calculateScoreAndAdvance();
-                    } else {
-                        checkGameOverCondition();
                     }
                 });
 
@@ -365,19 +385,19 @@ public class MainActivity extends Activity {
         }
     }
 
-    // 🔥 АНИМАЦИЯ ЖИВЫХ ВНУТРЕННИХ ЭЛЕМЕНТОВ (Постоянное мягкое дыхание)
-    private void startLivingAnimation(TextView cell) {
-        ObjectAnimator scaleX = ObjectAnimator.ofFloat(cell, "scaleX", 1.0f, 1.06f, 1.0f);
-        ObjectAnimator scaleY = ObjectAnimator.ofFloat(cell, "scaleY", 1.0f, 1.06f, 1.0f);
-        scaleX.setRepeatCount(ValueAnimator.INFINITE);
-        scaleY.setRepeatCount(ValueAnimator.INFINITE);
+    // 🔥 Живая непрерывная анимация значков внутри ячеек
+    private void startLivingCellAnimation(View cell) {
+        ObjectAnimator pulseX = ObjectAnimator.ofFloat(cell, "scaleX", 1.0f, 1.08f, 1.0f);
+        ObjectAnimator pulseY = ObjectAnimator.ofFloat(cell, "scaleY", 1.0f, 1.08f, 1.0f);
+        pulseX.setRepeatCount(ValueAnimator.INFINITE);
+        pulseY.setRepeatCount(ValueAnimator.INFINITE);
         
-        long randomDuration = 1200 + new Random().nextInt(800);
-        scaleX.setDuration(randomDuration);
-        scaleY.setDuration(randomDuration);
+        long duration = 1200 + new Random().nextInt(600);
+        pulseX.setDuration(duration);
+        pulseY.setDuration(duration);
 
         AnimatorSet set = new AnimatorSet();
-        set.playTogether(scaleX, scaleY);
+        set.playTogether(pulseX, pulseY);
         set.start();
     }
 
@@ -398,53 +418,120 @@ public class MainActivity extends Activity {
 
     private void toggleState(int r, int c) {
         states[r][c] = (states[r][c] + 1) % maxStates;
-        animateCellClick(cellViews[r][c], states[r][c], currentLevel);
+        animateCellFancy(cellViews[r][c], states[r][c], currentLevel);
     }
 
-    private void animateCellClick(TextView cell, int newState, int level) {
-        ObjectAnimator rot = ObjectAnimator.ofFloat(cell, "rotation", 0f, 360f);
-        rot.setDuration(250);
-        rot.setInterpolator(new OvershootInterpolator());
-        rot.start();
+    private void animateCellFancy(TextView cell, int newState, int level) {
+        ObjectAnimator scaleX = ObjectAnimator.ofFloat(cell, "scaleX", 0.7f, 1.15f, 1.0f);
+        ObjectAnimator scaleY = ObjectAnimator.ofFloat(cell, "scaleY", 0.7f, 1.15f, 1.0f);
+        ObjectAnimator rotation = ObjectAnimator.ofFloat(cell, "rotation", 0f, 360f, 0f);
+
+        AnimatorSet animatorSet = new AnimatorSet();
+        animatorSet.playTogether(scaleX, scaleY, rotation);
+        animatorSet.setDuration(280);
+        animatorSet.setInterpolator(new OvershootInterpolator());
+        animatorSet.start();
+
         updateCellStyle(cell, newState, level);
     }
 
     private void updateCellStyle(TextView cell, int state, int level) {
         GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadius(14f);
+        bg.setCornerRadius(16f);
         bg.setOrientation(GradientDrawable.Orientation.TL_BR);
+
         String symbol = "⚛";
         
         switch (level) {
             case 1:
-                if (state == 0) { bg.setColors(new int[]{Color.parseColor("#0F172A"), Color.parseColor("#0284C7")}); bg.setStroke(2, Color.parseColor("#38BDF8")); symbol = "🪐"; }
-                else { bg.setColors(new int[]{Color.parseColor("#1E3A8A"), Color.parseColor("#2563EB")}); bg.setStroke(2, Color.parseColor("#60A5FA")); symbol = "🌌"; }
+                if (state == 0) {
+                    bg.setColors(new int[]{Color.parseColor("#0F172A"), Color.parseColor("#0284C7")});
+                    bg.setStroke(3, Color.parseColor("#38BDF8"));
+                    symbol = "🪐";
+                } else {
+                    bg.setColors(new int[]{Color.parseColor("#1E3A8A"), Color.parseColor("#2563EB")});
+                    bg.setStroke(3, Color.parseColor("#60A5FA"));
+                    symbol = "🌌";
+                }
                 break;
             case 2:
-                if (state == 0) { bg.setColors(new int[]{Color.parseColor("#2E1065"), Color.parseColor("#6D28D9")}); bg.setStroke(2, Color.parseColor("#A78BFA")); symbol = "🔮"; }
-                else { bg.setColors(new int[]{Color.parseColor("#4C1D95"), Color.parseColor("#9333EA")}); bg.setStroke(2, Color.parseColor("#C084FC")); symbol = "💠"; }
+                if (state == 0) {
+                    bg.setColors(new int[]{Color.parseColor("#2E1065"), Color.parseColor("#6D28D9")});
+                    bg.setStroke(3, Color.parseColor("#A78BFA"));
+                    symbol = "🔮";
+                } else {
+                    bg.setColors(new int[]{Color.parseColor("#4C1D95"), Color.parseColor("#9333EA")});
+                    bg.setStroke(3, Color.parseColor("#C084FC"));
+                    symbol = "💠";
+                }
                 break;
             case 3:
-                if (state == 0) { bg.setColors(new int[]{Color.parseColor("#022C22"), Color.parseColor("#047857")}); bg.setStroke(2, Color.parseColor("#34D399")); symbol = "🧬"; }
-                else if (state == 1) { bg.setColors(new int[]{Color.parseColor("#064E3B"), Color.parseColor("#059669")}); bg.setStroke(2, Color.parseColor("#6EE7B7")); symbol = "🧪"; }
-                else { bg.setColors(new int[]{Color.parseColor("#14532D"), Color.parseColor("#16A34A")}); bg.setStroke(2, Color.parseColor("#86EFAC")); symbol = "⚡"; }
+                if (state == 0) {
+                    bg.setColors(new int[]{Color.parseColor("#022C22"), Color.parseColor("#047857")});
+                    bg.setStroke(3, Color.parseColor("#34D399"));
+                    symbol = "🧬";
+                } else if (state == 1) {
+                    bg.setColors(new int[]{Color.parseColor("#064E3B"), Color.parseColor("#059669")});
+                    bg.setStroke(3, Color.parseColor("#6EE7B7"));
+                    symbol = "🧪";
+                } else {
+                    bg.setColors(new int[]{Color.parseColor("#14532D"), Color.parseColor("#16A34A")});
+                    bg.setStroke(3, Color.parseColor("#86EFAC"));
+                    symbol = "⚡";
+                }
                 break;
             case 4:
-                if (state == 0) { bg.setColors(new int[]{Color.parseColor("#450A0A"), Color.parseColor("#B91C1C")}); bg.setStroke(2, Color.parseColor("#F87171")); symbol = "🔥"; }
-                else if (state == 1) { bg.setColors(new int[]{Color.parseColor("#7C2D12"), Color.parseColor("#C2410C")}); bg.setStroke(2, Color.parseColor("#FB923C")); symbol = "💫"; }
-                else { bg.setColors(new int[]{Color.parseColor("#78350F"), Color.parseColor("#D97706")}); bg.setStroke(2, Color.parseColor("#FBBF24")); symbol = "✨"; }
+                if (state == 0) {
+                    bg.setColors(new int[]{Color.parseColor("#450A0A"), Color.parseColor("#B91C1C")});
+                    bg.setStroke(3, Color.parseColor("#F87171"));
+                    symbol = "🔥";
+                } else if (state == 1) {
+                    bg.setColors(new int[]{Color.parseColor("#7C2D12"), Color.parseColor("#C2410C")});
+                    bg.setStroke(3, Color.parseColor("#FB923C"));
+                    symbol = "💫";
+                } else {
+                    bg.setColors(new int[]{Color.parseColor("#78350F"), Color.parseColor("#D97706")});
+                    bg.setStroke(3, Color.parseColor("#FBBF24"));
+                    symbol = "✨";
+                }
                 break;
             case 5:
-                if (state == 0) { bg.setColors(new int[]{Color.parseColor("#312E81"), Color.parseColor("#4338CA")}); bg.setStroke(2, Color.parseColor("#818CF8")); symbol = "💎"; }
-                else if (state == 1) { bg.setColors(new int[]{Color.parseColor("#831843"), Color.parseColor("#BE185D")}); bg.setStroke(2, Color.parseColor("#F472B6")); symbol = "🔮"; }
-                else if (state == 2) { bg.setColors(new int[]{Color.parseColor("#134E4A"), Color.parseColor("#0F766E")}); bg.setStroke(2, Color.parseColor("#2DD4BF")); symbol = "🌀"; }
-                else { bg.setColors(new int[]{Color.parseColor("#3F3F46"), Color.parseColor("#71717A")}); bg.setStroke(2, Color.parseColor("#A1A1AA")); symbol = "⚛"; }
+                if (state == 0) {
+                    bg.setColors(new int[]{Color.parseColor("#312E81"), Color.parseColor("#4338CA")});
+                    bg.setStroke(3, Color.parseColor("#818CF8"));
+                    symbol = "💎";
+                } else if (state == 1) {
+                    bg.setColors(new int[]{Color.parseColor("#831843"), Color.parseColor("#BE185D")});
+                    bg.setStroke(3, Color.parseColor("#F472B6"));
+                    symbol = "🔮";
+                } else if (state == 2) {
+                    bg.setColors(new int[]{Color.parseColor("#134E4A"), Color.parseColor("#0F766E")});
+                    bg.setStroke(3, Color.parseColor("#2DD4BF"));
+                    symbol = "🌀";
+                } else {
+                    bg.setColors(new int[]{Color.parseColor("#3F3F46"), Color.parseColor("#71717A")});
+                    bg.setStroke(3, Color.parseColor("#A1A1AA"));
+                    symbol = "⚛";
+                }
                 break;
             case 6:
-                if (state == 0) { bg.setColors(new int[]{Color.parseColor("#581C87"), Color.parseColor("#7E22CE")}); bg.setStroke(2, Color.parseColor("#D8B4FE")); symbol = "⭐"; }
-                else if (state == 1) { bg.setColors(new int[]{Color.parseColor("#065F46"), Color.parseColor("#059669")}); bg.setStroke(2, Color.parseColor("#A7F3D0")); symbol = "🌟"; }
-                else if (state == 2) { bg.setColors(new int[]{Color.parseColor("#991B1B"), Color.parseColor("#DC2626")}); bg.setStroke(2, Color.parseColor("#FCA5A5")); symbol = "💫"; }
-                else { bg.setColors(new int[]{Color.parseColor("#1E3A8A"), Color.parseColor("#3B82F6")}); bg.setStroke(2, Color.parseColor("#BFDBFE")); symbol = "✨"; }
+                if (state == 0) {
+                    bg.setColors(new int[]{Color.parseColor("#581C87"), Color.parseColor("#7E22CE")});
+                    bg.setStroke(3, Color.parseColor("#D8B4FE"));
+                    symbol = "⭐";
+                } else if (state == 1) {
+                    bg.setColors(new int[]{Color.parseColor("#065F46"), Color.parseColor("#059669")});
+                    bg.setStroke(3, Color.parseColor("#A7F3D0"));
+                    symbol = "🌟";
+                } else if (state == 2) {
+                    bg.setColors(new int[]{Color.parseColor("#991B1B"), Color.parseColor("#DC2626")});
+                    bg.setStroke(3, Color.parseColor("#FCA5A5"));
+                    symbol = "💫";
+                } else {
+                    bg.setColors(new int[]{Color.parseColor("#1E3A8A"), Color.parseColor("#3B82F6")});
+                    bg.setStroke(3, Color.parseColor("#BFDBFE"));
+                    symbol = "✨";
+                }
                 break;
         }
 
@@ -463,19 +550,21 @@ public class MainActivity extends Activity {
         return true;
     }
 
-    private void checkGameOverCondition() {
-        if (movesOnLevel >= maxAllowedMoves) {
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle("💥 КРАХ КВАНТОВОГО ЯДРА!");
-            builder.setMessage("Лимит ходов исчерпан. Система дестабилизирована и взорвалась!\n\nПопробуйте сектор заново.");
-            builder.setCancelable(false);
-            builder.setPositiveButton("🔄 Возобновить игру", (dialog, which) -> loadLevel(currentLevel));
-            builder.show();
-        }
+    // 💥 ВЗРЫВ ПРИ ПРЕВЫШЕНИИ ЛИМИТА ХОДОВ
+    private void triggerExplosionGameOver() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setCancelable(false);
+        builder.setTitle("💥 КРАХ ЯДРА! ПЕРЕГРУЗКА!");
+        builder.setMessage("Лимит ходов исчерпан. Квантовая матрица взорвалась!\n\nХочешь возобновить игру и попробовать снова?");
+        builder.setPositiveButton("ВОЗОБНИВИТЬ ИГРУ 🔄", (dialog, which) -> {
+            loadLevel(currentLevel);
+        });
+        builder.setNegativeButton("Выход ❌", (dialog, which) -> finishAndRemoveTask());
+        builder.show();
     }
 
     private void calculateScoreAndAdvance() {
-        int levelBonus = Math.max(150 - (movesOnLevel * 4), 40) * currentLevel;
+        int levelBonus = Math.max(150 - (movesOnLevel * 5), 40) * currentLevel;
         totalScore += levelBonus;
         scoreTextView.setText("ОЧКИ: " + totalScore);
 
