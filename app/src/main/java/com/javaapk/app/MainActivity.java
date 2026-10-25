@@ -1,5 +1,7 @@
 ﻿package com.javaapk.app;
 
+import androidx.appcompat.app.AppCompatActivity;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ClipData;
