@@ -2,6 +2,7 @@ package com.monstercompiler.app;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.ProgressDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
@@ -64,11 +65,13 @@ public class MainActivity extends Activity {
 
     private TextView statusTextView, infoTextView;
     private EditText logEditText;
-    private Button btnBuild, btnStopBuild, btnUploadJava, btnDecompileApk, btnResetClock, btnTitle, btnVersion, btnIcon, btnSettings, btnCopyLogs, btnCodeEditor, btnFileManager, btnAiFix;
+    private Button btnBuild, btnStopBuild, btnUploadJava, btnDecompileApk, btnResetClock, btnTitle, btnVersion, btnIcon, btnSettings, btnCopyLogs, btnCodeEditor, btnFileManager, btnAiFix, btnRetryUpload;
 
     private Handler handler = new Handler(Looper.getMainLooper());
     private volatile boolean isMonitoring = false;
     private String lastErrorLog = "";
+    private byte[] lastFailedBytes = null;
+    private String lastFailedPath = "";
 
     public static class RepoItem {
         public String path;
@@ -192,6 +195,12 @@ public class MainActivity extends Activity {
         btnUploadJava = createStyledButton("", "#0D9488");
         btnUploadJava.setOnClickListener(v -> openJavaFilePicker());
         card.addView(btnUploadJava);
+
+        // Кнопка повтора при сбое сети (появляется при необходимости)
+        btnRetryUpload = createStyledButton("🔄 Повторить отправку файла на сервер", "#D97706");
+        btnRetryUpload.setVisibility(View.GONE);
+        btnRetryUpload.setOnClickListener(v -> retryLastUpload());
+        card.addView(btnRetryUpload);
 
         // 7. Декомпилировать
         btnDecompileApk = createStyledButton("📦 Декомпилировать файл/APK в код", "#475569");
@@ -717,6 +726,9 @@ public class MainActivity extends Activity {
         }
     }
 
+    // ==========================================
+    // НАДЕЖНАЯ ЗАГРУЗКА И СИНХРОНИЗАЦИЯ НОВОГО ФАЙЛА С СЕРВЕРОМ
+    // ==========================================
     private void processSelectedJavaFile(Uri uri) {
         String rawName = getFileNameFromUri(uri);
         final String fileName = (rawName != null) ? rawName : "Custom.java";
@@ -735,14 +747,97 @@ public class MainActivity extends Activity {
             activeCodeContent = sanitizeAndInjectJavaCode(code, packageName);
             currentJavaFileName = fileName;
             saveSettings();
-            
-            handler.post(() -> {
-                Toast.makeText(this, "Java файл загружен в редактор: " + fileName, Toast.LENGTH_SHORT).show();
-                logEditText.setText("=== 📂 ФАЙЛ УСПЕШНО ЗАГРУЖЕН ===\n• Имя: " + fileName + "\n• Загружен в редактор кода.");
-            });
+
+            // Показываем прогресс-бар синхронизации нового файла
+            ProgressDialog progressDialog = new ProgressDialog(this);
+            progressDialog.setTitle("📤 Синхронизация с сервером");
+            progressDialog.setMessage("Проверка и отправка файла на GitHub...");
+            progressDialog.setCancelable(false);
+            progressDialog.show();
+
+            final String targetPath = getMainActivityPath();
+            final byte[] uploadBytes = activeCodeContent.getBytes(StandardCharsets.UTF_8);
+
+            new Thread(() -> {
+                boolean success = false;
+                int attempts = 0;
+                // До 10 попыток при проблемах с интернетом
+                while (attempts < 10 && !success) {
+                    attempts++;
+                    success = pushBytesToGitHub(targetPath, uploadBytes, "Upload new file: " + fileName + " (Attempt " + attempts + ")");
+                    if (!success && attempts < 10) {
+                        try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+                    }
+                }
+
+                final boolean isSuccess = success;
+                final int finalAttempts = attempts;
+
+                handler.post(() -> {
+                    progressDialog.dismiss();
+                    if (isSuccess) {
+                        if (btnRetryUpload != null) btnRetryUpload.setVisibility(View.GONE);
+                        Toast.makeText(this, "Файл успешно заменен и синхронизирован!", Toast.LENGTH_SHORT).show();
+                        statusTextView.setText("Статус: ✅ Новый файл готов к компиляции!");
+                        logEditText.setText("=== 📂 НОВЫЙ ФАЙЛ УСПЕШНО ЗАГРУЖЕН И СВЕРЕН ===\n" +
+                                            "• Имя: " + fileName + "\n" +
+                                            "• Пакет: " + packageName + "\n" +
+                                            "• Попыток отправки: " + finalAttempts + "\n" +
+                                            "• Статус репозитория: Синхронизирован.");
+                    } else {
+                        // Сохраняем состояние для повторной попытки по кнопке
+                        lastFailedBytes = uploadBytes;
+                        lastFailedPath = targetPath;
+                        if (btnRetryUpload != null) btnRetryUpload.setVisibility(View.VISIBLE);
+                        statusTextView.setText("Статус: ❌ Ошибка сети при отправке файла");
+                        logEditText.setText("⚠️ Не удалось отправить файл на GitHub после 10 попыток (проверьте интернет).\n" +
+                                            "Нажмите кнопку '🔄 Повторить отправку файла на сервер' ниже.");
+                    }
+                    updateAllButtonLabels();
+                });
+            }).start();
+
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка чтения: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
+    }
+
+    private void retryLastUpload() {
+        if (lastFailedBytes == null || lastFailedPath.isEmpty()) {
+            Toast.makeText(this, "Нет данных для повтора", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        ProgressDialog progressDialog = new ProgressDialog(this);
+        progressDialog.setTitle("🔄 Повторная отправка");
+        progressDialog.setMessage("Отправка файла на сервер...");
+        progressDialog.setCancelable(false);
+        progressDialog.show();
+
+        new Thread(() -> {
+            boolean success = false;
+            int attempts = 0;
+            while (attempts < 10 && !success) {
+                attempts++;
+                success = pushBytesToGitHub(lastFailedPath, lastFailedBytes, "Retry upload attempt " + attempts);
+                if (!success && attempts < 10) {
+                    try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+                }
+            }
+
+            final boolean isSuccess = success;
+            handler.post(() -> {
+                progressDialog.dismiss();
+                if (isSuccess) {
+                    if (btnRetryUpload != null) btnRetryUpload.setVisibility(View.GONE);
+                    Toast.makeText(this, "Файл успешно отправлен!", Toast.LENGTH_SHORT).show();
+                    statusTextView.setText("Статус: ✅ Файл синхронизирован!");
+                    logEditText.setText("=== ✅ ПОВТОРНАЯ ОТПРАВКА УСПЕШНА ===\nФайл успешно загружен на GitHub.");
+                } else {
+                    Toast.makeText(this, "Снова ошибка сети. Проверьте интернет.", Toast.LENGTH_LONG).show();
+                }
+            });
+        }).start();
     }
 
     private void processUniversalFileForDecompilation(Uri uri) {
@@ -776,11 +871,13 @@ public class MainActivity extends Activity {
                         zip.close();
                     } catch (Exception ignored) {}
 
-                    // Легковесная безопасная декомпиляция DEX в Java код без зависаний
                     String decompiledJava = decompileDexToJava(tempFile);
-                    activeCodeContent = decompiledJava;
+                    activeCodeContent = sanitizeAndInjectJavaCode(decompiledJava, packageName);
                     currentJavaFileName = fileName + " (Распакован)";
                     tempFile.delete();
+
+                    // Синхронизируем декомпилированный код с репозиторием
+                    pushFileToGitHub(getMainActivityPath(), activeCodeContent, "Decompiled from APK: " + fileName);
 
                     handler.post(() -> {
                         saveSettings();
@@ -805,6 +902,8 @@ public class MainActivity extends Activity {
                     currentJavaFileName = fileName;
                     tempFile.delete();
 
+                    pushFileToGitHub(getMainActivityPath(), activeCodeContent, "Upload text file: " + fileName);
+
                     handler.post(() -> {
                         saveSettings();
                         statusTextView.setText("Статус: ✅ Файл загружен в редактор!");
@@ -822,7 +921,6 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    // Встроенный безопасный фоновый анализатор DEX для извлечения исходного Java-кода из APK
     private String decompileDexToJava(File apkFile) {
         try {
             ZipFile zip = new ZipFile(apkFile);
@@ -866,7 +964,6 @@ public class MainActivity extends Activity {
             sb.append("        tv.setGravity(Gravity.CENTER);\n");
             sb.append("        layout.addView(tv);\n\n");
 
-            // Извлекаем строковые литералы из пула DEX для восстановления UI-контента
             int addedCount = 0;
             for (int i = 0; i < Math.min(stringIdsSize, 250); i++) {
                 int stringOffOff = stringIdsOff + i * 4;
@@ -975,6 +1072,16 @@ public class MainActivity extends Activity {
 
                 report.append("🔬 Скан логов завершен. Обнаружены следующие аномалии:\n\n");
 
+                if (lastErrorLog.contains("illegal character: '\\ufeff'") || lastErrorLog.contains("\ufeff")) {
+                    report.append("• 🧬 Проблема: Обнаружен скрытый символ BOM (\\ufeff) в первой строке файла.\n");
+                    if (fixedCode.startsWith("\uFEFF")) {
+                        fixedCode = fixedCode.substring(1);
+                    }
+                    fixedCode = fixedCode.replace("\uFEFF", "").replace("\ufeff", "");
+                    repaired = true;
+                    report.append("  ➜ 🛠 Авто-Патч: Скрытый символ BOM успешно удален из кода!\n");
+                }
+
                 if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("WebView") || lastErrorLog.contains("WebSettings") || lastErrorLog.contains("WebViewClient"))) {
                     report.append("• 🧬 Проблема: Отсутствуют импорты графического компонента WebView.\n");
                     if (!fixedCode.contains("import android.webkit.WebView;")) {
@@ -1014,7 +1121,7 @@ public class MainActivity extends Activity {
                     report.append("  ➜ 🛠 Авто-Патч: Проблемные R-ссылки заменены безопасными заглушками.\n");
                 }
 
-                if (!repaired && !lastErrorLog.contains("should be final")) {
+                if (!repaired) {
                     report.append("⚠️ Точный автоматический паттерн не найден. Профессор изучил сырые логи:\n\n");
                     String[] lines = lastErrorLog.split("\n");
                     int count = 0;
@@ -1024,7 +1131,7 @@ public class MainActivity extends Activity {
                             count++;
                         }
                     }
-                } else if (repaired) {
+                } else {
                     report.append("\n🎉 Профессор успешно применил исправления в коде! Сохраните изменения и запустите сборку заново.");
                 }
 
@@ -1087,7 +1194,13 @@ public class MainActivity extends Activity {
     }
 
     private String sanitizeAndInjectJavaCode(String code, String pkg) {
-        code = code.replace('\u00A0', ' ').replace("\r\n", "\n");
+        if (code != null) {
+            if (code.startsWith("\uFEFF")) {
+                code = code.substring(1);
+            }
+            code = code.replace("\uFEFF", "").replace("\ufeff", "");
+        }
+        code = code.replace('\u00A0', ' ').replace("\r\n", "\n").trim();
         code = code.replaceAll("package\\s+[a-zA-Z0-9_.]+;", "package " + pkg + ";");
         if (!code.contains("package ")) code = "package " + pkg + ";\n\n" + code;
         if (!code.contains("import android.app.Activity;")) {
@@ -1148,7 +1261,7 @@ public class MainActivity extends Activity {
             .setTitle("📝 Редактор кода")
             .setView(editorLayout)
             .setPositiveButton("Сохранить", (dialog, which) -> {
-                activeCodeContent = codeInput.getText().toString();
+                activeCodeContent = sanitizeAndInjectJavaCode(codeInput.getText().toString(), packageName);
                 saveSettings();
                 Toast.makeText(this, "Сохранено локально!", Toast.LENGTH_SHORT).show();
             })
