@@ -19,7 +19,6 @@ import android.widget.Button;
 import android.widget.GridLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -45,7 +44,7 @@ public class MainActivity extends Activity {
     private int[][] states;
     
     private TextView levelTextView, scoreTextView, movesTextView, titleTextView, logoView, clockTextView, instructionView;
-    private Button btnExit, btnHintSquare;
+    private Button btnExit, btnHintBottom;
     private GridLayout gridLayout;
     private LinearLayout rootLayout;
     
@@ -88,34 +87,7 @@ public class MainActivity extends Activity {
         logoBg.setStroke(2, Color.parseColor("#7E22CE"));
         logoView.setBackground(logoBg);
 
-        // RGB-переливающийся квадрат подсказки (-2 хода)
-        btnHintSquare = new Button(this);
-        btnHintSquare.setText("💡");
-        btnHintSquare.setTextSize(12);
-        btnHintSquare.setPadding(8, 2, 8, 2);
-        GradientDrawable hintBg = new GradientDrawable();
-        hintBg.setCornerRadius(10f);
-        btnHintSquare.setBackground(hintBg);
-        
-        rgbAnimator = ValueAnimator.ofObject(new ArgbEvaluator(), 
-                Color.parseColor("#3B82F6"), Color.parseColor("#EC4899"), 
-                Color.parseColor("#10B981"), Color.parseColor("#F59E0B"), Color.parseColor("#3B82F6"));
-        rgbAnimator.setDuration(3000);
-        rgbAnimator.setRepeatCount(ValueAnimator.INFINITE);
-        rgbAnimator.addUpdateListener(animator -> {
-            int color = (int) animator.getAnimatedValue();
-            hintBg.setColor(color);
-            hintBg.setStroke(2, Color.WHITE);
-        });
-        rgbAnimator.start();
-
-        LinearLayout.LayoutParams hintParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        hintParams.setMargins(6, 0, 0, 0);
-        btnHintSquare.setLayoutParams(hintParams);
-        btnHintSquare.setOnClickListener(v -> useMathematicalHint());
-
-        // Кнопка ВЫХОД
+        // Кнопка ВЫХОД вверху
         btnExit = new Button(this);
         btnExit.setText("❌");
         btnExit.setTextSize(12);
@@ -133,7 +105,6 @@ public class MainActivity extends Activity {
 
         headerLayout.addView(titleTextView);
         headerLayout.addView(logoView);
-        headerLayout.addView(btnHintSquare);
         headerLayout.addView(btnExit);
         rootLayout.addView(headerLayout);
 
@@ -186,14 +157,52 @@ public class MainActivity extends Activity {
         gridLayout.setLayoutParams(gridParams);
         rootLayout.addView(gridLayout);
 
-        // --- КРАТКАЯ ИНСТРУКЦИЯ ВНИЗУ ---
+        // --- НИЖНЯЯ ПАНЕЛЬ С RGB-КНОПКОЙ ПОДСКАЗКИ И ИНСТРУКЦИЕЙ ---
+        LinearLayout bottomLayout = new LinearLayout(this);
+        bottomLayout.setOrientation(LinearLayout.VERTICAL);
+        bottomLayout.setGravity(Gravity.CENTER);
+        bottomLayout.setPadding(0, 6, 0, 0);
+
+        // RGB-переливающаяся кнопка подсказки внизу (-2 хода, мгновенный ход)
+        btnHintBottom = new Button(this);
+        btnHintBottom.setText("💡 ИДЕАЛЬНЫЙ КВАНТОВЫЙ ХОД (-2 ХОДА)");
+        btnHintBottom.setTextColor(Color.WHITE);
+        btnHintBottom.setTextSize(12);
+        btnHintBottom.setTypeface(Typeface.DEFAULT_BOLD);
+        btnHintBottom.setPadding(16, 10, 16, 10);
+        
+        GradientDrawable hintBtnBg = new GradientDrawable();
+        hintBtnBg.setCornerRadius(14f);
+        btnHintBottom.setBackground(hintBtnBg);
+
+        rgbAnimator = ValueAnimator.ofObject(new ArgbEvaluator(), 
+                Color.parseColor("#2563EB"), Color.parseColor("#9333EA"), 
+                Color.parseColor("#059669"), Color.parseColor("#D97706"), Color.parseColor("#2563EB"));
+        rgbAnimator.setDuration(3000);
+        rgbAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        rgbAnimator.addUpdateListener(animator -> {
+            int color = (int) animator.getAnimatedValue();
+            hintBtnBg.setColor(color);
+            hintBtnBg.setStroke(2, Color.WHITE);
+        });
+        rgbAnimator.start();
+
+        LinearLayout.LayoutParams hintBtnParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        hintBtnParams.setMargins(0, 0, 0, 6);
+        btnHintBottom.setLayoutParams(hintBtnParams);
+        btnHintBottom.setOnClickListener(v -> useMathematicalHintInstant());
+        bottomLayout.addView(btnHintBottom);
+
+        // Инструкция
         instructionView = new TextView(this);
-        instructionView.setText("📖 Цель: сделать ВСЕ клетки одинаковыми.\n💡 RGB-кнопка = точный математический шаг (-2 хода). Лимит ходов = взрыв ядра!");
+        instructionView.setText("📖 Сделай ВСЕ клетки одинаковыми. Превысишь ходы — взрыв якра!");
         instructionView.setTextColor(Color.parseColor("#64748B"));
         instructionView.setTextSize(10);
         instructionView.setGravity(Gravity.CENTER);
-        instructionView.setPadding(4, 6, 4, 4);
-        rootLayout.addView(instructionView);
+        bottomLayout.addView(instructionView);
+
+        rootLayout.addView(bottomLayout);
 
         setContentView(rootLayout);
         loadLevel(currentLevel);
@@ -234,8 +243,8 @@ public class MainActivity extends Activity {
         return tv;
     }
 
-    // 💡 ТОЧНЫЙ МАТЕМАТИЧЕСКИЙ ПОДСЧЕТ ПОДСКАЗКИ (BFS РЕШАТЕЛЬ)
-    private void useMathematicalHint() {
+    // 💡 МГНОВЕННЫЙ МАТЕМАТИЧЕСКИЙ ХОД ПОДСКАЗКИ БЕЗ ТОАСТОВ И ДИАЛОГОВ
+    private void useMathematicalHintInstant() {
         movesOnLevel += 2; // Штраф 2 хода
         updateMovesDisplay();
 
@@ -246,16 +255,11 @@ public class MainActivity extends Activity {
 
         int[] bestMove = calculateOptimalHintMove();
         if (bestMove != null) {
-            int r = bestMove[0];
-            int c = bestMove[1];
-            Toast.makeText(this, "🤓 Точный ход: [" + (r + 1) + ", " + (c + 1) + "] (-2 хода)", Toast.LENGTH_LONG).show();
-            triggerQuantumWave(r, c);
+            triggerQuantumWave(bestMove[0], bestMove[1]);
             
             if (checkVictoryCondition()) {
                 calculateScoreAndAdvance();
             }
-        } else {
-            Toast.makeText(this, "🤓 Квантовое состояние стабильно!", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -291,7 +295,7 @@ public class MainActivity extends Activity {
 
         while (!queue.isEmpty()) {
             Node curr = queue.poll();
-            if (curr.depth >= 4) continue; // Ограничение глубины для мгновенного отклика
+            if (curr.depth >= 4) continue;
 
             for (int r = 0; r < gridRows; r++) {
                 for (int c = 0; c < gridCols; c++) {
@@ -311,7 +315,6 @@ public class MainActivity extends Activity {
             }
         }
 
-        // Запасной вариант (минимальный разнобой)
         int bestR = 0, bestC = 0, minMismatch = 999;
         for (int r = 0; r < gridRows; r++) {
             for (int c = 0; c < gridCols; c++) {
@@ -466,13 +469,14 @@ public class MainActivity extends Activity {
         }
     }
 
+    // 🔥 Живая непрерывная плавная анимация пульсации внутри ячеек
     private void startLivingCellAnimation(View cell) {
-        ObjectAnimator pulseX = ObjectAnimator.ofFloat(cell, "scaleX", 1.0f, 1.08f, 1.0f);
-        ObjectAnimator pulseY = ObjectAnimator.ofFloat(cell, "scaleY", 1.0f, 1.08f, 1.0f);
+        ObjectAnimator pulseX = ObjectAnimator.ofFloat(cell, "scaleX", 1.0f, 1.10f, 1.0f);
+        ObjectAnimator pulseY = ObjectAnimator.ofFloat(cell, "scaleY", 1.0f, 1.10f, 1.0f);
         pulseX.setRepeatCount(ValueAnimator.INFINITE);
         pulseY.setRepeatCount(ValueAnimator.INFINITE);
         
-        long duration = 1200 + new Random().nextInt(600);
+        long duration = 1000 + new Random().nextInt(500);
         pulseX.setDuration(duration);
         pulseY.setDuration(duration);
 
@@ -502,14 +506,14 @@ public class MainActivity extends Activity {
     }
 
     private void animateCellFancy(TextView cell, int newState, int level) {
-        ObjectAnimator scaleX = ObjectAnimator.ofFloat(cell, "scaleX", 0.7f, 1.15f, 1.0f);
-        ObjectAnimator scaleY = ObjectAnimator.ofFloat(cell, "scaleY", 0.7f, 1.15f, 1.0f);
+        ObjectAnimator scaleX = ObjectAnimator.ofFloat(cell, "scaleX", 0.6f, 1.25f, 1.0f);
+        ObjectAnimator scaleY = ObjectAnimator.ofFloat(cell, "scaleY", 0.6f, 1.25f, 1.0f);
         ObjectAnimator rotation = ObjectAnimator.ofFloat(cell, "rotation", 0f, 360f, 0f);
 
         AnimatorSet animatorSet = new AnimatorSet();
         animatorSet.playTogether(scaleX, scaleY, rotation);
-        animatorSet.setDuration(280);
-        animatorSet.setInterpolator(new OvershootInterpolator());
+        animatorSet.setDuration(320);
+        animatorSet.setInterpolator(new OvershootInterpolator(1.5f));
         animatorSet.start();
 
         updateCellStyle(cell, newState, level);
@@ -630,14 +634,14 @@ public class MainActivity extends Activity {
         return true;
     }
 
-    // 💥 ВИЗУАЛЬНЫЙ ВЗРЫВ ЯДРА НА ЭКРАНЕ
+    // 💥 ВИЗУАЛЬНЫЙ ВЗРЫВ ЯДРА НА ЭКРАНЕ (Тряска + Красное пламя)
     private void triggerVisualExplosion() {
-        ObjectAnimator shake = ObjectAnimator.ofFloat(gridLayout, "translationX", 0f, 30f, -30f, 25f, -25f, 15f, -15f, 0f);
-        shake.setDuration(700);
+        ObjectAnimator shake = ObjectAnimator.ofFloat(gridLayout, "translationX", 0f, 35f, -35f, 30f, -30f, 20f, -20f, 0f);
+        shake.setDuration(750);
 
         ValueAnimator colorAnim = ValueAnimator.ofObject(new ArgbEvaluator(), 
                 Color.parseColor("#040711"), Color.parseColor("#7F1D1D"), Color.parseColor("#450A0A"), Color.parseColor("#040711"));
-        colorAnim.setDuration(700);
+        colorAnim.setDuration(750);
         colorAnim.addUpdateListener(anim -> {
             rootLayout.setBackgroundColor((int) anim.getAnimatedValue());
         });
@@ -658,7 +662,7 @@ public class MainActivity extends Activity {
         builder.setCancelable(false);
         builder.setTitle("💥 КРАХ ЯДРА! ПЕРЕГРУЗКА!");
         builder.setMessage("Лимит ходов исчерпан. Квантовая матрица взорвалась!\n\nХочешь возобновить игру и попробовать снова?");
-        builder.setPositiveButton("ВОЗОБНИВИТЬ ИГРУ 🔄", (dialog, which) -> {
+        builder.setPositiveButton("ВОЗОБНОВИТЬ ИГРУ 🔄", (dialog, which) -> {
             loadLevel(currentLevel);
         });
         builder.setNegativeButton("Выход ❌", (dialog, which) -> finishAndRemoveTask());
