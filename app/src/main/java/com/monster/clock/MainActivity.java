@@ -1,4 +1,4 @@
-package com.eqsquantumshift.app;
+package com.monster.clock;
 
 import android.app.Activity;
 import android.content.Context;
