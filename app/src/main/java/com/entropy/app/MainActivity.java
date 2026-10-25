@@ -121,7 +121,6 @@ public class MainActivity extends AppCompatActivity {
     private void loadLevel(int level) {
         movesOnLevel = 0;
         
-        // Настройка параметров в зависимости от уровня
         switch (level) {
             case 1:
                 gridCols = 3; gridRows = 3; maxStates = 2; break;
@@ -151,7 +150,7 @@ public class MainActivity extends AppCompatActivity {
                     states[i][j] = random.nextInt(maxStates);
                 }
             }
-        } while (checkVictoryCondition()); // Убеждаемся, что уровень не стартует решенным
+        } while (checkVictoryCondition());
     }
 
     private void buildGridUI() {
@@ -195,7 +194,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // Квантовая волна: на уровнях 3 и 4 задействует также диагональные связи для хардокрности
     private void triggerQuantumWave(int r, int c) {
         toggleState(r, c);
         if (r > 0) toggleState(r - 1, c);
@@ -203,7 +201,6 @@ public class MainActivity extends AppCompatActivity {
         if (c > 0) toggleState(r, c - 1);
         if (c < gridCols - 1) toggleState(r, c + 1);
 
-        // Усложнение на высоких уровнях (диагональный резонанс)
         if (currentLevel >= 3) {
             if (r > 0 && c > 0) toggleState(r - 1, c - 1);
             if (r > 0 && c < gridCols - 1) toggleState(r - 1, c + 1);
@@ -263,7 +260,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void calculateScoreAndAdvance() {
-        // Формула очков: чем меньше ходов потрачено, тем выше бонус
         int levelBonus = Math.max(100 - (movesOnLevel * 5), 20) * currentLevel;
         totalScore += levelBonus;
         scoreTextView.setText("Очки: " + totalScore);
@@ -290,4 +286,4 @@ public class MainActivity extends AppCompatActivity {
         }
         builder.show();
     }
-}
+} // <--- Вот эта закрывающая скобка теперь гарантированно на месте, файл не оборвется!
