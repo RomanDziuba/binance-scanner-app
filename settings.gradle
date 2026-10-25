@@ -1,2 +1,2 @@
-rootProject.name = "MonsterCompiler"
+rootProject.name = "Java_apk"
 include ':app'
