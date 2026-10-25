@@ -1,13 +1,6 @@
 package com.entropy.app;
 
-import android.app.Activity;
-import android.os.Bundle;
-import android.widget.*;
-import android.graphics.*;
-import android.view.*;
-
 import android.animation.ValueAnimator;
-import android.content.DialogInterface;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
@@ -16,6 +9,7 @@ import android.view.View;
 import android.widget.GridLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -62,7 +56,7 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         titleTextView.setLayoutParams(titleParams);
 
-        // Фирменный логотип DRV_2026
+        // Аккуратный фирменный логотип DRV_2026
         logoView = new TextView(this);
         logoView.setText("DRV_2026");
         logoView.setTextColor(Color.parseColor("#64748B"));
@@ -78,7 +72,7 @@ public class MainActivity extends AppCompatActivity {
         headerLayout.addView(logoView);
         rootLayout.addView(headerLayout);
 
-        // --- ИНФОРМАЦИОННАЯ ПАНЕЛЬ ---
+        // --- ИНФОРМАЦИОННАЯ ПАНЕЛЬ (Уровень, Счёт, Ходы) ---
         LinearLayout statsLayout = new LinearLayout(this);
         statsLayout.setOrientation(LinearLayout.HORIZONTAL);
         statsLayout.setPadding(0, 24, 0, 24);
@@ -121,6 +115,7 @@ public class MainActivity extends AppCompatActivity {
     private void loadLevel(int level) {
         movesOnLevel = 0;
         
+        // Настройка параметров в зависимости от уровня
         switch (level) {
             case 1:
                 gridCols = 3; gridRows = 3; maxStates = 2; break;
@@ -150,7 +145,7 @@ public class MainActivity extends AppCompatActivity {
                     states[i][j] = random.nextInt(maxStates);
                 }
             }
-        } while (checkVictoryCondition());
+        } while (checkVictoryCondition()); // Убеждаемся, что уровень не стартует решенным
     }
 
     private void buildGridUI() {
@@ -178,17 +173,13 @@ public class MainActivity extends AppCompatActivity {
 
                 updateCellStyle(cell, states[i][j]);
 
-                // Классический OnClickListener (без лямбд)
-                cell.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        triggerQuantumWave(row, col);
-                        movesOnLevel++;
-                        movesTextView.setText("Ходы: " + movesOnLevel);
+                cell.setOnClickListener(v -> {
+                    triggerQuantumWave(row, col);
+                    movesOnLevel++;
+                    movesTextView.setText("Ходы: " + movesOnLevel);
 
-                        if (checkVictoryCondition()) {
-                            calculateScoreAndAdvance();
-                        }
+                    if (checkVictoryCondition()) {
+                        calculateScoreAndAdvance();
                     }
                 });
 
@@ -198,6 +189,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // Квантовая волна: на уровнях 3 и 4 задействует также диагональные связи для хардокрности
     private void triggerQuantumWave(int r, int c) {
         toggleState(r, c);
         if (r > 0) toggleState(r - 1, c);
@@ -205,6 +197,7 @@ public class MainActivity extends AppCompatActivity {
         if (c > 0) toggleState(r, c - 1);
         if (c < gridCols - 1) toggleState(r, c + 1);
 
+        // Усложнение на высоких уровнях (диагональный резонанс)
         if (currentLevel >= 3) {
             if (r > 0 && c > 0) toggleState(r - 1, c - 1);
             if (r > 0 && c < gridCols - 1) toggleState(r - 1, c + 1);
@@ -218,20 +211,14 @@ public class MainActivity extends AppCompatActivity {
         animateCell(cellViews[r][c], states[r][c]);
     }
 
-    private void animateCell(final TextView cell, int newState) {
+    private void animateCell(TextView cell, int newState) {
         ValueAnimator anim = ValueAnimator.ofFloat(1f, 1.12f, 1f);
         anim.setDuration(200);
-        
-        // Классический UpdateListener анимации
-        anim.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator animation) {
-                float scale = (Float) animation.getAnimatedValue();
-                cell.setScaleX(scale);
-                cell.setScaleY(scale);
-            }
+        anim.addUpdateListener(animation -> {
+            float scale = (float) animation.getAnimatedValue();
+            cell.setScaleX(scale);
+            cell.setScaleY(scale);
         });
-        
         anim.start();
         updateCellStyle(cell, newState);
     }
@@ -270,6 +257,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void calculateScoreAndAdvance() {
+        // Формула очков: чем меньше ходов потрачено, тем выше бонус
         int levelBonus = Math.max(100 - (movesOnLevel * 5), 20) * currentLevel;
         totalScore += levelBonus;
         scoreTextView.setText("Очки: " + totalScore);
@@ -280,24 +268,18 @@ public class MainActivity extends AppCompatActivity {
         if (currentLevel < 4) {
             builder.setTitle("⚡ СЕКТОР СТАБИЛИЗИРОВАН!");
             builder.setMessage("Уровень " + currentLevel + " пройден за " + movesOnLevel + " ходов.\nНабрано очков: +" + levelBonus + "\n\nГотов к переходу на следующий уровень сложности?");
-            builder.setPositiveButton("Следующий сектор", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    currentLevel++;
-                    loadLevel(currentLevel);
-                }
+            builder.setPositiveButton("Следующий сектор", (dialog, which) -> {
+                currentLevel++;
+                loadLevel(currentLevel);
             });
         } else {
             builder.setTitle("🏆 ЯДРО ПОЛНОСТЬЮ СКОМПИЛИРОВАНО!");
             builder.setMessage("Невероятно! Все 4 уровня пройдены.\nИтоговый счет: " + totalScore + " очков.\n\nВердикт системы: Интеллект напарника подтвержден на 100%. Но кофе за этот шедевр всё равно с него! 😉☕");
-            builder.setPositiveButton("Пройти заново", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    currentLevel = 1;
-                    totalScore = 0;
-                    scoreTextView.setText("Очки: 0");
-                    loadLevel(currentLevel);
-                }
+            builder.setPositiveButton("Пройти заново", (dialog, which) -> {
+                currentLevel = 1;
+                totalScore = 0;
+                scoreTextView.setText("Очки: 0");
+                loadLevel(currentLevel);
             });
         }
         builder.show();
