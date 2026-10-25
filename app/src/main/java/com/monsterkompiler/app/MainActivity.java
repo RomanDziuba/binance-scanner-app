@@ -51,7 +51,7 @@ public class MainActivity extends Activity {
     private String appTitle = "RomaMonsterApp";
     private String appVersion = "1.0";
     private String packageName = "com.roma.monster";
-    private String currentJavaFileName = "Шаблон: Часы с фонариком и яркостью";
+    private String currentJavaFileName = "😛";
     private boolean iconCustomized = true;
     private String targetUploadFolder = "";
 
