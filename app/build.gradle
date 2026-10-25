@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.monster.clock'
+    namespace 'com.monsterkompiler.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.monster.clock"
+        applicationId "com.monsterkompiler.app"
         minSdk 21
         targetSdk 34
         versionCode 1
-        versionName "1.0"
+        versionName "5.0"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "Monster Clock-v1.0-" + variant.name + ".apk"
+            outputFileName = "MonsterKompiler-v5.0-" + variant.name + ".apk"
         }
     }
 }
