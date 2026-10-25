@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.quantumshift.app'
+    namespace 'com.monstercompiler.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.quantumshift.app"
+        applicationId "com.monstercompiler.app"
         minSdk 21
         targetSdk 34
-        versionCode 16
-        versionName "1"
+        versionCode 17
+        versionName "8.0"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "QuantumShift-v1-" + variant.name + ".apk"
+            outputFileName = "CompilerMonster-v8.0-" + variant.name + ".apk"
         }
     }
 }
