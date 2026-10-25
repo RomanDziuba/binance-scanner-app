@@ -9,8 +9,8 @@ android {
         applicationId "com.app.app"
         minSdk 21
         targetSdk 34
-        versionCode 5
-        versionName "1.1"
+        versionCode 6
+        versionName "1.2"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "взлом-v1.1-" + variant.name + ".apk"
+            outputFileName = "взлом-v1.2-" + variant.name + ".apk"
         }
     }
 }
