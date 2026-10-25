@@ -25,6 +25,10 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Random;
+import java.util.Queue;
+import java.util.LinkedList;
+import java.util.Set;
+import java.util.HashSet;
 
 public class MainActivity extends Activity {
 
@@ -43,6 +47,7 @@ public class MainActivity extends Activity {
     private TextView levelTextView, scoreTextView, movesTextView, titleTextView, logoView, clockTextView, instructionView;
     private Button btnExit, btnHintSquare;
     private GridLayout gridLayout;
+    private LinearLayout rootLayout;
     
     private Handler clockHandler = new Handler(Looper.getMainLooper());
     private Runnable clockRunnable;
@@ -52,7 +57,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        LinearLayout rootLayout = new LinearLayout(this);
+        rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
         rootLayout.setBackgroundColor(Color.parseColor("#040711"));
         rootLayout.setPadding(14, 14, 14, 14);
@@ -108,7 +113,7 @@ public class MainActivity extends Activity {
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         hintParams.setMargins(6, 0, 0, 0);
         btnHintSquare.setLayoutParams(hintParams);
-        btnHintSquare.setOnClickListener(v -> useSmartHint());
+        btnHintSquare.setOnClickListener(v -> useMathematicalHint());
 
         // Кнопка ВЫХОД
         btnExit = new Button(this);
@@ -183,7 +188,7 @@ public class MainActivity extends Activity {
 
         // --- КРАТКАЯ ИНСТРУКЦИЯ ВНИЗУ ---
         instructionView = new TextView(this);
-        instructionView.setText("📖 Цель: сделать ВСЕ клетки одинаковыми.\n💡 RGB-кнопка = точный шаг (-2 хода). Превысишь ходы — взрыв ядра!");
+        instructionView.setText("📖 Цель: сделать ВСЕ клетки одинаковыми.\n💡 RGB-кнопка = точный математический шаг (-2 хода). Лимит ходов = взрыв ядра!");
         instructionView.setTextColor(Color.parseColor("#64748B"));
         instructionView.setTextSize(10);
         instructionView.setGravity(Gravity.CENTER);
@@ -229,57 +234,127 @@ public class MainActivity extends Activity {
         return tv;
     }
 
-    // 💡 ЛОГИЧЕСКАЯ ПОДСКАЗКА
-    private void useSmartHint() {
-        movesOnLevel += 2; // Штраф 2 хода за подсказку
+    // 💡 ТОЧНЫЙ МАТЕМАТИЧЕСКИЙ ПОДСЧЕТ ПОДСКАЗКИ (BFS РЕШАТЕЛЬ)
+    private void useMathematicalHint() {
+        movesOnLevel += 2; // Штраф 2 хода
         updateMovesDisplay();
 
         if (movesOnLevel > maxAllowedMoves) {
-            triggerExplosionGameOver();
+            triggerVisualExplosion();
             return;
         }
 
-        int bestR = 0, bestC = 0;
-        int minMismatch = 999;
+        int[] bestMove = calculateOptimalHintMove();
+        if (bestMove != null) {
+            int r = bestMove[0];
+            int c = bestMove[1];
+            Toast.makeText(this, "🤓 Точный ход: [" + (r + 1) + ", " + (c + 1) + "] (-2 хода)", Toast.LENGTH_LONG).show();
+            triggerQuantumWave(r, c);
+            
+            if (checkVictoryCondition()) {
+                calculateScoreAndAdvance();
+            }
+        } else {
+            Toast.makeText(this, "🤓 Квантовое состояние стабильно!", Toast.LENGTH_SHORT).show();
+        }
+    }
 
-        for (int i = 0; i < gridRows; i++) {
-            for (int j = 0; j < gridCols; j++) {
-                int mismatch = countMismatchesAfterSimulatedClick(i, j);
-                if (mismatch < minMismatch) {
-                    minMismatch = mismatch;
-                    bestR = i;
-                    bestC = j;
+    private int[] calculateOptimalHintMove() {
+        class Node {
+            int[][] board;
+            int firstR, firstC;
+            int depth;
+            Node(int[][] b, int r, int c, int d) {
+                board = cloneBoard(b);
+                firstR = r;
+                firstC = c;
+                depth = d;
+            }
+        }
+
+        Queue<Node> queue = new LinkedList<>();
+        Set<String> visited = new HashSet<>();
+
+        if (isUniform(states)) return null;
+
+        for (int r = 0; r < gridRows; r++) {
+            for (int c = 0; c < gridCols; c++) {
+                int[][] nextBoard = cloneBoard(states);
+                applyWaveToBoard(nextBoard, r, c);
+                if (isUniform(nextBoard)) {
+                    return new int[]{r, c};
+                }
+                queue.add(new Node(nextBoard, r, c, 1));
+                visited.add(boardToString(nextBoard));
+            }
+        }
+
+        while (!queue.isEmpty()) {
+            Node curr = queue.poll();
+            if (curr.depth >= 4) continue; // Ограничение глубины для мгновенного отклика
+
+            for (int r = 0; r < gridRows; r++) {
+                for (int c = 0; c < gridCols; c++) {
+                    int[][] nextBoard = cloneBoard(curr.board);
+                    applyWaveToBoard(nextBoard, r, c);
+
+                    if (isUniform(nextBoard)) {
+                        return new int[]{curr.firstR, curr.firstC};
+                    }
+
+                    String key = boardToString(nextBoard);
+                    if (!visited.contains(key)) {
+                        visited.add(key);
+                        queue.add(new Node(nextBoard, curr.firstR, curr.firstC, curr.depth + 1));
+                    }
                 }
             }
         }
 
-        Toast.makeText(this, "🤓 Подсказка: жми на [" + (bestR + 1) + ", " + (bestC + 1) + "] (-2 хода)", Toast.LENGTH_LONG).show();
-        triggerQuantumWave(bestR, bestC);
-        
-        if (checkVictoryCondition()) {
-            calculateScoreAndAdvance();
-        }
-    }
-
-    private int countMismatchesAfterSimulatedClick(int r, int c) {
-        int[][] tempStates = new int[gridRows][gridCols];
-        for(int i=0; i<gridRows; i++) {
-            System.arraycopy(states[i], 0, tempStates[i], 0, gridCols);
-        }
-        
-        simulateWave(tempStates, r, c);
-
-        int target = tempStates[0][0];
-        int count = 0;
-        for (int i = 0; i < gridRows; i++) {
-            for (int j = 0; j < gridCols; j++) {
-                if (tempStates[i][j] != target) count++;
+        // Запасной вариант (минимальный разнобой)
+        int bestR = 0, bestC = 0, minMismatch = 999;
+        for (int r = 0; r < gridRows; r++) {
+            for (int c = 0; c < gridCols; c++) {
+                int mismatch = countMismatchesAfterSimulatedClick(r, c);
+                if (mismatch < minMismatch) {
+                    minMismatch = mismatch;
+                    bestR = r;
+                    bestC = c;
+                }
             }
         }
-        return count;
+        return new int[]{bestR, bestC};
     }
 
-    private void simulateWave(int[][] s, int r, int c) {
+    private boolean isUniform(int[][] b) {
+        int first = b[0][0];
+        for (int i = 0; i < gridRows; i++) {
+            for (int j = 0; j < gridCols; j++) {
+                if (b[i][j] != first) return false;
+            }
+        }
+        return true;
+    }
+
+    private int[][] cloneBoard(int[][] b) {
+        int[][] copy = new int[gridRows][gridCols];
+        for (int i = 0; i < gridRows; i++) {
+            System.arraycopy(b[i], 0, copy[i], 0, gridCols);
+        }
+        return copy;
+    }
+
+    private String boardToString(int[][] b) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < gridRows; i++) {
+            for (int j = 0; j < gridCols; j++) {
+                sb.append(b[i][j]);
+            }
+        }
+        return sb.toString();
+    }
+
+    private void applyWaveToBoard(int[][] s, int r, int c) {
         s[r][c] = (s[r][c] + 1) % maxStates;
         if (r > 0) s[r - 1][c] = (s[r - 1][c] + 1) % maxStates;
         if (r < gridRows - 1) s[r + 1][c] = (s[r + 1][c] + 1) % maxStates;
@@ -291,6 +366,19 @@ public class MainActivity extends Activity {
             if (r < gridRows - 1 && c > 0) s[r + 1][c - 1] = (s[r + 1][c - 1] + 1) % maxStates;
             if (r < gridRows - 1 && c < gridCols - 1) s[r + 1][c + 1] = (s[r + 1][c + 1] + 1) % maxStates;
         }
+    }
+
+    private int countMismatchesAfterSimulatedClick(int r, int c) {
+        int[][] tempStates = cloneBoard(states);
+        applyWaveToBoard(tempStates, r, c);
+        int target = tempStates[0][0];
+        int count = 0;
+        for (int i = 0; i < gridRows; i++) {
+            for (int j = 0; j < gridCols; j++) {
+                if (tempStates[i][j] != target) count++;
+            }
+        }
+        return count;
     }
 
     private void loadLevel(int level) {
@@ -363,7 +451,7 @@ public class MainActivity extends Activity {
                     updateMovesDisplay();
 
                     if (movesOnLevel > maxAllowedMoves) {
-                        triggerExplosionGameOver();
+                        triggerVisualExplosion();
                         return;
                     }
 
@@ -542,7 +630,30 @@ public class MainActivity extends Activity {
         return true;
     }
 
-    private void triggerExplosionGameOver() {
+    // 💥 ВИЗУАЛЬНЫЙ ВЗРЫВ ЯДРА НА ЭКРАНЕ
+    private void triggerVisualExplosion() {
+        ObjectAnimator shake = ObjectAnimator.ofFloat(gridLayout, "translationX", 0f, 30f, -30f, 25f, -25f, 15f, -15f, 0f);
+        shake.setDuration(700);
+
+        ValueAnimator colorAnim = ValueAnimator.ofObject(new ArgbEvaluator(), 
+                Color.parseColor("#040711"), Color.parseColor("#7F1D1D"), Color.parseColor("#450A0A"), Color.parseColor("#040711"));
+        colorAnim.setDuration(700);
+        colorAnim.addUpdateListener(anim -> {
+            rootLayout.setBackgroundColor((int) anim.getAnimatedValue());
+        });
+
+        AnimatorSet explosionSet = new AnimatorSet();
+        explosionSet.playTogether(shake, colorAnim);
+        explosionSet.addListener(new android.animation.AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(android.animation.Animator animation) {
+                showExplosionGameOverDialog();
+            }
+        });
+        explosionSet.start();
+    }
+
+    private void showExplosionGameOverDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setCancelable(false);
         builder.setTitle("💥 КРАХ ЯДРА! ПЕРЕГРУЗКА!");
