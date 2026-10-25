@@ -9,8 +9,6 @@
 java
 package com.eqsquantumshift.app;
 
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.animation.ArgbEvaluator;
