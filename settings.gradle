@@ -1,2 +1,2 @@
-rootProject.name = "QUANTUM"
+rootProject.name = "MonsterCompiler2"
 include ':app'
