@@ -27,7 +27,7 @@ public class MainActivity extends Activity {
         public BluetoothDevice device;
         public String discoveryMethod;
         public int rssi;
-        public int workingTransport = BluetoothDevice.TRANSPORT_AUTO; // Сохраненный рабочий транспорт
+        public int workingTransport = BluetoothDevice.TRANSPORT_AUTO;
         public String connectionState = "Отключено";
 
         public FoundDevice(BluetoothDevice device, String discoveryMethod, int rssi) {
@@ -53,7 +53,7 @@ public class MainActivity extends Activity {
     
     private TextView statusTextView, infoTextView;
     private EditText logEditText;
-    private Button btnScan, btnDisconnect;
+    private Button btnScan, btnлектDisconnect;
     private LinearLayout devicesContainer;
 
     private Handler handler = new Handler(Looper.getMainLooper());
@@ -90,7 +90,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Monster Watch Matrix Engine v6.0 Pro ✦");
+        authorView.setText("✦ Monster Watch Ultimate v7.0 Pro ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(14f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -137,7 +137,7 @@ public class MainActivity extends Activity {
         btnScan.setOnClickListener(v -> checkPermissionsAndScan());
         card.addView(btnScan);
 
-        btnDisconnect = createStyledButton("🔌 Закрыть текущее GATT соединение", "#DC2626");
+        Button btnDisconnect = createStyledButton("🔌 Закрыть активное GATT соединение", "#DC2626");
         btnDisconnect.setOnClickListener(v -> disconnectGatt());
         card.addView(btnDisconnect);
 
@@ -152,9 +152,9 @@ public class MainActivity extends Activity {
 
         container.addView(card);
 
-        // Блок со списком найденных устройств
+        // Блок со списком устройств
         TextView listLabel = new TextView(this);
-        listLabel.setText("📱 Панель управления устройствами (с матрицей перебора):");
+        listLabel.setText("📱 Панель управления устройствами (с полным арсеналом):");
         listLabel.setTextColor(Color.parseColor("#38BDF8"));
         listLabel.setTextSize(12f);
         listLabel.setTypeface(Typeface.DEFAULT_BOLD);
@@ -167,14 +167,14 @@ public class MainActivity extends Activity {
 
         // Консоль логов внизу
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Отладочный лог обмена данных:");
+        logLabel.setText("📋 Отладочный лог потока данных:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
         logLabel.setTextSize(11f);
         logLabel.setPadding(0, 10, 0, 4);
         container.addView(logLabel);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Здесь будет отображаться детальный лог подключения...");
+        logEditText.setHint("Здесь будут появляться дампы и входящие нотификации...");
         logEditText.setTextSize(10f);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
         logEditText.setHintTextColor(Color.parseColor("#475569"));
@@ -202,7 +202,7 @@ public class MainActivity extends Activity {
         rootLayout.addView(mainScroll);
         setContentView(rootLayout);
 
-        appendLog("=== MONSTER ENGINE v6.0 PRO ЗАПУЩЕН ===");
+        appendLog("=== MONSTER ENGINE v7.0 PRO ЗАПУЩЕН ===");
         checkBluetoothState();
     }
 
@@ -315,7 +315,7 @@ public class MainActivity extends Activity {
             @Override
             public void run() {
                 if (isScanning && scanCountdown > 0) {
-                    statusTextView.setText("Статус: 🔍 Сканирование (" + scanCountdown + "с)... Найдено: " + discoveredDevices.size());
+                    statusTextView.setText("Статус: 🔍 Сканирование (" + scanCountdown + "с)... Устройств: " + discoveredDevices.size());
                     scanCountdown--;
                     handler.postDelayed(this, 1000);
                 } else if (isScanning) {
@@ -354,7 +354,7 @@ public class MainActivity extends Activity {
             }
         } catch (Exception ignored) {}
 
-        statusTextView.setText("Статус: Поиск завершен ✅ (Устройств: " + discoveredDevices.size() + ")");
+        statusTextView.setText("Статус: Поиск завершен ✅ (Найдено: " + discoveredDevices.size() + ")");
         appendLog("🏁 Сканирование завершено. Карточек создано: " + discoveredDevices.size());
     }
 
@@ -391,15 +391,15 @@ public class MainActivity extends Activity {
             row1.setOrientation(LinearLayout.HORIZONTAL);
 
             Button btnDump = createSmallButton("🔗 GATT Дамп", "#2563EB");
-            btnDump.setOnClickListener(v -> startMatrixConnection(fd, "DUMP"));
+            btnDump.setOnClickListener(v -> startSafeConnection(fd, "DUMP"));
             row1.addView(btnDump);
 
             Button btnBattery = createSmallButton("🔋 Батарея", "#0D9488");
-            btnBattery.setOnClickListener(v -> startMatrixConnection(fd, "BATTERY"));
+            btnBattery.setOnClickListener(v -> startSafeConnection(fd, "BATTERY"));
             row1.addView(btnBattery);
 
-            Button btnVibe = createSmallButton("📳 Вибро", "#7C3AED");
-            btnVibe.setOnClickListener(v -> startMatrixConnection(fd, "VIBE"));
+            Button btnVibe = createSmallButton("📳 Вибро / Команда", "#7C3AED");
+            btnVibe.setOnClickListener(v -> startSafeConnection(fd, "VIBE"));
             row1.addView(btnVibe);
 
             card.addView(row1);
@@ -409,17 +409,17 @@ public class MainActivity extends Activity {
             row2.setOrientation(LinearLayout.HORIZONTAL);
             row2.setPadding(0, 4, 0, 0);
 
-            Button btnNotify = createSmallButton("📋 Подписка", "#D97706");
-            btnNotify.setOnClickListener(v -> startMatrixConnection(fd, "NOTIFY"));
+            Button btnNotify = createSmallButton("📡 Подписаться", "#D97706");
+            btnNotify.setOnClickListener(v -> startSafeConnection(fd, "NOTIFY"));
             row2.addView(btnNotify);
 
-            Button btnPair = createSmallButton("🔗 System Pair", "#059669");
+            Button btnHex = createSmallButton("📤 Отправить Hex", "#C026D3");
+            btnHex.setOnClickListener(v -> showHexInputDialog(dev));
+            row2.addView(btnHex);
+
+            Button btnPair = createSmallButton("🔗 Pair", "#059669");
             btnPair.setOnClickListener(v -> pairDevice(dev));
             row2.addView(btnPair);
-
-            Button btnUnpair = createSmallButton("❌ Сброс пары", "#DC2626");
-            btnUnpair.setOnClickListener(v -> unpairDevice(dev));
-            row2.addView(btnUnpair);
 
             card.addView(row2);
             devicesContainer.addView(card);
@@ -440,27 +440,17 @@ public class MainActivity extends Activity {
         return btn;
     }
 
-    // Рефлексия для очистки кэша GATT в Android (снимает ошибку 133 / 255)
-    private boolean refreshDeviceCache(BluetoothDevice device) {
-        try {
-            Method localMethod = device.getClass().getMethod("refresh");
-            return (Boolean) localMethod.invoke(device);
-        } catch (Exception e) {
-            appendLog("⚠️ Не удалось сбросить кэш через рефлексию: " + e.getMessage());
-            return false;
-        }
-    }
-
-    // Матричный метод подключения с автоматическим перебором протоколов (AUTO -> LE -> BREDR)
-    private void startMatrixConnection(FoundDevice fd, String actionType) {
+    // Безопасное подключение с полной зачисткой предыдущего сокета (устраняет status 22)
+    private void startSafeConnection(FoundDevice fd, String actionType) {
         BluetoothDevice dev = fd.device;
         appendLog("\n========================================");
-        appendLog("🚀 МАТРИЦА ПОДКЛЮЧЕНИЯ К: " + dev.getName() + " [" + dev.getAddress() + "]");
+        appendLog("🚀 СТАРТ СОЕДИНЕНИЯ С: " + dev.getName() + " [" + dev.getAddress() + "]");
         appendLog("========================================");
         
         fd.connectionState = "Подключение...";
         handler.post(this::renderDeviceCards);
 
+        // Ультимативное закрытие старого сокета и пауза для освобождения шины
         if (bluetoothGatt != null) {
             try {
                 bluetoothGatt.disconnect();
@@ -469,64 +459,44 @@ public class MainActivity extends Activity {
             bluetoothGatt = null;
         }
 
+        handler.postDelayed(() -> performGattConnect(fd, actionType), 300);
+    }
+
+    private void performGattConnect(FoundDevice fd, String actionType) {
+        BluetoothDevice dev = fd.device;
         if (checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED && android.os.Build.VERSION.SDK_INT >= 31) {
-            appendLog("❌ ОШИБКА: Нет разрешения BLUETOOTH_CONNECT!");
+            appendLog("❌ ОШИБКА: Нет разрешений BLUETOOTH_CONNECT!");
             return;
         }
 
-        // Чистим кэш устройства перед попыткой
-        refreshDeviceCache(dev);
-
-        // Запуск через сохраненный рабочий транспорт или AUTO
-        tryConnectWithTransport(fd, actionType, fd.workingTransport);
-    }
-
-    private void tryConnectWithTransport(FoundDevice fd, String actionType, int transport) {
-        BluetoothDevice dev = fd.device;
-        String transportName = (transport == BluetoothDevice.TRANSPORT_LE) ? "BLE (LE)" : (transport == BluetoothDevice.TRANSPORT_BREDR ? "Classic (BREDR)" : "AUTO");
-        appendLog("🔄 Попытка сокета с транспортом: " + transportName);
-
-        if (checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED && android.os.Build.VERSION.SDK_INT >= 31) return;
-
+        appendLog("🔄 Открытие GATT сокета (TRANSPORT_AUTO)...");
         bluetoothGatt = dev.connectGatt(this, false, new BluetoothGattCallback() {
             @Override
             public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
                 if (status != BluetoothGatt.GATT_SUCCESS) {
-                    appendLog("❌ ОШИБКА сокета (status=" + status + ", state=" + newState + ") для транспорта " + transportName);
+                    appendLog("❌ ОШИБКА сокета: status=" + status + ", newState=" + newState);
                     try { gatt.close(); } catch (Exception ignored) {}
                     bluetoothGatt = null;
 
-                    // Если транспорт AUTO не прошел, пробуем принудительно TRANSPORT_LE
-                    if (transport == BluetoothDevice.TRANSPORT_AUTO) {
-                        appendLog("🔄 Переключение на запасной протокол: TRANSPORT_LE...");
-                        handler.postDelayed(() -> tryConnectWithTransport(fd, actionType, BluetoothDevice.TRANSPORT_LE), 500);
-                    } 
-                    // Если LE не прошел, пробуем TRANSPORT_BREDR (Classic)
-                    else if (transport == BluetoothDevice.TRANSPORT_LE) {
-                        appendLog("🔄 Переключение на классический транспорт: TRANSPORT_BREDR...");
-                        handler.postDelayed(() -> tryConnectWithTransport(fd, actionType, BluetoothDevice.TRANSPORT_BREDR), 500);
-                    } else {
-                        fd.connectionState = "Ошибка (Code " + status + ")";
-                        handler.post(() -> {
-                            renderDeviceCards();
-                            statusTextView.setText("Статус: ❌ Ошибка подключения (" + status + ")");
-                        });
-                    }
+                    fd.connectionState = "Ошибка (Код " + status + ")";
+                    handler.post(() -> {
+                        renderDeviceCards();
+                        statusTextView.setText("Статус: ❌ Ошибка сокета (" + status + ")");
+                    });
                     return;
                 }
 
                 if (newState == BluetoothGatt.STATE_CONNECTED) {
-                    fd.workingTransport = transport; // Сохраняем успешный транспорт!
-                    fd.connectionState = "Подключено (" + transportName + ")";
-                    appendLog("✅ УСПЕШНО! Соединение установлено через " + transportName);
+                    fd.connectionState = "Подключено ✅";
+                    appendLog("✅ УСПЕШНО! Соединение установлено.");
                     handler.post(() -> {
                         renderDeviceCards();
-                        infoTextView.setText("📦 Устройство: " + dev.getName() + "\n🔗 MAC: " + dev.getAddress() + "\n⚙️ Транспорт: " + transportName);
-                        statusTextView.setText("Статус: ✅ Подключено!");
+                        infoTextView.setText("📦 Устройство: " + dev.getName() + "\n🔗 MAC: " + dev.getAddress() + "\n⚙️ Статус: Подключено");
+                        statusTextView.setText("Статус: ✅ Успешный коннект!");
                     });
 
                     // Запрос служб
-                    handler.postDelayed(() -> gatt.discoverServices(), 400);
+                    handler.postDelayed(() -> gatt.discoverServices(), 500);
 
                 } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
                     fd.connectionState = "Отключено";
@@ -542,7 +512,7 @@ public class MainActivity extends Activity {
             public void onServicesDiscovered(BluetoothGatt gatt, int status) {
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     List<BluetoothGattService> services = gatt.getServices();
-                    appendLog("\n=== 🔥 НАЙДЕНО СЕРВИСОВ: " + services.size() + " ===");
+                    appendLog("\n=== 🔥 ОБНАРУЖЕНО СЕРВИСОВ: " + services.size() + " ===");
                     
                     for (BluetoothGattService s : services) {
                         String sUuid = s.getUuid().toString();
@@ -553,22 +523,34 @@ public class MainActivity extends Activity {
                             int props = c.getProperties();
                             appendLog("   ├── ⚡ Характеристика: " + cUuid + " [Props: " + getPropsName(props) + "]");
 
+                            // Если есть Notify или Indicate, автоматически включаем подписку
+                            if (actionType.equals("NOTIFY") && ((props & BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0 || (props & BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0)) {
+                                gatt.setCharacteristicNotification(c, true);
+                                BluetoothGattDescriptor desc = c.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"));
+                                if (desc != null) {
+                                    desc.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                                    gatt.writeDescriptor(desc);
+                                    appendLog("   └── 🔔 Активирован поток нотификаций для " + cUuid);
+                                }
+                            }
+
                             if (actionType.equals("BATTERY") && cUuid.contains("2a19")) {
-                                appendLog("🔋 Чтение уровня батареи...");
+                                appendLog("🔋 Чтение уровня заряда батареи...");
                                 gatt.readCharacteristic(c);
                             }
                         }
                     }
 
                     if (actionType.equals("VIBE")) {
-                        appendLog("📳 Отправка сигнала вибрации...");
+                        appendLog("📳 Попытка отправки команды/вибрации...");
                         for (BluetoothGattService s : services) {
                             for (BluetoothGattCharacteristic c : s.getCharacteristics()) {
                                 int p = c.getProperties();
                                 if ((p & BluetoothGattCharacteristic.PROPERTY_WRITE) != 0 || (p & BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0) {
-                                    c.setValue(new byte[]{0x01});
+                                    // Тестовый пакет байтов для фитнес-часов
+                                    c.setValue(new byte[]{0x01, 0x03, 0x01});
                                     gatt.writeCharacteristic(c);
-                                    appendLog("📤 Записан байт вибро в " + c.getUuid().toString());
+                                    appendLog("📤 Отправлен байт команды в " + c.getUuid().toString());
                                     break;
                                 }
                             }
@@ -590,7 +572,77 @@ public class MainActivity extends Activity {
                     }
                 }
             }
-        }, transport);
+
+            @Override
+            public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+                byte[] data = characteristic.getValue();
+                if (data != null) {
+                    StringBuilder hex = new StringBuilder();
+                    for (byte b : data) hex.append(String.format("%02X ", b));
+                    appendLog("📥 [ДАТЧИК / ДАННЫЕ]: " + characteristic.getUuid().toString() + " -> [HEX: " + hex.toString().trim() + "]");
+                }
+            }
+
+            @Override
+            public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+                appendLog("🔔 Статус записи дескриптора подписки: " + (status == BluetoothGatt.GATT_SUCCESS ? "УСПЕХ ✅" : "ОШИБКА ❌ (" + status + ")"));
+            }
+        }, BluetoothDevice.TRANSPORT_AUTO);
+    }
+
+    private void showHexInputDialog(BluetoothDevice dev) {
+        if (bluetoothGatt == null) {
+            Toast.makeText(this, "⚠️ Сначала подключитесь к устройству (GATT Дамп или Вибро)!", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        final EditText input = new EditText(this);
+        input.setHint("Например: 01 03 01 или FF AA");
+        input.setText("01 03");
+
+        new AlertDialog.Builder(this)
+            .setTitle("📤 Отправка сырых байт (HEX)")
+            .setView(input)
+            .setPositiveButton("Отправить", (dialog, which) -> {
+                String hexStr = input.getText().toString().trim();
+                sendCustomHexCommand(hexStr);
+            })
+            .setNegativeButton("Отмена", null)
+            .show();
+    }
+
+    private void sendCustomHexCommand(String hexStr) {
+        if (bluetoothGatt == null) {
+            appendLog("❌ Ошибка: Нет активного GATT подключения.");
+            return;
+        }
+
+        try {
+            String[] parts = hexStr.split("\\s+");
+            byte[] bytes = new byte[parts.length];
+            for (int i = 0; i < parts.length; i++) {
+                bytes[i] = (byte) Integer.parseInt(parts[i], 16);
+            }
+
+            boolean sent = false;
+            for (BluetoothGattService s : bluetoothGatt.getServices()) {
+                for (BluetoothGattCharacteristic c : s.getCharacteristics()) {
+                    int p = c.getProperties();
+                    if ((p & BluetoothGattCharacteristic.PROPERTY_WRITE) != 0 || (p & BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0) {
+                        c.setValue(bytes);
+                        bluetoothGatt.writeCharacteristic(c);
+                        appendLog("📤 Пользовательский HEX отправлен в характеристику: " + c.getUuid().toString());
+                        sent = true;
+                        break;
+                    }
+                }
+                if (sent) break;
+            }
+            if (!sent) appendLog("⚠️ Не найдено ни одной записываемой характеристики для отправки HEX.");
+        } catch (Exception e) {
+            appendLog("❌ Ошибка парсинга HEX: " + e.getMessage());
+            Toast.makeText(this, "Ошибка в формате HEX!", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private String getPropsName(int p) {
@@ -610,17 +662,6 @@ public class MainActivity extends Activity {
             Toast.makeText(this, "Запрос отправлен", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             appendLog("❌ Ошибка сопряжения: " + e.getMessage());
-        }
-    }
-
-    private void unpairDevice(BluetoothDevice dev) {
-        try {
-            appendLog("❌ Сброс сопряжения для " + dev.getName() + "...");
-            Method method = dev.getClass().getMethod("removeBond");
-            method.invoke(dev);
-            Toast.makeText(this, "Пара сброшена", Toast.LENGTH_SHORT).show();
-        } catch (Exception e) {
-            appendLog("❌ Ошибка сброса: " + e.getMessage());
         }
     }
 
