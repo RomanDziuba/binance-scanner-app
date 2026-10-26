@@ -9,7 +9,7 @@ android {
         applicationId "com.smuledrv.app"
         minSdk 21
         targetSdk 34
-        versionCode 4
+        versionCode 5
         versionName "1.0"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "MonsterClock-v1.0-" + variant.name + ".apk"
+            outputFileName = "SMULE_D_R_V-v1.0-" + variant.name + ".apk"
         }
     }
 }
