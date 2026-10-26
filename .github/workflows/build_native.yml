@@ -32,7 +32,7 @@ jobs:
         run: |
           APK_PATH=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
           echo "Found APK: $APK_PATH"
-          CLEAN_NAME="MonsterClock-v1.0"
+          CLEAN_NAME="SMULE_D_R_V-v1.0"
           CUSTOM_APK_PATH="${CLEAN_NAME}.apk"
           cp "$APK_PATH" "$CUSTOM_APK_PATH"
           JAVA_SRC=$(find app/src/main/java/ -name "MainActivity.java" | head -n 1)
