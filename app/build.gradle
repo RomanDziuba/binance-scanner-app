@@ -3,22 +3,22 @@ plugins {
 }
 
 android {
-    namespace 'com.monstercompiler.app'
+    namespace 'com.quantum.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.monstercompiler.app"
-        minSdk 21
+        applicationId "com.quantum.app"
+        minSdk 24
         targetSdk 34
-        versionCode 3
-        versionName "8.0"
+        versionCode 4
+        versionName "20"
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "MonsterCompiler-v8.0-" + variant.name + ".apk"
+            outputFileName = "QUANTUM-v20-" + variant.name + ".apk"
         }
     }
 }
