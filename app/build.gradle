@@ -9,7 +9,7 @@ android {
         applicationId "com.roma.monster"
         minSdk 21
         targetSdk 34
-        versionCode 3
+        versionCode 4
         versionName "1.0"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "RomaMonsterApp-v1.0-" + variant.name + ".apk"
+            outputFileName = "blutus-v1.0-" + variant.name + ".apk"
         }
     }
 }
