@@ -112,7 +112,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v5.0 ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v1.0 ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
