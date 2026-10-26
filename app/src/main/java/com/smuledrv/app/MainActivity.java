@@ -1,5 +1,7 @@
 package com.smuledrv.app;
 
+import androidx.appcompat.app.AppCompatActivity;
+
 import android.app.Activity;
 import android.app.DownloadManager;
 import android.content.ClipData;
