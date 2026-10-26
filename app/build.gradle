@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.smuledrv.app'
+    namespace 'com.smuleloading.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.smuledrv.app"
+        applicationId "com.smuleloading.app"
         minSdk 21
         targetSdk 34
-        versionCode 5
+        versionCode 6
         versionName "1.0"
     }
     compileOptions {
