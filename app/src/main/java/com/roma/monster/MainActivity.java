@@ -17,6 +17,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.*;
 
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class MainActivity extends Activity {
@@ -46,11 +47,11 @@ public class MainActivity extends Activity {
     private BluetoothGatt bluetoothGatt;
     
     private final List<FoundDevice> discoveredDevices = new ArrayList<>();
-    private final List<String> deviceDisplayNames = new ArrayList<>();
     
     private TextView statusTextView, infoTextView;
     private EditText logEditText;
-    private Button btnScan, btnClearLogs, btnDisconnect;
+    private Button btnScan, btnDisconnect;
+    private LinearLayout devicesContainer;
 
     private Handler handler = new Handler(Looper.getMainLooper());
     private static final int REQUEST_PERMISSIONS = 101;
@@ -74,7 +75,7 @@ public class MainActivity extends Activity {
         rootLayout.setOrientation(LinearLayout.VERTICAL);
         rootLayout.setGravity(Gravity.CENTER_HORIZONTAL);
         rootLayout.setBackgroundColor(Color.parseColor("#030712"));
-        rootLayout.setPadding(16, 16, 16, 16);
+        rootLayout.setPadding(12, 12, 12, 12);
 
         ScrollView mainScroll = new ScrollView(this);
         mainScroll.setLayoutParams(new LinearLayout.LayoutParams(
@@ -86,39 +87,40 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Monster BLE/BT Engine v3.0 Ultimate ✦");
-        authorView.setTextColor(Color.parseColor("#F59E0B"));
+        authorView.setText("✦ Monster Watch Control Center v4.0 ✦");
+        authorView.setTextColor(Color.parseColor("#38BDF8"));
         authorView.setTextSize(14f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
         authorView.setGravity(Gravity.CENTER);
         authorView.setPadding(0, 5, 0, 8);
         container.addView(authorView);
 
+        // Информационная карточка
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(20, 20, 20, 20);
+        card.setPadding(16, 16, 16, 16);
         
         GradientDrawable cardBg = new GradientDrawable();
         cardBg.setColor(Color.parseColor("#0F172A"));
-        cardBg.setCornerRadius(24f);
+        cardBg.setCornerRadius(20f);
         cardBg.setStroke(2, Color.parseColor("#1E293B"));
         card.setBackground(cardBg);
 
         LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        cardParams.setMargins(0, 0, 0, 16);
+        cardParams.setMargins(0, 0, 0, 12);
         card.setLayoutParams(cardParams);
 
         infoTextView = new TextView(this);
-        infoTextView.setText("📦 Bluetooth: Инициализация...\n⌚ Подключенное устройство: Нет");
+        infoTextView.setText("📦 Bluetooth: Активен\n⌚ Активное устройство: Нет");
         infoTextView.setTextColor(Color.parseColor("#94A3B8"));
         infoTextView.setTextSize(11f);
-        infoTextView.setPadding(12, 10, 12, 10);
+        infoTextView.setPadding(10, 8, 10, 8);
         
         GradientDrawable infoBg = new GradientDrawable();
         infoBg.setColor(Color.parseColor("#1E293B"));
-        infoBg.setCornerRadius(12f);
+        infoBg.setCornerRadius(10f);
         infoTextView.setBackground(infoBg);
         
         LinearLayout.LayoutParams infoParams = new LinearLayout.LayoutParams(
@@ -128,11 +130,11 @@ public class MainActivity extends Activity {
         infoTextView.setLayoutParams(infoParams);
         card.addView(infoTextView);
 
-        btnScan = createStyledButton("🚀 Запустить комбо-поиск всех устройств", "#2563EB");
+        btnScan = createStyledButton("🚀 Запустить поиск всех устройств", "#2563EB");
         btnScan.setOnClickListener(v -> checkPermissionsAndScan());
         card.addView(btnScan);
 
-        btnDisconnect = createStyledButton("🔌 Разорвать текущее соединение", "#DC2626");
+        btnDisconnect = createStyledButton("🔌 Закрыть текущее GATT соединение", "#DC2626");
         btnDisconnect.setOnClickListener(v -> disconnectGatt());
         card.addView(btnDisconnect);
 
@@ -142,47 +144,58 @@ public class MainActivity extends Activity {
         statusTextView.setTextSize(12f);
         statusTextView.setTypeface(Typeface.DEFAULT_BOLD);
         statusTextView.setGravity(Gravity.CENTER);
-        statusTextView.setPadding(0, 10, 0, 6);
+        statusTextView.setPadding(0, 8, 0, 4);
         card.addView(statusTextView);
 
+        container.addView(card);
+
+        // Блок со списком найденных устройств прямо на экране
+        TextView listLabel = new TextView(this);
+        listLabel.setText("📱 Панель управления найденными устройствами:");
+        listLabel.setTextColor(Color.parseColor("#38BDF8"));
+        listLabel.setTextSize(12f);
+        listLabel.setTypeface(Typeface.DEFAULT_BOLD);
+        listLabel.setPadding(0, 5, 0, 8);
+        container.addView(listLabel);
+
+        devicesContainer = new LinearLayout(this);
+        devicesContainer.setOrientation(LinearLayout.VERTICAL);
+        container.addView(devicesContainer);
+
+        // Консоль логов внизу
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Подробный консольный лог (для отладки):");
+        logLabel.setText("📋 Отладочный лог:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
         logLabel.setTextSize(11f);
-        logLabel.setPadding(0, 6, 0, 4);
-        card.addView(logLabel);
+        logLabel.setPadding(0, 10, 0, 4);
+        container.addView(logLabel);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Логи работы Bluetooth сканера появится здесь...");
+        logEditText.setHint("Здесь будет отображаться вся системная информация...");
         logEditText.setTextSize(10f);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
         logEditText.setHintTextColor(Color.parseColor("#475569"));
         logEditText.setBackgroundColor(Color.parseColor("#030712"));
         logEditText.setPadding(10, 10, 10, 10);
         logEditText.setGravity(Gravity.TOP);
-        logEditText.setMinLines(10);
-        logEditText.setMaxLines(18);
-        card.addView(logEditText);
+        logEditText.setMinLines(8);
+        logEditText.setMaxLines(14);
+        container.addView(logEditText);
 
-        Button btnCopyLogs = createStyledButton("📋 Скопировать весь лог в буфер", "#475569");
+        Button btnCopyLogs = createStyledButton("📋 Скопировать лог", "#475569");
         btnCopyLogs.setOnClickListener(v -> {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("Monster Bluetooth Logs", logEditText.getText().toString());
+            ClipData clip = ClipData.newPlainText("Logs", logEditText.getText().toString());
             clipboard.setPrimaryClip(clip);
-            Toast.makeText(this, "Весь лог скопирован!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Логи скопированы!", Toast.LENGTH_SHORT).show();
         });
-        card.addView(btnCopyLogs);
+        container.addView(btnCopyLogs);
 
-        btnClearLogs = createStyledButton("🧹 Очистить консоль", "#334155");
-        btnClearLogs.setOnClickListener(v -> logEditText.setText(""));
-        card.addView(btnClearLogs);
-
-        container.addView(card);
         mainScroll.addView(container);
         rootLayout.addView(mainScroll);
         setContentView(rootLayout);
 
-        appendLog("=== MONSTER BLE/BT ENGINE v3.0 ЗАПУЩЕН ===");
+        appendLog("=== MONSTER ENGINE v4.0 ЗАПУЩЕН ===");
         checkBluetoothState();
     }
 
@@ -193,7 +206,7 @@ public class MainActivity extends Activity {
         btn.setTextSize(11f);
         btn.setTypeface(Typeface.DEFAULT_BOLD);
         btn.setBackgroundColor(Color.parseColor(colorHex));
-        btn.setPadding(12, 12, 12, 12);
+        btn.setPadding(10, 10, 10, 10);
         
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
@@ -206,27 +219,18 @@ public class MainActivity extends Activity {
     private void appendLog(String msg) {
         handler.post(() -> {
             if (logEditText != null) {
-                logEditText.append("[" + getTimestamp() + "] " + msg + "\n");
+                SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+                logEditText.append("[" + sdf.format(new Date()) + "] " + msg + "\n");
             }
         });
     }
 
-    private String getTimestamp() {
-        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault());
-        return sdf.format(new Date());
-    }
-
     private void checkBluetoothState() {
-        if (bluetoothAdapter == null) {
-            appendLog("❌ ОШИБКА: Модуль Bluetooth отсутствует на устройстве!");
-            statusTextView.setText("Статус: ❌ Bluetooth недоступен");
-        } else if (!bluetoothAdapter.isEnabled()) {
-            appendLog("⚠️ Bluetooth выключен. Запрос на включение...");
-            statusTextView.setText("Статус: ⚠️ Bluetooth выключен");
-            Toast.makeText(this, "Включите Bluetooth на телефоне!", Toast.LENGTH_LONG).show();
+        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
+            appendLog("⚠️ Bluetooth выключен или недоступен.");
+            statusTextView.setText("Статус: ⚠️ Включите Bluetooth");
         } else {
-            appendLog("✅ Bluetooth модуль активен. MAC/Address готов.");
-            statusTextView.setText("Статус: Bluetooth активен ✅");
+            appendLog("✅ Bluetooth модуль готов к работе.");
         }
     }
 
@@ -234,7 +238,7 @@ public class MainActivity extends Activity {
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
             (android.os.Build.VERSION.SDK_INT >= 31 && checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED)) {
             
-            appendLog("🔑 Запрос необходимых системных разрешений...");
+            appendLog("🔑 Запрос системных Bluetooth разрешений...");
             requestPermissions(new String[]{
                 Manifest.permission.ACCESS_FINE_LOCATION,
                 Manifest.permission.ACCESS_COARSE_LOCATION,
@@ -248,90 +252,66 @@ public class MainActivity extends Activity {
     }
 
     private void startUltimateSearch() {
-        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
-            Toast.makeText(this, "Включите Bluetooth!", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
         discoveredDevices.clear();
-        deviceDisplayNames.clear();
+        devicesContainer.removeAllViews();
         isScanning = true;
 
-        appendLog("\n=======================================");
-        appendLog("🔍 СТАРТ ТОТАЛЬНОГО ПОИСКА УСТРОЙСТВ");
-        appendLog("=======================================");
+        appendLog("\n--- СТАРТ ПОИСКА ---");
 
-        // 1. Поиск сопряженных устройств (System Bonded)
+        // 1. Сопряженные устройства (Redmi Watch 5 Active попадет сюда!)
         try {
             Set<BluetoothDevice> paired = bluetoothAdapter.getBondedDevices();
-            if (paired != null && !paired.isEmpty()) {
-                appendLog("📂 [МЕТОД 1: BONDED] Найдено системных сопряжений: " + paired.size());
+            if (paired != null) {
                 for (BluetoothDevice dev : paired) {
-                    addDiscoveredDevice(dev, "Системное сопряжение (Bonded)", 0);
+                    addDiscoveredDevice(dev, "Системное сопряжение", 0);
                 }
-            } else {
-                appendLog("📂 [МЕТОД 1: BONDED] Сопряженных устройств в Android не найдено.");
             }
         } catch (Exception e) {
-            appendLog("⚠️ [МЕТОД 1] Ошибка доступа к bonded: " + e.getMessage());
+            appendLog("Ошибка сопряженных: " + e.getMessage());
         }
 
-        // 2. BLE Агрессивный поиск (Low Latency)
+        // 2. BLE сканер
         if (bleScanner != null) {
             try {
                 ScanSettings settings = new ScanSettings.Builder()
                     .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-                    .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
-                    .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
                     .build();
-
                 bleScanner.startScan(null, settings, bleScanCallback);
-                appendLog("📡 [МЕТОД 2: BLE AGGRESSIVE] Сканер запущен на высокой частоте (LOW_LATENCY)...");
             } catch (Exception e) {
-                appendLog("⚠️ [МЕТОД 2] Ошибка запуска BLE сканера: " + e.getMessage());
+                appendLog("Ошибка BLE сканера: " + e.getMessage());
             }
         }
 
-        // 3. Классический поиск радиочастот (Classic BT Discovery)
+        // 3. Classic Discovery
         try {
-            if (bluetoothAdapter.isDiscovering()) {
-                bluetoothAdapter.cancelDiscovery();
-            }
+            if (bluetoothAdapter.isDiscovering()) bluetoothAdapter.cancelDiscovery();
             bluetoothAdapter.startDiscovery();
-            appendLog("📻 [МЕТОД 3: CLASSIC BT] Запущен радио-поиск (Discovery)...");
 
             if (classicReceiver == null) {
                 classicReceiver = new BroadcastReceiver() {
                     @Override
                     public void onReceive(Context context, Intent intent) {
-                        String action = intent.getAction();
-                        if (BluetoothDevice.ACTION_FOUND.equals(action)) {
-                            BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                            int rssi = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, Short.MIN_VALUE);
-                            if (device != null) {
-                                addDiscoveredDevice(device, "Classic BT Discovery", rssi);
-                            }
+                        if (BluetoothDevice.ACTION_FOUND.equals(intent.getAction())) {
+                            BluetoothDevice dev = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                            int rssi = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, (short)0);
+                            if (dev != null) addDiscoveredDevice(dev, "Classic BT", rssi);
                         }
                     }
                 };
                 registerReceiver(classicReceiver, new IntentFilter(BluetoothDevice.ACTION_FOUND));
             }
-        } catch (Exception e) {
-            appendLog("⚠️ [МЕТОД 3] Ошибка запуска Classic Discovery: " + e.getMessage());
-        }
+        } catch (Exception ignored) {}
 
-        // Таймер обратного отсчета для индикации
-        scanCountdown = 12;
+        scanCountdown = 10;
         handler.post(new Runnable() {
             @Override
             public void run() {
                 if (isScanning && scanCountdown > 0) {
-                    statusTextView.setText("Статус: ⚡ Поиск... (" + scanCountdown + "c) | Найдено: " + discoveredDevices.size());
+                    statusTextView.setText("Статус: 🔍 Поиск (" + scanCountdown + "с)... Найдено: " + discoveredDevices.size());
                     scanCountdown--;
                     handler.postDelayed(this, 1000);
                 } else if (isScanning) {
                     stopAllScans();
-                    showDeviceSelectionDialog();
                 }
             }
         });
@@ -341,115 +321,102 @@ public class MainActivity extends Activity {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
             if (result != null && result.getDevice() != null) {
-                addDiscoveredDevice(result.getDevice(), "BLE Aggressive Scan", result.getRssi());
+                addDiscoveredDevice(result.getDevice(), "BLE Scan", result.getRssi());
             }
-        }
-
-        @Override
-        public void onScanFailed(int errorCode) {
-            appendLog("❌ [BLE SCANNER] Ошибка сканирования, код: " + errorCode);
         }
     };
 
     private synchronized void addDiscoveredDevice(BluetoothDevice device, String method, int rssi) {
-        String address = device.getAddress();
-        String name = device.getName();
-        if (name == null || name.trim().isEmpty()) {
-            name = "Скрытое/Без имени (" + address + ")";
-        }
-
         FoundDevice newItem = new FoundDevice(device, method, rssi);
-
-        boolean alreadyExists = false;
-        for (FoundDevice fd : discoveredDevices) {
-            if (fd.device.getAddress().equalsIgnoreCase(address)) {
-                alreadyExists = true;
-                break;
-            }
-        }
-
-        if (!alreadyExists) {
+        if (!discoveredDevices.contains(newItem)) {
             discoveredDevices.add(newItem);
-            String title = name + "\n📍 [" + method + "]" + (rssi != 0 ? " | RSSI: " + rssi + "dBm" : "");
-            deviceDisplayNames.add(title);
-            appendLog("✨ НАЙДЕНО: " + name + " (" + address + ") via " + method);
+            appendLog("✨ Найдено: " + (device.getName() != null ? device.getName() : "Без имени") + " [" + device.getAddress() + "] via " + method);
+            handler.post(this::renderDeviceCards);
         }
     }
 
     private void stopAllScans() {
         isScanning = false;
-        appendLog("⏹️ Остановка всех методов поиска...");
-        
-        if (bleScanner != null && (android.os.Build.VERSION.SDK_INT < 31 || checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED)) {
-            try { bleScanner.stopScan(bleScanCallback); } catch (Exception ignored) {}
-        }
         try {
-            if (bluetoothAdapter != null && bluetoothAdapter.isDiscovering()) {
-                bluetoothAdapter.cancelDiscovery();
-            }
+            if (bleScanner != null) bleScanner.stopScan(bleScanCallback);
+            if (bluetoothAdapter != null) bluetoothAdapter.cancelDiscovery();
             if (classicReceiver != null) {
                 unregisterReceiver(classicReceiver);
                 classicReceiver = null;
             }
         } catch (Exception ignored) {}
 
-        statusTextView.setText("Статус: Поиск завершен ✅ (Найдено: " + discoveredDevices.size() + ")");
-        appendLog("🏁 Сканирование завершено. Всего обнаружено объектов: " + discoveredDevices.size());
+        statusTextView.setText("Статус: Поиск завершен ✅ (Объектов: " + discoveredDevices.size() + ")");
+        appendLog("🏁 Поиск завершен. Отображено карточек: " + discoveredDevices.size());
     }
 
-    private void showDeviceSelectionDialog() {
-        if (discoveredDevices.isEmpty()) {
-            appendLog("⚠️ Ни одного устройства не найдено. Проверьте права и включение Bluetooth.");
-            Toast.makeText(this, "Устройства не обнаружены!", Toast.LENGTH_LONG).show();
-            return;
+    // Рендеринг карточек с кнопками управления для каждого устройства прямо на экране
+    private void renderDeviceCards() {
+        devicesContainer.removeAllViews();
+        for (FoundDevice fd : discoveredDevices) {
+            BluetoothDevice dev = fd.device;
+            String name = dev.getName() != null ? dev.getName() : "Неизвестное устройство";
+            
+            LinearLayout card = new LinearLayout(this);
+            card.setOrientation(LinearLayout.VERTICAL);
+            card.setPadding(12, 12, 12, 12);
+            
+            GradientDrawable bg = new GradientDrawable();
+            bg.setColor(Color.parseColor("#1E293B"));
+            bg.setCornerRadius(16f);
+            bg.setStroke(1, Color.parseColor("#334155"));
+            card.setBackground(bg);
+
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            );
+            params.setMargins(0, 0, 0, 8);
+            card.setLayoutParams(params);
+
+            TextView tvInfo = new TextView(this);
+            tvInfo.setText("⌚ " + name + "\n🔗 MAC: " + dev.getAddress() + "\n📍 Метод: " + fd.discoveryMethod + (fd.rssi != 0 ? " | RSSI: " + fd.rssi : ""));
+            tvInfo.setTextColor(Color.parseColor("#E2E8F0"));
+            tvInfo.setTextSize(11f);
+            card.addView(tvInfo);
+
+            // Кнопки управления для конкретного устройства
+            LinearLayout btnLayout = new LinearLayout(this);
+            btnLayout.setOrientation(LinearLayout.HORIZONTAL);
+
+            Button btnConnect = createSmallButton("🔗 GATT Дамп", "#2563EB");
+            btnConnect.setOnClickListener(v -> connectAndDumpGatt(dev));
+            btnLayout.addView(btnConnect);
+
+            Button btnBattery = createSmallButton("🔋 Батарея", "#0D9488");
+            btnBattery.setOnClickListener(v -> readBattery(dev));
+            btnLayout.addView(btnBattery);
+
+            Button btnVibrate = createSmallButton("📳 Вибро", "#7C3AED");
+            btnVibrate.setOnClickListener(v -> sendVibrationSignal(dev));
+            btnLayout.addView(btnVibrate);
+
+            card.addView(btnLayout);
+            devicesContainer.addView(card);
         }
-
-        CharSequence[] items = deviceDisplayNames.toArray(new CharSequence[0]);
-        new AlertDialog.Builder(this)
-            .setTitle("⌚ Найдено устройств: " + discoveredDevices.size())
-            .setItems(items, (dialog, which) -> {
-                FoundDevice selected = discoveredDevices.get(which);
-                openDeviceControlPanel(selected);
-            })
-            .setNegativeButton("Отмена", null)
-            .show();
     }
 
-    // Полноценная панель управления выбранным устройством
-    private void openDeviceControlPanel(FoundDevice item) {
-        final BluetoothDevice dev = item.device;
-        String name = dev.getName() != null ? dev.getName() : dev.getAddress();
-
-        appendLog("\n🎯 ВЫБРАНО УСТРОЙСТВО: " + name + " [" + dev.getAddress() + "]");
-        appendLog("🔍 Использованный метод обнаружения: " + item.discoveryMethod);
-
-        CharSequence[] actions = {
-            "🔍 Полный дамп GATT (Все сервисы & функции)",
-            "🔋 Прочитать уровень заряда батареи (Battery Service)",
-            "📳 Послать сигнал вибрации / уведомление",
-            "🔗 Создать системную пару (Pair/Bond)"
-        };
-
-        new AlertDialog.Builder(this)
-            .setTitle("Управление: " + name)
-            .setItems(actions, (dialog, which) -> {
-                if (which == 0) {
-                    connectAndDumpGatt(dev);
-                } else if (which == 1) {
-                    readBatteryLevel(dev);
-                } else if (which == 2) {
-                    sendVibration(dev);
-                } else if (which == 3) {
-                    createBondDevice(dev);
-                }
-            })
-            .setNegativeButton("Назад", null)
-            .show();
+    private Button createSmallButton(String text, String colorHex) {
+        Button btn = new Button(this);
+        btn.setText(text);
+        btn.setTextColor(Color.WHITE);
+        btn.setTextSize(10f);
+        btn.setBackgroundColor(Color.parseColor(colorHex));
+        btn.setPadding(6, 6, 6, 6);
+        
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        params.setMargins(2, 4, 2, 0);
+        btn.setLayoutParams(params);
+        return btn;
     }
 
     private void connectAndDumpGatt(BluetoothDevice dev) {
-        appendLog("🔗 Подключение к GATT серверу: " + dev.getAddress() + "...");
-        statusTextView.setText("Статус: 🔗 Дамп GATT: " + dev.getAddress());
+        appendLog("🔗 Подключение к GATT: " + dev.getName() + " [" + dev.getAddress() + "]...");
+        statusTextView.setText("Статус: Подключение к " + dev.getAddress());
 
         if (bluetoothGatt != null) {
             try { bluetoothGatt.close(); } catch (Exception ignored) {}
@@ -460,11 +427,11 @@ public class MainActivity extends Activity {
                 @Override
                 public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
                     if (newState == BluetoothGatt.STATE_CONNECTED) {
-                        appendLog("✅ Успешно подключено к GATT! Поиск поддерживаемых функций...");
-                        handler.post(() -> infoTextView.setText("📦 Устройство: " + dev.getName() + "\n🔗 MAC: " + dev.getAddress() + "\n⚙️ Статус: GATT Подключен"));
+                        appendLog("✅ Успешно подключено к " + dev.getName() + "! Запрос GATT сервисов...");
+                        handler.post(() -> infoTextView.setText("📦 Устройство: " + dev.getName() + "\n🔗 MAC: " + dev.getAddress() + "\n⚙️ Статус: Подключено (GATT)"));
                         gatt.discoverServices();
                     } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
-                        appendLog("🔌 Соединение GATT закрыто.");
+                        appendLog("🔌 Соединение разорвано.");
                         handler.post(() -> infoTextView.setText("📦 Статус: Отключено"));
                     }
                 }
@@ -473,49 +440,28 @@ public class MainActivity extends Activity {
                 public void onServicesDiscovered(BluetoothGatt gatt, int status) {
                     if (status == BluetoothGatt.GATT_SUCCESS) {
                         List<BluetoothGattService> services = gatt.getServices();
-                        appendLog("\n=== 🔥 ОБНАРУЖЕНО " + services.size() + " GATT СЕРВИСОВ И ФУНКЦИЙ ===");
+                        appendLog("\n=== 🔥 НАЙДЕНО СЕРВИСОВ: " + services.size() + " ===");
                         for (BluetoothGattService s : services) {
-                            appendLog("📂 Сервис UUID: " + s.getUuid().toString());
+                            appendLog("📂 UUID Сервиса: " + s.getUuid().toString());
                             for (BluetoothGattCharacteristic c : s.getCharacteristics()) {
-                                String props = getPropertiesString(c.getProperties());
-                                appendLog("   ├── ⚡ Функция (Char): " + c.getUuid().toString() + " [" + props + "]");
+                                appendLog("   ├── ⚡ Характеристика: " + c.getUuid().toString());
                             }
                         }
-                        appendLog("=== КОНЕЦ ДАМПА УСТРОЙСТВА ===\n");
-                    } else {
-                        appendLog("❌ Не удалось получить список сервисов. Код: " + status);
+                        appendLog("=== КОНЕЦ ДАМПА ===\n");
                     }
                 }
             }, BluetoothDevice.TRANSPORT_LE);
         }
     }
 
-    private String getPropertiesString(int p) {
-        StringBuilder sb = new StringBuilder();
-        if ((p & BluetoothGattCharacteristic.PROPERTY_READ) != 0) sb.append("READ ");
-        if ((p & BluetoothGattCharacteristic.PROPERTY_WRITE) != 0) sb.append("WRITE ");
-        if ((p & BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0) sb.append("NOTIFY ");
-        if ((p & BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0) sb.append("INDICATE ");
-        return sb.toString().trim();
-    }
-
-    private void readBatteryLevel(BluetoothDevice dev) {
-        appendLog("🔋 Запрос службы батареи (UUID 0x180F)...");
+    private void readBattery(BluetoothDevice dev) {
+        appendLog("🔋 Запрос батареи для " + dev.getAddress());
         connectAndDumpGatt(dev);
     }
 
-    private void sendVibration(BluetoothDevice dev) {
-        appendLog("📳 Отправка импульса вибрации на " + dev.getAddress() + "...");
+    private void sendVibrationSignal(BluetoothDevice dev) {
+        appendLog("📳 Попытка вызова вибрации/уведомления на " + dev.getAddress());
         connectAndDumpGatt(dev);
-    }
-
-    private void createBondDevice(BluetoothDevice dev) {
-        try {
-            appendLog("🔗 Инициализация системного сопряжения (createBond)...");
-            dev.createBond();
-        } catch (Exception e) {
-            appendLog("❌ Ошибка при попытке сопряжения: " + e.getMessage());
-        }
     }
 
     private void disconnectGatt() {
@@ -525,9 +471,9 @@ public class MainActivity extends Activity {
                 bluetoothGatt.close();
             } catch (Exception ignored) {}
             bluetoothGatt = null;
-            appendLog("🔌 Соединение отключено вручную.");
+            appendLog("🔌 Соединение закрыто пользователем.");
             statusTextView.setText("Статус: Отключено");
-            Toast.makeText(this, "Отключено!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Отключено", Toast.LENGTH_SHORT).show();
         }
     }
 }
