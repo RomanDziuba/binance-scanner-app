@@ -1,7 +1,5 @@
 package com.monster.clock;
 
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.app.Activity;
 import android.content.Context;
 import android.hardware.camera2.CameraManager;
