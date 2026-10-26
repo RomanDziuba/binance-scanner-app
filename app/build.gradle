@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.smuleloading.app'
+    namespace 'com.monstercompiler.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.smuleloading.app"
+        applicationId "com.monstercompiler.app"
         minSdk 21
         targetSdk 34
-        versionCode 6
+        versionCode 7
         versionName "1.0"
     }
     compileOptions {
