@@ -13,7 +13,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Setup Android SDK (Native Bash)
+      - name: Setup Android SDK
         run: |
           export ANDROID_HOME=/usr/local/lib/android/sdk
           export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
@@ -27,20 +27,8 @@ jobs:
       - name: Build APK
         run: |
           gradle clean assembleDebug --info --stacktrace --no-daemon
-      - name: Send APK and Java Code Duplicate to Telegram
+      - name: Send APK to Telegram
         if: success()
         run: |
           APK_PATH=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
-          echo "Found APK: $APK_PATH"
-          CLEAN_NAME="SMULE_D_R_V-v1.0"
-          CUSTOM_APK_PATH="${CLEAN_NAME}.apk"
-          cp "$APK_PATH" "$CUSTOM_APK_PATH"
-          JAVA_SRC=$(find app/src/main/java/ -name "MainActivity.java" | head -n 1)
-          TXT_PATH="${CLEAN_NAME}.java.txt"
-          if [ -f "$JAVA_SRC" ]; then
-            cp "$JAVA_SRC" "$TXT_PATH"
-          else
-            echo "package com.smuleloading.app;" > "$TXT_PATH"
-          fi
-          curl -F chat_id="1434233986" -F document=@"$CUSTOM_APK_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
-          curl -F chat_id="1434233986" -F document=@"$TXT_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
+          curl -F chat_id="1434233986" -F document=@"$APK_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
