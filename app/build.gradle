@@ -3,28 +3,22 @@ plugins {
 }
 
 android {
-    namespace 'com.monstercompilerpro.app'
+    namespace 'com.quantum.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.monstercompilerpro.app"
+        applicationId "com.quantum.app"
         minSdk 21
         targetSdk 34
-        versionCode 5
-        versionName "7.1"
+        versionCode 6
+        versionName "qwerty"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
-    }
-    applicationVariants.all { variant ->
-        variant.outputs.all { output ->
-            outputFileName = "MonsterCompilerPro-v7.1-" + variant.name + ".apk"
-        }
     }
 }
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
-    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 }
