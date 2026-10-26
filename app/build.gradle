@@ -9,8 +9,8 @@ android {
         applicationId "com.roma.monster"
         minSdk 21
         targetSdk 34
-        versionCode 6
-        versionName "1.0"
+        versionCode 7
+        versionName "1.1"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "blutus-v1.0-" + variant.name + ".apk"
+            outputFileName = "blutus-v1.1-" + variant.name + ".apk"
         }
     }
 }
