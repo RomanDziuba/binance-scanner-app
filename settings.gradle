@@ -1,2 +1,2 @@
-rootProject.name = "SMULE_D_R_V"
+rootProject.name = "MONSTERcompiler"
 include ':app'
