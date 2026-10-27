@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.clock.version15'
+    namespace 'com.clock.version22'
     compileSdk 34
     defaultConfig {
-        applicationId "com.clock.version15"
+        applicationId "com.clock.version22"
         minSdk 21
         targetSdk 34
-        versionCode 2
-        versionName "15"
+        versionCode 3
+        versionName "22"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "компиляция_v15-" + variant.name + ".apk"
+            outputFileName = "компиляция_v22-" + variant.name + ".apk"
         }
     }
 }
