@@ -244,7 +244,7 @@ public class MainActivity extends Activity {
             sb.append(String.format(Locale.US, "[%02d] SSID: %s\n", index++, ssid));
             sb.append(" ┣ 🆔 BSSID (MAC): ").append(bssid).append("\n");
             sb.append(" ┣ 📶 Сигнал: ").append(rssi).append(" dBm (Качество: ").append(quality).append("%)\n");
-            sb.append(" ┣ 📻 Частота / Безд: ").append(frequency).append(" MHz (").append(band)., Канал: ").append(channel).append(")\n");
+            sb.append(" ┣ 📻 Частота / Диап: ").append(frequency).append(" MHz (").append(band).append(", Канал: ").append(channel).append(")\n");
             sb.append(" ┣ 📐 Ширина канала: ").append(channelWidthStr).append("\n");
             sb.append(" ┣ 🚀 Поколение Wi-Fi: ").append(wifiStandardStr).append("\n");
             sb.append(" ┣ 🔒 Безопасность: ").append(securityType).append("\n");
@@ -261,7 +261,7 @@ public class MainActivity extends Activity {
             return (freq - 2412) / 5 + 1;
         } else if (freq >= 5170 && freq <= 5825) {
             return (freq - 5170) / 5 + 34;
-        } else if (freq >= 5955 && freq.toString() != null && freq <= 7115) { // 6 GHz
+        } else if (freq >= 5955 && freq <= 7115) { // 6 GHz
             return (freq - 5950) / 5;
         }
         return 0;
