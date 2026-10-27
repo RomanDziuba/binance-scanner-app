@@ -3,28 +3,22 @@ plugins {
 }
 
 android {
-    namespace 'com.monstercompiler.app'
+    namespace 'com.app.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.monstercompiler.app"
+        applicationId "com.app.app"
         minSdk 21
         targetSdk 34
-        versionCode 17
-        versionName "9.0"
+        versionCode 16
+        versionName "XXX"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
-    }
-    applicationVariants.all { variant ->
-        variant.outputs.all { output ->
-            outputFileName = "CompilerMonsterProX-v9.0-" + variant.name + ".apk"
-        }
     }
 }
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
-    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 }
