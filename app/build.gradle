@@ -3,22 +3,28 @@ plugins {
 }
 
 android {
-    namespace 'com.monster.clock'
+    namespace 'com.roma.nativeapp'
     compileSdk 34
     defaultConfig {
-        applicationId "com.monster.clock"
+        applicationId "com.roma.nativeapp"
         minSdk 21
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode 12
+        versionName "6.5"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
+    }
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            outputFileName = "JavaCompiler-v6.5-" + variant.name + ".apk"
+        }
     }
 }
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 }
