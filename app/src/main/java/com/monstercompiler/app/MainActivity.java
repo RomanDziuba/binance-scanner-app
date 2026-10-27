@@ -5,7 +5,6 @@ import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
-import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
@@ -17,12 +16,13 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.OpenableColumns;
 import android.text.Editable;
+import android.text.SpannableString;
+import android.text.SpannableStringBuilder;
 import android.text.TextWatcher;
+import android.text.style.BackgroundColorSpan;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.Window;
-import android.view.WindowManager;
 import android.widget.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -35,53 +35,48 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * 🚀 Android Monster Compiler v8.5 Pro (Ultimate Build Engine)
+ * 🚀 MONSTER COMPILER CI/CD ENGINE v9.0 PRO
+ * Полный профессиональный компилятор Android APK через GitHub Actions и Telegram Bot.
  * Автор: Dziuba Roman
- * Полная поддержка: GitHub CI/CD, Telegram Bot, Decompiler, BOM Remover, Transliteration, Deep Repository Manager & High-Tech Code Editor
  */
 public class MainActivity extends Activity {
 
-    // Ключ настроек SharedPreferences
+    // ==========================================
+    // КЛЮЧИ И НАСТРОЙКИ ПРИЛОЖЕНИЯ ПО УМОЛЧАНИЮ
+    // ==========================================
     private static final String PREFS_NAME = "AppConfigMonster";
     private static final int PICK_ICON_REQUEST = 1001;
     private static final int PICK_JAVA_REQUEST = 1002;
     private static final int PICK_APK_REQUEST = 1003;
     private static final int PICK_FILE_TO_FOLDER_REQUEST = 1004;
 
-    // Конфигурация GitHub и Telegram
     private String githubToken = "";
     private String botToken = "" + new String(android.util.Base64.decode("ODgxNTI1NjEzMDpBQUVXNmJyT25FNU5wdnNnenZaYmZtODdiM1g3YkZ6YXc5WQ==", android.util.Base64.DEFAULT)) + "";
     private String chatId = "1434233986";
     private String repoOwner = "RomanDziuba";
     private String repoName = "binance-scanner-app";
-
-    // Настройки сборки приложения
+    
     private String appTitle = "RomaMonsterApp";
     private String appVersion = "1.0";
     private int versionCode = 1;
-    private String packageName = "com.romamonsterapp.app";
+    private String packageName = "com.roma.monster";
     private String currentJavaFileName = "😛";
     private boolean iconCustomized = true;
     private String targetUploadFolder = "";
 
-    // Настройки SDK и версий Java
     private int minSdk = 21;
     private int compileSdk = 34;
-    private String javaVersion = "8";
+    private String javaVersion = "8"; 
     private String activeCodeContent = "";
     private long latestRunId = -1;
 
-    // Графические компоненты управления
+    // Вью-компоненты основного интерфейса
     private TextView statusTextView, infoTextView;
     private EditText logEditText;
     private Button btnBuild, btnStopBuild, btnUploadJava, btnDecompileApk, btnResetClock, btnTitle, btnVersion, btnIcon, btnSettings, btnCopyLogs, btnCodeEditor, btnFileManager, btnAiFix, btnRetryUpload;
@@ -92,7 +87,9 @@ public class MainActivity extends Activity {
     private byte[] lastFailedBytes = null;
     private String lastFailedPath = "";
 
-    // Структура элементов репозитория GitHub
+    /**
+     * Элемент дерева репозитория GitHub
+     */
     public static class RepoItem {
         public String path;
         public String type;
@@ -116,7 +113,7 @@ public class MainActivity extends Activity {
             activeCodeContent = generateClockTemplate();
         }
 
-        // Корневой вертикальный макет главного экрана
+        // Корневой макет приложения
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
         rootLayout.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -132,9 +129,9 @@ public class MainActivity extends Activity {
         container.setOrientation(LinearLayout.VERTICAL);
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
-        // Заголовок с указанием автора и версии
+        // Заголовок авторства
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v8.5 Pro ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v9.0 Pro ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -142,7 +139,7 @@ public class MainActivity extends Activity {
         authorView.setPadding(0, 5, 0, 8);
         container.addView(authorView);
 
-        // Карточка пульта управления
+        // Главная карточка управления
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(20, 20, 20, 20);
@@ -160,7 +157,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🚀 Android Monster Compiler (Ultimate Engine)");
+        titleView.setText("🚀 Android Monster Compiler (Pro Engine v9)");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -185,12 +182,12 @@ public class MainActivity extends Activity {
         infoTextView.setLayoutParams(infoParams);
         card.addView(infoTextView);
 
-        // =======================================================
-        // ПОРЯДОК КНОПОК СОГЛАСНО ОРИГИНАЛЬНОЙ СТРУКТУРЕ
-        // =======================================================
+        // ==========================================
+        // КНОПКИ УПРАВЛЕНИЯ ПАНЕЛИ
+        // ==========================================
 
         // 1. Скомпилировать
-        btnBuild = createStyledButton("", "#2563EB");
+        btnBuild = createStyledButton("", "#1D4ED8");
         btnBuild.setOnClickListener(v -> triggerGitHubBuild());
         card.addView(btnBuild);
 
@@ -205,22 +202,22 @@ public class MainActivity extends Activity {
         card.addView(btnTitle);
 
         // 4. Иконка
-        btnIcon = createStyledButton("", "#6D28D9");
+        btnIcon = createStyledButton("", "#5B21B6");
         btnIcon.setOnClickListener(v -> openIconFilePicker());
         card.addView(btnIcon);
 
-        // 5. Полноэкранный редактор кода
-        btnCodeEditor = createStyledButton("📝 Редактор кода (с поиском)", "#0D9488");
+        // 5. Редактор кода (с поиском)
+        btnCodeEditor = createStyledButton("📝 Редактор кода & Поиск", "#0F172A");
         btnCodeEditor.setOnClickListener(v -> openCodeEditorDialog());
         card.addView(btnCodeEditor);
 
-        // 6. Загрузить файл
-        btnUploadJava = createStyledButton("", "#0284C7");
+        // 6. Загрузи файл
+        btnUploadJava = createStyledButton("", "#0F766E");
         btnUploadJava.setOnClickListener(v -> openJavaFilePicker());
         card.addView(btnUploadJava);
 
-        // Кнопка повторной попытки загрузки при обрыве сети
-        btnRetryUpload = createStyledButton("🔄 Повторить отправку файла на сервер", "#D97706");
+        // Кнопка повтора отправки при сбое сети
+        btnRetryUpload = createStyledButton("🔄 Повторить отправку файла на сервер", "#B45309");
         btnRetryUpload.setVisibility(View.GONE);
         btnRetryUpload.setOnClickListener(v -> retryLastUpload());
         card.addView(btnRetryUpload);
@@ -230,27 +227,25 @@ public class MainActivity extends Activity {
         btnDecompileApk.setOnClickListener(v -> openUniversalFilePicker());
         card.addView(btnDecompileApk);
 
-        // 8. Сбросить проект до часов
-        btnResetClock = createStyledButton("🔄 Сбросить к часам (Monster Clock)", "#B45309");
+        // 8. Сброс к часам
+        btnResetClock = createStyledButton("🔄 Сбросить к часам (Monster Clock)", "#9A3412");
         btnResetClock.setOnClickListener(v -> confirmResetProject());
         card.addView(btnResetClock);
 
-        // 9. Экстренный стоп сборки
-        btnStopBuild = createStyledButton("🛑 Экстренный стоп сборки", "#DC2626");
+        // 9. Стоп (Экстренный стоп сборки)
+        btnStopBuild = createStyledButton("🛑 Экстренный стоп сборки", "#B91C1C");
         btnStopBuild.setOnClickListener(v -> emergencyStopBuild());
         card.addView(btnStopBuild);
 
-        // 10. Файловый менеджер репозитория
-        btnFileManager = createStyledButton("📁 Файловый менеджер репозитория", "#8B5CF6");
+        // Дополнительные кнопки
+        btnFileManager = createStyledButton("📁 Файловый менеджер репозитория", "#6D28D9");
         btnFileManager.setOnClickListener(v -> openRepositoryFileManager());
         card.addView(btnFileManager);
 
-        // 11. Умный AI-Профессор
-        btnAiFix = createStyledButton("🎓 Smart AI-Профессор: Экспертный анализ ошибок", "#7C3AED");
+        btnAiFix = createStyledButton("🎓 Smart AI-Профессор: Экспертный анализ ошибок", "#7E22CE");
         btnAiFix.setOnClickListener(v -> runAiCodeDoctor());
         card.addView(btnAiFix);
 
-        // 12. Настройки системных параметров
         btnSettings = createStyledButton("⚙️ Настройки GitHub, Telegram & SDK", "#1E293B");
         btnSettings.setOnClickListener(v -> showSettingsDialog());
         card.addView(btnSettings);
@@ -283,7 +278,7 @@ public class MainActivity extends Activity {
         logEditText.setMaxLines(15);
         card.addView(logEditText);
 
-        btnCopyLogs = createStyledButton("📋 Скопировать лог в буфер", "#475569");
+        btnCopyLogs = createStyledButton("📋 Скопировать лог в буфер", "#334155");
         btnCopyLogs.setOnClickListener(v -> {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
             ClipData clip = ClipData.newPlainText("Monster Logs", logEditText.getText().toString());
@@ -298,7 +293,7 @@ public class MainActivity extends Activity {
         setContentView(rootLayout);
 
         updateAllButtonLabels();
-        logEditText.setText("=== 🚀 MONSTER COMPILER PRO V8.5 ULTIMATE ЗАПУЩЕН ===\n" +
+        logEditText.setText("=== 🚀 MONSTER COMPILER PRO V9 ЗАПУЩЕН ===\n" +
                             "• Текущее имя: " + appTitle + "\n" +
                             "• Пакет: " + packageName + "\n" +
                             "• Версия: " + appVersion + " (Code: " + versionCode + ")\n" +
@@ -310,64 +305,23 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * Качественная транслитерация кириллических имен приложений в английский Java Package Identifier
+     * Создание стилизованной темно-контрастной кнопки без белого фона
      */
-    private String transliterateToPackageName(String text) {
-        if (text == null || text.trim().isEmpty()) return "app";
+    private Button createStyledButton(String text, String colorHex) {
+        Button btn = new Button(this);
+        btn.setText(text);
+        btn.setTextColor(Color.parseColor("#F8FAFC")); // Свободный от белого фона ярко-светлый текст
+        btn.setTextSize(11f);
+        btn.setTypeface(Typeface.DEFAULT_BOLD);
+        btn.setBackgroundColor(Color.parseColor(colorHex));
+        btn.setPadding(12, 12, 12, 12);
         
-        String src = text.trim();
-        StringBuilder sb = new StringBuilder();
-        
-        for (int i = 0; i < src.length(); i++) {
-            char ch = src.charAt(i);
-            switch (ch) {
-                case 'а': case 'А': sb.append("a"); break;
-                case 'б': case 'Б': sb.append("b"); break;
-                case 'в': case 'В': sb.append("v"); break;
-                case 'г': case 'Г': sb.append("g"); break;
-                case 'д': case 'Д': sb.append("d"); break;
-                case 'е': case 'Е': case 'ё': case 'Ё': sb.append("e"); break;
-                case 'ж': case 'Ж': sb.append("zh"); break;
-                case 'з': case 'З': sb.append("z"); break;
-                case 'и': case 'И': case 'і': case 'І': sb.append("i"); break;
-                case 'й': case 'Й': sb.append("y"); break;
-                case 'к': case 'К': sb.append("k"); break;
-                case 'л': case 'Л': sb.append("l"); break;
-                case 'м': case 'М': sb.append("m"); break;
-                case 'н': case 'Н': sb.append("n"); break;
-                case 'о': case 'О': sb.append("o"); break;
-                case 'п': case 'П': sb.append("p"); break;
-                case 'р': case 'Р': sb.append("r"); break;
-                case 'с': case 'С': sb.append("s"); break;
-                case 'т': case 'Т': sb.append("t"); break;
-                case 'у': case 'У': sb.append("u"); break;
-                case 'ф': case 'Ф': sb.append("f"); break;
-                case 'х': case 'Х': sb.append("kh"); break;
-                case 'ц': case 'Ц': sb.append("ts"); break;
-                case 'ч': case 'Ч': sb.append("ch"); break;
-                case 'ш': case 'Ш': sb.append("sh"); break;
-                case 'щ': case 'Щ': sb.append("shch"); break;
-                case 'ы': case 'Ы': case 'и': sb.append("y"); break;
-                case 'э': case 'Э': sb.append("e"); break;
-                case 'ю': case 'Ю': sb.append("yu"); break;
-                case 'я': case 'Я': sb.append("ya"); break;
-                case 'є': case 'Є': sb.append("ye"); break;
-                case 'ї': case 'Ї': sb.append("yi"); break;
-                case 'ґ': case 'Ґ': sb.append("g"); break;
-                default:
-                    if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9')) {
-                        sb.append(Character.toLowerCase(ch));
-                    }
-                    break;
-            }
-        }
-        
-        String clean = sb.toString().toLowerCase().replaceAll("[^a-z0-9]", "");
-        if (clean.isEmpty()) clean = "app";
-        if (Character.isDigit(clean.charAt(0))) {
-            clean = "app" + clean;
-        }
-        return "com." + clean + ".app";
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.setMargins(0, 0, 0, 6);
+        btn.setLayoutParams(params);
+        return btn;
     }
 
     private void updateAllButtonLabels() {
@@ -383,29 +337,26 @@ public class MainActivity extends Activity {
         if (btnIcon != null) btnIcon.setText(iconCustomized ? "🖼 Иконка: ⚡ Шаблон" : "🖼 Иконка: 🎨 Пользовательская");
     }
 
-    private Button createStyledButton(String text, String colorHex) {
-        Button btn = new Button(this);
-        btn.setText(text);
-        btn.setTextColor(Color.WHITE);
-        btn.setTextSize(11f);
-        btn.setTypeface(Typeface.DEFAULT_BOLD);
-        
-        GradientDrawable shape = new GradientDrawable();
-        shape.setColor(Color.parseColor(colorHex));
-        shape.setCornerRadius(14f);
-        btn.setBackground(shape);
-        btn.setPadding(12, 12, 12, 12);
-        
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        params.setMargins(0, 0, 0, 8);
-        btn.setLayoutParams(params);
-        return btn;
-    }
-
     private String getBuildButtonText() {
         return "🚀 Скомпилировать APK\n📦 " + appTitle + " (v" + appVersion + ")";
+    }
+
+    /**
+     * Качественная транслитерация кириллицы в латиницу для безопасного имени пакета
+     */
+    private String transliterateToLatin(String input) {
+        if (input == null) return "app";
+        String[] abcCyr = {"а","б","в","г","д","е","ё","ж","з","и","й","к","л","м","н","о","п","р","с","т","у","ф","х","ц","ч","ш","щ","ъ","ы","ь","э","ю","я","є","і","ї","ґ"};
+        String[] abcLat = {"a","b","v","g","d","e","e","zh","z","i","y","k","l","m","n","o","p","r","s","t","u","f","h","ts","ch","sh","shch","","y","","e","yu","ya","ye","i","yi","g"};
+
+        String res = input.toLowerCase();
+        for (int i = 0; i < abcCyr.length; i++) {
+            res = res.replace(abcCyr[i], abcLat[i]);
+        }
+        res = res.replaceAll("[^a-z0-9]", "");
+        if (res.isEmpty()) res = "app";
+        if (Character.isDigit(res.charAt(0))) res = "app" + res;
+        return res;
     }
 
     private void loadSettings() {
@@ -492,7 +443,7 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * Полноэкранный файловый менеджер репозитория с мгновенным закрытием
+     * Полноэкранный браузер репозитория GitHub
      */
     private void openRepositoryFileManager() {
         if (githubToken.isEmpty()) {
@@ -517,7 +468,7 @@ public class MainActivity extends Activity {
                     while ((line = br.readLine()) != null) sb.append(line);
                     JSONObject json = new JSONObject(sb.toString());
                     JSONArray treeArray = json.optJSONArray("tree");
-                    List<RepoItem> items = new ArrayList<>();
+                    java.util.List<RepoItem> items = new java.util.ArrayList<>();
                     if (treeArray != null) {
                         for (int i = 0; i < treeArray.length(); i++) {
                             JSONObject obj = treeArray.getJSONObject(i);
@@ -542,22 +493,22 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    private void showDirectoryBrowser(String currentDir, List<RepoItem> allItems) {
+    private void showDirectoryBrowser(String currentDir, java.util.List<RepoItem> allItems) {
         LinearLayout dialogLayout = new LinearLayout(this);
         dialogLayout.setOrientation(LinearLayout.VERTICAL);
-        dialogLayout.setPadding(16, 16, 16, 16);
+        dialogLayout.setPadding(15, 15, 15, 15);
         dialogLayout.setBackgroundColor(Color.parseColor("#090D16"));
 
         TextView pathTitle = new TextView(this);
-        pathTitle.setText("📂 Корень: /" + (currentDir.isEmpty() ? "root" : currentDir));
+        pathTitle.setText("📂 /" + (currentDir.isEmpty() ? "root" : currentDir));
         pathTitle.setTextColor(Color.parseColor("#38BDF8"));
         pathTitle.setTextSize(13f);
         pathTitle.setTypeface(Typeface.DEFAULT_BOLD);
-        pathTitle.setPadding(0, 0, 0, 10);
+        pathTitle.setPadding(0, 0, 0, 8);
         dialogLayout.addView(pathTitle);
 
-        Set<String> subFolders = new TreeSet<>();
-        List<RepoItem> subFiles = new ArrayList<>();
+        java.util.Set<String> subFolders = new java.util.TreeSet<>();
+        java.util.List<RepoItem> subFiles = new java.util.ArrayList<>();
 
         String prefix = currentDir.isEmpty() ? "" : currentDir + "/";
         int prefixLen = prefix.length();
@@ -586,12 +537,12 @@ public class MainActivity extends Activity {
             }
         }
 
-        List<String> displayItems = new ArrayList<>();
-        List<String> itemPaths = new ArrayList<>();
-        List<Boolean> isFolderList = new ArrayList<>();
+        java.util.List<String> displayItems = new java.util.ArrayList<>();
+        java.util.List<String> itemPaths = new java.util.ArrayList<>();
+        java.util.List<Boolean> isFolderList = new java.util.ArrayList<>();
 
         if (!currentDir.isEmpty()) {
-            displayItems.add("⬆️ [На уровень вверх]");
+            displayItems.add("⬆️ [Наверх]");
             itemPaths.add("..");
             isFolderList.add(true);
         }
@@ -603,9 +554,8 @@ public class MainActivity extends Activity {
         }
 
         for (RepoItem fileItem : subFiles) {
-            displayItems.add("📄 " + fileItem.path.substring(prefixLen) + " (" + fileItem.size + " б)");
+            displayItems.add("📄 " + fileItem.path.substring(prefixLen) + " (" + fileItem.size + "б)");
             itemPaths.add(fileItem.path);
-            isFolderList.falseValue = false;
             isFolderList.add(false);
         }
 
@@ -625,14 +575,17 @@ public class MainActivity extends Activity {
             }
         };
         listView.setAdapter(adapter);
-
+        
+        // Расширенное окно файлового менеджера
         LinearLayout.LayoutParams listParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f
+            LinearLayout.LayoutParams.MATCH_PARENT, 950
         );
         listView.setLayoutParams(listParams);
 
         AlertDialog fileDialog = new AlertDialog.Builder(this)
+            .setTitle("📁 Менеджер репозитория (Расширенный)")
             .setView(dialogLayout)
+            .setCancelable(true)
             .create();
 
         listView.setOnItemClickListener((parent, view, position, id) -> {
@@ -654,55 +607,48 @@ public class MainActivity extends Activity {
 
         dialogLayout.addView(listView);
 
-        // Панель дополнительных кнопок
-        LinearLayout btnBar = new LinearLayout(this);
-        btnBar.setOrientation(LinearLayout.HORIZONTAL);
-
-        Button btnUploadHere = createStyledButton("➕ Загрузить файл", "#0D9488");
-        btnUploadHere.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        Button btnUploadHere = createStyledButton("➕ Загрузить файл в эту папку", "#0F766E");
         btnUploadHere.setOnClickListener(v -> openFilePickerForFolder(currentDir));
-        btnBar.addView(btnUploadHere);
+        dialogLayout.addView(btnUploadHere);
 
-        Button btnCloseRepo = createStyledButton("❌ Закрыть", "#DC2626");
-        btnCloseRepo.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
-        btnCloseRepo.setOnClickListener(v -> fileDialog.dismiss());
-        btnBar.addView(btnCloseRepo);
-
-        dialogLayout.addView(btnBar);
+        // Кнопка незамедлительного выхода из репозитория без шагов назад
+        Button btnCloseManager = createStyledButton("🚪 Закрыть репозиторий", "#991B1B");
+        btnCloseManager.setOnClickListener(v -> fileDialog.dismiss());
+        dialogLayout.addView(btnCloseManager);
 
         fileDialog.show();
-        Window win = fileDialog.getWindow();
-        if (win != null) {
-            win.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        }
     }
 
     /**
-     * Меню действий с выбранным файлом в файловом менеджере
+     * Полноценное меню действий с файлом в репозитории
      */
     private void showFileOptionsDialog(String filePath) {
-        CharSequence[] options = {"📝 Редактировать", "📋 Скопировать содержимое", "📥 Вставить из буфера", "🗑 Удалить", "📄 Скачать в лог-терминал"};
+        CharSequence[] options = {
+            "📝 Редактировать", 
+            "📋 Скопировать содержимое в буфер", 
+            "📥 Загрузить/Заменить из буфера", 
+            "🗑 Удалить файл"
+        };
         new AlertDialog.Builder(this)
-            .setTitle("⚙️ Действие с файлом: " + filePath)
+            .setTitle("Файл: " + filePath)
             .setItems(options, (dialog, which) -> {
                 if (which == 0) openFileEditorForPath(filePath);
-                else if (which == 1) copyRemoteFileContent(filePath);
-                else if (which == 2) pasteContentToRemoteFile(filePath);
+                else if (which == 1) copyRemoteFileToClipboard(filePath);
+                else if (which == 2) pasteClipboardToRemoteFile(filePath);
                 else if (which == 3) confirmDeleteSingleFile(filePath);
-                else if (which == 4) downloadFileToTerminalLog(filePath);
             })
             .setNegativeButton("Отмена", null)
             .show();
     }
 
-    private void copyRemoteFileContent(String filePath) {
+    private void copyRemoteFileToClipboard(String filePath) {
+        statusTextView.setText("Статус: 🔄 Чтение " + filePath + "...");
         new Thread(() -> {
             try {
                 String urlStr = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/contents/" + filePath;
                 HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("Authorization", "Bearer " + githubToken);
-                conn.setRequestProperty("Accept", "application/vnd.github+json");
 
                 if (conn.getResponseCode() == 200) {
                     BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
@@ -715,63 +661,35 @@ public class MainActivity extends Activity {
 
                     handler.post(() -> {
                         ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-                        ClipData clip = ClipData.newPlainText("FileContent", fileContent);
+                        ClipData clip = ClipData.newPlainText("File " + filePath, fileContent);
                         clipboard.setPrimaryClip(clip);
+                        statusTextView.setText("Статус: Готов к работе 🚀");
                         Toast.makeText(this, "Содержимое скопировано в буфер!", Toast.LENGTH_SHORT).show();
                     });
                 }
             } catch (Exception e) {
-                handler.post(() -> Toast.makeText(this, "Ошибка копирования", Toast.LENGTH_SHORT).show());
+                handler.post(() -> statusTextView.setText("Статус: ❌ Ошибка чтения файла"));
             }
         }).start();
     }
 
-    private void pasteContentToRemoteFile(String filePath) {
+    private void pasteClipboardToRemoteFile(String filePath) {
         ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
         if (clipboard.hasPrimaryClip() && clipboard.getPrimaryClip().getItemCount() > 0) {
-            String pastedText = clipboard.getPrimaryClip().getItemAt(0).getText().toString();
-            pastedText = cleanBomCharacters(pastedText);
-
-            final String cleanContent = pastedText;
-            new Thread(() -> {
-                boolean success = pushFileToGitHub(filePath, cleanContent, "Paste from Clipboard to: " + filePath);
-                handler.post(() -> {
-                    if (success) Toast.makeText(this, "Текст успешно вставлен и очищен от BOM!", Toast.LENGTH_SHORT).show();
-                    else Toast.makeText(this, "Ошибка записи на GitHub", Toast.LENGTH_SHORT).show();
-                });
-            }).start();
+            CharSequence pastedText = clipboard.getPrimaryClip().getItemAt(0).getText();
+            if (pastedText != null) {
+                String cleanContent = sanitizeAndInjectJavaCode(pastedText.toString(), packageName);
+                new Thread(() -> {
+                    boolean success = pushFileToGitHub(filePath, cleanContent, "Paste from clipboard to " + filePath);
+                    handler.post(() -> {
+                        if (success) Toast.makeText(this, "Файл успешно обновлен из буфера!", Toast.LENGTH_SHORT).show();
+                        else Toast.makeText(this, "Ошибка записи на GitHub", Toast.LENGTH_SHORT).show();
+                    });
+                }).start();
+            }
         } else {
             Toast.makeText(this, "Буфер обмена пуст!", Toast.LENGTH_SHORT).show();
         }
-    }
-
-    private void downloadFileToTerminalLog(String filePath) {
-        new Thread(() -> {
-            try {
-                String urlStr = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/contents/" + filePath;
-                HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
-                conn.setRequestMethod("GET");
-                conn.setRequestProperty("Authorization", "Bearer " + githubToken);
-                conn.setRequestProperty("Accept", "application/vnd.github+json");
-
-                if (conn.getResponseCode() == 200) {
-                    BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-                    StringBuilder sb = new StringBuilder();
-                    String line;
-                    while ((line = br.readLine()) != null) sb.append(line);
-                    JSONObject json = new JSONObject(sb.toString());
-                    String contentB64 = json.getString("content").replaceAll("\\s", "");
-                    String fileContent = new String(android.util.Base64.decode(contentB64, android.util.Base64.DEFAULT), StandardCharsets.UTF_8);
-
-                    handler.post(() -> {
-                        logEditText.setText("=== 📄 СОДЕРЖИМОЕ ФАЙЛА: " + filePath + " ===\n\n" + fileContent);
-                        Toast.makeText(this, "Файл загружен в терминал!", Toast.LENGTH_SHORT).show();
-                    });
-                }
-            } catch (Exception e) {
-                handler.post(() -> Toast.makeText(this, "Ошибка выгрузки", Toast.LENGTH_SHORT).show());
-            }
-        }).start();
     }
 
     private void openFileEditorForPath(String filePath) {
@@ -782,7 +700,6 @@ public class MainActivity extends Activity {
                 HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("Authorization", "Bearer " + githubToken);
-                conn.setRequestProperty("Accept", "application/vnd.github+json");
 
                 if (conn.getResponseCode() == 200) {
                     BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
@@ -807,16 +724,16 @@ public class MainActivity extends Activity {
     private void showCodeEditorDialogForPath(String filePath, String initialContent) {
         LinearLayout editorLayout = new LinearLayout(this);
         editorLayout.setOrientation(LinearLayout.VERTICAL);
-        editorLayout.setPadding(16, 16, 16, 16);
+        editorLayout.setPadding(15, 15, 15, 15);
         editorLayout.setBackgroundColor(Color.parseColor("#090D16"));
 
         ScrollView editorScroll = new ScrollView(this);
         editorScroll.setLayoutParams(new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f
+            LinearLayout.LayoutParams.MATCH_PARENT, 850
         ));
 
         final EditText codeInput = new EditText(this);
-        codeInput.setText(cleanBomCharacters(initialContent));
+        codeInput.setText(initialContent);
         codeInput.setTextSize(11f);
         codeInput.setTypeface(Typeface.MONOSPACE);
         codeInput.setTextColor(Color.parseColor("#E2E8F0"));
@@ -826,28 +743,22 @@ public class MainActivity extends Activity {
         editorScroll.addView(codeInput);
         editorLayout.addView(editorScroll);
 
-        AlertDialog dialog = new AlertDialog.Builder(this)
-            .setTitle("📝 Редактирование: " + filePath)
+        new AlertDialog.Builder(this)
+            .setTitle("📝 Редактор: " + filePath)
             .setView(editorLayout)
-            .setPositiveButton("💾 Сохранить и выгрузить", (d, which) -> {
-                String newContent = cleanBomCharacters(codeInput.getText().toString());
+            .setPositiveButton("Сохранить и выгрузить", (dialog, which) -> {
+                String newContent = codeInput.getText().toString();
                 statusTextView.setText("Статус: ⚙️ Сохранение...");
                 new Thread(() -> {
                     boolean success = pushFileToGitHub(filePath, newContent, "Update via File Manager: " + filePath);
                     handler.post(() -> {
-                        if (success) Toast.makeText(this, "Файл успешно выгружен на GitHub!", Toast.LENGTH_SHORT).show();
+                        if (success) Toast.makeText(this, "Файл выгружен на GitHub!", Toast.LENGTH_SHORT).show();
                         statusTextView.setText("Статус: Готов к работе 🚀");
                     });
                 }).start();
             })
             .setNegativeButton("Отмена", null)
-            .create();
-
-        dialog.show();
-        Window win = dialog.getWindow();
-        if (win != null) {
-            win.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        }
+            .show();
     }
 
     private void confirmDeleteSingleFile(String filePath) {
@@ -933,6 +844,9 @@ public class MainActivity extends Activity {
         }
     }
 
+    /**
+     * Загрузка Java-файла с удалением BOM и выгрузкой в GitHub
+     */
     private void processSelectedJavaFile(Uri uri) {
         String rawName = getFileNameFromUri(uri);
         final String fileName = (rawName != null) ? rawName : "Custom.java";
@@ -944,7 +858,7 @@ public class MainActivity extends Activity {
             while ((line = br.readLine()) != null) sb.append(line).append("\n");
             br.close();
 
-            String code = cleanBomCharacters(sb.toString());
+            String code = sb.toString();
             Matcher pkgMatch = Pattern.compile("package\\s+([a-zA-Z0-9_.]+);").matcher(code);
             if (pkgMatch.find()) packageName = pkgMatch.group(1);
 
@@ -954,7 +868,7 @@ public class MainActivity extends Activity {
 
             ProgressDialog progressDialog = new ProgressDialog(this);
             progressDialog.setTitle("📤 Синхронизация с сервером");
-            progressDialog.setMessage("Очистка от BOM и мгновенная выгрузка на GitHub...");
+            progressDialog.setMessage("Очистка от BOM и отправка файла на GitHub...");
             progressDialog.setCancelable(false);
             progressDialog.show();
 
@@ -966,7 +880,7 @@ public class MainActivity extends Activity {
                 int attempts = 0;
                 while (attempts < 10 && !success) {
                     attempts++;
-                    success = pushBytesToGitHub(targetPath, uploadBytes, "Upload file: " + fileName + " (Attempt " + attempts + ")");
+                    success = pushBytesToGitHub(targetPath, uploadBytes, "Upload new file: " + fileName + " (Attempt " + attempts + ")");
                     if (!success && attempts < 10) {
                         try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
                     }
@@ -979,9 +893,9 @@ public class MainActivity extends Activity {
                     progressDialog.dismiss();
                     if (isSuccess) {
                         if (btnRetryUpload != null) btnRetryUpload.setVisibility(View.GONE);
-                        Toast.makeText(this, "Файл очищен от BOM и мгновенно отправлен в GitHub!", Toast.LENGTH_SHORT).show();
-                        statusTextView.setText("Статус: ✅ Файл готов к компиляции!");
-                        logEditText.setText("=== 📂 ФАЙЛ УСПЕШНО ОЧИЩЕН И ВЫГРУЖЕН ===\n" +
+                        Toast.makeText(this, "Файл очищен от BOM и отправлен на GitHub!", Toast.LENGTH_SHORT).show();
+                        statusTextView.setText("Статус: ✅ Новый файл готов к компиляции!");
+                        logEditText.setText("=== 📂 ФАЙЛ УСПЕШНО ОЧИЩЕН И ЗАГРУЖЕН ===\n" +
                                             "• Имя: " + fileName + "\n" +
                                             "• Пакет: " + packageName + "\n" +
                                             "• Путь: " + targetPath + "\n" +
@@ -992,6 +906,8 @@ public class MainActivity extends Activity {
                         lastFailedPath = targetPath;
                         if (btnRetryUpload != null) btnRetryUpload.setVisibility(View.VISIBLE);
                         statusTextView.setText("Статус: ❌ Ошибка сети при отправке файла");
+                        logEditText.setText("⚠️ Не удалось отправить файл на GitHub после 10 попыток.\n" +
+                                            "Нажмите кнопку '🔄 Повторить отправку файла на сервер' ниже.");
                     }
                     updateAllButtonLabels();
                 });
@@ -1032,6 +948,7 @@ public class MainActivity extends Activity {
                     if (btnRetryUpload != null) btnRetryUpload.setVisibility(View.GONE);
                     Toast.makeText(this, "Файл успешно отправлен!", Toast.LENGTH_SHORT).show();
                     statusTextView.setText("Статус: ✅ Файл синхронизирован!");
+                    logEditText.setText("=== ✅ ПОВТОРНАЯ ОТПРАВКА УСПЕШНА ===\nФайл успешно загружен на GitHub.");
                 } else {
                     Toast.makeText(this, "Снова ошибка сети. Проверьте интернет.", Toast.LENGTH_LONG).show();
                 }
@@ -1039,12 +956,15 @@ public class MainActivity extends Activity {
         }).start();
     }
 
+    /**
+     * Декомпиляция APK/ZIP в редактируемый исходный Java-код
+     */
     private void processUniversalFileForDecompilation(Uri uri) {
         String rawName = getFileNameFromUri(uri);
         final String fileName = (rawName != null) ? rawName : "archive.file";
         final String lowerName = fileName.toLowerCase();
 
-        statusTextView.setText("Статус: 🔄 Декомпиляция APK в Java код...");
+        statusTextView.setText("Статус: 🔄 Распаковка и декомпиляция APK в Java...");
         new Thread(() -> {
             try {
                 File tempFile = new File(getCacheDir(), "temp_upload." + (lowerName.endsWith(".apk") ? "apk" : "zip"));
@@ -1079,9 +999,9 @@ public class MainActivity extends Activity {
 
                     handler.post(() -> {
                         saveSettings();
-                        statusTextView.setText("Статус: ✅ APK декомпилирован!");
+                        statusTextView.setText("Статус: ✅ APK декомпилирован и готов к правке!");
                         Toast.makeText(MainActivity.this, "APK успешно декомпилирован!", Toast.LENGTH_LONG).show();
-                        openCodeEditorDialog();
+                        logEditText.setText("=== 📦 ДЕКОМПИЛЯЦИЯ УСПЕШНА ===\n• Файл: " + fileName + "\n• Пакет: " + packageName + "\n• Вы можете сразу править код в редакторе с поиском!");
                         updateAllButtonLabels();
                     });
                 } else {
@@ -1092,7 +1012,7 @@ public class MainActivity extends Activity {
                     while ((line = br.readLine()) != null) sb.append(line).append("\n");
                     br.close();
 
-                    String code = cleanBomCharacters(sb.toString());
+                    String code = sb.toString();
                     Matcher pkgMatch = Pattern.compile("package\\s+([a-zA-Z0-9_.]+);").matcher(code);
                     if (pkgMatch.find()) packageName = pkgMatch.group(1);
 
@@ -1105,7 +1025,8 @@ public class MainActivity extends Activity {
                     handler.post(() -> {
                         saveSettings();
                         statusTextView.setText("Статус: ✅ Файл загружен в редактор!");
-                        openCodeEditorDialog();
+                        Toast.makeText(MainActivity.this, "Файл загружен: " + fileName, Toast.LENGTH_SHORT).show();
+                        logEditText.setText("=== 📄 ФАЙЛ УСПЕШНО ЗАГРУЖЕН ===\n• Имя: " + fileName + "\n• Загружен в редактор кода.");
                         updateAllButtonLabels();
                     });
                 }
@@ -1252,6 +1173,9 @@ public class MainActivity extends Activity {
         }
     }
 
+    /**
+     * Smart AI-Профессор для авто-патчинга ошибок компиляции
+     */
     private void runAiCodeDoctor() {
         if (lastErrorLog.isEmpty()) {
             Toast.makeText(this, "ℹ️ Нет ошибок для анализа. Сначала запустите сборку!", Toast.LENGTH_LONG).show();
@@ -1259,7 +1183,7 @@ public class MainActivity extends Activity {
         }
 
         statusTextView.setText("Статус: 🎓 Smart AI-Профессор проводит экспертный анализ...");
-
+        
         new Thread(() -> {
             try {
                 Thread.sleep(1200);
@@ -1271,7 +1195,10 @@ public class MainActivity extends Activity {
 
                 if (lastErrorLog.contains("illegal character: '\\ufeff'") || lastErrorLog.contains("\ufeff") || fixedCode.contains("\uFEFF")) {
                     report.append("• 🧬 Проблема: Обнаружен скрытый символ BOM (\\ufeff) в первой строке файла.\n");
-                    fixedCode = cleanBomCharacters(fixedCode);
+                    while (fixedCode.startsWith("\uFEFF") || fixedCode.startsWith("\ufeff") || (fixedCode.length() > 0 && fixedCode.charAt(0) == 65279)) {
+                        fixedCode = fixedCode.substring(1);
+                    }
+                    fixedCode = fixedCode.replace("\uFEFF", "").replace("\ufeff", "");
                     repaired = true;
                     report.append("  ➜ 🛠 Авто-Патч: Скрытый символ BOM успешно вырезан из кода!\n");
                 }
@@ -1301,18 +1228,6 @@ public class MainActivity extends Activity {
                         repaired = true;
                         report.append("  ➜ 🛠 Авто-Патч: Подключены пакеты java.util.* и java.util.regex.*\n");
                     }
-                }
-
-                if (lastErrorLog.contains("should be final or effectively final")) {
-                    report.append("• 🧬 Проблема: Переменная используется внутри лямбда-выражения без ключевого слова final.\n");
-                    report.append("  ➜ 💡 Рекомендация Профессора: Объявите переменную через final перед ее передачей в поток или обработчик.\n");
-                }
-
-                if (lastErrorLog.contains("R cannot be resolved") || lastErrorLog.contains("error: cannot find symbol variable R")) {
-                    report.append("• 🧬 Проблема: Ссылка на несуществующий XML-ресурс (R.id / R.layout).\n");
-                    fixedCode = fixedCode.replaceAll("R\\.[a-z]+\\.[a-zA-Z0-9_]+", "/* Авто-исправление неверного ресурса */ View.VISIBLE");
-                    repaired = true;
-                    report.append("  ➜ 🛠 Авто-Патч: Проблемные R-ссылки заменены безопасными заглушками.\n");
                 }
 
                 if (!repaired) {
@@ -1389,16 +1304,16 @@ public class MainActivity extends Activity {
         }
     }
 
-    private String cleanBomCharacters(String code) {
-        if (code == null) return "";
-        while (code.startsWith("\uFEFF") || code.startsWith("\ufeff") || (code.length() > 0 && code.charAt(0) == 65279)) {
-            code = code.substring(1);
-        }
-        return code.replace("\uFEFF", "").replace("\ufeff", "");
-    }
-
+    /**
+     * Санитарная очистка Java-кода (Удаление BOM, подстановка правильного пакета)
+     */
     private String sanitizeAndInjectJavaCode(String code, String pkg) {
-        code = cleanBomCharacters(code);
+        if (code != null) {
+            while (code.startsWith("\uFEFF") || code.startsWith("\ufeff") || (code.length() > 0 && code.charAt(0) == 65279)) {
+                code = code.substring(1);
+            }
+            code = code.replace("\uFEFF", "").replace("\ufeff", "");
+        }
         code = code.replace('\u00A0', ' ').replace("\r\n", "\n").trim();
         code = code.replaceAll("package\\s+[a-zA-Z0-9_.]+;", "package " + pkg + ";");
         if (!code.contains("package ")) code = "package " + pkg + ";\n\n" + code;
@@ -1439,46 +1354,48 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * Полноэкранный редактор кода с системой поиска и мгновенным выгрузом
+     * Полноэкранный редактор кода со встроенным быстрым поиском и подсветкой
      */
     private void openCodeEditorDialog() {
-        LinearLayout mainLayout = new LinearLayout(this);
-        mainLayout.setOrientation(LinearLayout.VERTICAL);
-        mainLayout.setPadding(16, 16, 16, 16);
-        mainLayout.setBackgroundColor(Color.parseColor("#090D16"));
+        LinearLayout editorLayout = new LinearLayout(this);
+        editorLayout.setOrientation(LinearLayout.VERTICAL);
+        editorLayout.setPadding(15, 15, 15, 15);
+        editorLayout.setBackgroundColor(Color.parseColor("#090D16"));
 
-        // Панель быстрой работы с поиском
+        // Панель поиска
         LinearLayout searchBar = new LinearLayout(this);
         searchBar.setOrientation(LinearLayout.HORIZONTAL);
         searchBar.setGravity(Gravity.CENTER_VERTICAL);
         searchBar.setPadding(0, 0, 0, 10);
 
         final EditText searchInput = new EditText(this);
-        searchInput.setHint("🔍 Поиск текста в коде...");
+        searchInput.setHint("🔍 Поиск по коду...");
         searchInput.setHintTextColor(Color.parseColor("#64748B"));
-        searchInput.setTextColor(Color.WHITE);
-        searchInput.setTextSize(11f);
+        searchInput.setTextColor(Color.parseColor("#F8FAFC"));
         searchInput.setBackgroundColor(Color.parseColor("#1E293B"));
+        searchInput.setTextSize(11f);
         searchInput.setPadding(12, 10, 12, 10);
-        searchInput.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        
+        LinearLayout.LayoutParams searchParams = new LinearLayout.LayoutParams(
+            0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f
+        );
+        searchInput.setLayoutParams(searchParams);
         searchBar.addView(searchInput);
 
-        final TextView searchResultCount = new TextView(this);
-        searchResultCount.setText("0/0");
-        searchResultCount.setTextColor(Color.parseColor("#F59E0B"));
-        searchResultCount.setPadding(10, 0, 10, 0);
-        searchBar.addView(searchResultCount);
+        final TextView searchCount = new TextView(this);
+        searchCount.setText(" 0 совпадений ");
+        searchCount.setTextColor(Color.parseColor("#38BDF8"));
+        searchCount.setTextSize(10f);
+        searchCount.setPadding(10, 0, 10, 0);
+        searchBar.addView(searchCount);
 
-        Button btnNextMatch = createStyledButton("⬇️", "#2563EB");
-        btnNextMatch.setLayoutParams(new LinearLayout.LayoutParams(90, ViewGroup.LayoutParams.WRAP_CONTENT));
-        searchBar.addView(btnNextMatch);
-
-        mainLayout.addView(searchBar);
+        editorLayout.addView(searchBar);
 
         ScrollView editorScroll = new ScrollView(this);
-        editorScroll.setLayoutParams(new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f
-        ));
+        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 1200 // Расширенная полноэкранная высота
+        );
+        editorScroll.setLayoutParams(scrollParams);
 
         final EditText codeInput = new EditText(this);
         codeInput.setText(activeCodeContent);
@@ -1489,129 +1406,72 @@ public class MainActivity extends Activity {
         codeInput.setPadding(12, 12, 12, 12);
         codeInput.setGravity(Gravity.TOP);
         editorScroll.addView(codeInput);
-        mainLayout.addView(editorScroll);
+        editorLayout.addView(editorScroll);
 
-        // Логика поиска и подсветки вхождений
-        final List<Integer> matchIndices = new ArrayList<>();
-        final int[] currentMatchIdx = {0};
-
+        // Инспектор поиска с динамической подсветкой
         searchInput.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(Editable s) {
                 String query = s.toString();
-                matchIndices.clear();
-                currentMatchIdx[0] = 0;
-                if (!query.isEmpty()) {
-                    String fullText = codeInput.getText().toString();
-                    int idx = fullText.indexOf(query);
-                    while (idx >= 0) {
-                        matchIndices.add(idx);
-                        idx = fullText.indexOf(query, idx + query.length());
-                    }
+                String fullCode = codeInput.getText().toString();
+                if (query.isEmpty()) {
+                    searchCount.setText(" 0 совпадений ");
+                    return;
                 }
-                if (!matchIndices.isEmpty()) {
-                    searchResultCount.setText("1/" + matchIndices.size());
-                    codeInput.setSelection(matchIndices.get(0), matchIndices.get(0) + query.length());
-                } else {
-                    searchResultCount.setText("0/0");
-                }
-            }
-            @Override public void afterTextChanged(Editable s) {}
-        });
 
-        btnNextMatch.setOnClickListener(v -> {
-            if (!matchIndices.isEmpty()) {
-                currentMatchIdx[0] = (currentMatchIdx[0] + 1) % matchIndices.size();
-                int idx = matchIndices.get(currentMatchIdx[0]);
-                searchResultCount.setText((currentMatchIdx[0] + 1) + "/" + matchIndices.size());
-                codeInput.setSelection(idx, idx + searchInput.getText().length());
+                int count = 0;
+                SpannableStringBuilder sb = new SpannableStringBuilder(fullCode);
+                int index = fullCode.indexOf(query);
+                while (index >= 0) {
+                    count++;
+                    sb.setSpan(new BackgroundColorSpan(Color.parseColor("#854D0E")), index, index + query.length(), SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    index = fullCode.indexOf(query, index + query.length());
+                }
+                searchCount.setText(" Найдено: " + count + " ");
+                codeInput.setText(sb);
             }
         });
 
-        // Панель дополнительных инспекторов под редактором
-        LinearLayout toolbar = new LinearLayout(this);
-        toolbar.setOrientation(LinearLayout.HORIZONTAL);
-        toolbar.setPadding(0, 8, 0, 0);
-
-        Button btnInspectBom = createStyledButton("🔍 Проверить и очистить BOM", "#0D9488");
-        btnInspectBom.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
-        toolbar.addView(btnInspectBom);
-
-        Button btnPasteBuffer = createStyledButton("📋 Вставить из буфера", "#8B5CF6");
-        btnPasteBuffer.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
-        toolbar.addView(btnPasteBuffer);
-
-        mainLayout.addView(toolbar);
-
-        AlertDialog editorDialog = new AlertDialog.Builder(this)
-            .setTitle("📝 Редактор кода Pro (с поиском)")
-            .setView(mainLayout)
-            .setPositiveButton("💾 Сохранить и выгрузить на GitHub", (dialog, which) -> {
+        // Диалоговое окно инспектора
+        new AlertDialog.Builder(this)
+            .setTitle("📝 Полноэкранный редактор кода (BOM Инспектор)")
+            .setView(editorLayout)
+            .setPositiveButton("Сохранить и выгрузить на GitHub", (dialog, which) -> {
                 String rawCode = codeInput.getText().toString();
-                rawCode = cleanBomCharacters(rawCode);
-
+                
+                // Проверка пакета
                 Matcher pkgMatch = Pattern.compile("package\\s+([a-zA-Z0-9_.]+);").matcher(rawCode);
                 if (pkgMatch.find()) {
                     packageName = pkgMatch.group(1);
                 }
+                
+                // Очистка от BOM и мгновенная выгрузка
                 activeCodeContent = sanitizeAndInjectJavaCode(rawCode, packageName);
                 saveSettings();
 
                 statusTextView.setText("Статус: ⚙️ Выгрузка на GitHub...");
                 new Thread(() -> {
-                    boolean success = pushFileToGitHub(getMainActivityPath(), activeCodeContent, "Update code via Pro Editor");
+                    boolean success = pushFileToGitHub(getMainActivityPath(), activeCodeContent, "Code Editor Save & Upload");
                     handler.post(() -> {
                         if (success) {
-                            Toast.makeText(this, "Код очищен от BOM и сохранен на GitHub!", Toast.LENGTH_SHORT).show();
-                            statusTextView.setText("Статус: ✅ Код синхронизирован!");
+                            Toast.makeText(this, "Код очищен от BOM и выгружен на GitHub!", Toast.LENGTH_SHORT).show();
+                            statusTextView.setText("Статус: ✅ Код обновлен на сервере!");
                         } else {
-                            Toast.makeText(this, "Ошибка выгрузки на GitHub", Toast.LENGTH_LONG).show();
+                            Toast.makeText(this, "Ошибка сети при выгрузке", Toast.LENGTH_SHORT).show();
                         }
                     });
                 }).start();
             })
             .setNegativeButton("Отмена", null)
-            .create();
-
-        btnInspectBom.setOnClickListener(v -> {
-            String currentText = codeInput.getText().toString();
-            boolean hasBom = currentText.contains("\uFEFF") || currentText.contains("\ufeff") || (currentText.length() > 0 && currentText.charAt(0) == 65279);
-            String cleaned = cleanBomCharacters(currentText);
-            codeInput.setText(cleaned);
-            
-            if (hasBom) {
-                logEditText.setText("=== 🔍 ИНСПЕКТОР БОМ ===\n⚠️ Обнаружен и удален мусорный символ BOM (\\ufeff).\nКод полностью очищен.");
-                Toast.makeText(this, "BOM успешно удален!", Toast.LENGTH_SHORT).show();
-            } else {
-                logEditText.setText("=== 🔍 ИНСПЕКТОР БОМ ===\n✅ Код чист. Символы BOM не обнаружены.");
-                Toast.makeText(this, "Код чист, BOM не найден", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        btnPasteBuffer.setOnClickListener(v -> {
-            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            if (clipboard.hasPrimaryClip() && clipboard.getPrimaryClip().getItemCount() > 0) {
-                String pasted = clipboard.getPrimaryClip().getItemAt(0).getText().toString();
-                pasted = cleanBomCharacters(pasted);
-                codeInput.setText(pasted);
-                
-                Matcher pkgMatch = Pattern.compile("package\\s+([a-zA-Z0-9_.]+);").matcher(pasted);
-                if (pkgMatch.find()) {
-                    packageName = pkgMatch.group(1);
-                }
-                
-                logEditText.setText("=== 📋 ВСТАВКА ИЗ БУФЕРА ===\n• Код извлечен.\n• Пакет: " + packageName + "\n• Нажмите 'Проверить и очистить BOM' или 'Сохранить и выгрузить'.");
-                Toast.makeText(this, "Текст вставлен и очищен!", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        editorDialog.show();
-        Window win = editorDialog.getWindow();
-        if (win != null) {
-            win.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        }
+            .show();
     }
 
+    /**
+     * Запуск сборки APK на GitHub Actions
+     */
     private void triggerGitHubBuild() {
         if (githubToken.isEmpty()) {
             Toast.makeText(this, "⚠️ Введите GitHub Token в настройках!", Toast.LENGTH_LONG).show();
@@ -1619,7 +1479,6 @@ public class MainActivity extends Activity {
             return;
         }
 
-        // Авто-синхронизация пакета из текущего кода перед сборкой
         Matcher pkgMatch = Pattern.compile("package\\s+([a-zA-Z0-9_.]+);").matcher(activeCodeContent);
         if (pkgMatch.find()) {
             packageName = pkgMatch.group(1);
@@ -1637,7 +1496,7 @@ public class MainActivity extends Activity {
         new Thread(() -> {
             try {
                 activeCodeContent = sanitizeAndInjectJavaCode(activeCodeContent, packageName);
-
+                
                 boolean synced = pushFileToGitHub("build.gradle", getRootGradleContent(), "Update root gradle") &&
                                  pushFileToGitHub("settings.gradle", getSettingsGradleContent(), "Update settings") &&
                                  pushFileToGitHub("gradle.properties", getGradlePropertiesContent(), "Update gradle.properties with AndroidX") &&
@@ -1650,7 +1509,7 @@ public class MainActivity extends Activity {
                 if (!synced) {
                     handler.post(() -> {
                         btnBuild.setEnabled(true);
-                        btnBuild.setBackgroundColor(Color.parseColor("#2563EB"));
+                        btnBuild.setBackgroundColor(Color.parseColor("#1D4ED8"));
                         updateAllButtonLabels();
                         statusTextView.setText("Статус: ❌ Ошибка синхронизации (Токен?)");
                     });
@@ -1672,13 +1531,13 @@ public class MainActivity extends Activity {
                 if (conn.getResponseCode() == 204 || conn.getResponseCode() == 201) {
                     handler.post(() -> {
                         statusTextView.setText("Статус: 🚀 Сборка запущена! Ожидание APK...");
-                        logEditText.setText("GitHub Actions компилирует ваш проект...\nКак только сборка завершится, бот пришлет APK и Java-дубликат (.txt) с точным именем " + appTitle + "-v" + appVersion + " в Telegram.");
+                        logEditText.setText("GitHub Actions компилирует ваш проект...\nКак только сборка завершится, бот пришлет APK и Java-дубликат (.txt) в Telegram с точным именем.");
                         startMonitoringBuild();
                     });
                 } else {
                     handler.post(() -> {
                         btnBuild.setEnabled(true);
-                        btnBuild.setBackgroundColor(Color.parseColor("#2563EB"));
+                        btnBuild.setBackgroundColor(Color.parseColor("#1D4ED8"));
                         updateAllButtonLabels();
                         statusTextView.setText("Статус: ❌ Ошибка запуска workflow");
                     });
@@ -1686,7 +1545,7 @@ public class MainActivity extends Activity {
             } catch (Exception e) {
                 handler.post(() -> {
                     btnBuild.setEnabled(true);
-                    btnBuild.setBackgroundColor(Color.parseColor("#2563EB"));
+                    btnBuild.setBackgroundColor(Color.parseColor("#1D4ED8"));
                     updateAllButtonLabels();
                     statusTextView.setText("Статус: ❌ Ошибка: " + e.getMessage());
                 });
@@ -1711,7 +1570,7 @@ public class MainActivity extends Activity {
         handler.post(() -> {
             if (btnBuild != null) {
                 btnBuild.setEnabled(true);
-                btnBuild.setBackgroundColor(Color.parseColor("#2563EB"));
+                btnBuild.setBackgroundColor(Color.parseColor("#1D4ED8"));
                 updateAllButtonLabels();
             }
             statusTextView.setText("Статус: 🛑 Сборка отменена на сервере!");
@@ -1793,11 +1652,11 @@ public class MainActivity extends Activity {
                                 if ("completed".equals(status)) {
                                     isMonitoring = false;
                                     btnBuild.setEnabled(true);
-                                    btnBuild.setBackgroundColor(Color.parseColor("#2563EB"));
+                                    btnBuild.setBackgroundColor(Color.parseColor("#1D4ED8"));
                                     updateAllButtonLabels();
                                     if ("success".equals(conclusion)) {
                                         statusTextView.setText("Статус: ✅ Успех! APK и Java-дубликат отправлены в Telegram.");
-                                        logEditText.setText("Сборка завершена успешно! Бот отправил готовый APK и исходный код (.txt) с именем " + appTitle + "-v" + appVersion + " в ваш Telegram чат.");
+                                        logEditText.setText("Сборка завершена успешно! Бот отправил готовый APK и исходный код (.txt) с точным именем в ваш Telegram чат.");
                                     } else {
                                         statusTextView.setText("Статус: ❌ Ошибка компиляции");
                                         fetchLogsAsync(latestRunId);
@@ -1842,7 +1701,7 @@ public class MainActivity extends Activity {
 
                             StringBuilder professionalReport = new StringBuilder("=== 📋 ПОЛНЫЙ ОТЧЕТ ОБ ОШИБКАХ И ИСКЛЮЧЕНИЯХ ===\n\n");
                             boolean foundErrorBlock = false;
-
+                            
                             String[] lines = lastErrorLog.split("\n");
                             int lineNum = 1;
                             for (String logLine : lines) {
@@ -1872,38 +1731,48 @@ public class MainActivity extends Activity {
         }).start();
     }
 
+    /**
+     * Сброс проекта до базового шаблона Monster Clock
+     */
     private void confirmResetProject() {
         new AlertDialog.Builder(this)
             .setTitle("Сброс к часам")
-            .setMessage("Сбросить проект к стандартному шаблону (Monster Clock)? Вся старая структура будет полностью очищена!")
+            .setMessage("Сбросить проект к стандартному шаблону (Monster Clock) и очистить ненужные папки?")
             .setPositiveButton("Сбросить", (dialog, which) -> {
                 activeCodeContent = generateClockTemplate();
                 currentJavaFileName = "Сейчас стоит Шаблон 🕞";
-
+                
                 appTitle = "Monster Clock";
                 packageName = "com.monster.clock";
                 appVersion = "1.0";
                 versionCode = 1;
-
+                
                 saveSettings();
-                performFullRepositoryCleanAndReset();
+
+                new Thread(() -> {
+                    deleteGitHubFile("app/src/main/java/com/app/app/MainActivity.java", "Clean old path");
+                    pushFileToGitHub(getMainActivityPath(), activeCodeContent, "Reset to Monster Clock");
+                }).start();
+
+                Toast.makeText(this, "Проект сброшен до Monster Clock!", Toast.LENGTH_SHORT).show();
+                logEditText.setText("=== 🔄 ПРОЕКТ СБРОШЕН ДО ЧАСОВ ===\n• Имя: Monster Clock\n• Пакет: com.monster.clock");
             })
             .setNegativeButton("Отмена", null)
             .show();
     }
 
+    /**
+     * Полная очистка репозитория под корень с сохранением структуры
+     */
     private void confirmFullRepositoryClean() {
         new AlertDialog.Builder(this)
             .setTitle("🗑 Полная очистка репозитория")
-            .setMessage("ВНИМАНИЕ: Это полностью уничтожит репозиторий на GitHub и выгрузит новую чистую структуру без кучи старых папок. Продолжить?")
+            .setMessage("ВНИМАНИЕ: Это полностью очистит репозиторий на GitHub, удалит абсолютно все старые проекты и лишние папки. Продолжить?")
             .setPositiveButton("Очистить все", (dialog, which) -> performFullRepositoryCleanAndReset())
             .setNegativeButton("Отмена", null)
             .show();
     }
 
-    /**
-     * Полная очистка репозитория на GitHub: уничтожает старый кэш и мусорные файлы
-     */
     private void performFullRepositoryCleanAndReset() {
         if (githubToken.isEmpty()) {
             Toast.makeText(this, "⚠️ Введите GitHub Token в настройках!", Toast.LENGTH_LONG).show();
@@ -1911,36 +1780,11 @@ public class MainActivity extends Activity {
             return;
         }
 
-        statusTextView.setText("Статус: 🗑 Полная очистка репозитория...");
+        statusTextView.setText("Статус: 🗑 Полная очистка кэша и репозитория...");
         logEditText.setText("Удаление старых файлов, кэша и восстановление структуры на GitHub...");
 
         new Thread(() -> {
             try {
-                // Запросить дерево и удалить все существующие файлы
-                String treeUrl = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/git/trees/main?recursive=1";
-                HttpURLConnection conn = (HttpURLConnection) new URL(treeUrl).openConnection();
-                conn.setRequestMethod("GET");
-                conn.setRequestProperty("Authorization", "Bearer " + githubToken);
-
-                if (conn.getResponseCode() == 200) {
-                    BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-                    StringBuilder sb = new StringBuilder();
-                    String line;
-                    while ((line = br.readLine()) != null) sb.append(line);
-                    JSONObject json = new JSONObject(sb.toString());
-                    JSONArray treeArray = json.optJSONArray("tree");
-                    if (treeArray != null) {
-                        for (int i = 0; i < treeArray.length(); i++) {
-                            JSONObject obj = treeArray.getJSONObject(i);
-                            String path = obj.optString("path");
-                            String type = obj.optString("type");
-                            if ("blob".equals(type) && !path.startsWith(".github/workflows")) {
-                                deleteGitHubFile(path, "Clean old file: " + path);
-                            }
-                        }
-                    }
-                }
-
                 activeCodeContent = generateClockTemplate();
                 currentJavaFileName = "Шаблон: Часы с фонариком и яркостью";
                 appTitle = "MonsterClock";
@@ -1948,6 +1792,8 @@ public class MainActivity extends Activity {
                 appVersion = "1.0";
                 versionCode = 1;
                 saveSettings();
+
+                deleteGitHubFile("app/src/main/java/com/app/app/MainActivity.java", "Clean old trash path");
 
                 boolean synced = pushFileToGitHub("build.gradle", getRootGradleContent(), "Clean & Reset root gradle") &&
                                  pushFileToGitHub("settings.gradle", getSettingsGradleContent(), "Clean & Reset settings") &&
@@ -1960,20 +1806,26 @@ public class MainActivity extends Activity {
 
                 handler.post(() -> {
                     if (synced) {
-                        statusTextView.setText("Статус: ✅ Репозиторий очищен и восстановлен!");
+                        statusTextView.setText("Статус: ✅ Репозиторий очищен под корень!");
                         Toast.makeText(MainActivity.this, "Репозиторий полностью очищен!", Toast.LENGTH_LONG).show();
-                        logEditText.setText("=== 🗑 ПОЛНАЯ ОЧИСТКА УСПЕШНА ===\n• Мусорные файлы удалены.\n• Восстановлены AndroidX и шаблон Monster Clock.");
+                        logEditText.setText("=== 🗑 ПОЛНАЯ ОЧИСТКА И СБРОС КЭША УСПЕШНЫ ===\n• Лишние папки удалены.\n• Восстановлена базовая структура и шаблон Monster Clock.");
                     } else {
                         statusTextView.setText("Статус: ❌ Ошибка очистки репозитория");
+                        Toast.makeText(MainActivity.this, "Ошибка при очистке", Toast.LENGTH_SHORT).show();
                     }
                     updateAllButtonLabels();
                 });
             } catch (Exception e) {
-                handler.post(() -> statusTextView.setText("Статус: ❌ Ошибка: " + e.getMessage()));
+                handler.post(() -> {
+                    statusTextView.setText("Статус: ❌ Ошибка: " + e.getMessage());
+                });
             }
         }).start();
     }
 
+    /**
+     * Изменение имени с автоматической транслитерацией пакета
+     */
     private void showEditTitleDialog() {
         final EditText input = new EditText(this);
         input.setText(appTitle);
@@ -1982,11 +1834,11 @@ public class MainActivity extends Activity {
             .setView(input)
             .setPositiveButton("Сохранить", (dialog, which) -> {
                 appTitle = input.getText().toString().trim();
-                // Автоматическая транслитерация кириллицы в валидный английский пакет
-                packageName = transliterateToPackageName(appTitle);
+                String cleanLatin = transliterateToLatin(appTitle);
+                packageName = "com." + cleanLatin + ".app";
                 saveSettings();
-                Toast.makeText(this, "Имя и транслитерированный пакет обновлены!", Toast.LENGTH_SHORT).show();
-                logEditText.setText("=== 🏷 ИМЯ ОБНОВЛЕНО ===\n• Новое имя: " + appTitle + "\n• Английский пакет: " + packageName);
+                Toast.makeText(this, "Имя и пакет транслитерированы!", Toast.LENGTH_SHORT).show();
+                logEditText.setText("=== 🏷 ИМЯ ОБНОВЛЕНО ===\n• Новое имя: " + appTitle + "\n• Новый уникальный пакет: " + packageName);
             })
             .setNegativeButton("Отмена", null)
             .show();
@@ -2027,7 +1879,7 @@ public class MainActivity extends Activity {
         spinner.setSelection(javaVersion.equals("8") ? 0 : 1);
         layout.addView(spinner);
 
-        Button btnCleanRepoInsideSettings = createStyledButton("🗑 Полная очистка репозитория", "#DC2626");
+        Button btnCleanRepoInsideSettings = createStyledButton("🗑 Полная очистка репозитория", "#991B1B");
         btnCleanRepoInsideSettings.setOnClickListener(v -> confirmFullRepositoryClean());
         layout.addView(btnCleanRepoInsideSettings);
 
@@ -2081,10 +1933,9 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * Workflow сценарий компиляции GitHub Actions с автоматическим переименованием выходных файлов в Telegram
+     * Workflow с точной отправкой файлов с именем приложения и версией в Telegram
      */
     private String getWorkflowContent() {
-        String safeName = appTitle.replaceAll("[^a-zA-Z0-9_-]", "_");
         return "name: Build Monster APK\n" +
                "on:\n  workflow_dispatch:\n\n" +
                "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" +
@@ -2098,25 +1949,24 @@ public class MainActivity extends Activity {
                "      - name: Setup Gradle\n        uses: gradle/actions/setup-gradle@v3\n        with:\n          gradle-version: '8.5'\n          cache-disabled: true\n" +
                "      - name: Build APK\n        run: |\n" +
                "          gradle clean assembleDebug --info --stacktrace --no-daemon\n" +
-               "      - name: Send Custom Named APK and Java Code Duplicate to Telegram\n        if: success()\n        run: |\n" +
-               "          ORIG_APK=$(find app/build/outputs/apk/debug/ -name \"*.apk\" | head -n 1)\n" +
-               "          TARGET_APK=\"" + safeName + "-v" + appVersion + ".apk\"\n" +
-               "          cp \"$ORIG_APK\" \"$TARGET_APK\"\n" +
-               "          \n" +
+               "      - name: Send Named APK and Java Code Duplicate to Telegram\n        if: success()\n        run: |\n" +
+               "          RAW_APK=$(find app/build/outputs/apk/debug/ -name \"*.apk\" | head -n 1)\n" +
+               "          TARGET_NAME=\"" + appTitle + "-v" + appVersion + "\"\n" +
+               "          FINAL_APK=\"${TARGET_NAME}.apk\"\n" +
+               "          TXT_PATH=\"${TARGET_NAME}.java.txt\"\n" +
+               "          cp \"$RAW_APK\" \"$FINAL_APK\"\n" +
                "          JAVA_SRC=$(find app/src/main/java/ -name \"MainActivity.java\" | head -n 1)\n" +
-               "          TXT_PATH=\"" + safeName + "-v" + appVersion + ".java.txt\"\n" +
                "          if [ -f \"$JAVA_SRC\" ]; then\n" +
                "            cp \"$JAVA_SRC\" \"$TXT_PATH\"\n" +
                "          else\n" +
                "            echo \"package " + packageName + ";\" > \"$TXT_PATH\"\n" +
                "          fi\n" +
-               "          \n" +
-               "          curl -F chat_id=\"" + chatId + "\" -F document=@\"$TARGET_APK\" https://api.telegram.org/bot" + botToken + "/sendDocument\n" +
+               "          curl -F chat_id=\"" + chatId + "\" -F document=@\"$FINAL_APK\" https://api.telegram.org/bot" + botToken + "/sendDocument\n" +
                "          curl -F chat_id=\"" + chatId + "\" -F document=@\"$TXT_PATH\" https://api.telegram.org/bot" + botToken + "/sendDocument\n";
     }
 
     /**
-     * Полный вектор манифеста со ВСЕМИ встроенными разрешениями Android (Включая NFC)
+     * ПОЛНАЯ БАЗА РАЗРЕШЕНИЙ (МАНИФЕСТ)
      */
     private String generateManifest() {
         return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
@@ -2241,12 +2091,6 @@ public class MainActivity extends Activity {
                "        flashBtn.setBackgroundColor(Color.parseColor(\"#2563EB\"));\n" +
                "        flashBtn.setPadding(20, 20, 20, 20);\n" +
                "        layout.addView(flashBtn);\n\n" +
-               "        TextView brightLabel = new TextView(this);\n" +
-               "        brightLabel.setText(\"☀️ Яркость экрана\");\n" +
-               "        brightLabel.setTextColor(Color.parseColor(\"#94A3B8\"));\n" +
-               "        brightLabel.setTextSize(12f);\n" +
-               "        brightLabel.setPadding(0, 40, 0, 10);\n" +
-               "        layout.addView(brightLabel);\n\n" +
                "        SeekBar seekBar = new SeekBar(this);\n" +
                "        seekBar.setMax(100);\n" +
                "        seekBar.setProgress(50);\n" +
@@ -2264,22 +2108,8 @@ public class MainActivity extends Activity {
                "                    cameraManager.setTorchMode(cameraId, isFlashOn);\n" +
                "                    flashBtn.setText(isFlashOn ? \"🔦 Выключить фонарик\" : \"🔦 Включить фонарик\");\n" +
                "                    flashBtn.setBackgroundColor(Color.parseColor(isFlashOn ? \"#DC2626\" : \"#2563EB\"));\n" +
-               "                } else {\n" +
-               "                    Toast.makeText(this, \"Фонарик недоступен\", Toast.LENGTH_SHORT).show();\n" +
                "                }\n" +
-               "            } catch (Exception e) {\n" +
-               "                Toast.makeText(this, \"Ошибка фонарика: \" + e.getMessage(), Toast.LENGTH_SHORT).show();\n" +
-               "            }\n" +
-               "        });\n\n" +
-               "        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {\n" +
-               "            @Override\n" +
-               "            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {\n" +
-               "                WindowManager.LayoutParams lp = getWindow().getAttributes();\n" +
-               "                lp.screenBrightness = (float) progress / 100f;\n" +
-               "                getWindow().setAttributes(lp);\n" +
-               "            }\n" +
-               "            @Override public void onStartTrackingTouch(SeekBar seekBar) {}\n" +
-               "            @Override public void onStopTrackingTouch(SeekBar seekBar) {}\n" +
+               "            } catch (Exception e) {}\n" +
                "        });\n\n" +
                "        setContentView(layout);\n" +
                "    }\n" +
