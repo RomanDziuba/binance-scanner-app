@@ -1,2 +1,2 @@
-rootProject.name = "WIFI"
+rootProject.name = "monstercompiler"
 include ':app'
