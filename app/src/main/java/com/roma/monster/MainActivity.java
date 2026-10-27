@@ -75,7 +75,7 @@ public class MainActivity extends Activity {
         cardBg.setColor(Color.parseColor("#0F172A"));
         cardBg.setCornerRadius(20f);
         cardBg.setStroke(2, Color.parseColor("#1E293B"));
-        cardBg.setBackground(cardBg);
+        card.setBackground(cardBg);
 
         LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
@@ -165,7 +165,7 @@ public class MainActivity extends Activity {
         }
 
         statusTextView.setText("Статус: 🔄 Сканирование эфира и пробиз точек...");
-        logEditText.setText("Инициализация глубокого аудита оборудования...\nЗапрос таблиц BSSID и Capabilities...");
+        logEditText.setText("Инициация глубокого аудита оборудования...\nЗапрос таблиц BSSID и Capabilities...");
 
         boolean success = wifiManager.startScan();
         if (!success) {
@@ -200,7 +200,7 @@ public class MainActivity extends Activity {
             int channel = getChannelFromFrequency(freq);
             String band = getBandFromFrequency(freq);
             
-            // Расчет примерного расстояния до роутера (в метрах) по формуле свободного пространства
+            // Расчет примерного расстояния до роутера (в метрах)
             double distanceMeters = calculateDistance(rssi, freq);
 
             // Определение вендора по MAC-адресу (OUI)
@@ -218,27 +218,38 @@ public class MainActivity extends Activity {
                 }
             }
 
-            // Анализ безопасности и уязвимостей по Capabilities
+            // Безопасное определение поколения Wi-Fi через рефлексию
+            String wifiStandardStr = "Legacy / 802.11";
+            try {
+                Field f = ScanResult.class.getField("wifiStandard");
+                int standard = f.getInt(net);
+                if (standard == 1) wifiStandardStr = "802.11a/b/g";
+                else if (standard == 4) wifiStandardStr = "Wi-Fi 4 (802.11n)";
+                else if (standard == 5) wifiStandardStr = "Wi-Fi 5 (802.11ac)";
+                else if (standard == 6) wifiStandardStr = "Wi-Fi 6 / 6E (802.11ax)";
+                else if (standard == 7) wifiStandardStr = "Wi-Fi 7 (802.11be)";
+                else wifiStandardStr = "Стандарт ID: " + standard;
+            } catch (Exception ignored) {}
+
             String caps = net.capabilities;
             boolean hasWps = caps.contains("WPS");
-            boolean hasPmf = caps.contains("MFPR") || caps.contains("MFPC"); // Protected Management Frames
+            boolean hasPmf = caps.contains("MFPR") || caps.contains("MFPC");
             boolean hasWpa3 = caps.contains("WPA3") || caps.contains("SAE");
             boolean hasWep = caps.contains("WEP");
-            boolean hasWpsLocked = caps.contains("WPS-"); // Косвенные признаки
 
             sb.append(String.format(Locale.US, "[%02d] SSID: %s\n", index++, ssid));
             sb.append(" ┣ 🏢 Производитель (Vendor): ").append(vendor).append("\n");
             sb.append(" ┣ 🆔 MAC (BSSID): ").append(bssid).append("\n");
             sb.append(" ┣ 📶 Сигнал: ").append(rssi).append(" dBm | Качество: ").append(quality).append("%\n");
             sb.append(" ┣ 📍 Расстояние (approx): ~").append(String.format(Locale.US, "%.1f", distanceMeters)).append(" м\n");
-            sb.append(" ┣ 📻 Частота: ").append(freq).append(" MHz (").append(band)., Канал: ").append(channel).append(")\n");
+            sb.append(" ┣ 📻 Частота / Диап: ").append(freq).append(" MHz (").append(band).append(", Канал: ").append(channel).append(")\n");
             sb.append(" ┣ 📐 Ширина: ").append(channelWidth).append("\n");
+            sb.append(" ┣ 🚀 Поколение Wi-Fi: ").append(wifiStandardStr).append("\n");
             sb.append(" ┣ 🛡️ Аудит Безопасности:\n");
             sb.append(" ┃   ┣ Шифрование: ").append(parseDeepSecurity(caps)).append("\n");
-            sb.append(" ┃   ┣ WPA3 / SAE: ").append(hasWpa3 ? "✅ Поддерживается (Защищен)" : "❌ Отсутствует").append("\n");
-            sb.append(" ┃   ┣ PMF (Защита от деауха): ").append(hasPmf ? "✅ Включена" : "⚠️ Отключена (Уязвим к deauth)").append("\n");
-            sb.append(" ┃   ┣ WPS (Быстрое подключение): ").append(haswpsText(hasWps)).append("\n");
-            sb.append(" ┃   ┗ WEP / Устаревшее: ").append(hasWep ? "🚨 ВНИМАНИЕ: Уязвимый WEP!" : "Безопасно").append("\n");
+            sb.append(" ┃   ┣ WPA3 / SAE: ").append(hasWpa3 ? "✅ Поддерживается" : "❌ Отсутствует").append("\n");
+            sb.append(" ┃   ┣ PMF (Защита от deauth): ").append(hasPmf ? "✅ Включена" : "⚠️ Отключена").append("\n");
+            sb.append(" ┃   ┗ WPS: ").append(hasWps ? "⚠️ Включен" : "Отключен").append("\n");
             sb.append(" ┗ 🏷 Сырые Capabilities: ").append(caps).append("\n\n");
         }
 
@@ -249,7 +260,6 @@ public class MainActivity extends Activity {
     private String getVendorByMac(String mac) {
         if (mac == null || mac.length() < 8) return "Неизвестный вендор";
         String oui = mac.substring(0, 8).toUpperCase(Locale.US);
-        // База основных производителей сетевого оборудования
         if (oui.startsWith("E4:FA:C4") || oui.startsWith("14:EB:B6") || oui.startsWith("50:3F:58") || oui.startsWith("AC:84:C6")) return "TP-Link Technologies";
         if (oui.startsWith("CC:2D:21")) return "TP-Link / Shenzhen Bilian";
         if (oui.startsWith("C0:7B:BC") || oui.startsWith("00:11:32")) return "Synology / Router";
@@ -263,19 +273,12 @@ public class MainActivity extends Activity {
     }
 
     private double calculateDistance(int rssi, int freqMhz) {
-        // Эмпирический расчет расстояния по затуханию сигнала в свободном пространстве (FSPL)
-        // d = 10 ^ ((27.55 - (20 * log10(freqMhz)) + Math.abs(rssi)) / 20)
         try {
             double exp = (27.55 - (20 * Math.log10(freqMhz)) + Math.abs(rssi)) / 20.0;
             return Math.pow(10.0, exp);
         } catch (Exception e) {
             return 0.0;
         }
-    }
-
-    private String haswpsText(boolean wps) {
-        if (!wps) return "Отключен / Недоступен";
-        return "⚠️ Включен (Возможен перебор PIN)";
     }
 
     private int getChannelFromFrequency(int freq) {
@@ -298,12 +301,12 @@ public class MainActivity extends Activity {
     }
 
     private String parseDeepSecurity(String caps) {
-        if (caps.contains("WPA3") && caps.contains("WPA2")) return "WPA2/WPA3 Mixed (Гибрид)";
-        if (caps.contains("WPA3") || caps.contains("SAE")) return "WPA3-SAE (Максимальная защита)";
-        if (caps.contains("WPA2")) return "WPA2-PSK (AES/CCMP)";
-        if (caps.contains("WPA")) return "WPA-PSK (Устаревший)";
-        if (caps.contains("WEP")) return "WEP (Критически уязвим)";
-        return "Открытая сеть (Без пароля)";
+        if (caps.contains("WPA3") && caps.contains("WPA2")) return "WPA2/WPA3 Mixed";
+        if (caps.contains("WPA3") || caps.contains("SAE")) return "WPA3-SAE";
+        if (caps.contains("WPA2")) return "WPA2-PSK";
+        if (caps.contains("WPA")) return "WPA-PSK";
+        if (caps.contains("WEP")) return "WEP (Уязвимый!)";
+        return "Открытая сеть (None)";
     }
 
     @Override
