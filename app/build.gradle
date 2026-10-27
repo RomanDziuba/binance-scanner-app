@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.roma.monster'
+    namespace 'com.monstercompilerxxx.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roma.monster"
+        applicationId "com.monstercompilerxxx.app"
         minSdk 26
         targetSdk 34
-        versionCode 14
+        versionCode 15
         versionName "9.3"
     }
     compileOptions {
