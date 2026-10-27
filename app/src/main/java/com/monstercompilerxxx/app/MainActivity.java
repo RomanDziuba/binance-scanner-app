@@ -41,7 +41,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * 🚀 MONSTER COMPILER CI/CD ENGINE v9.3 PRO (Fixed)
+ * 🚀 MONSTER COMPILER CI/CD ENGINE v9.3 PRO (Fixed Clean Method)
  * Полный профессиональный компилятор Android APK через GitHub Actions и Telegram Bot.
  * Автор: Dziuba Roman
  */
@@ -526,10 +526,9 @@ public class MainActivity extends Activity {
             if (!currentDir.isEmpty()) {
                 int lastSlash = currentDir.lastIndexOf('/');
                 String parentDir = lastSlash == -1 ? "" : currentDir.substring(0, lastSlash);
-                // Перерисовываем каталог для родительской папки
                 showDirectoryBrowser(parentDir, allItems);
             } else {
-                Toast.java(this, "Вы уже в корне репозитория", Toast.LENGTH_SHORT); // или просто Toast.makeText
+                Toast.makeText(this, "Вы уже в корне репозитория", Toast.LENGTH_SHORT).show();
             }
         });
         dialogLayout.addView(btnStepBack);
@@ -645,7 +644,7 @@ public class MainActivity extends Activity {
         btnUploadHere.setOnClickListener(v -> openFilePickerForFolder(currentDir));
         dialogLayout.addView(btnUploadHere);
 
-        // Кнопка очистка репозитория в меню файл менеджера с подтверждением (там, где нельзя случайно нажать)
+        // Кнопка очистка репозитория в меню файл менеджера с подтверждением
         Button btnCleanRepoManager = createStyledButton("🗑 Полная очистка репозитория", "#991B1B");
         btnCleanRepoManager.setOnClickListener(v -> {
             new AlertDialog.Builder(this)
@@ -660,7 +659,7 @@ public class MainActivity extends Activity {
         });
         dialogLayout.addView(btnCleanRepoManager);
 
-        // Кнопка "Закрыть" в менеджере репозитория — полностью закрывает менеджер без всяких шагов назад
+        // Кнопка "Закрыть" в менеджере репозитория — полностью закрывает менеджер без шагов назад
         Button btnCloseManager = createStyledButton("🚪 Закрыть менеджер репозитория", "#475569");
         btnCloseManager.setOnClickListener(v -> fileDialog.dismiss());
         dialogLayout.addView(btnCloseManager);
@@ -668,9 +667,6 @@ public class MainActivity extends Activity {
         fileDialog.show();
     }
 
-    /**
-     * Полноценное меню действий с файлом в репозитории
-     */
     private void showFileOptionsDialog(String filePath) {
         CharSequence[] options = {
             "📝 Редактировать", 
@@ -886,10 +882,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    /**
-     * Обязательная зачистка всех старых веток, деревьев, файлов и папки перед загрузкой нового файла,
-     * с последующей заливкой на новую ветку с учетом текущей версии и внутреннего имени.
-     */
     private void processSelectedJavaFile(Uri uri) {
         String rawName = getFileNameFromUri(uri);
         final String fileName = (rawName != null) ? rawName : "Custom.java";
@@ -925,7 +917,6 @@ public class MainActivity extends Activity {
 
         new Thread(() -> {
             try {
-                // Категорическая зачистка всех старых путей во избежание дубликатов
                 deleteOldProjectPaths();
 
                 boolean success = false;
@@ -1202,9 +1193,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    /**
-     * Smart AI-Профессор для авто-патчинга ошибок компиляции
-     */
     private void runAiCodeDoctor() {
         if (lastErrorLog.isEmpty()) {
             Toast.makeText(this, "ℹ️ Нет ошибок для анализа. Сначала запустите сборку!", Toast.LENGTH_LONG).show();
@@ -1333,9 +1321,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    /**
-     * Санитарная очистка Java-кода (Удаление BOM, подстановка правильного пакета)
-     */
     private String sanitizeAndInjectJavaCode(String code, String pkg) {
         if (code != null) {
             while (code.startsWith("\uFEFF") || code.startsWith("\ufeff") || (code.length() > 0 && code.charAt(0) == 65279)) {
@@ -1382,9 +1367,6 @@ public class MainActivity extends Activity {
         return res;
     }
 
-    /**
-     * Полноэкранный редактор кода со встроенным быстрым поиском и подсветкой
-     */
     private void openCodeEditorDialog() {
         LinearLayout editorLayout = new LinearLayout(this);
         editorLayout.setOrientation(LinearLayout.VERTICAL);
@@ -1488,9 +1470,6 @@ public class MainActivity extends Activity {
             .show();
     }
 
-    /**
-     * Запуск сборки APK на GitHub Actions
-     */
     private void triggerGitHubBuild() {
         if (githubToken.isEmpty()) {
             Toast.makeText(this, "⚠️ Введите GitHub Token в настройках!", Toast.LENGTH_LONG).show();
@@ -1713,7 +1692,7 @@ public class MainActivity extends Activity {
                             while ((line = lb.readLine()) != null) ls.append(line).append("\n");
                             lastErrorLog = ls.toString();
 
-                            StringBuilder professionalReport = new StringBuilder("=== 📋 ПОЛНЫЙ ОТЧЕТ ОБ ОШИбКАХ И ИСКЛЮЧЕНИЯХ ===\n\n");
+                            StringBuilder professionalReport = new StringBuilder("=== 📋 ПОЛНЫЙ ОТЧЕТ ОБ ОШИБКАХ И ИСКЛЮЧЕНИЯХ ===\n\n");
                             boolean foundErrorBlock = false;
                             
                             String[] lines = lastErrorLog.split("\n");
@@ -1746,7 +1725,7 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * Полная очистка репозитория под корень с сохранением структуры
+     * Метод полной очистки репозитория под корень
      */
     private void performFullRepositoryCleanAndReset() {
         if (githubToken.isEmpty()) {
@@ -1797,9 +1776,6 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    /**
-     * Изменение имени (теперь используется исключительно для отправки готового apk файла в телеграм)
-     */
     private void showEditTitleDialog() {
         final EditText input = new EditText(this);
         input.setText(telegramApkTitle);
@@ -1817,9 +1793,6 @@ public class MainActivity extends Activity {
             .show();
     }
 
-    /**
-     * Изменение версии с санитизацией и авто-переносом проекта на новую ветку / путь согласно новой версии
-     */
     private void showEditVersionDialog() {
         final EditText input = new EditText(this);
         input.setText(appVersion);
@@ -1868,7 +1841,7 @@ public class MainActivity extends Activity {
         layout.addView(spinner);
 
         Button btnCleanRepoInsideSettings = createStyledButton("🗑 Полная очистка репозитория", "#991B1B");
-        btnCleanRepoInsideSettings.setOnClickListener(v -> confirmFullRepositoryClean());
+        btnCleanRepoInsideSettings.setOnClickListener(v -> performFullRepositoryCleanAndReset());
         layout.addView(btnCleanRepoInsideSettings);
 
         new AlertDialog.Builder(this)
@@ -1920,9 +1893,6 @@ public class MainActivity extends Activity {
                "android.useJetifier=true\n";
     }
 
-    /**
-     * Workflow с точной отправкой файлов с именем приложения, версией и версификацией в Telegram
-     */
     private String getWorkflowContent() {
         return "name: Build Monster APK\n" +
                "on:\n  workflow_dispatch:\n\n" +
@@ -1953,9 +1923,6 @@ public class MainActivity extends Activity {
                "          curl -F chat_id=\"" + chatId + "\" -F document=@\"$TXT_PATH\" https://api.telegram.org/bot" + botToken + "/sendDocument\n";
     }
 
-    /**
-     * ПОЛНАЯ БАЗА РАЗРЕШЕНИЙ (МАНИФЕСТ) С МАКСИМАЛЬНЫМ НАБОРОМ
-     */
     private String generateManifest() {
         return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
                "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n" +
