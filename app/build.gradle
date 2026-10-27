@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.monstercompiler.app'
+    namespace 'com.monstercompilerXXXxxx.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.monstercompiler.app"
+        applicationId "com.monstercompilerXXXxxx.app"
         minSdk 21
         targetSdk 34
         versionCode 2
-        versionName "9.1"
+        versionName "9.2"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "CompilerXXXxxx-v9.1-" + variant.name + ".apk"
+            outputFileName = "JavaCompiler-v9.2-" + variant.name + ".apk"
         }
     }
 }
