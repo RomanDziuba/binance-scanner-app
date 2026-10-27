@@ -9,7 +9,7 @@ android {
         applicationId "com.COMPILER"
         minSdk 21
         targetSdk 34
-        versionCode 2
+        versionCode 3
         versionName "9.2PRO"
     }
     compileOptions {
