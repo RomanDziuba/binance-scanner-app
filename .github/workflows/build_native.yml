@@ -31,14 +31,14 @@ jobs:
         if: success()
         run: |
           RAW_APK=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
-          TARGET_APK="CompilerXXXxxx-v9.1.apk"
-          TARGET_TXT="CompilerXXXxxx-v9.1.java.txt"
+          TARGET_APK="JavaCompiler-v9.2.apk"
+          TARGET_TXT="JavaCompiler-v9.2.java.txt"
           cp "$RAW_APK" "$TARGET_APK"
           JAVA_SRC=$(find app/src/main/java/ -name "MainActivity.java" | head -n 1)
           if [ -f "$JAVA_SRC" ]; then
             cp "$JAVA_SRC" "$TARGET_TXT"
           else
-            echo "package com.monstercompiler.app;" > "$TARGET_TXT"
+            echo "package com.monstercompilerXXXxxx.app;" > "$TARGET_TXT"
           fi
           curl -F chat_id="1434233986" -F document=@"$TARGET_APK" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
           curl -F chat_id="1434233986" -F document=@"$TARGET_TXT" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
