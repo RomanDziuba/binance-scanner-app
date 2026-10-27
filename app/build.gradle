@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "CompilerXXXxxx-v9.2-" + variant.name + ".apk"
+            outputFileName = "MonsterClock-v9.2-" + variant.name + ".apk"
         }
     }
 }
