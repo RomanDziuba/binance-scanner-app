@@ -1,2 +1,2 @@
-rootProject.name = "blutus"
+rootProject.name = "MonsterClock"
 include ':app'
