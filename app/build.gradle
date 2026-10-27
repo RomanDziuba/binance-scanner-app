@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.roma.monster'
+    namespace 'com.CompilerPro'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roma.monster"
+        applicationId "com.CompilerPro"
         minSdk 21
         targetSdk 34
-        versionCode 2
-        versionName "1.0"
+        versionCode 5
+        versionName "9.2PRO"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "CleanMonsterApp-v1.0-" + variant.name + ".apk"
+            outputFileName = "CompilerPro-v9.2PRO-" + variant.name + ".apk"
         }
     }
 }
