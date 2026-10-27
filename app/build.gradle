@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.roma.monster'
+    namespace 'com.monstercompilerxxx.app'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roma.monster"
+        applicationId "com.monstercompilerxxx.app"
         minSdk 21
         targetSdk 34
         versionCode 3
-        versionName "1.0"
+        versionName "9.2PRO"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "WIFI-v1.0-" + variant.name + ".apk"
+            outputFileName = "COMPILERpro-v9.2PRO-" + variant.name + ".apk"
         }
     }
 }
