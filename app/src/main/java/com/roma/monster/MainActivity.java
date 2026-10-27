@@ -74,6 +74,7 @@ public class MainActivity extends Activity {
             }
         }
 
+        // Корневой контейнер в фирменном стиле Monster Engine
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
         rootLayout.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -90,7 +91,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Monster Smart Audio & Watch Hub v9.0 ✦");
+        authorView.setText("✦ Monster Watch & Audio Hub v9.0 Ultimate ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(14f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -98,7 +99,7 @@ public class MainActivity extends Activity {
         authorView.setPadding(0, 5, 0, 8);
         container.addView(authorView);
 
-        // Главная панель
+        // Информационная карточка панели
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(16, 16, 16, 16);
@@ -133,7 +134,7 @@ public class MainActivity extends Activity {
         infoTextView.setLayoutParams(infoParams);
         card.addView(infoTextView);
 
-        btnScan = createStyledButton("🚀 Найти все устройства (Часы, Наушники, Колонки)", "#2563EB");
+        btnScan = createStyledButton("🚀 Найти все часы, колонки и наушники", "#2563EB");
         btnScan.setOnClickListener(v -> checkPermissionsAndScan());
         card.addView(btnScan);
 
@@ -148,9 +149,9 @@ public class MainActivity extends Activity {
 
         container.addView(card);
 
-        // Список устройств
+        // Заголовок списка устройств
         TextView listLabel = new TextView(this);
-        listLabel.setText("📱 Устройства с умным адаптивным функционалом:");
+        listLabel.setText("📱 Обнаруженные устройства (с полным арсеналом управления):");
         listLabel.setTextColor(Color.parseColor("#38BDF8"));
         listLabel.setTextSize(12f);
         listLabel.setTypeface(Typeface.DEFAULT_BOLD);
@@ -161,30 +162,30 @@ public class MainActivity extends Activity {
         devicesContainer.setOrientation(LinearLayout.VERTICAL);
         container.addView(devicesContainer);
 
-        // Консоль логов
+        // Консоль отладочных логов
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Отладочный лог:");
+        logLabel.setText("📋 Расширенный отладочный лог:");
         logLabel.setTextColor(Color.parseColor("#64748B"));
         logLabel.setTextSize(11f);
         logLabel.setPadding(0, 10, 0, 4);
         container.addView(logLabel);
 
         logEditText = new EditText(this);
-        logEditText.setHint("Здесь будет отображаться вся отладочная информация...");
+        logEditText.setHint("Здесь будет отображаться детальный обмен пакетами и потоки датчиков...");
         logEditText.setTextSize(10f);
         logEditText.setTextColor(Color.parseColor("#E2E8F0"));
         logEditText.setHintTextColor(Color.parseColor("#475569"));
         logEditText.setBackgroundColor(Color.parseColor("#030712"));
         logEditText.setPadding(10, 10, 10, 10);
         logEditText.setGravity(Gravity.TOP);
-        logEditText.setMinLines(9);
-        logEditText.setMaxLines(15);
+        logEditText.setMinLines(10);
+        logEditText.setMaxLines(16);
         container.addView(logEditText);
 
-        Button btnCopyLogs = createStyledButton("📋 Скопировать лог", "#475569");
+        Button btnCopyLogs = createStyledButton("📋 Скопировать лог в буфер", "#475569");
         btnCopyLogs.setOnClickListener(v -> {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("Logs", logEditText.getText().toString());
+            ClipData clip = ClipData.newPlainText("Monster Logs", logEditText.getText().toString());
             clipboard.setPrimaryClip(clip);
             Toast.makeText(this, "Логи скопированы!", Toast.LENGTH_SHORT).show();
         });
@@ -198,7 +199,7 @@ public class MainActivity extends Activity {
         rootLayout.addView(mainScroll);
         setContentView(rootLayout);
 
-        appendLog("=== MONSTER ENGINE v9.0 PRO ЗАПУЩЕН ===");
+        appendLog("=== MONSTER ENGINE v9.0 ULTIMATE ЗАПУЩЕН ===");
         checkBluetoothState();
     }
 
@@ -230,10 +231,10 @@ public class MainActivity extends Activity {
 
     private void checkBluetoothState() {
         if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
-            appendLog("⚠️ Bluetooth выключен.");
+            appendLog("⚠️ Bluetooth выключен или недоступен.");
             statusTextView.setText("Статус: ⚠️ Включите Bluetooth");
         } else {
-            appendLog("✅ Bluetooth модуль готов.");
+            appendLog("✅ Bluetooth модуль готов к работе.");
         }
     }
 
@@ -241,7 +242,7 @@ public class MainActivity extends Activity {
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
             (android.os.Build.VERSION.SDK_INT >= 31 && checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED)) {
             
-            appendLog("🔑 Запрос разрешений...");
+            appendLog("🔑 Запрос необходимых разрешений Android...");
             requestPermissions(new String[]{
                 Manifest.permission.ACCESS_FINE_LOCATION,
                 Manifest.permission.ACCESS_COARSE_LOCATION,
@@ -260,19 +261,21 @@ public class MainActivity extends Activity {
         devicesContainer.removeAllViews();
         isScanning = true;
 
-        appendLog("\n--- СТАРТ СУПЕР-ПОИСКА ---");
+        appendLog("\n--- СТАРТ УЛЬТИМАТИВНОГО ПОИСКА ---");
 
+        // 1. Поиск сопряженных устройств (System Bonded)
         try {
             Set<BluetoothDevice> paired = bluetoothAdapter.getBondedDevices();
             if (paired != null) {
                 for (BluetoothDevice dev : paired) {
-                    addDiscoveredDevice(dev, "Сопряжено", 0);
+                    addDiscoveredDevice(dev, "Системное сопряжение", 0);
                 }
             }
         } catch (Exception e) {
             appendLog("Ошибка сопряженных: " + e.getMessage());
         }
 
+        // 2. Агрессивный BLE сканер (Low Latency)
         if (bleScanner != null) {
             try {
                 ScanSettings settings = new ScanSettings.Builder()
@@ -285,6 +288,7 @@ public class MainActivity extends Activity {
             }
         }
 
+        // 3. Классический поиск радиочастот (Classic Discovery)
         try {
             if (bluetoothAdapter.isDiscovering()) bluetoothAdapter.cancelDiscovery();
             bluetoothAdapter.startDiscovery();
@@ -309,7 +313,7 @@ public class MainActivity extends Activity {
             @Override
             public void run() {
                 if (isScanning && scanCountdown > 0) {
-                    statusTextView.setText("Статус: 🔍 Сканирование (" + scanCountdown + "с)... Найдено: " + discoveredDevices.size());
+                    statusTextView.setText("Статус: 🔍 Поиск эфира (" + scanCountdown + "с)... Найдено: " + discoveredDevices.size());
                     scanCountdown--;
                     handler.postDelayed(this, 1000);
                 } else if (isScanning) {
@@ -352,13 +356,12 @@ public class MainActivity extends Activity {
         appendLog("🏁 Поиск завершен. Карточек создано: " + discoveredDevices.size());
     }
 
-    // Рендеринг карточек с УМНЫМ адаптивным функционалом в зависимости от типа устройства
+    // Отрисовка интерактивных карточек управления для каждого устройства
     private void renderDeviceCards() {
         devicesContainer.removeAllViews();
         for (FoundDevice fd : discoveredDevices) {
             BluetoothDevice dev = fd.device;
-            String rawName = dev.getName() != null ? dev.getName() : "Неизвестное устройство";
-            String nameLower = rawName.toLowerCase();
+            String name = dev.getName() != null ? dev.getName() : "Неизвестное устройство";
             
             LinearLayout card = new LinearLayout(this);
             card.setOrientation(LinearLayout.VERTICAL);
@@ -377,19 +380,12 @@ public class MainActivity extends Activity {
             card.setLayoutParams(params);
 
             TextView tvInfo = new TextView(this);
-            tvInfo.setText("⌚ " + rawName + "\n🔗 MAC: " + dev.getAddress() + "\n📍 Источник: " + fd.discoveryMethod + " | Статус: " + fd.connectionState);
+            tvInfo.setText("⌚ " + name + "\n🔗 MAC: " + dev.getAddress() + "\n📍 Метод: " + fd.discoveryMethod + " | Статус: " + fd.connectionState);
             tvInfo.setTextColor(Color.parseColor("#E2E8F0"));
             tvInfo.setTextSize(11f);
             card.addView(tvInfo);
 
-            // Определение типа устройства для построения индивидуальных кнопок
-            boolean isAudioDevice = nameLower.contains("buds") || nameLower.contains("tws") || nameLower.contains("jbl") || 
-                                    nameLower.contains("pod") || nameLower.contains("major") || nameLower.contains("tg527") || 
-                                    nameLower.contains("xtreme") || nameLower.contains("audio") || nameLower.contains("sound");
-            
-            boolean isWatchDevice = nameLower.contains("watch") || nameLower.contains("band") || nameLower.contains("mi");
-
-            // Ряд 1 кнопок
+            // Ряд 1 кнопок (Основные действия)
             LinearLayout row1 = new LinearLayout(this);
             row1.setOrientation(LinearLayout.HORIZONTAL);
 
@@ -397,23 +393,17 @@ public class MainActivity extends Activity {
             btnConnect.setOnClickListener(v -> startSmartConnection(fd, "DUMP"));
             row1.addView(btnConnect);
 
-            Button btnBattery = createSmallButton("🔋 Батарея", "#0D9488");
+            Button btnBattery = createSmallButton("🔋 Заряд батареи", "#0D9488");
             btnBattery.setOnClickListener(v -> startSmartConnection(fd, "BATTERY"));
             row1.addView(btnBattery);
 
-            if (isWatchDevice || !isAudioDevice) {
-                Button btnVibe = createSmallButton("📳 Поиск / Вибро", "#7C3AED");
-                btnVibe.setOnClickListener(v -> startSmartConnection(fd, "VIBE"));
-                row1.addView(btnVibe);
-            } else {
-                Button btnAudio = createSmallButton("🎵 Настройки звука", "#C026D3");
-                btnAudio.setOnClickListener(v -> openAudioSettings());
-                row1.addView(btnAudio);
-            }
+            Button btnVibe = createSmallButton("📳 Поиск / Вибро", "#7C3AED");
+            btnVibe.setOnClickListener(v -> startSmartConnection(fd, "VIBE"));
+            row1.addView(btnVibe);
 
             card.addView(row1);
 
-            // Ряд 2 кнопок
+            // Ряд 2 кнопок (Стриминг, Аудио, HEX и Отключение)
             LinearLayout row2 = new LinearLayout(this);
             row2.setOrientation(LinearLayout.HORIZONTAL);
             row2.setPadding(0, 4, 0, 0);
@@ -422,15 +412,30 @@ public class MainActivity extends Activity {
             btnNotify.setOnClickListener(v -> startSmartConnection(fd, "NOTIFY"));
             row2.addView(btnNotify);
 
-            Button btnPair = createSmallButton("🔗 Pair (Пара)", "#059669");
+            Button btnHex = createSmallButton("📤 Отправить Hex", "#C026D3");
+            btnHex.setOnClickListener(v -> showHexInputDialog(dev));
+            row2.addView(btnHex);
+
+            Button btnAudio = createSmallButton("🎵 Поток музыки", "#059669");
+            btnAudio.setOnClickListener(v -> streamAudioToPhone(dev));
+            row2.addView(btnAudio);
+
+            card.addView(row2);
+
+            // Ряд 3 кнопок (Системное сопряжение и разрыв связи)
+            LinearLayout row3 = new LinearLayout(this);
+            row3.setOrientation(LinearLayout.HORIZONTAL);
+            row3.setPadding(0, 4, 0, 0);
+
+            Button btnPair = createSmallButton("🔗 Pair (Пара)", "#475569");
             btnPair.setOnClickListener(v -> pairDevice(dev));
-            row2.addView(btnPair);
+            row3.addView(btnPair);
 
             Button btnDisconnectDev = createSmallButton("🔌 Отключить", "#DC2626");
             btnDisconnectDev.setOnClickListener(v -> disconnectSpecificDevice(fd));
-            row2.addView(btnDisconnectDev);
+            row3.addView(btnDisconnectDev);
 
-            card.addView(row2);
+            card.addView(row3);
             devicesContainer.addView(card);
         }
     }
@@ -449,10 +454,11 @@ public class MainActivity extends Activity {
         return btn;
     }
 
+    // Безопасное подключение с матричным перебором транспортов и защитой от зависания сокета
     private void startSmartConnection(FoundDevice fd, String actionType) {
         BluetoothDevice dev = fd.device;
         appendLog("\n========================================");
-        appendLog("🚀 ПОДКЛЮЧЕНИЕ К: " + dev.getName() + " [" + dev.getAddress() + "]");
+        appendLog("🚀 СТАРТ СОЕДИНЕНИЯ С: " + dev.getName() + " [" + dev.getAddress() + "]");
         appendLog("========================================");
         
         fd.connectionState = "Подключение...";
@@ -466,7 +472,8 @@ public class MainActivity extends Activity {
             bluetoothGatt = null;
         }
 
-        handler.postDelayed(() -> tryConnectWithTransportFallback(fd, actionType, BluetoothDevice.TRANSPORT_AUTO), 300);
+        // Защитная пауза для освобождения радиомодуля шины Bluetooth
+        handler.postDelayed(() -> tryConnectWithTransportFallback(fd, actionType, BluetoothDevice.TRANSPORT_AUTO), 400);
     }
 
     private void tryConnectWithTransportFallback(FoundDevice fd, String actionType, int transport) {
@@ -487,12 +494,13 @@ public class MainActivity extends Activity {
                     try { gatt.close(); } catch (Exception ignored) {}
                     bluetoothGatt = null;
 
+                    // Интеллектуальный каскадный перебор каналов при сбое
                     if (transport == BluetoothDevice.TRANSPORT_AUTO) {
                         appendLog("🔄 Пробуем резервный канал: TRANSPORT_LE...");
-                        handler.postDelayed(() -> tryConnectWithTransportFallback(fd, actionType, BluetoothDevice.TRANSPORT_LE), 400);
+                        handler.postDelayed(() -> tryConnectWithTransportFallback(fd, actionType, BluetoothDevice.TRANSPORT_LE), 500);
                     } else if (transport == BluetoothDevice.TRANSPORT_LE) {
                         appendLog("🔄 Пробуем классический канал: TRANSPORT_BREDR...");
-                        handler.postDelayed(() -> tryConnectWithTransportFallback(fd, actionType, BluetoothDevice.TRANSPORT_BREDR), 400);
+                        handler.postDelayed(() -> tryConnectWithTransportFallback(fd, actionType, BluetoothDevice.TRANSPORT_BREDR), 500);
                     } else {
                         fd.connectionState = "Ошибка (Код " + status + ")";
                         handler.post(() -> {
@@ -509,7 +517,7 @@ public class MainActivity extends Activity {
                     handler.post(() -> {
                         renderDeviceCards();
                         infoTextView.setText("📦 Устройство: " + dev.getName() + "\n🔗 MAC: " + dev.getAddress() + "\n⚙️ Канал: " + tName);
-                        statusTextView.setText("Статус: ✅ Успешно подключено!");
+                        statusTextView.setText("Статус: ✅ Успешный коннект!");
                     });
 
                     handler.postDelayed(() -> gatt.discoverServices(), 600);
@@ -539,25 +547,26 @@ public class MainActivity extends Activity {
                             int props = c.getProperties();
                             appendLog("   ├── ⚡ Характеристика: " + cUuid + " [Права: " + getPropsName(props) + "]");
 
+                            // Автоматическая подписка на уведомления (Слушать поток)
                             if (actionType.equals("NOTIFY") && ((props & BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0 || (props & BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0)) {
                                 gatt.setCharacteristicNotification(c, true);
                                 BluetoothGattDescriptor desc = c.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"));
                                 if (desc != null) {
                                     desc.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
                                     gatt.writeDescriptor(desc);
-                                    appendLog("   └── 🔔 Активирован поток данных для " + cUuid);
+                                    appendLog("   └── ?? Активирован прием потока от " + cUuid);
                                 }
                             }
 
                             if (actionType.equals("BATTERY") && cUuid.contains("2a19")) {
-                                appendLog("🔋 Чтение уровня батареи...");
+                                appendLog("🔋 Чтение уровня заряда батареи...");
                                 gatt.readCharacteristic(c);
                             }
                         }
                     }
 
                     if (actionType.equals("VIBE")) {
-                        appendLog("📳 Попытка отправки команды вибро/поиска...");
+                        appendLog("📳 Поиск характеристик для вибро-импульса...");
                         for (BluetoothGattService s : services) {
                             for (BluetoothGattCharacteristic c : s.getCharacteristics()) {
                                 int p = c.getProperties();
@@ -599,25 +608,82 @@ public class MainActivity extends Activity {
         }, transport);
     }
 
-    private void openAudioSettings() {
+    private void showHexInputDialog(BluetoothDevice dev) {
+        if (bluetoothGatt == null) {
+            Toast.makeText(this, "⚠️ Сначала подключитесь к устройству!", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        final EditText input = new EditText(this);
+        input.setHint("Например: 01 03 или FF AA");
+        input.setText("01 03");
+
+        new AlertDialog.Builder(this)
+            .setTitle("📤 Отправка сырых байт (HEX)")
+            .setView(input)
+            .setPositiveButton("Отправить", (dialog, which) -> {
+                String hexStr = input.getText().toString().trim();
+                sendCustomHexCommand(hexStr);
+            })
+            .setNegativeButton("Отмена", null)
+            .show();
+    }
+
+    private void sendCustomHexCommand(String hexStr) {
+        if (bluetoothGatt == null) {
+            appendLog("❌ Ошибка: Нет активного GATT подключения.");
+            return;
+        }
+
+        try {
+            String[] parts = hexStr.split("\\s+");
+            byte[] bytes = new byte[parts.length];
+            for (int i = 0; i < parts.length; i++) {
+                bytes[i] = (byte) Integer.parseInt(parts[i], 16);
+            }
+
+            boolean sent = false;
+            for (BluetoothGattService s : bluetoothGatt.getServices()) {
+                for (BluetoothGattCharacteristic c : s.getCharacteristics()) {
+                    int p = c.getProperties();
+                    if ((p & BluetoothGattCharacteristic.PROPERTY_WRITE) != 0 || (p & BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0) {
+                        c.setValue(bytes);
+                        bluetoothGatt.writeCharacteristic(c);
+                        appendLog("📤 Пользовательский HEX отправлен в характеристику: " + c.getUuid().toString());
+                        sent = true;
+                        break;
+                    }
+                }
+                if (sent) break;
+            }
+            if (!sent) appendLog("⚠️ Не найдено записываемой характеристики для HEX.");
+        } catch (Exception e) {
+            appendLog("❌ Ошибка формата HEX: " + e.getMessage());
+            Toast.makeText(this, "Неверный формат HEX!", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // Управление аудио-потоком для колонок и наушников (A2DP / Hands-Free)
+    private void streamAudioToPhone(BluetoothDevice dev) {
+        appendLog("🎵 [АУДИО] Перенаправление аудио-профиля для " + dev.getName() + " [" + dev.getAddress() + "]");
         try {
             Intent intent = new Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS);
             startActivity(intent);
-            Toast.makeText(this, "Панель Bluetooth открыта", Toast.LENGTH_SHORT).show();
-            appendLog("🎵 Открыты системные настройки аудио-профилей (A2DP/HFP).");
+            Toast.makeText(this, "Выберите устройство в настройках для потока аудио", Toast.LENGTH_LONG).show();
+            appendLog("ℹ️ Открыты системные настройки аудио-профилей Bluetooth.");
         } catch (Exception e) {
-            appendLog("❌ Ошибка открытия панели: " + e.getMessage());
+            appendLog("❌ Ошибка открытия настроек аудио: " + e.getMessage());
         }
     }
 
     private void pairDevice(BluetoothDevice dev) {
         try {
-            appendLog("🔗 Запрос сопряжения для " + dev.getName() + "...");
+            appendLog("🔗 Запрос создания системной пары для " + dev.getName() + "...");
             Method method = dev.getClass().getMethod("createBond");
             method.invoke(dev);
-            Toast.makeText(this, "Запрос отправлен", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Запрос сопряжения отправлен", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
-            appendLog("❌ Ошибка сопряжения: " + e.getMessage());
+            appendLog("❌ Ошибка создания пары: " + e.getMessage());
         }
     }
 
@@ -632,7 +698,7 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {}
             bluetoothGatt = null;
         }
-        appendLog("🔌 Связь с устройством принудительно закрыта.");
+        appendLog("🔌 Соединение с устройством " + fd.device.getAddress() + " успешно закрыто.");
         statusTextView.setText("Статус: Соединение закрыто");
         Toast.makeText(this, "Устройство отключено", Toast.LENGTH_SHORT).show();
     }
