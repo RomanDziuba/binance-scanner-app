@@ -3,22 +3,28 @@ plugins {
 }
 
 android {
-    namespace 'com.monstercompilerxxx.app'
+    namespace 'com.roma.monster'
     compileSdk 34
     defaultConfig {
-        applicationId "com.monstercompilerxxx.app"
-        minSdk 26
+        applicationId "com.roma.monster"
+        minSdk 21
         targetSdk 34
-        versionCode 1
+        versionCode 2
         versionName "XXX"
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            outputFileName = "RomaMonsterApp-vXXX-" + variant.name + ".apk"
+        }
     }
 }
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 }
