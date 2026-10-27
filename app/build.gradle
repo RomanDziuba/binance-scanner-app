@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "RomaMonsterApp-vXXX-" + variant.name + ".apk"
+            outputFileName = "MonsterClock-vXXX-" + variant.name + ".apk"
         }
     }
 }
