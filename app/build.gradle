@@ -9,7 +9,7 @@ android {
         applicationId "com.monstercompiler.app"
         minSdk 21
         targetSdk 34
-        versionCode 16
+        versionCode 17
         versionName "9.0"
     }
     compileOptions {
