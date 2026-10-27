@@ -41,7 +41,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * 🚀 MONSTER COMPILER CI/CD ENGINE v9.3 PRO
+ * 🚀 MONSTER COMPILER CI/CD ENGINE v9.3 PRO (Fixed)
  * Полный профессиональный компилятор Android APK через GitHub Actions и Telegram Bot.
  * Автор: Dziuba Roman
  */
@@ -356,7 +356,6 @@ public class MainActivity extends Activity {
     private String sanitizeVersionText(String input) {
         if (input == null) return "001";
         String res = input.toLowerCase();
-        // Убираем точки, слэши, подчеркивания, русские буквы и прочее, оставляя английские буквы и цифры
         String[] abcCyr = {"а","б","в","г","д","е","ё","ж","з","и","й","к","л","м","н","о","п","р","с","т","у","ф","х","ц","ч","ш","щ","ъ","ы","ь","э","ю","я","є","і","ї","ґ"};
         for (String c : abcCyr) {
             res = res.replace(c, "");
@@ -521,48 +520,20 @@ public class MainActivity extends Activity {
         dialogLayout.setPadding(15, 15, 15, 15);
         dialogLayout.setBackgroundColor(Color.parseColor("#090D16"));
 
-        // Кнопка шаг назад расположена выше всех кнопок в меню
-        Button btnStepBack = createStyledButton("⬅️ Шаг назад", "#334155");
+        // Вынесенная дополнительно кнопка наверх (названа "Шаг назад"), расположена выше всех кнопок
+        Button btnStepBack = createStyledButton("⬆️ Шаг назад", "#334155");
         btnStepBack.setOnClickListener(v -> {
-            if (currentDir.isEmpty()) {
-                // Если корень, просто закрываем диалог
-                // (или можно оставить)
-            } else {
+            if (!currentDir.isEmpty()) {
                 int lastSlash = currentDir.lastIndexOf('/');
                 String parentDir = lastSlash == -1 ? "" : currentDir.substring(0, lastSlash);
-                // Перезагружаем дерево для родительской директории
-                statusTextView.setText("Статус: 🔄 Шаг назад...");
-                new Thread(() -> {
-                    try {
-                        String treeUrl = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/git/trees/main?recursive=1";
-                        HttpURLConnection conn = (HttpURLConnection) new URL(treeUrl).openConnection();
-                        conn.setRequestMethod("GET");
-                        conn.setRequestProperty("Authorization", "Bearer " + githubToken);
-                        if (conn.getResponseCode() == 200) {
-                            BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-                            StringBuilder sb = new StringBuilder();
-                            String l;
-                            while ((l = br.readLine()) != null) sb.append(l);
-                            JSONObject json = new JSONObject(sb.toString());
-                            JSONArray treeArray = json.optJSONArray("tree");
-                            java.util.List<RepoItem> items = new java.util.ArrayList<>();
-                            if (treeArray != null) {
-                                for (int i = 0; i < treeArray.length(); i++) {
-                                    JSONObject obj = treeArray.getJSONObject(i);
-                                    items.add(new RepoItem(obj.optString("path"), obj.optString("type"), obj.optString("sha"), obj.optLong("size", 0)));
-                                }
-                            }
-                            handler.post(() -> {
-                                // Закрываем текущий и открываем родительский
-                                // Так как диалог локальный, проще вызвать рекурсивно или перерисовать
-                            });
-                        }
-                    } catch (Exception ignored) {}
-                }).start();
+                // Перерисовываем каталог для родительской папки
+                showDirectoryBrowser(parentDir, allItems);
+            } else {
+                Toast.java(this, "Вы уже в корне репозитория", Toast.LENGTH_SHORT); // или просто Toast.makeText
             }
         });
-        // Упрощенная навигация через список (⬆️ [Наверх] уже есть в списке, но добавим надежную кнопку Шаг назад)
-        
+        dialogLayout.addView(btnStepBack);
+
         TextView pathTitle = new TextView(this);
         pathTitle.setText("📂 /" + (currentDir.isEmpty() ? "root" : currentDir));
         pathTitle.setTextColor(Color.parseColor("#38BDF8"));
@@ -641,7 +612,7 @@ public class MainActivity extends Activity {
         listView.setAdapter(adapter);
         
         LinearLayout.LayoutParams listParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 850
+            LinearLayout.LayoutParams.MATCH_PARENT, 750
         );
         listView.setLayoutParams(listParams);
 
@@ -674,13 +645,13 @@ public class MainActivity extends Activity {
         btnUploadHere.setOnClickListener(v -> openFilePickerForFolder(currentDir));
         dialogLayout.addView(btnUploadHere);
 
-        // Кнопка очистки репозитория в меню файл менеджера с подтверждением (расположена так, чтобы не нажать случайно)
-        Button btnCleanRepoManager = createStyledButton("🗑 Полная очистка репозитория (Опасно)", "#991B1B");
+        // Кнопка очистка репозитория в меню файл менеджера с подтверждением (там, где нельзя случайно нажать)
+        Button btnCleanRepoManager = createStyledButton("🗑 Полная очистка репозитория", "#991B1B");
         btnCleanRepoManager.setOnClickListener(v -> {
             new AlertDialog.Builder(this)
-                .setTitle("⚠️ Подтверждение полной очистки")
-                .setMessage("Вы действительно хотите полностью очистить репозиторий? Все ветки и файлы будут удалены!")
-                .setPositiveButton("Да, очистить", (d, w) -> {
+                .setTitle("⚠️ Подтверждение очистки репозитория")
+                .setMessage("Вы действительно хотите полностью очистить репозиторий и удалить старые папки?")
+                .setPositiveButton("Очистить все", (d, w) -> {
                     fileDialog.dismiss();
                     performFullRepositoryCleanAndReset();
                 })
@@ -689,7 +660,7 @@ public class MainActivity extends Activity {
         });
         dialogLayout.addView(btnCleanRepoManager);
 
-        // Кнопка закрыть менеджер репозитория - полностью закрывает менеджер без всяких шагов назад
+        // Кнопка "Закрыть" в менеджере репозитория — полностью закрывает менеджер без всяких шагов назад
         Button btnCloseManager = createStyledButton("🚪 Закрыть менеджер репозитория", "#475569");
         btnCloseManager.setOnClickListener(v -> fileDialog.dismiss());
         dialogLayout.addView(btnCloseManager);
@@ -756,7 +727,6 @@ public class MainActivity extends Activity {
         if (clipboard.hasPrimaryClip() && clipboard.getPrimaryClip().getItemCount() > 0) {
             CharSequence pastedText = clipboard.getPrimaryClip().getItemAt(0).getText();
             if (pastedText != null) {
-                // При вставке через буфер также выполняем обязательную очиску и закидывание с новой версией
                 performCleanAndPushNewFile(pastedText.toString(), "pasted_file.java");
             }
         } else {
@@ -846,7 +816,7 @@ public class MainActivity extends Activity {
                     });
                 }).start();
             })
-            .setNegativeButton("Отмена", null, null)
+            .setNegativeButton("Отмена", null)
             .show();
     }
 
@@ -955,10 +925,9 @@ public class MainActivity extends Activity {
 
         new Thread(() -> {
             try {
-                // 1. Категорическая зачистка всех старых папок со старым MainActivity (удаляем весь старый путь src/main/java)
+                // Категорическая зачистка всех старых путей во избежание дубликатов
                 deleteOldProjectPaths();
 
-                // 2. Полный сброс структуры манифеста, gradle файлов и заливка по новому пути текущей версии
                 boolean success = false;
                 int attempts = 0;
                 while (attempts < 10 && !success) {
@@ -1009,10 +978,10 @@ public class MainActivity extends Activity {
 
     private void deleteOldProjectPaths() {
         try {
-            // Удаляем старые известные возможные пути MainActivity, чтобы избежать дубликатов
             deleteGitHubFile("app/src/main/java/com/app/app/MainActivity.java", "Clean old path");
             deleteGitHubFile("app/src/main/java/com/monster/clock/MainActivity.java", "Clean old path");
             deleteGitHubFile("app/src/main/java/com/roma/monster/MainActivity.java", "Clean old path");
+            deleteGitHubFile("app/src/main/java/com/clock/version001/MainActivity.java", "Clean old path");
         } catch (Exception ignored) {}
     }
 
@@ -1054,9 +1023,6 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    /**
-     * Декомпиляция APK/ZIP в редактируемый исходный Java-код с зачисткой старого проекта
-     */
     private void processUniversalFileForDecompilation(Uri uri) {
         String rawName = getFileNameFromUri(uri);
         final String fileName = (rawName != null) ? rawName : "archive.file";
@@ -1075,22 +1041,6 @@ public class MainActivity extends Activity {
 
                 String decompiledJava = "";
                 if (lowerName.endsWith(".apk") || lowerName.endsWith(".zip") || lowerName.endsWith(".rar")) {
-                    try {
-                        ZipFile zip = new ZipFile(tempFile);
-                        ZipEntry dex = zip.getEntry("classes.dex");
-                        if (dex != null) {
-                            try (InputStream dexIn = zip.getInputStream(dex)) {
-                                byte[] bytes = readBytes(dexIn);
-                                String dexStr = new String(bytes, StandardCharsets.ISO_8859_1);
-                                Matcher pkg = Pattern.compile("L([a-zA-Z0-9_/]+)/MainActivity;").matcher(dexStr);
-                                if (pkg.find()) {
-                                    // пакет можно извлечь, но имя пути строится из кода
-                                }
-                            }
-                        }
-                        zip.close();
-                    } catch (Exception ignored) {}
-
                     decompiledJava = decompileDexToJava(tempFile);
                     tempFile.delete();
                 } else {
@@ -1103,9 +1053,10 @@ public class MainActivity extends Activity {
                     decompiledJava = sb.toString();
                 }
 
+                final String finalJava = decompiledJava;
                 handler.post(() -> {
                     currentJavaFileName = fileName + " (Декомпилирован)";
-                    performCleanAndPushNewFile(decompiledJava, fileName);
+                    performCleanAndPushNewFile(finalJava, fileName);
                 });
 
             } catch (Exception e) {
@@ -1762,7 +1713,7 @@ public class MainActivity extends Activity {
                             while ((line = lb.readLine()) != null) ls.append(line).append("\n");
                             lastErrorLog = ls.toString();
 
-                            StringBuilder professionalReport = new StringBuilder("=== 📋 ПОЛНЫЙ ОТЧЕТ ОБ ОШИБКАХ И ИСКЛЮЧЕНИЯХ ===\n\n");
+                            StringBuilder professionalReport = new StringBuilder("=== 📋 ПОЛНЫЙ ОТЧЕТ ОБ ОШИбКАХ И ИСКЛЮЧЕНИЯХ ===\n\n");
                             boolean foundErrorBlock = false;
                             
                             String[] lines = lastErrorLog.split("\n");
@@ -1882,8 +1833,6 @@ public class MainActivity extends Activity {
                 
                 appVersion = cleanVer;
                 
-                // При смене версии все данные касательно текущего проекта перемещаются на новый путь/ветку
-                // с зачисткой старой ветки/пути для исключения дубляжа.
                 deleteOldProjectPaths();
                 saveSettings();
 
