@@ -38,7 +38,7 @@ jobs:
           if [ -f "$JAVA_SRC" ]; then
             cp "$JAVA_SRC" "$TARGET_TXT"
           else
-            echo "package com.monstercompilerXXXxxx.app;" > "$TARGET_TXT"
+            echo "package com.monstercompilerXXX.app;" > "$TARGET_TXT"
           fi
           curl -F chat_id="1434233986" -F document=@"$TARGET_APK" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
           curl -F chat_id="1434233986" -F document=@"$TARGET_TXT" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
