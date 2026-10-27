@@ -23,6 +23,7 @@ import android.graphics.drawable.GradientDrawable;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Locale;
 
@@ -157,7 +158,6 @@ public class MainActivity extends Activity {
     }
 
     private void startDeepWifiScan() {
-        // Проверяем разрешения на местоположение (обязательно для Wi-Fi скана на Android)
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSION_REQUEST_CODE);
             return;
@@ -168,7 +168,6 @@ public class MainActivity extends Activity {
             return;
         }
 
-        // Проверяем, включен ли Wi-Fi
         if (!wifiManager.isWifiEnabled()) {
             Toast.makeText(this, "Включаем модуль Wi-Fi...", Toast.LENGTH_SHORT).show();
             wifiManager.setWifiEnabled(true);
@@ -179,7 +178,6 @@ public class MainActivity extends Activity {
 
         boolean success = wifiManager.startScan();
         if (!success) {
-            // Если система заблокировала частые сканирования (throttling), принудительно забираем кеш
             parseAndDisplayWifiResults(false);
         }
     }
@@ -192,7 +190,7 @@ public class MainActivity extends Activity {
         List<ScanResult> results = wifiManager.getScanResults();
         if (results == null || results.isEmpty()) {
             statusTextView.setText("Статус: ⚠️ Сети не найдены или скан заблокирован ОС");
-            logEditText.setText("⚠️ Список сетей пуст. Убедитесь, что геолокация (GPS) включена в настройках телефона, так как Android требует ее для выдачи Wi-Fi отчета.");
+            logEditText.setText("⚠️ Список сетей пуст. Убедитесь, что геолокация (GPS) включена в настройках телефона.");
             return;
         }
 
@@ -204,14 +202,14 @@ public class MainActivity extends Activity {
         int index = 1;
         for (ScanResult net : results) {
             String ssid = (net.SSID == null || net.SSID.isEmpty()) ? "[СКРЫТАЯ СЕТЬ / HIDDEN]" : net.SSID;
-            String bssid = net.BSSID; // MAC-адрес точки
-            int rssi = net.level; // Сигнал в dBm
-            int quality = WifiManager.calculateSignalLevel(rssi, 100); // Качество в %
-            int frequency = net.frequency; // Частота в МГц
+            String bssid = net.BSSID;
+            int rssi = net.level;
+            int quality = WifiManager.calculateSignalLevel(rssi, 100);
+            int frequency = net.frequency;
             int channel = getChannelFromFrequency(frequency);
             String band = getBandFromFrequency(frequency);
             
-            // Ширина канала (доступно с API 23+)
+            // Ширина канала
             String channelWidthStr = "Неизвестно";
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 switch (net.channelWidth) {
@@ -219,25 +217,24 @@ public class MainActivity extends Activity {
                     case ScanResult.CHANNEL_WIDTH_40MHZ: channelWidthStr = "40 MHz"; break;
                     case ScanResult.CHANNEL_WIDTH_80MHZ: channelWidthStr = "80 MHz"; break;
                     case ScanResult.CHANNEL_WIDTH_160MHZ: channelWidthStr = "160 MHz"; break;
-                    case ScanResult.CHANNEL_WIDTH_80MHZ_PLUS_MHZ: channelWidthStr = "80+80 MHz"; break;
                     case ScanResult.CHANNEL_WIDTH_320MHZ: channelWidthStr = "320 MHz"; break;
+                    default: channelWidthStr = "Ширина: " + net.channelWidth; break;
                 }
             }
 
-            // Стандарт / Поколение Wi-Fi (API 30+)
-            String wifiStandardStr = "Стандарт старый / Legacy";
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                switch (net.wifiStandard) {
-                    case ScanResult.WIFI_STANDARD_LEGACY: wifiStandardStr = "802.11a/b/g (Legacy)"; break;
-                    case ScanResult.WIFI_STANDARD_11N: wifiStandardStr = "Wi-Fi 4 (802.11n)"; break;
-                    case ScanResult.WIFI_STANDARD_11AC: wifiStandardStr = "Wi-Fi 5 (802.11ac)"; break;
-                    case ScanResult.WIFI_STANDARD_11AX: wifiStandardStr = "Wi-Fi 6 / 6E (802.11ax)"; break;
-                    case ScanResult.WIFI_STANDARD_11BE: wifiStandardStr = "Wi-Fi 7 (802.11be)"; break;
-                    default: wifiStandardStr = "Поколение: " + net.wifiStandard; break;
-                }
-            }
+            // Безопасное определение поколения Wi-Fi через рефлексию (исключает ошибки компилятора)
+            String wifiStandardStr = "Legacy / 802.11";
+            try {
+                Field f = ScanResult.class.getField("wifiStandard");
+                int standard = f.getInt(net);
+                if (standard == 1) wifiStandardStr = "802.11a/b/g";
+                else if (standard == 4) wifiStandardStr = "Wi-Fi 4 (802.11n)";
+                else if (standard == 5) wifiStandardStr = "Wi-Fi 5 (802.11ac)";
+                else if (standard == 6) wifiStandardStr = "Wi-Fi 6 / 6E (802.11ax)";
+                else if (standard == 7) wifiStandardStr = "Wi-Fi 7 (802.11be)";
+                else wifiStandardStr = "Стандарт ID: " + standard;
+            } catch (Exception ignored) {}
 
-            // Анализ безопасности / возможностей (Capabilities)
             String caps = net.capabilities;
             String securityType = parseSecurityType(caps);
 
@@ -261,7 +258,7 @@ public class MainActivity extends Activity {
             return (freq - 2412) / 5 + 1;
         } else if (freq >= 5170 && freq <= 5825) {
             return (freq - 5170) / 5 + 34;
-        } else if (freq >= 5955 && freq <= 7115) { // 6 GHz
+        } else if (freq >= 5955 && freq <= 7115) {
             return (freq - 5950) / 5;
         }
         return 0;
@@ -275,13 +272,12 @@ public class MainActivity extends Activity {
     }
 
     private String parseSecurityType(String caps) {
-        if (caps.contains("WPA3")) return "WPA3-Personal / Enterprise (Высокая защита)";
+        if (caps.contains("WPA3")) return "WPA3-Personal / Enterprise";
         if (caps.contains("WPA2") && caps.contains("WPA")) return "WPA/WPA2 Mixed";
-        if (caps.contains("WPA2")) return "WPA2-PSK (Стандарт)";
+        if (caps.contains("WPA2")) return "WPA2-PSK";
         if (caps.contains("WPA")) return "WPA-PSK";
-        if (caps.contains("WEP")) return "WEP (Уязвимый стандарт!)";
-        if (!caps.contains("WEP") && !caps.contains("WPA") && !caps.contains("CCMP")) return "Открытая сеть (NONE / No Password)";
-        return "Другое шифрование";
+        if (caps.contains("WEP")) return "WEP (Уязвимый!)";
+        return "Открытая сеть (None)";
     }
 
     @Override
