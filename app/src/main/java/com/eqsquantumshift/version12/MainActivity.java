@@ -1,5 +1,10 @@
 package com.eqsquantumshift.version12;
 
+import java.util.*;
+import java.util.regex.*;
+
+import androidx.appcompat.app.AppCompatActivity;
+
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.animation.ArgbEvaluator;
