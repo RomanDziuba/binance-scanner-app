@@ -47,14 +47,12 @@ public class MainActivity extends Activity {
     private TextView[][] cellViews;
     private int[][] states;
     
-    // --- ПЕРЕМЕННЫЕ НАСТРОЙКИ АНИМАЦИЙ ---
-    private float animRotationMax = 15f;      
-    private int animRotateDuration = 1200;    
-    private float animBreathMin = 0.90f;      
-    private float animBreathMax = 1.10f;      
-    private int animBreathDuration = 900;     
-    private int rgbAnimDuration = 3000;       
-    private float explosionIntensity = 1.0f;  
+    // --- ПЕРЕМЕННЫЕ НАСТРОЙКИ АНИМАЦИЙ (ЭКСПЕРИМЕНТИРУЙТЕ ЗДЕСЬ!) ---
+    private float animRotationMax = 18f;      // Угол поворота клеток (градусы)
+    private int animRotateDuration = 1000;    // Скорость вращения (мс)
+    private int animGlowDuration = 800;       // Скорость пульсации прозрачности (мс)
+    private int rgbAnimDuration = 3000;       // Скорость RGB-перелива нижней кнопки (мс)
+    private float explosionIntensity = 1.0f;  // Множитель силы тряски при взрыве
 
     // --- UI КОМПОНЕНТЫ ---
     private TextView levelTextView, scoreTextView, movesTextView, titleTextView, logoView, clockTextView, instructionView;
@@ -248,14 +246,14 @@ public class MainActivity extends Activity {
 
     private void showAnimationSettingsDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("🎨 Лаборатория анимаций и эффектов");
+        builder.setTitle("🎨 Лаборатория квантовых анимаций");
 
         LinearLayout menuLayout = new LinearLayout(this);
         menuLayout.setOrientation(LinearLayout.VERTICAL);
         menuLayout.setPadding(30, 20, 30, 20);
 
         TextView descText = new TextView(this);
-        descText.setText("Экспериментируйте со скоростью и амплитудой живых клеток и эффектов в реальном времени!");
+        descText.setText("Изменяйте параметры в реальном времени. Эффекты применятся мгновенно!");
         descText.setTextSize(12);
         descText.setTextColor(Color.parseColor("#94A3B8"));
         descText.setPadding(0, 0, 0, 20);
@@ -264,8 +262,8 @@ public class MainActivity extends Activity {
         Button btnRot = new Button(this);
         updateRotText(btnRot);
         btnRot.setOnClickListener(v -> {
-            animRotationMax += 5f;
-            if (animRotationMax > 35f) animRotationMax = 0f; 
+            animRotationMax += 6f;
+            if (animRotationMax > 36f) animRotationMax = 0f; 
             updateRotText(btnRot);
             buildGridUI(); 
         });
@@ -274,12 +272,12 @@ public class MainActivity extends Activity {
         Button btnSpeed = new Button(this);
         updateSpeedText(btnSpeed);
         btnSpeed.setOnClickListener(v -> {
-            if (animRotateDuration > 500) {
+            if (animRotateDuration > 400) {
                 animRotateDuration -= 300;
-                animBreathDuration -= 200;
+                animGlowDuration -= 200;
             } else {
-                animRotateDuration = 2000;
-                animBreathDuration = 1500;
+                animRotateDuration = 1600;
+                animGlowDuration = 1200;
             }
             updateSpeedText(btnSpeed);
             buildGridUI();
@@ -307,17 +305,17 @@ public class MainActivity extends Activity {
         menuLayout.addView(btnExp);
 
         builder.setView(menuLayout);
-        builder.setPositiveButton("Применить и закрыть 🚀", (dialog, which) -> {
-            Toast.makeText(this, "Анимации обновлены!", Toast.LENGTH_SHORT).show();
+        builder.setPositiveButton("Применить 🚀", (dialog, which) -> {
+            Toast.makeText(this, "Параметры анимаций обновлены!", Toast.LENGTH_SHORT).show();
         });
         builder.show();
     }
 
     private void updateRotText(Button btn) {
-        btn.setText("🌀 Угол поворота клеток: ±" + (int)animRotationMax + "°");
+        btn.setText("🌀 Амплитуда вращения: ±" + (int)animRotationMax + "°");
     }
     private void updateSpeedText(Button btn) {
-        btn.setText("⚡ Скорость анимации: " + animRotateDuration + " мс");
+        btn.setText("⚡ Скорость движения: " + animRotateDuration + " мс");
     }
     private void updateRgbText(Button btn) {
         btn.setText("🌈 Скорость RGB кнопки: " + (rgbAnimDuration/1000.0) + " сек");
@@ -411,29 +409,24 @@ public class MainActivity extends Activity {
         return tv;
     }
 
+    // --- ЖИВАЯ АНИМАЦИЯ КЛЕТОК (БЕЗ КОНФЛИКТОВ) ---
     private void startLivingCellAnimation(final View cell) {
+        // 1. Постоянное вращение (если включено)
         if (animRotationMax > 0f) {
             ObjectAnimator rotateAnim = ObjectAnimator.ofFloat(cell, "rotation", -animRotationMax, animRotationMax);
-            rotateAnim.setDuration(animRotateDuration + new Random().nextInt(300));
+            rotateAnim.setDuration(animRotateDuration + new Random().nextInt(200));
             rotateAnim.setRepeatMode(ValueAnimator.REVERSE);
             rotateAnim.setRepeatCount(ValueAnimator.INFINITE);
             rotateAnim.setInterpolator(new LinearInterpolator());
             rotateAnim.start();
         }
 
-        ObjectAnimator scaleX = ObjectAnimator.ofFloat(cell, "scaleX", animBreathMin, animBreathMax);
-        scaleX.setDuration(animBreathDuration + new Random().nextInt(200));
-        scaleX.setRepeatMode(ValueAnimator.REVERSE);
-        scaleX.setRepeatCount(ValueAnimator.INFINITE);
-        
-        ObjectAnimator scaleY = ObjectAnimator.ofFloat(cell, "scaleY", animBreathMin, animBreathMax);
-        scaleY.setDuration(animBreathDuration + new Random().nextInt(200));
-        scaleY.setRepeatMode(ValueAnimator.REVERSE);
-        scaleY.setRepeatCount(ValueAnimator.INFINITE);
-
-        AnimatorSet breathingSet = new AnimatorSet();
-        breathingSet.playTogether(scaleX, scaleY);
-        breathingSet.start();
+        // 2. Квантовое сияние / пульсация прозрачности (alpha), не конфликтующая с кликами
+        ObjectAnimator glowAnim = ObjectAnimator.ofFloat(cell, "alpha", 0.60f, 1.0f);
+        glowAnim.setDuration(animGlowDuration + new Random().nextInt(200));
+        glowAnim.setRepeatMode(ValueAnimator.REVERSE);
+        glowAnim.setRepeatCount(ValueAnimator.INFINITE);
+        glowAnim.start();
     }
 
     private void recalculateMaxMovesFromCurrentState() {
@@ -748,13 +741,13 @@ public class MainActivity extends Activity {
     }
 
     private void animateCellFancy(TextView cell, int newState, int level) {
-        ObjectAnimator scaleX = ObjectAnimator.ofFloat(cell, "scaleX", 0.85f, 1.15f, 1.0f);
-        ObjectAnimator scaleY = ObjectAnimator.ofFloat(cell, "scaleY", 0.85f, 1.15f, 1.0f);
+        ObjectAnimator scaleX = ObjectAnimator.ofFloat(cell, "scaleX", 0.75f, 1.25f, 1.0f);
+        ObjectAnimator scaleY = ObjectAnimator.ofFloat(cell, "scaleY", 0.75f, 1.25f, 1.0f);
 
         AnimatorSet animatorSet = new AnimatorSet();
         animatorSet.playTogether(scaleX, scaleY);
-        animatorSet.setDuration(300); 
-        animatorSet.setInterpolator(new OvershootInterpolator(1.3f));
+        animatorSet.setDuration(350); 
+        animatorSet.setInterpolator(new OvershootInterpolator(1.5f));
         animatorSet.start();
 
         updateCellStyle(cell, newState, level);
