@@ -16,7 +16,7 @@ import android.media.ToneGenerator;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.Looper;
+importandroid.os.Looper;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -161,10 +161,10 @@ public class MainActivity extends Activity {
     }
 
     private void openFileSelector() {
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        // Универсальный интент выбора контента, поддерживаемый на всех версиях Android
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("image/*");
-        startActivityForResult(intent, PICK_IMAGE_REQUEST);
+        startActivityForResult(Intent.createChooser(intent, "Выберите фото Ким"), PICK_IMAGE_REQUEST);
     }
 
     @Override
