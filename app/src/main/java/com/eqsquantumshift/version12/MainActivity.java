@@ -1,10 +1,5 @@
 package com.eqsquantumshift.version12;
 
-import java.util.*;
-import java.util.regex.*;
-
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.animation.ArgbEvaluator;
@@ -52,14 +47,14 @@ public class MainActivity extends Activity {
     private TextView[][] cellViews;
     private int[][] states;
     
-    // --- ПЕРЕМЕННЫЕ НАСТРОЙКИ АНИМАЦИЙ (ЭКСПЕРИМЕНТИРУЙТЕ ЗДЕСЬ!) ---
-    private float animRotationMax = 15f;      // Угол поворота клеток (градусы) - было 5f, сделали заметнее
-    private int animRotateDuration = 1200;    // Скорость вращения (мс) - меньше = быстрее
-    private float animBreathMin = 0.90f;      // Минимальный масштаб при "дыхании"
-    private float animBreathMax = 1.10f;      // Максимальный масштаб при "дыхании"
-    private int animBreathDuration = 900;     // Скорость "дыхания" (мс)
-    private int rgbAnimDuration = 3000;       // Скорость RGB-перелива нижней кнопки (мс)
-    private float explosionIntensity = 1.0f;  // Множитель силы тряски при взрыве
+    // --- ПЕРЕМЕННЫЕ НАСТРОЙКИ АНИМАЦИЙ ---
+    private float animRotationMax = 15f;      
+    private int animRotateDuration = 1200;    
+    private float animBreathMin = 0.90f;      
+    private float animBreathMax = 1.10f;      
+    private int animBreathDuration = 900;     
+    private int rgbAnimDuration = 3000;       
+    private float explosionIntensity = 1.0f;  
 
     // --- UI КОМПОНЕНТЫ ---
     private TextView levelTextView, scoreTextView, movesTextView, titleTextView, logoView, clockTextView, instructionView;
@@ -143,7 +138,7 @@ public class MainActivity extends Activity {
         headerLayout.addView(btnExit);
         rootLayout.addView(headerLayout);
 
-        // --- КВАНТОВЫЕ ЧАСЫ (Клик по часам открывает меню сложности) ---
+        // --- КВАНТОВЫЕ ЧАСЫ ---
         clockTextView = new TextView(this);
         clockTextView.setTextColor(Color.parseColor("#34D399"));
         clockTextView.setTextSize(14);
@@ -195,7 +190,7 @@ public class MainActivity extends Activity {
         gridLayout.setLayoutParams(gridParams);
         rootLayout.addView(gridLayout);
 
-        // --- НИЖНЯЯ ПАНЕЛЬ С RGB-КНОПКОЙ ---
+        // --- НИЖНЯЯ ПАНЕЛЬ ---
         LinearLayout bottomLayout = new LinearLayout(this);
         bottomLayout.setOrientation(LinearLayout.VERTICAL);
         bottomLayout.setGravity(Gravity.CENTER);
@@ -234,7 +229,6 @@ public class MainActivity extends Activity {
         loadLevel(currentLevel);
     }
 
-    // --- ИНИЦИАЛИЗАЦИЯ И ПЕРЕЗАПУСК RGB АНИМАЦИИ КНОПКИ ---
     private void initRgbAnimator(GradientDrawable hintBtnBg) {
         if (rgbAnimator != null) {
             rgbAnimator.cancel();
@@ -242,7 +236,7 @@ public class MainActivity extends Activity {
         rgbAnimator = ValueAnimator.ofObject(new ArgbEvaluator(), 
                 Color.parseColor("#2563EB"), Color.parseColor("#9333EA"), 
                 Color.parseColor("#059669"), Color.parseColor("#D97706"), Color.parseColor("#2563EB"));
-        rgbAnimator.setDuration(rgbAnimDuration); // Используем настраиваемую скорость
+        rgbAnimator.setDuration(rgbAnimDuration); 
         rgbAnimator.setRepeatCount(ValueAnimator.INFINITE);
         rgbAnimator.addUpdateListener(animator -> {
             int color = (int) animator.getAnimatedValue();
@@ -252,7 +246,6 @@ public class MainActivity extends Activity {
         rgbAnimator.start();
     }
 
-    // --- 🎨 МЕНЮ НАСТРОЙКИ АНИМАЦИЙ (НОВОЕ!) ---
     private void showAnimationSettingsDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("🎨 Лаборатория анимаций и эффектов");
@@ -268,18 +261,16 @@ public class MainActivity extends Activity {
         descText.setPadding(0, 0, 0, 20);
         menuLayout.addView(descText);
 
-        // 1. Управление углом вращения клеток
         Button btnRot = new Button(this);
         updateRotText(btnRot);
         btnRot.setOnClickListener(v -> {
             animRotationMax += 5f;
-            if (animRotationMax > 35f) animRotationMax = 0f; // сброс / цикл
+            if (animRotationMax > 35f) animRotationMax = 0f; 
             updateRotText(btnRot);
-            buildGridUI(); // Пересоздаем сетку с новыми анимациями
+            buildGridUI(); 
         });
         menuLayout.addView(btnRot);
 
-        // 2. Управление скоростью вращения/дыхания
         Button btnSpeed = new Button(this);
         updateSpeedText(btnSpeed);
         btnSpeed.setOnClickListener(v -> {
@@ -295,20 +286,17 @@ public class MainActivity extends Activity {
         });
         menuLayout.addView(btnSpeed);
 
-        // 3. Управление RGB скоростью кнопки
         Button btnRgb = new Button(this);
         updateRgbText(btnRgb);
         btnRgb.setOnClickListener(v -> {
             rgbAnimDuration -= 1000;
             if (rgbAnimDuration < 1000) rgbAnimDuration = 5000;
             updateRgbText(btnRgb);
-            // Перезапуск RGB аниматора кнопки
             GradientDrawable hintBtnBg = (GradientDrawable) btnHintBottom.getBackground();
             initRgbAnimator(hintBtnBg);
         });
         menuLayout.addView(btnRgb);
 
-        // 4. Управление силой взрыва
         Button btnExp = new Button(this);
         updateExpText(btnExp);
         btnExp.setOnClickListener(v -> {
@@ -338,7 +326,6 @@ public class MainActivity extends Activity {
         btn.setText("💥 Сила тряски взрыва: " + explosionIntensity + "x");
     }
 
-    // --- СЕКРЕТНОЕ МЕНЮ СЛОЖНОСТИ (ПО КЛИКУ НА ЧАСЫ) ---
     private void showSettingsMenuDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("⚙️ Настройка лимита ходов");
@@ -424,9 +411,7 @@ public class MainActivity extends Activity {
         return tv;
     }
 
-    // --- 🧬 ЖИВАЯ АНИМАЦИЯ КЛЕТОК (ИСПРАВЛЕНО И НАСТРАИВАЕМОЕ) ---
     private void startLivingCellAnimation(final View cell) {
-        // Если угол равен 0, отключаем вращение
         if (animRotationMax > 0f) {
             ObjectAnimator rotateAnim = ObjectAnimator.ofFloat(cell, "rotation", -animRotationMax, animRotationMax);
             rotateAnim.setDuration(animRotateDuration + new Random().nextInt(300));
@@ -436,7 +421,6 @@ public class MainActivity extends Activity {
             rotateAnim.start();
         }
 
-        // Постоянный эффект "дыхания" (пульсация масштаба)
         ObjectAnimator scaleX = ObjectAnimator.ofFloat(cell, "scaleX", animBreathMin, animBreathMax);
         scaleX.setDuration(animBreathDuration + new Random().nextInt(200));
         scaleX.setRepeatMode(ValueAnimator.REVERSE);
@@ -718,7 +702,7 @@ public class MainActivity extends Activity {
                 cell.setTextSize(22);
 
                 updateCellStyle(cell, states[i][j], currentLevel);
-                startLivingCellAnimation(cell); // Запускаем живую анимацию с настройками
+                startLivingCellAnimation(cell); 
 
                 cell.setOnClickListener(v -> {
                     triggerQuantumWave(row, col);
@@ -763,7 +747,6 @@ public class MainActivity extends Activity {
         animateCellFancy(cellViews[r][c], states[r][c], currentLevel);
     }
 
-    // Анимация при клике на клетку (пружинистый отскок)
     private void animateCellFancy(TextView cell, int newState, int level) {
         ObjectAnimator scaleX = ObjectAnimator.ofFloat(cell, "scaleX", 0.85f, 1.15f, 1.0f);
         ObjectAnimator scaleY = ObjectAnimator.ofFloat(cell, "scaleY", 0.85f, 1.15f, 1.0f);
@@ -882,7 +865,6 @@ public class MainActivity extends Activity {
         cell.setTextColor(Color.WHITE);
     }
 
-    // Визуальный взрыв с учетом настраиваемой интенсивности
     private void triggerVisualExplosion() {
         float shakeDist = 40f * explosionIntensity;
         ObjectAnimator shake = ObjectAnimator.ofFloat(gridLayout, "translationX", 0f, shakeDist, -shakeDist, shakeDist*0.75f, -shakeDist*0.75f, shakeDist*0.4f, -shakeDist*0.4f, 0f);
@@ -941,5 +923,15 @@ public class MainActivity extends Activity {
             builder.setNegativeButton("Выход ❌", (dialog, which) -> finishAndRemoveTask());
         }
         builder.show();
+    }
+
+    private boolean checkVictoryCondition() {
+        int firstState = states[0][0];
+        for (int i = 0; i < gridRows; i++) {
+            for (int j = 0; j < gridCols; j++) {
+                if (states[i][j] != firstState) return false;
+            }
+        }
+        return true;
     }
 }
