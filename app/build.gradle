@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "MonsterCompilerPro_V1.0_v001-" + variant.name + ".apk"
+            outputFileName = "RomaMonsterApp_v001-" + variant.name + ".apk"
         }
     }
 }
