@@ -7,14 +7,14 @@ android {
     compileSdk 34
     defaultConfig {
         applicationId "com.eqsquantumshift.version01"
-        minSdk 21
+        minSdk 26
         targetSdk 34
-        versionCode 8
+        versionCode 9
         versionName "01"
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
