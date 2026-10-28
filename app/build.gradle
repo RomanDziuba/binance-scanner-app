@@ -9,7 +9,7 @@ android {
         applicationId "com.eqsquantumshift.version12"
         minSdk 21
         targetSdk 34
-        versionCode 8
+        versionCode 9
         versionName "12"
     }
     compileOptions {
