@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version112233'
+    namespace 'com.roman.version11'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version112233"
+        applicationId "com.roman.version11"
         minSdk 26
         targetSdk 34
-        versionCode 2
-        versionName "112233"
+        versionCode 3
+        versionName "11"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "Компик112233_v112233-" + variant.name + ".apk"
+            outputFileName = "Компик11_v11-" + variant.name + ".apk"
         }
     }
 }
