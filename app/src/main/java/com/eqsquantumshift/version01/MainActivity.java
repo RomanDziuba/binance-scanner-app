@@ -1,7 +1,5 @@
 package com.eqsquantumshift.version01;
 
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -18,7 +16,7 @@ import android.media.ToneGenerator;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
-importandroid.os.Looper;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -163,7 +161,6 @@ public class MainActivity extends Activity {
     }
 
     private void openFileSelector() {
-        // Универсальный интент выбора контента, поддерживаемый на всех версиях Android
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("image/*");
         startActivityForResult(Intent.createChooser(intent, "Выберите фото Ким"), PICK_IMAGE_REQUEST);
