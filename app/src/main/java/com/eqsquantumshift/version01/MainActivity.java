@@ -1,37 +1,14 @@
 package com.eqsquantumshift.version01;
 
 import android.app.Activity;
-import android.content.Context;
-import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.RectF;
-import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
-import android.media.AudioManager;
-import android.media.ToneGenerator;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
-import android.widget.Button;
-import android.widget.LinearLayout;
-import android.widget.TextView;
-import android.widget.Toast;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
-import java.util.Random;
+import android.widget.*;
+import android.graphics.*;
 
 public class MainActivity extends Activity {
 
@@ -39,12 +16,12 @@ public class MainActivity extends Activity {
     
     private KimView kimView;
     private TextView statusTextView, clockTextView;
-    private File storageDir;
+    private java.io.File storageDir;
     
     private Handler animHandler = new Handler(Looper.getMainLooper());
     private Runnable animRunnable;
     private float globalTime = 0f;
-    private ToneGenerator toneGen;
+    private android.media.ToneGenerator toneGen;
 
     private String[] kimQuotes = {
         "💬 «What's the sitch? (Какая ситуация?)»",
@@ -59,13 +36,13 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         try {
-            toneGen = new ToneGenerator(AudioManager.STREAM_MUSIC, 100);
+            toneGen = new android.media.ToneGenerator(android.media.AudioManager.STREAM_MUSIC, 100);
         } catch (Exception e) {
             e.printStackTrace();
         }
 
         // Автоматическое создание папки KimAssets во внешнем хранилище
-        storageDir = new File(getExternalFilesDir(null), "KimAssets");
+        storageDir = new java.io.File(getExternalFilesDir(null), "KimAssets");
         if (!storageDir.exists()) {
             storageDir.mkdirs();
         }
@@ -94,7 +71,7 @@ public class MainActivity extends Activity {
         btnPickImage.setTextSize(11);
         btnPickImage.setTypeface(Typeface.DEFAULT_BOLD);
         
-        GradientDrawable btnBg = new GradientDrawable();
+        android.graphics.drawable.GradientDrawable btnBg = new android.graphics.drawable.GradientDrawable();
         btnBg.setColor(Color.parseColor("#0284C7"));
         btnBg.setCornerRadius(10f);
         btnBg.setStroke(2, Color.parseColor("#38BDF8"));
@@ -116,7 +93,7 @@ public class MainActivity extends Activity {
         clockTextView.setGravity(Gravity.CENTER);
         clockTextView.setPadding(6, 4, 6, 4);
         
-        GradientDrawable clockBg = new GradientDrawable();
+        android.graphics.drawable.GradientDrawable clockBg = new android.graphics.drawable.GradientDrawable();
         clockBg.setColors(new int[]{Color.parseColor("#064E3B"), Color.parseColor("#022C22")});
         clockBg.setCornerRadius(10f);
         clockBg.setStroke(2, Color.parseColor("#10B981"));
@@ -145,7 +122,7 @@ public class MainActivity extends Activity {
         statusTextView.setGravity(Gravity.CENTER);
         statusTextView.setPadding(10, 10, 10, 10);
         
-        GradientDrawable statusBg = new GradientDrawable();
+        android.graphics.drawable.GradientDrawable statusBg = new android.graphics.drawable.GradientDrawable();
         statusBg.setColor(Color.parseColor("#1E1B4B"));
         statusBg.setCornerRadius(12f);
         statusBg.setStroke(2, Color.parseColor("#6366F1"));
@@ -161,26 +138,25 @@ public class MainActivity extends Activity {
     }
 
     private void openFileSelector() {
-        Intent intent = new Intent("android.intent.action.OPEN_DOCUMENT");
+        android.content.Intent intent = new android.content.Intent("android.intent.action.OPEN_DOCUMENT");
         intent.addCategory("android.intent.category.OPENABLE");
         intent.setType("image/*");
         startActivityForResult(intent, PICK_IMAGE_REQUEST);
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        // Убран проблемный вызов super.onActivityResult для полной стабильности компиляции
+    protected void onActivityResult(int requestCode, int resultCode, android.content.Intent data) {
         if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK && data != null) {
-            Uri uri = data.getData();
+            android.net.Uri uri = data.getData();
             if (uri != null) {
                 try {
-                    InputStream inputStream = getContentResolver().openInputStream(uri);
+                    java.io.InputStream inputStream = getContentResolver().openInputStream(uri);
                     Bitmap selectedBitmap = BitmapFactory.decodeStream(inputStream);
                     if (inputStream != null) inputStream.close();
 
                     if (selectedBitmap != null) {
-                        File outputFile = new File(storageDir, "kim.png");
-                        FileOutputStream fos = new FileOutputStream(outputFile);
+                        java.io.File outputFile = new java.io.File(storageDir, "kim.png");
+                        java.io.FileOutputStream fos = new java.io.FileOutputStream(outputFile);
                         
                         selectedBitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
                         fos.flush();
@@ -218,7 +194,7 @@ public class MainActivity extends Activity {
         Runnable clockRunnable = new Runnable() {
             @Override
             public void run() {
-                String timeOnly = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
+                String timeOnly = new java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(new java.util.Date());
                 clockTextView.setText("💠 [ " + timeOnly + " ] 💠 СИСТЕМА ГОТОВА");
                 clockHandler.postDelayed(this, 1000);
             }
@@ -240,13 +216,13 @@ public class MainActivity extends Activity {
     private class KimView extends View {
         private Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private Bitmap kimBitmap;
-        private File dir;
+        private java.io.File dir;
         private float breathOffset = 0f;
         private float jumpOffset = 0f;
         private float mouthOpenRatio = 0f;
         private boolean isTalking = false;
 
-        public KimView(Context context, File storageDir) {
+        public KimView(Context context, java.io.File storageDir) {
             super(context);
             this.dir = storageDir;
             reloadImage();
@@ -254,7 +230,7 @@ public class MainActivity extends Activity {
 
         public void reloadImage() {
             try {
-                File imgFile = new File(dir, "kim.png");
+                java.io.File imgFile = new java.io.File(dir, "kim.png");
                 if (imgFile.exists()) {
                     kimBitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
                 } else {
@@ -291,10 +267,10 @@ public class MainActivity extends Activity {
             isTalking = true;
             
             if (toneGen != null) {
-                toneGen.startTone(ToneGenerator.TONE_PROP_BEEP_BEEP, 300);
+                toneGen.startTone(android.media.ToneGenerator.TONE_PROP_BEEP_BEEP, 300);
             }
             
-            Random random = new Random();
+            java.util.Random random = new java.util.Random();
             statusTextView.setText(kimQuotes[random.nextInt(kimQuotes.length)]);
             statusTextView.setTextColor(Color.parseColor("#F59E0B"));
 
