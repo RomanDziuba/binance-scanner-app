@@ -1,8 +1,8 @@
 package com.eqsquantumshift.version01;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -13,8 +13,8 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.media.AudioManager;
 import android.media.ToneGenerator;
-import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
@@ -27,16 +27,16 @@ import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.InputStream;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 
 public class MainActivity extends Activity {
 
-    private static final int PICK_IMAGE_REQUEST = 101;
-    
     private KimView kimView;
     private TextView statusTextView, clockTextView;
     private File storageDir;
@@ -45,6 +45,9 @@ public class MainActivity extends Activity {
     private Runnable animRunnable;
     private float globalTime = 0f;
     private ToneGenerator toneGen;
+
+    // Стартовая директория для встроенного файлового менеджера (память телефона)
+    private File currentDir = Environment.getExternalStorageDirectory();
 
     private String[] kimQuotes = {
         "💬 «What's the sitch? (Какая ситуация?)»",
@@ -87,9 +90,9 @@ public class MainActivity extends Activity {
         titleView.setPadding(0, 0, 0, 6);
         rootLayout.addView(titleView);
 
-        // --- КНОПКА ВЫБОРА ФОТО ИЗ ПАМЯТИ ТЕЛЕФОНА ---
+        // --- КНОПКА ОТКРЫТИЯ ВСТРОЕННОГО ФАЙЛОВОГО БРАУЗЕРА ---
         Button btnPickImage = new Button(this);
-        btnPickImage.setText("📁 ВЫБРАТЬ ФОТО С ТЕЛЕФОНА");
+        btnPickImage.setText("📁 ВЫБРАТЬ ФОТО С ПАМЯТИ ТЕЛЕФОНА");
         btnPickImage.setTextColor(Color.WHITE);
         btnPickImage.setTextSize(11);
         btnPickImage.setTypeface(Typeface.DEFAULT_BOLD);
@@ -100,7 +103,7 @@ public class MainActivity extends Activity {
         btnBg.setStroke(2, Color.parseColor("#38BDF8"));
         btnPickImage.setBackground(btnBg);
         
-        btnPickImage.setOnClickListener(v -> openFileSelector());
+        btnPickImage.setOnClickListener(v -> openFileBrowser());
         
         LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -160,38 +163,99 @@ public class MainActivity extends Activity {
         startGlobalAnimationLoop();
     }
 
-    private void openFileSelector() {
-        // Прямой и универсальный вызов выбора файлов без громоздких оберток
-        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-        intent.setType("image/*");
-        startActivityForResult(intent, PICK_IMAGE_REQUEST);
+    // --- ВСТРОЕННЫЙ МЕНЕДЖЕР ДОСТУПА КО ВСЕМ ФАЙЛАМ ТЕЛЕФОНА ---
+    private void openFileBrowser() {
+        if (currentDir == null || !currentDir.exists()) {
+            currentDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+            if (currentDir == null || !currentDir.exists()) {
+                currentDir = getExternalFilesDir(null);
+            }
+        }
+
+        File[] files = currentDir.listFiles();
+        if (files == null) {
+            currentDir = getExternalFilesDir(null);
+            files = currentDir.listFiles();
+            if (files == null) {
+                Toast.makeText(this, "Нет доступа к папкам памяти", Toast.LENGTH_SHORT).show();
+                return;
+            }
+        }
+
+        List<File> fileList = new ArrayList<>();
+        for (File f : files) {
+            if (f.isDirectory() || isImageFile(f)) {
+                fileList.add(f);
+            }
+        }
+
+        // Сортировка: сначала папки, затем файлы по алфавиту
+        Collections.sort(fileList, (f1, f2) -> {
+            if (f1.isDirectory() && !f2.isDirectory()) return -1;
+            if (!f1.isDirectory() && f2.isDirectory()) return 1;
+            return f1.getName().compareToIgnoreCase(f2.getName());
+        });
+
+        boolean hasParent = currentDir.getParentFile() != null;
+        CharSequence[] items = new CharSequence[fileList.size() + (hasParent ? 1 : 0)];
+        List<File> selectableFiles = new ArrayList<>();
+
+        int idx = 0;
+        if (hasParent) {
+            items[idx++] = "📁 [..] Наверх";
+            selectableFiles.add(currentDir.getParentFile());
+        }
+
+        for (File f : fileList) {
+            selectableFiles.add(f);
+            if (f.isDirectory()) {
+                items[idx++] = "📁 " + f.getName();
+            } else {
+                items[idx++] = "🖼 " + f.getName();
+            }
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("📂 " + currentDir.getName());
+        builder.setItems(items, (dialog, which) -> {
+            File selected = selectableFiles.get(which);
+            if (selected.isDirectory()) {
+                currentDir = selected;
+                openFileBrowser(); // Открыть выбранную папку
+            } else {
+                // Выбран файл картинки -> конвертируем и сохраняем как PNG
+                processSelectedImage(selected);
+            }
+        });
+        builder.setNegativeButton("Отмена", null);
+        builder.show();
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK && data != null) {
-            Uri uri = data.getData();
-            if (uri != null) {
-                try {
-                    InputStream inputStream = getContentResolver().openInputStream(uri);
-                    Bitmap selectedBitmap = BitmapFactory.decodeStream(inputStream);
-                    if (inputStream != null) inputStream.close();
+    private boolean isImageFile(File file) {
+        String name = file.getName().toLowerCase();
+        return name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png") || name.endsWith(".webp");
+    }
 
-                    if (selectedBitmap != null) {
-                        File outputFile = new File(storageDir, "kim.png");
-                        FileOutputStream fos = new FileOutputStream(outputFile);
-                        selectedBitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
-                        fos.flush();
-                        fos.close();
+    private void processSelectedImage(File imageFile) {
+        try {
+            Bitmap selectedBitmap = BitmapFactory.decodeFile(imageFile.getAbsolutePath());
+            if (selectedBitmap != null) {
+                File outputFile = new File(storageDir, "kim.png");
+                FileOutputStream fos = new FileOutputStream(outputFile);
+                
+                // Автоматическая конвертация в PNG
+                selectedBitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+                fos.flush();
+                fos.close();
 
-                        kimView.reloadImage();
-                        Toast.makeText(this, "Фото загружено и конвертировано в PNG!", Toast.LENGTH_SHORT).show();
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    Toast.makeText(this, "Ошибка загрузки файла!", Toast.LENGTH_SHORT).show();
-                }
+                kimView.reloadImage();
+                Toast.makeText(this, "Фото загружено и конвертировано в PNG!", Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(this, "Не удалось прочитать файл изображения", Toast.LENGTH_SHORT).show();
             }
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Ошибка обработки: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
