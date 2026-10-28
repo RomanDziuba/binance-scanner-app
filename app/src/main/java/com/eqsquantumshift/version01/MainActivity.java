@@ -87,7 +87,7 @@ public class MainActivity extends Activity {
         titleView.setPadding(0, 0, 0, 6);
         rootLayout.addView(titleView);
 
-        // --- КНОПКА ВЫБОРА ФОТО (ACTION_OPEN_DOCUMENT) ---
+        // --- КНОПКА ВЫБОРА ФОТО ---
         Button btnPickImage = new Button(this);
         btnPickImage.setText("📁 ВЫБРАТЬ ФОТО ИЗ ПАМЯТИ");
         btnPickImage.setTextColor(Color.WHITE);
@@ -160,7 +160,6 @@ public class MainActivity extends Activity {
         startGlobalAnimationLoop();
     }
 
-    // --- СИСТЕМНЫЙ ИНТЕНТ ВЫБОРА ФОТО ЧЕРЕЗ СТРОКОВЫЕ КОНСТАНТЫ ---
     private void openFileSelector() {
         Intent intent = new Intent("android.intent.action.OPEN_DOCUMENT");
         intent.addCategory("android.intent.category.OPENABLE");
@@ -168,10 +167,9 @@ public class MainActivity extends Activity {
         startActivityForResult(intent, PICK_IMAGE_REQUEST);
     }
 
-    // --- ОБРАБОТКА И КОНВЕРТАЦИЯ В PNG ---
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
+        // Убран проблемный вызов super.onActivityResult для полной стабильности компиляции
         if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK && data != null) {
             Uri uri = data.getData();
             if (uri != null) {
@@ -184,7 +182,6 @@ public class MainActivity extends Activity {
                         File outputFile = new File(storageDir, "kim.png");
                         FileOutputStream fos = new FileOutputStream(outputFile);
                         
-                        // Конвертация в PNG и сохранение
                         selectedBitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
                         fos.flush();
                         fos.close();
