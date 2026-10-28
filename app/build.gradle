@@ -9,7 +9,7 @@ android {
         applicationId "com.roman.version001"
         minSdk 21
         targetSdk 34
-        versionCode 13
+        versionCode 14
         versionName "001"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "RomaMonsterApp_v001-" + variant.name + ".apk"
+            outputFileName = "QUANTUM🔥_v001-" + variant.name + ".apk"
         }
     }
 }
