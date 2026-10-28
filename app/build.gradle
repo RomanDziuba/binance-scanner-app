@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.eqsquantumshift.version10'
+    namespace 'com.eqsquantumshift.version11'
     compileSdk 34
     defaultConfig {
-        applicationId "com.eqsquantumshift.version10"
+        applicationId "com.eqsquantumshift.version11"
         minSdk 21
         targetSdk 34
-        versionCode 6
-        versionName "10"
+        versionCode 7
+        versionName "11"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "QUANTUM_v10-" + variant.name + ".apk"
+            outputFileName = "QUANTUM_v11-" + variant.name + ".apk"
         }
     }
 }
