@@ -1,2 +1,2 @@
-rootProject.name = "Компилятор1112"
+rootProject.name = "MonsterClock"
 include ':app'
