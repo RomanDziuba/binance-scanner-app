@@ -1,4 +1,4 @@
-package com.clock.version96;
+package com.clock.version001;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -339,7 +339,7 @@ public class MainActivity extends Activity {
     private void updatePackageNameFromCode(String code) {
         String secondElement = "roman"; // ДЕФОЛТНОЕ СЛОВО ПО ВАШЕМУ ТРЕБОВАНИЮ
         if (code != null) {
-            // Ищем указанный пакет в коде (например, package com.clock.version96; или package com.clock.version96;)
+            // Ищем указанный пакет в коде (например, package com.clock.version001; или package com.clock.version001;)
             Matcher pkgMatch = Pattern.compile("package\\s+(?:com\\.)?([a-zA-Z0-9_]+)").matcher(code);
             if (pkgMatch.find()) {
                 String foundPkg = transliterateToLatin(pkgMatch.group(1));
