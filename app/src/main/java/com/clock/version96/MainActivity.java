@@ -42,7 +42,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * 🚀 MONSTER COMPILER CI/CD ENGINE v9.6 PRO (Smart Tree Purge)
+ * 🚀 MONSTER COMPILER CI/CD ENGINE v9.6 PRO (Default: roman)
  * Полный профессиональный компилятор Android APK через GitHub Actions и Telegram Bot.
  * Автор: Dziuba Roman
  */
@@ -66,7 +66,7 @@ public class MainActivity extends Activity {
     private String telegramApkTitle = "RomaMonsterApp";
     private String appVersion = "001";
     private int versionCode = 1;
-    private String packageName = "com.clock.version001";
+    private String packageName = "com.roman.version001";
     private String currentJavaFileName = "😛";
     private boolean iconCustomized = true;
     private String targetUploadFolder = "";
@@ -132,7 +132,7 @@ public class MainActivity extends Activity {
 
         // Заголовок авторства
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v9.5 Pro ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v9.6 Pro ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -158,7 +158,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🚀 Android Monster Compiler (Pro Engine v9.5)");
+        titleView.setText("🚀 Android Monster Compiler (Pro Engine v9.6)");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -288,7 +288,7 @@ public class MainActivity extends Activity {
         setContentView(rootLayout);
 
         updateAllButtonLabels();
-        logEditText.setText("=== 🚀 MONSTER COMPILER PRO V9.5 ЗАПУЩЕН ===\n" +
+        logEditText.setText("=== 🚀 MONSTER COMPILER PRO V9.6 ЗАПУЩЕН ===\n" +
                             "• Имя для Telegram APK: " + telegramApkTitle + "\n" +
                             "• Пакет: " + packageName + "\n" +
                             "• Версия: " + appVersion + " (Code: " + versionCode + ")\n" +
@@ -333,12 +333,19 @@ public class MainActivity extends Activity {
         return "🚀 Скомпилировать APK\n📦 " + telegramApkTitle + " (v" + appVersion + ")";
     }
 
+    /**
+     * СМАРТ-РАСПОЗНАВАНИЕ ИМЕНИ ПАКЕТА ИЗ КОДА (дефолт: roman)
+     */
     private void updatePackageNameFromCode(String code) {
-        String secondElement = "clock";
+        String secondElement = "roman"; // ДЕФОЛТНОЕ СЛОВО ПО ВАШЕМУ ТРЕБОВАНИЮ
         if (code != null) {
-            Matcher pkgMatch = Pattern.compile("package\\s+com\\.([a-zA-Z0-9_]+)").matcher(code);
+            // Ищем указанный пакет в коде (например, package com.clock.version96; или package com.clock.version96;)
+            Matcher pkgMatch = Pattern.compile("package\\s+(?:com\\.)?([a-zA-Z0-9_]+)").matcher(code);
             if (pkgMatch.find()) {
-                secondElement = transliterateToLatin(pkgMatch.group(1));
+                String foundPkg = transliterateToLatin(pkgMatch.group(1));
+                if (!foundPkg.equals("com") && !foundPkg.equals("app")) {
+                    secondElement = foundPkg;
+                }
             } else {
                 Matcher classMatch = Pattern.compile("class\\s+([a-zA-Z0-9_]+)").matcher(code);
                 if (classMatch.find()) {
@@ -366,7 +373,7 @@ public class MainActivity extends Activity {
     }
 
     private String transliterateToLatin(String input) {
-        if (input == null) return "app";
+        if (input == null) return "roman";
         String[] abcCyr = {"а","б","в","г","д","е","ё","ж","з","и","й","к","л","м","н","о","п","р","с","т","у","ф","х","ц","ч","ш","щ","ъ","ы","ь","э","ю","я","є","і","ї","ґ"};
         String[] abcLat = {"a","b","v","g","d","e","e","zh","z","i","y","k","l","m","n","o","p","r","s","t","u","f","h","ts","ch","sh","shch","","y","","e","yu","ya","ye","i","yi","g"};
 
@@ -375,7 +382,7 @@ public class MainActivity extends Activity {
             res = res.replace(abcCyr[i], abcLat[i]);
         }
         res = res.replaceAll("[^a-z0-9]", "");
-        if (res.isEmpty()) res = "app";
+        if (res.isEmpty()) res = "roman";
         if (Character.isDigit(res.charAt(0))) res = "app" + res;
         return res;
     }
@@ -390,7 +397,7 @@ public class MainActivity extends Activity {
         telegramApkTitle = sp.getString("telegramApkTitle", telegramApkTitle);
         appVersion = sp.getString("appVersion", "001");
         versionCode = sp.getInt("versionCode", 1);
-        packageName = sp.getString("packageName", "com.clock.version001");
+        packageName = sp.getString("packageName", "com.roman.version001");
         currentJavaFileName = sp.getString("currentJavaFileName", currentJavaFileName);
         iconCustomized = sp.getBoolean("iconCustomized", true);
         minSdk = sp.getInt("minSdk", 21);
@@ -899,7 +906,7 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * СМАРТ-СКАНИРОВАНИЕ И УДАЛЕНИЕ ВСЕХ СТАРЫХ ХВОСТОВ (VERSION ФАЙЛОВ) НА GITHUB
+     * СМАРТ-СКАНИРОВАНИЕ И УДАЛЕНИЕ ВСЕХ СТАРЫХ ХВОСТОВ НА GITHUB
      */
     private void performCleanAndPushNewFile(String rawCode, String fileName) {
         ProgressDialog progressDialog = new ProgressDialog(this);
@@ -917,7 +924,6 @@ public class MainActivity extends Activity {
 
         new Thread(() -> {
             try {
-                // Автоматически сканируем дерево и удаляем ВСЕ старые MainActivity.java хвосты
                 purgeAllOldJavaFilesFromRepository();
 
                 boolean success = false;
@@ -967,9 +973,6 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    /**
-     * Динамическое сканирование дерева репозитория и удаление всех старых MainActivity.java
-     */
     private void purgeAllOldJavaFilesFromRepository() {
         try {
             String treeUrl = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/git/trees/main?recursive=1";
@@ -990,7 +993,6 @@ public class MainActivity extends Activity {
                     for (int i = 0; i < treeArray.length(); i++) {
                         JSONObject obj = treeArray.getJSONObject(i);
                         String path = obj.optString("path", "");
-                        // Находим все старые Java файлы внутри исходников, кроме текущего целевого
                         if (path.startsWith("app/src/main/java/") && path.endsWith("MainActivity.java")) {
                             if (!path.equals(getMainActivityPath())) {
                                 deleteGitHubFile(path, "Purge old tail: " + path);
