@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.kopiljatornoviy.version02'
+    namespace 'com.roman.version02'
     compileSdk 34
     defaultConfig {
-        applicationId "com.kopiljatornoviy.version02"
+        applicationId "com.roman.version02"
         minSdk 21
         targetSdk 34
         versionCode 20
