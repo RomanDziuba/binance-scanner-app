@@ -7,18 +7,18 @@ android {
     compileSdk 34
     defaultConfig {
         applicationId "com.roman.version999"
-        minSdk 21
+        minSdk 26
         targetSdk 34
         versionCode 20
         versionName "999"
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "RomaMonsterApp_v999-" + variant.name + ".apk"
+            outputFileName = "Компилятор_v999-" + variant.name + ".apk"
         }
     }
 }
