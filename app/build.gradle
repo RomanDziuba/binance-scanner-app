@@ -9,7 +9,7 @@ android {
         applicationId "com.roman.version123"
         minSdk 26
         targetSdk 34
-        versionCode 21
+        versionCode 22
         versionName "123"
     }
     compileOptions {
