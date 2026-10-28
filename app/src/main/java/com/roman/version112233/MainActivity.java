@@ -1439,156 +1439,38 @@ public class MainActivity extends Activity {
      * ПОЛНОЭКРАННЫЙ РЕДАКТОР С НУМЕРАЦИЕЙ СТРОК И ПОДСВЕТКОЙ ОШИБОК
      */
     private void openCodeEditorDialog() {
-        LinearLayout editorLayout = new LinearLayout(this);
-        editorLayout.setOrientation(LinearLayout.VERTICAL);
-        editorLayout.setPadding(15, 15, 15, 15);
-        editorLayout.setBackgroundColor(Color.parseColor("#090D16"));
+    LinearLayout editorLayout = new LinearLayout(this);
+    editorLayout.setOrientation(LinearLayout.VERTICAL);
+    editorLayout.setPadding(15, 15, 15, 15);
+    editorLayout.setBackgroundColor(Color.parseColor("#090D16"));
 
-        LinearLayout searchBar = new LinearLayout(this);
-        searchBar.setOrientation(LinearLayout.HORIZONTAL);
-        searchBar.setGravity(Gravity.CENTER_VERTICAL);
-        searchBar.setPadding(0, 0, 0, 10);
+    LinearLayout searchBar = new LinearLayout(this);
+    searchBar.setOrientation(LinearLayout.HORIZONTAL);
+    searchBar.setGravity(Gravity.CENTER_VERTICAL);
+    searchBar.setPadding(0, 0, 0, 10);
 
-        final EditText searchInput = new EditText(this);
-        searchInput.setHint("🔍 Поиск по коду...");
-        searchInput.setHintTextColor(Color.parseColor("#64748B"));
-        searchInput.setTextColor(Color.parseColor("#F8FAFC"));
-        searchInput.setBackgroundColor(Color.parseColor("#1E293B"));
-        searchInput.setTextSize(11f);
-        searchInput.setPadding(12, 10, 12, 10);
-        
-        LinearLayout.LayoutParams searchParams = new LinearLayout.LayoutParams(
-            0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f
-        );
-        searchInput.setLayoutParams(searchParams);
-        searchBar.addView(searchInput);
+    final EditText searchInput = new EditText(this);
+    searchInput.setHint("🔍 Поиск по коду...");
+    searchInput.setHintTextColor(Color.parseColor("#64748B"));
+    searchInput.setTextColor(Color.parseColor("#F8FAFC"));
+    searchInput.setBackgroundColor(Color.parseColor("#1E293B"));
+    searchInput.setTextSize(11f);
+    searchInput.setPadding(12, 10, 12, 10);
+    
+    LinearLayout.LayoutParams searchParams = new LinearLayout.LayoutParams(
+        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f
+    );
+    searchInput.setLayoutParams(searchParams);
+    searchBar.addView(searchInput);
 
-        final TextView searchCount = new TextView(this);
-        searchCount.setText(" 0 совпадений ");
-        searchCount.setTextColor(Color.parseColor("#38BDF8"));
-        searchCount.setTextSize(10f);
-        searchCount.setPadding(10, 0, 10, 0);
-        searchBar.addView(searchCount);
+    final TextView searchCount = new TextView(this);
+    searchCount.setText(" 0 совпадений ");
+    searchCount.setTextColor(Color.parseColor("#38BDF8"));
+    searchCount.setTextSize(10f);
+    searchCount.setPadding(10, 0, 10, 0);
+    searchBar.addView(searchCount);
 
-        editorLayout.addView(searchBar);
-
-        // Контейнер с нумерацией строк и редактором
-        LinearLayout codeBox = new LinearLayout(this);
-        codeBox.setOrientation(LinearLayout.HORIZONTAL);
-        codeBox.setBackgroundColor(Color.parseColor("#030712"));
-
-        final TextView lineNumbersText = new TextView(this);
-        lineNumbersText.setTextColor(Color.parseColor("#475569"));
-        lineNumbersText.setTextSize(11f);
-        lineNumbersText.setTypeface(Typeface.MONOSPACE);
-        lineNumbersText.setPadding(10, 12, 10, 12);
-        lineNumbersText.setGravity(Gravity.TOP | Gravity.END);
-        lineNumbersText.setBackgroundColor(Color.parseColor("#0F172A"));
-        codeBox.addView(lineNumbersText);
-
-        ScrollView editorScroll = new ScrollView(this);
-        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 1100
-        );
-        editorScroll.setLayoutParams(scrollParams);
-
-        final EditText codeInput = new EditText(this);
-        // Всегда отображаем полностью отформатированный код с актуальным пакетом!
-        updatePackageNameFromCode(activeCodeContent);
-        activeCodeContent = sanitizeAndInjectJavaCode(activeCodeContent, packageName);
-        codeInput.setText(activeCodeContent);
-        codeInput.setTextSize(11f);
-        codeInput.setTypeface(Typeface.MONOSPACE);
-        codeInput.setTextColor(Color.parseColor("#E2E8F0"));
-        codeInput.setBackgroundColor(Color.parseColor("#030712"));
-        codeInput.setPadding(12, 12, 12, 12);
-        codeInput.setGravity(Gravity.TOP);
-        
-        editorScroll.addView(codeInput);
-        codeBox.addView(editorScroll);
-        editorLayout.addView(codeBox);
-
-        // Функция обновления номеров строк и подсветки ошибок
-        final Runnable updateLinesAndErrors = () -> {
-            String text = codeInput.getText().toString();
-            String[] lines = text.split("\n", -1);
-            StringBuilder sb = new StringBuilder();
-            for (int i = 1; i <= lines.length; i++) {
-                sb.append(i).append("\n");
-            }
-            lineNumbersText.setText(sb.toString());
-
-            // Если есть ошибки из компилятора, подсвечиваем эти строки
-            if (!errorLineNumbers.isEmpty()) {
-                SpannableStringBuilder spanBuilder = new SpannableStringBuilder(text);
-                int currentPos = 0;
-                for (int i = 0; i < lines.length; i++) {
-                    int lineNum = i + 1;
-                    int lineLen = lines[i].length();
-                    if (errorLineNumbers.contains(lineNum)) {
-                        spanBuilder.setSpan(new BackgroundColorSpan(Color.parseColor("#991B1B")), currentPos, currentPos + lineLen, SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE);
-                        spanBuilder.setSpan(new ForegroundColorSpan(Color.WHITE), currentPos, currentPos + lineLen, SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE);
-                    }
-                    currentPos += lineLen + 1;
-                }
-            }
-        };
-
-        codeInput.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
-
-            @Override
-            public void afterTextChanged(Editable s) {
-                updateLinesAndErrors.run();
-                
-                String query = searchInput.getText().toString();
-                if (!query.isEmpty()) {
-                    String fullCode = s.toString();
-                    SpannableStringBuilder sb = new SpannableStringBuilder(fullCode);
-                    int count = 0;
-                    int index = fullCode.indexOf(query);
-                    while (index >= 0) {
-                        count++;
-                        sb.setSpan(new BackgroundColorSpan(Color.parseColor("#854D0E")), index, index + query.length(), SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE);
-                        index = fullCode.indexOf(query, index + query.length());
-                    }
-                    searchCount.setText(" Найдено: " + count + " ");
-                }
-            }
-        });
-
-        updateLinesAndErrors.run();
-
-        new AlertDialog.Builder(this)
-            .setTitle("📝 Редактор кода (v1.1 Pro)")
-            .setView(editorLayout)
-            .setPositiveButton("Сохранить и выгрузить", (dialog, which) -> {
-                String rawCode = codeInput.getText().toString();
-                
-                // Динамическое обновление пакета и первой строки прямо перед выгрузкой
-                updatePackageNameFromCode(rawCode);
-                activeCodeContent = sanitizeAndInjectJavaCode(rawCode, packageName);
-                saveSettings();
-
-                statusTextView.setText("Статус: ⚙️ Выгрузка на GitHub...");
-                new Thread(() -> {
-                    purgeAllOldJavaFilesFromRepository();
-                    boolean success = pushFileToGitHub(getMainActivityPath(), activeCodeContent, "Code Editor Save & Upload");
-                    handler.post(() -> {
-                        if (success) {
-                            Toast.makeText(this, "Код синхронизирован и выгружен!", Toast.LENGTH_SHORT).show();
-                            statusTextView.setText("Статус: ✅ Код обновлен на сервере!");
-                        } else {
-                            Toast.makeText(this, "Ошибка сети при выгрузке", Toast.LENGTH_SHORT).show();
-                        }
-                        updateAllButtonLabels();
-                    });
-                }).start();
-            })
-            .setNegativeButton("Отмена", null)
-            .show();
-    }
+    editorLayout.addView(searchBar);
 
     private void triggerGitHubBuild() {
         if (githubToken.isEmpty()) {
