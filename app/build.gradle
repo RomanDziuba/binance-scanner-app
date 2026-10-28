@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.clock.version001'
+    namespace 'com.roman.version001'
     compileSdk 34
     defaultConfig {
-        applicationId "com.clock.version001"
+        applicationId "com.roman.version001"
         minSdk 21
         targetSdk 34
         versionCode 11
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "КомпиляторPro_v1.0_v001-" + variant.name + ".apk"
+            outputFileName = "RomaMonsterApp_v001-" + variant.name + ".apk"
         }
     }
 }
