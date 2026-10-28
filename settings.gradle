@@ -1,2 +1,2 @@
-rootProject.name = "Новый компилятор"
-include ':app'
+rootProject.name = "RomaMonsterApp"
+include ":app"
