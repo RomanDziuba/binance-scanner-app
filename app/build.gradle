@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "ЯВА_КОМПИЛЯТОР😛_v96-" + variant.name + ".apk"
+            outputFileName = "RomaMonsterApp_v96-" + variant.name + ".apk"
         }
     }
 }
