@@ -3,22 +3,22 @@ plugins {
 }
 
 android {
-    namespace 'com.tetris.version1'
+    namespace 'com.roman.version11'
     compileSdk 34
     defaultConfig {
-        applicationId "com.tetris.version1"
-        minSdk 21
+        applicationId "com.roman.version11"
+        minSdk 26
         targetSdk 34
-        versionCode 14
-        versionName "1"
+        versionCode 4
+        versionName "11"
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "😛ТЕТРИС⭐_v1-" + variant.name + ".apk"
+            outputFileName = "Компик11_v11-" + variant.name + ".apk"
         }
     }
 }
