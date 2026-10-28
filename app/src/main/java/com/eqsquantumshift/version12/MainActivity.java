@@ -47,12 +47,11 @@ public class MainActivity extends Activity {
     private TextView[][] cellViews;
     private int[][] states;
     
-    // --- ПЕРЕМЕННЫЕ НАСТРОЙКИ АНИМАЦИЙ (ЭКСПЕРИМЕНТИРУЙТЕ ЗДЕСЬ!) ---
-    private float animRotationMax = 18f;      // Угол поворота клеток (градусы)
-    private int animRotateDuration = 1000;    // Скорость вращения (мс)
-    private int animGlowDuration = 800;       // Скорость пульсации прозрачности (мс)
+    // --- ПЕРЕМЕННЫЕ НАСТРОЙКИ АНИМАЦИЙ ---
+    private float animRotationMax = 20f;      // Максимальный угол поворота (градусы)
+    private int animSpeedMultiplier = 50;     // Скорость живой волны
     private int rgbAnimDuration = 3000;       // Скорость RGB-перелива нижней кнопки (мс)
-    private float explosionIntensity = 1.0f;  // Множитель силы тряски при взрыве
+    private float explosionIntensity = 1.0f;  // Сила тряски при взрыве
 
     // --- UI КОМПОНЕНТЫ ---
     private TextView levelTextView, scoreTextView, movesTextView, titleTextView, logoView, clockTextView, instructionView;
@@ -63,6 +62,7 @@ public class MainActivity extends Activity {
     private Handler clockHandler = new Handler(Looper.getMainLooper());
     private Runnable clockRunnable;
     private ValueAnimator rgbAnimator;
+    private ValueAnimator globalAnimLoop;     // Глобальный движок анимации сетки
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -224,6 +224,10 @@ public class MainActivity extends Activity {
         rootLayout.addView(bottomLayout);
 
         setContentView(rootLayout);
+        
+        // Запускаем глобальный непрерывный движок анимации клеток
+        startGlobalCellAnimationLoop();
+        
         loadLevel(currentLevel);
     }
 
@@ -244,6 +248,38 @@ public class MainActivity extends Activity {
         rgbAnimator.start();
     }
 
+    // --- ГЛОБАЛЬНЫЙ ДВИЖОК АНИМАЦИИ КЛЕТОК (ГАРАНТИРОВАННО РАБОТАЕТ) ---
+    private void startGlobalCellAnimationLoop() {
+        if (globalAnimLoop != null) {
+            globalAnimLoop.cancel();
+        }
+        globalAnimLoop = ValueAnimator.ofFloat(0f, 1000f);
+        globalAnimLoop.setDuration(10000);
+        globalAnimLoop.setRepeatCount(ValueAnimator.INFINITE);
+        globalAnimLoop.setInterpolator(new LinearInterpolator());
+        globalAnimLoop.addUpdateListener(animation -> {
+            float progress = (float) animation.getAnimatedValue();
+            if (cellViews != null) {
+                int rows = cellViews.length;
+                int cols = cellViews[0].length;
+                for (int i = 0; i < rows; i++) {
+                    for (int j = 0; j < cols; j++) {
+                        TextView cell = cellViews[i][j];
+                        if (cell != null) {
+                            // Плавная синусоидальная волна вращения и пульсации прозрачности
+                            float angle = (float) (Math.sin((progress + (i * 20) + (j * 20)) * 0.05f) * animRotationMax);
+                            cell.setRotation(angle);
+
+                            float alpha = 0.70f + (float) (Math.cos((progress + i + j) * 0.08f) * 0.30f);
+                            cell.setAlpha(alpha);
+                        }
+                    }
+                }
+            }
+        });
+        globalAnimLoop.start();
+    }
+
     private void showAnimationSettingsDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("🎨 Лаборатория квантовых анимаций");
@@ -253,7 +289,7 @@ public class MainActivity extends Activity {
         menuLayout.setPadding(30, 20, 30, 20);
 
         TextView descText = new TextView(this);
-        descText.setText("Изменяйте параметры в реальном времени. Эффекты применятся мгновенно!");
+        descText.setText("Изменяйте параметры в реальном времени. Эффекты применяются мгновенно!");
         descText.setTextSize(12);
         descText.setTextColor(Color.parseColor("#94A3B8"));
         descText.setPadding(0, 0, 0, 20);
@@ -262,27 +298,11 @@ public class MainActivity extends Activity {
         Button btnRot = new Button(this);
         updateRotText(btnRot);
         btnRot.setOnClickListener(v -> {
-            animRotationMax += 6f;
-            if (animRotationMax > 36f) animRotationMax = 0f; 
+            animRotationMax += 5f;
+            if (animRotationMax > 35f) animRotationMax = 5f; 
             updateRotText(btnRot);
-            buildGridUI(); 
         });
         menuLayout.addView(btnRot);
-
-        Button btnSpeed = new Button(this);
-        updateSpeedText(btnSpeed);
-        btnSpeed.setOnClickListener(v -> {
-            if (animRotateDuration > 400) {
-                animRotateDuration -= 300;
-                animGlowDuration -= 200;
-            } else {
-                animRotateDuration = 1600;
-                animGlowDuration = 1200;
-            }
-            updateSpeedText(btnSpeed);
-            buildGridUI();
-        });
-        menuLayout.addView(btnSpeed);
 
         Button btnRgb = new Button(this);
         updateRgbText(btnRgb);
@@ -313,9 +333,6 @@ public class MainActivity extends Activity {
 
     private void updateRotText(Button btn) {
         btn.setText("🌀 Амплитуда вращения: ±" + (int)animRotationMax + "°");
-    }
-    private void updateSpeedText(Button btn) {
-        btn.setText("⚡ Скорость движения: " + animRotateDuration + " мс");
     }
     private void updateRgbText(Button btn) {
         btn.setText("🌈 Скорость RGB кнопки: " + (rgbAnimDuration/1000.0) + " сек");
@@ -395,6 +412,9 @@ public class MainActivity extends Activity {
         if (rgbAnimator != null) {
             rgbAnimator.cancel();
         }
+        if (globalAnimLoop != null) {
+            globalAnimLoop.cancel();
+        }
     }
 
     private TextView createStatText(String text, String colorHex) {
@@ -407,26 +427,6 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         tv.setLayoutParams(params);
         return tv;
-    }
-
-    // --- ЖИВАЯ АНИМАЦИЯ КЛЕТОК (БЕЗ КОНФЛИКТОВ) ---
-    private void startLivingCellAnimation(final View cell) {
-        // 1. Постоянное вращение (если включено)
-        if (animRotationMax > 0f) {
-            ObjectAnimator rotateAnim = ObjectAnimator.ofFloat(cell, "rotation", -animRotationMax, animRotationMax);
-            rotateAnim.setDuration(animRotateDuration + new Random().nextInt(200));
-            rotateAnim.setRepeatMode(ValueAnimator.REVERSE);
-            rotateAnim.setRepeatCount(ValueAnimator.INFINITE);
-            rotateAnim.setInterpolator(new LinearInterpolator());
-            rotateAnim.start();
-        }
-
-        // 2. Квантовое сияние / пульсация прозрачности (alpha), не конфликтующая с кликами
-        ObjectAnimator glowAnim = ObjectAnimator.ofFloat(cell, "alpha", 0.60f, 1.0f);
-        glowAnim.setDuration(animGlowDuration + new Random().nextInt(200));
-        glowAnim.setRepeatMode(ValueAnimator.REVERSE);
-        glowAnim.setRepeatCount(ValueAnimator.INFINITE);
-        glowAnim.start();
     }
 
     private void recalculateMaxMovesFromCurrentState() {
@@ -695,7 +695,6 @@ public class MainActivity extends Activity {
                 cell.setTextSize(22);
 
                 updateCellStyle(cell, states[i][j], currentLevel);
-                startLivingCellAnimation(cell); 
 
                 cell.setOnClickListener(v -> {
                     triggerQuantumWave(row, col);
