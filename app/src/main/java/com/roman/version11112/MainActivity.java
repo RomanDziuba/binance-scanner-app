@@ -1,4 +1,4 @@
-package com.roman.version1111;
+package com.roman.version11112;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -1393,7 +1393,7 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * ГАРАНТИРОВАННО ДОПИСЫВАЕТ ПОЛНЫЙ ПАКЕТ (например, package com.roman.version1111;)
+     * ГАРАНТИРОВАННО ДОПИСЫВАЕТ ПОЛНЫЙ ПАКЕТ (например, package com.roman.version11112;)
      * ПРЯМО В НАЧАЛО КОДА В РЕДАКТОРЕ
      */
     private String sanitizeAndInjectJavaCode(String code, String pkg) {
