@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.eqsquantumshift.version1'
+    namespace 'com.tetris.version1'
     compileSdk 34
     defaultConfig {
-        applicationId "com.eqsquantumshift.version1"
+        applicationId "com.tetris.version1"
         minSdk 21
         targetSdk 34
-        versionCode 13
+        versionCode 14
         versionName "1"
     }
     compileOptions {
