@@ -1,4 +1,4 @@
-package com.clock.version001;
+package com.clock.version96;
 
 import android.app.Activity;
 import android.app.AlertDialog;
