@@ -20,6 +20,7 @@ import android.widget.Button;
 import android.widget.GridLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -32,6 +33,7 @@ import java.util.HashSet;
 
 public class MainActivity extends Activity {
 
+    // --- ИГРОВЫЕ ПЕРЕМЕННЫЕ ---
     private int currentLevel = 1;
     private int totalScore = 0;
     private int movesOnLevel = 0;
@@ -45,8 +47,18 @@ public class MainActivity extends Activity {
     private TextView[][] cellViews;
     private int[][] states;
     
+    // --- ПЕРЕМЕННЫЕ НАСТРОЙКИ АНИМАЦИЙ (ЭКСПЕРИМЕНТИРУЙТЕ ЗДЕСЬ!) ---
+    private float animRotationMax = 15f;      // Угол поворота клеток (градусы) - было 5f, сделали заметнее
+    private int animRotateDuration = 1200;    // Скорость вращения (мс) - меньше = быстрее
+    private float animBreathMin = 0.90f;      // Минимальный масштаб при "дыхании"
+    private float animBreathMax = 1.10f;      // Максимальный масштаб при "дыхании"
+    private int animBreathDuration = 900;     // Скорость "дыхания" (мс)
+    private int rgbAnimDuration = 3000;       // Скорость RGB-перелива нижней кнопки (мс)
+    private float explosionIntensity = 1.0f;  // Множитель силы тряски при взрыве
+
+    // --- UI КОМПОНЕНТЫ ---
     private TextView levelTextView, scoreTextView, movesTextView, titleTextView, logoView, clockTextView, instructionView;
-    private Button btnExit, btnHintBottom;
+    private Button btnExit, btnHintBottom, btnAnimSettings;
     private GridLayout gridLayout;
     private LinearLayout rootLayout;
     
@@ -72,10 +84,22 @@ public class MainActivity extends Activity {
         titleTextView = new TextView(this);
         titleTextView.setText("EQS: QUANTUM SHIFT");
         titleTextView.setTextColor(Color.parseColor("#38BDF8"));
-        titleTextView.setTextSize(13);
+        titleTextView.setTextSize(12);
         titleTextView.setTypeface(Typeface.DEFAULT_BOLD);
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         titleTextView.setLayoutParams(titleParams);
+
+        // Кнопка открытия МЕНЮ НАСТРОЙКИ АНИМАЦИЙ (🎨)
+        btnAnimSettings = new Button(this);
+        btnAnimSettings.setText("🎨");
+        btnAnimSettings.setTextSize(12);
+        btnAnimSettings.setPadding(8, 2, 8, 2);
+        GradientDrawable animBg = new GradientDrawable();
+        animBg.setColor(Color.parseColor("#0F282A"));
+        animBg.setCornerRadius(10f);
+        animBg.setStroke(2, Color.parseColor("#14B8A6"));
+        btnAnimSettings.setBackground(animBg);
+        btnAnimSettings.setOnClickListener(v -> showAnimationSettingsDialog());
 
         logoView = new TextView(this);
         logoView.setText("DRV");
@@ -98,24 +122,29 @@ public class MainActivity extends Activity {
         exitBg.setCornerRadius(10f);
         exitBg.setStroke(2, Color.parseColor("#E11D48"));
         btnExit.setBackground(exitBg);
-        LinearLayout.LayoutParams exitParams = new LinearLayout.LayoutParams(
+
+        LinearLayout.LayoutParams marginParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        exitParams.setMargins(6, 0, 0, 0);
-        btnExit.setLayoutParams(exitParams);
+        marginParams.setMargins(6, 0, 0, 0);
+        
+        btnAnimSettings.setLayoutParams(marginParams);
+        logoView.setLayoutParams(marginParams);
+        btnExit.setLayoutParams(marginParams);
         btnExit.setOnClickListener(v -> finishAndRemoveTask());
 
         headerLayout.addView(titleTextView);
+        headerLayout.addView(btnAnimSettings);
         headerLayout.addView(logoView);
         headerLayout.addView(btnExit);
         rootLayout.addView(headerLayout);
 
-        // --- КРЕАТИВНЫЕ КВАНТОВЫЕ ЧАСЫ (С СЕКРЕТНЫМ МЕНЮ) ---
+        // --- КВАНТОВЫЕ ЧАСЫ (Клик по часам открывает меню сложности) ---
         clockTextView = new TextView(this);
         clockTextView.setTextColor(Color.parseColor("#34D399"));
-        clockTextView.setTextSize(15);
+        clockTextView.setTextSize(14);
         clockTextView.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
         clockTextView.setGravity(Gravity.CENTER);
-        clockTextView.setPadding(12, 12, 12, 12);
+        clockTextView.setPadding(12, 10, 12, 10);
 
         GradientDrawable clockBg = new GradientDrawable();
         clockBg.setOrientation(GradientDrawable.Orientation.LEFT_RIGHT);
@@ -131,7 +160,6 @@ public class MainActivity extends Activity {
         rootLayout.addView(clockTextView);
         startClockAnimation();
         
-        // Открытие меню сложности по клику на часы
         clockTextView.setOnClickListener(v -> showSettingsMenuDialog());
 
         // --- ИНФО-ПАНЕЛЬ ---
@@ -162,7 +190,7 @@ public class MainActivity extends Activity {
         gridLayout.setLayoutParams(gridParams);
         rootLayout.addView(gridLayout);
 
-        // --- НИЖНЯЯ ПАНЕЛЬ С RGB-КНОПКОЙ ПОДСКАЗКИ И ИНСТРУКЦИЕЙ ---
+        // --- НИЖНЯЯ ПАНЕЛЬ С RGB-КНОПКОЙ ---
         LinearLayout bottomLayout = new LinearLayout(this);
         bottomLayout.setOrientation(LinearLayout.VERTICAL);
         bottomLayout.setGravity(Gravity.CENTER);
@@ -179,17 +207,7 @@ public class MainActivity extends Activity {
         hintBtnBg.setCornerRadius(14f);
         btnHintBottom.setBackground(hintBtnBg);
 
-        rgbAnimator = ValueAnimator.ofObject(new ArgbEvaluator(), 
-                Color.parseColor("#2563EB"), Color.parseColor("#9333EA"), 
-                Color.parseColor("#059669"), Color.parseColor("#D97706"), Color.parseColor("#2563EB"));
-        rgbAnimator.setDuration(3000);
-        rgbAnimator.setRepeatCount(ValueAnimator.INFINITE);
-        rgbAnimator.addUpdateListener(animator -> {
-            int color = (int) animator.getAnimatedValue();
-            hintBtnBg.setColor(color);
-            hintBtnBg.setStroke(2, Color.WHITE);
-        });
-        rgbAnimator.start();
+        initRgbAnimator(hintBtnBg);
 
         LinearLayout.LayoutParams hintBtnParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -199,9 +217,9 @@ public class MainActivity extends Activity {
         bottomLayout.addView(btnHintBottom);
 
         instructionView = new TextView(this);
-        instructionView.setText("📖 Нажми на КВАНТОВЫЕ ЧАСЫ сверху для настройки лимита ходов!");
+        instructionView.setText("📖 Нажми 🎨 сверху для настройки анимаций, а часы — для лимита ходов!");
         instructionView.setTextColor(Color.parseColor("#64748B"));
-        instructionView.setTextSize(10);
+        instructionView.setTextSize(9);
         instructionView.setGravity(Gravity.CENTER);
         bottomLayout.addView(instructionView);
 
@@ -211,12 +229,167 @@ public class MainActivity extends Activity {
         loadLevel(currentLevel);
     }
 
+    // --- ИНИЦИАЛИЗАЦИЯ И ПЕРЕЗАПУСК RGB АНИМАЦИИ КНОПКИ ---
+    private void initRgbAnimator(GradientDrawable hintBtnBg) {
+        if (rgbAnimator != null) {
+            rgbAnimator.cancel();
+        }
+        rgbAnimator = ValueAnimator.ofObject(new ArgbEvaluator(), 
+                Color.parseColor("#2563EB"), Color.parseColor("#9333EA"), 
+                Color.parseColor("#059669"), Color.parseColor("#D97706"), Color.parseColor("#2563EB"));
+        rgbAnimator.setDuration(rgbAnimDuration); // Используем настраиваемую скорость
+        rgbAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        rgbAnimator.addUpdateListener(animator -> {
+            int color = (int) animator.getAnimatedValue();
+            hintBtnBg.setColor(color);
+            hintBtnBg.setStroke(2, Color.WHITE);
+        });
+        rgbAnimator.start();
+    }
+
+    // --- 🎨 МЕНЮ НАСТРОЙКИ АНИМАЦИЙ (НОВОЕ!) ---
+    private void showAnimationSettingsDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("🎨 Лаборатория анимаций и эффектов");
+
+        LinearLayout menuLayout = new LinearLayout(this);
+        menuLayout.setOrientation(LinearLayout.VERTICAL);
+        menuLayout.setPadding(30, 20, 30, 20);
+
+        TextView descText = new TextView(this);
+        descText.setText("Экспериментируйте со скоростью и амплитудой живых клеток и эффектов в реальном времени!");
+        descText.setTextSize(12);
+        descText.setTextColor(Color.parseColor("#94A3B8"));
+        descText.setPadding(0, 0, 0, 20);
+        menuLayout.addView(descText);
+
+        // 1. Управление углом вращения клеток
+        Button btnRot = new Button(this);
+        updateRotText(btnRot);
+        btnRot.setOnClickListener(v -> {
+            animRotationMax += 5f;
+            if (animRotationMax > 35f) animRotationMax = 0f; // сброс / цикл
+            updateRotText(btnRot);
+            buildGridUI(); // Пересоздаем сетку с новыми анимациями
+        });
+        menuLayout.addView(btnRot);
+
+        // 2. Управление скоростью вращения/дыхания
+        Button btnSpeed = new Button(this);
+        updateSpeedText(btnSpeed);
+        btnSpeed.setOnClickListener(v -> {
+            if (animRotateDuration > 500) {
+                animRotateDuration -= 300;
+                animBreathDuration -= 200;
+            } else {
+                animRotateDuration = 2000;
+                animBreathDuration = 1500;
+            }
+            updateSpeedText(btnSpeed);
+            buildGridUI();
+        });
+        menuLayout.addView(btnSpeed);
+
+        // 3. Управление RGB скоростью кнопки
+        Button btnRgb = new Button(this);
+        updateRgbText(btnRgb);
+        btnRgb.setOnClickListener(v -> {
+            rgbAnimDuration -= 1000;
+            if (rgbAnimDuration < 1000) rgbAnimDuration = 5000;
+            updateRgbText(btnRgb);
+            // Перезапуск RGB аниматора кнопки
+            GradientDrawable hintBtnBg = (GradientDrawable) btnHintBottom.getBackground();
+            initRgbAnimator(hintBtnBg);
+        });
+        menuLayout.addView(btnRgb);
+
+        // 4. Управление силой взрыва
+        Button btnExp = new Button(this);
+        updateExpText(btnExp);
+        btnExp.setOnClickListener(v -> {
+            explosionIntensity += 0.5f;
+            if (explosionIntensity > 3.0f) explosionIntensity = 0.5f;
+            updateExpText(btnExp);
+        });
+        menuLayout.addView(btnExp);
+
+        builder.setView(menuLayout);
+        builder.setPositiveButton("Применить и закрыть 🚀", (dialog, which) -> {
+            Toast.makeText(this, "Анимации обновлены!", Toast.LENGTH_SHORT).show();
+        });
+        builder.show();
+    }
+
+    private void updateRotText(Button btn) {
+        btn.setText("🌀 Угол поворота клеток: ±" + (int)animRotationMax + "°");
+    }
+    private void updateSpeedText(Button btn) {
+        btn.setText("⚡ Скорость анимации: " + animRotateDuration + " мс");
+    }
+    private void updateRgbText(Button btn) {
+        btn.setText("🌈 Скорость RGB кнопки: " + (rgbAnimDuration/1000.0) + " сек");
+    }
+    private void updateExpText(Button btn) {
+        btn.setText("💥 Сила тряски взрыва: " + explosionIntensity + "x");
+    }
+
+    // --- СЕКРЕТНОЕ МЕНЮ СЛОЖНОСТИ (ПО КЛИКУ НА ЧАСЫ) ---
+    private void showSettingsMenuDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("⚙️ Настройка лимита ходов");
+        
+        LinearLayout menuLayout = new LinearLayout(this);
+        menuLayout.setOrientation(LinearLayout.VERTICAL);
+        menuLayout.setPadding(40, 20, 40, 20);
+
+        TextView infoText = new TextView(this);
+        infoText.setText("Коэффициент лимита ходов: " + difficultyMultiplier + "x\nФормула: Мин. ходы комбинации * Коэффициент");
+        infoText.setTextSize(13);
+        infoText.setPadding(0, 0, 0, 30);
+        menuLayout.addView(infoText);
+
+        LinearLayout rowButtons = new LinearLayout(this);
+        rowButtons.setOrientation(LinearLayout.HORIZONTAL);
+        rowButtons.setGravity(Gravity.CENTER);
+
+        Button btnMinus = new Button(this);
+        btnMinus.setText("➖ Проще");
+        btnMinus.setOnClickListener(v -> {
+            if (difficultyMultiplier > 1.0) {
+                difficultyMultiplier = Math.round((difficultyMultiplier - 0.2) * 10.0) / 10.0;
+                infoText.setText("Коэффициент лимита ходов: " + difficultyMultiplier + "x\nФормула: Мин. ходы комбинации * Коэффициент");
+                recalculateMaxMovesFromCurrentState();
+            }
+        });
+
+        Button btnPlus = new Button(this);
+        btnPlus.setText("➕ Сложнее");
+        btnPlus.setOnClickListener(v -> {
+            if (difficultyMultiplier < 5.0) {
+                difficultyMultiplier = Math.round((difficultyMultiplier + 0.2) * 10.0) / 10.0;
+                infoText.setText("Коэффициент лимита ходов: " + difficultyMultiplier + "x\nФормула: Мин. ходы комбинации * Коэффициент");
+                recalculateMaxMovesFromCurrentState();
+            }
+        });
+
+        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        btnMinus.setLayoutParams(btnParams);
+        btnPlus.setLayoutParams(btnParams);
+        rowButtons.addView(btnMinus);
+        rowButtons.addView(btnPlus);
+        menuLayout.addView(rowButtons);
+
+        builder.setView(menuLayout);
+        builder.setPositiveButton("Готово 🔐", null);
+        builder.show();
+    }
+
     private void startClockAnimation() {
         clockRunnable = new Runnable() {
             @Override
             public void run() {
                 String timeOnly = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
-                clockTextView.setText("💠 [ " + timeOnly + " ] 💠\n⚙️ КВАНТОВОЕ МЕНЮ СЛОЖНОСТИ");
+                clockTextView.setText("💠 [ " + timeOnly + " ] 💠\n⚙️ НАСТРОЙКА ХОДОВ");
                 clockHandler.postDelayed(this, 1000);
             }
         };
@@ -246,54 +419,32 @@ public class MainActivity extends Activity {
         return tv;
     }
 
-    private void showSettingsMenuDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("⚙️ Настройка квантового ядра");
+    // --- 🧬 ЖИВАЯ АНИМАЦИЯ КЛЕТОК (ИСПРАВЛЕНО И НАСТРАИВАЕМОЕ) ---
+    private void startLivingCellAnimation(final View cell) {
+        // Если угол равен 0, отключаем вращение
+        if (animRotationMax > 0f) {
+            ObjectAnimator rotateAnim = ObjectAnimator.ofFloat(cell, "rotation", -animRotationMax, animRotationMax);
+            rotateAnim.setDuration(animRotateDuration + new Random().nextInt(300));
+            rotateAnim.setRepeatMode(ValueAnimator.REVERSE);
+            rotateAnim.setRepeatCount(ValueAnimator.INFINITE);
+            rotateAnim.setInterpolator(new LinearInterpolator());
+            rotateAnim.start();
+        }
+
+        // Постоянный эффект "дыхания" (пульсация масштаба)
+        ObjectAnimator scaleX = ObjectAnimator.ofFloat(cell, "scaleX", animBreathMin, animBreathMax);
+        scaleX.setDuration(animBreathDuration + new Random().nextInt(200));
+        scaleX.setRepeatMode(ValueAnimator.REVERSE);
+        scaleX.setRepeatCount(ValueAnimator.INFINITE);
         
-        LinearLayout menuLayout = new LinearLayout(this);
-        menuLayout.setOrientation(LinearLayout.VERTICAL);
-        menuLayout.setPadding(40, 20, 40, 20);
+        ObjectAnimator scaleY = ObjectAnimator.ofFloat(cell, "scaleY", animBreathMin, animBreathMax);
+        scaleY.setDuration(animBreathDuration + new Random().nextInt(200));
+        scaleY.setRepeatMode(ValueAnimator.REVERSE);
+        scaleY.setRepeatCount(ValueAnimator.INFINITE);
 
-        TextView infoText = new TextView(this);
-        infoText.setText("Коэффициент лимита ходов: " + difficultyMultiplier + "x\nФормула: Мин. ходы комбинации * Коэффициент");
-        infoText.setTextSize(14);
-        infoText.setPadding(0, 0, 0, 30);
-        menuLayout.addView(infoText);
-
-        LinearLayout rowButtons = new LinearLayout(this);
-        rowButtons.setOrientation(LinearLayout.HORIZONTAL);
-        rowButtons.setGravity(Gravity.CENTER);
-
-        Button btnMinus = new Button(this);
-        btnMinus.setText("➖ Снизить (Проще)");
-        btnMinus.setOnClickListener(v -> {
-            if (difficultyMultiplier > 1.0) {
-                difficultyMultiplier = Math.round((difficultyMultiplier - 0.2) * 10.0) / 10.0;
-                infoText.setText("Коэффициент лимита ходов: " + difficultyMultiplier + "x\nФормула: Мин. ходы комбинации * Коэффициент");
-                recalculateMaxMovesFromCurrentState();
-            }
-        });
-
-        Button btnPlus = new Button(this);
-        btnPlus.setText("➕ Повысить (Сложнее)");
-        btnPlus.setOnClickListener(v -> {
-            if (difficultyMultiplier < 5.0) {
-                difficultyMultiplier = Math.round((difficultyMultiplier + 0.2) * 10.0) / 10.0;
-                infoText.setText("Коэффициент лимита ходов: " + difficultyMultiplier + "x\nФормула: Мин. ходы комбинации * Коэффициент");
-                recalculateMaxMovesFromCurrentState();
-            }
-        });
-
-        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        btnMinus.setLayoutParams(btnParams);
-        btnPlus.setLayoutParams(btnParams);
-        rowButtons.addView(btnMinus);
-        rowButtons.addView(btnPlus);
-        menuLayout.addView(rowButtons);
-
-        builder.setView(menuLayout);
-        builder.setPositiveButton("Применить 🔐", null);
-        builder.show();
+        AnimatorSet breathingSet = new AnimatorSet();
+        breathingSet.playTogether(scaleX, scaleY);
+        breathingSet.start();
     }
 
     private void recalculateMaxMovesFromCurrentState() {
@@ -356,7 +507,6 @@ public class MainActivity extends Activity {
 
         while (!queue.isEmpty()) {
             Node curr = queue.poll();
-
             int depthLimit = (gridRows >= 5) ? 3 : 5;
             if (curr.stepsFromStart >= depthLimit) continue;
 
@@ -411,7 +561,6 @@ public class MainActivity extends Activity {
 
         while (!q.isEmpty()) {
             SearchNode curr = q.poll();
-            
             int depthLimit = (gridRows >= 5) ? 4 : 6;
             if (curr.steps >= depthLimit) break; 
 
@@ -436,7 +585,7 @@ public class MainActivity extends Activity {
     private void updateHintButtonText() {
         int rem = countRemainingMovesToVictory();
         if (rem > 0) {
-            btnHintBottom.setText("💡 КВАНТОВЫЙ ХОД (ДО ПОБЕДЫ: " + rem + " ХОД.)");
+            btnHintBottom.setText("💡 ХОД (ДО ПОБЕДЫ: " + rem + " ШАГ.)");
         } else {
             btnHintBottom.setText("💡 СДЕЛАТЬ ОПТИМАЛЬНЫЙ КВАНТОВЫЙ ХОД");
         }
@@ -561,10 +710,10 @@ public class MainActivity extends Activity {
                 params.setMargins(4, 4, 4, 4);
                 cell.setLayoutParams(params);
                 cell.setGravity(Gravity.CENTER);
-                cell.setTextSize(24);
+                cell.setTextSize(22);
 
                 updateCellStyle(cell, states[i][j], currentLevel);
-                startLivingCellAnimation(cell);
+                startLivingCellAnimation(cell); // Запускаем живую анимацию с настройками
 
                 cell.setOnClickListener(v -> {
                     triggerQuantumWave(row, col);
@@ -589,15 +738,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void startLivingCellAnimation(final View cell) {
-        ObjectAnimator rotateAnim = ObjectAnimator.ofFloat(cell, "rotation", -5f, 5f);
-        rotateAnim.setDuration(1500 + new Random().nextInt(500));
-        rotateAnim.setRepeatMode(ValueAnimator.REVERSE);
-        rotateAnim.setRepeatCount(ValueAnimator.INFINITE);
-        rotateAnim.setInterpolator(new LinearInterpolator());
-        rotateAnim.start();
-    }
-
     private void triggerQuantumWave(int r, int c) {
         toggleState(r, c);
         if (r > 0) toggleState(r - 1, c);
@@ -618,14 +758,15 @@ public class MainActivity extends Activity {
         animateCellFancy(cellViews[r][c], states[r][c], currentLevel);
     }
 
+    // Анимация при клике на клетку (пружинистый отскок)
     private void animateCellFancy(TextView cell, int newState, int level) {
-        ObjectAnimator scaleX = ObjectAnimator.ofFloat(cell, "scaleX", 0.9f, 1.1f, 1.0f);
-        ObjectAnimator scaleY = ObjectAnimator.ofFloat(cell, "scaleY", 0.9f, 1.1f, 1.0f);
+        ObjectAnimator scaleX = ObjectAnimator.ofFloat(cell, "scaleX", 0.85f, 1.15f, 1.0f);
+        ObjectAnimator scaleY = ObjectAnimator.ofFloat(cell, "scaleY", 0.85f, 1.15f, 1.0f);
 
         AnimatorSet animatorSet = new AnimatorSet();
         animatorSet.playTogether(scaleX, scaleY);
-        animatorSet.setDuration(250); 
-        animatorSet.setInterpolator(new OvershootInterpolator(1.1f));
+        animatorSet.setDuration(300); 
+        animatorSet.setInterpolator(new OvershootInterpolator(1.3f));
         animatorSet.start();
 
         updateCellStyle(cell, newState, level);
@@ -736,18 +877,10 @@ public class MainActivity extends Activity {
         cell.setTextColor(Color.WHITE);
     }
 
-    private boolean checkVictoryCondition() {
-        int firstState = states[0][0];
-        for (int i = 0; i < gridRows; i++) {
-            for (int j = 0; j < gridCols; j++) {
-                if (states[i][j] != firstState) return false;
-            }
-        }
-        return true;
-    }
-
+    // Визуальный взрыв с учетом настраиваемой интенсивности
     private void triggerVisualExplosion() {
-        ObjectAnimator shake = ObjectAnimator.ofFloat(gridLayout, "translationX", 0f, 40f, -40f, 30f, -30f, 15f, -15f, 0f);
+        float shakeDist = 40f * explosionIntensity;
+        ObjectAnimator shake = ObjectAnimator.ofFloat(gridLayout, "translationX", 0f, shakeDist, -shakeDist, shakeDist*0.75f, -shakeDist*0.75f, shakeDist*0.4f, -shakeDist*0.4f, 0f);
         shake.setDuration(1000);
 
         ValueAnimator colorAnim = ValueAnimator.ofObject(new ArgbEvaluator(), 
