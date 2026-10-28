@@ -1,2 +1,2 @@
-rootProject.name = "kompiljator"
-include ":app"
+rootProject.name = "персонаж"
+include ':app'
