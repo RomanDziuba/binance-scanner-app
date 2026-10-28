@@ -38,7 +38,7 @@ public class MainActivity extends Activity {
     private static final int PICK_IMAGE_REQUEST = 101;
     
     private KimView kimView;
-    private TextView statusTextView, clockTextView, pathTextView;
+    private TextView statusTextView, clockTextView;
     private File storageDir;
     
     private Handler animHandler = new Handler(Looper.getMainLooper());
@@ -154,22 +154,19 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         statusTextView.setLayoutParams(statusParams);
-        rootLayout.addWidget = statusTextView; // standard addView below
-        rootLayout.addView(statusTextView);
+        rootLayout.addView(statusTextView); // Ошибочная строка addWidget удалена
 
         setContentView(rootLayout);
         startGlobalAnimationLoop();
     }
 
-    // --- ОТКРЫТИЕ СИСТЕМНОГО ДИСПЛЕЯ ВЫБОРА ФАЙЛОВ ---
     private void openFileSelector() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("image/*"); // Любые изображения (JPG, PNG, WEBP и т.д.)
+        intent.setType("image/*");
         startActivityForResult(intent, PICK_IMAGE_REQUEST);
     }
 
-    // --- ОБРАБОТКА ВЫБРАННОГО ФОТО И КОНВЕРТАЦИЯ В PNG ---
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -177,24 +174,19 @@ public class MainActivity extends Activity {
             Uri uri = data.getData();
             if (uri != null) {
                 try {
-                    // Читаем выбранный файл как Bitmap
                     InputStream inputStream = getContentResolver().openInputStream(uri);
                     Bitmap selectedBitmap = BitmapFactory.decodeStream(inputStream);
                     if (inputStream != null) inputStream.close();
 
                     if (selectedBitmap != null) {
-                        // Сохраняем строго как PNG в нашу папку KimAssets/kim.png
                         File outputFile = new File(storageDir, "kim.png");
                         FileOutputStream fos = new FileOutputStream(outputFile);
-                        
-                        // Конвертация в PNG (даже если исходник был JPG)
                         selectedBitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
                         fos.flush();
                         fos.close();
 
-                        // Перезагружаем изображение в виджете
                         kimView.reloadImage();
-                        Toast.makeText(this, "Фото успешно загружено и конвертировано в PNG!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Фото загружено и конвертировано в PNG!", Toast.LENGTH_SHORT).show();
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -242,9 +234,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // ==========================================
-    // ВИДЖЕТ РЕНДЕРИНГА И АНИМАЦИИ КИМ
-    // ==========================================
     private class KimView extends View {
         private Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private Bitmap kimBitmap;
@@ -335,7 +324,6 @@ public class MainActivity extends Activity {
                 RectF destRect = new RectF(left, top, left + destWidth, top + destHeight);
                 canvas.drawBitmap(kimBitmap, null, destRect, paint);
                 
-                // Анимация открывающегося рта поверх фото
                 float cx = width / 2f;
                 float mouthY = top + 0.185f * destHeight;
 
@@ -356,7 +344,6 @@ public class MainActivity extends Activity {
                 }
                 
             } else {
-                // Подсказка, если файл еще не выбран
                 paint.setColor(Color.parseColor("#38BDF8"));
                 paint.setTextSize(24f);
                 paint.setTypeface(Typeface.DEFAULT_BOLD);
