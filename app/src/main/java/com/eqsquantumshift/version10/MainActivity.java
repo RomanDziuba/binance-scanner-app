@@ -216,8 +216,7 @@ public class MainActivity extends Activity {
             @Override
             public void run() {
                 String timeOnly = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
-                clockTextView.setText("💠 [ " + timeOnly + " ] 💠
-⚙️ КВАНТОВОЕ МЕНЮ СЛОЖНОСТИ");
+                clockTextView.setText("💠 [ " + timeOnly + " ] 💠\n⚙️ КВАНТОВОЕ МЕНЮ СЛОЖНОСТИ");
                 clockHandler.postDelayed(this, 1000);
             }
         };
@@ -256,8 +255,7 @@ public class MainActivity extends Activity {
         menuLayout.setPadding(40, 20, 40, 20);
 
         TextView infoText = new TextView(this);
-        infoText.setText("Коэффициент лимита ходов: " + difficultyMultiplier + "x
-Формула: Мин. ходы комбинации * Коэффициент");
+        infoText.setText("Коэффициент лимита ходов: " + difficultyMultiplier + "x\nФормула: Мин. ходы комбинации * Коэффициент");
         infoText.setTextSize(14);
         infoText.setPadding(0, 0, 0, 30);
         menuLayout.addView(infoText);
@@ -271,8 +269,7 @@ public class MainActivity extends Activity {
         btnMinus.setOnClickListener(v -> {
             if (difficultyMultiplier > 1.0) {
                 difficultyMultiplier = Math.round((difficultyMultiplier - 0.2) * 10.0) / 10.0;
-                infoText.setText("Коэффициент лимита ходов: " + difficultyMultiplier + "x
-Формула: Мин. ходы комбинации * Коэффициент");
+                infoText.setText("Коэффициент лимита ходов: " + difficultyMultiplier + "x\nФормула: Мин. ходы комбинации * Коэффициент");
                 recalculateMaxMovesFromCurrentState();
             }
         });
@@ -282,8 +279,7 @@ public class MainActivity extends Activity {
         btnPlus.setOnClickListener(v -> {
             if (difficultyMultiplier < 5.0) {
                 difficultyMultiplier = Math.round((difficultyMultiplier + 0.2) * 10.0) / 10.0;
-                infoText.setText("Коэффициент лимита ходов: " + difficultyMultiplier + "x
-Формула: Мин. ходы комбинации * Коэффициент");
+                infoText.setText("Коэффициент лимита ходов: " + difficultyMultiplier + "x\nФормула: Мин. ходы комбинации * Коэффициент");
                 recalculateMaxMovesFromCurrentState();
             }
         });
@@ -518,11 +514,9 @@ public class MainActivity extends Activity {
 
         initQuantumField();
 
-        // ТОЧНЫЙ ХОД: Истинное количество необходимых минимальных шагов под созданную комбинацию
         int exactMinMoves = countRemainingMovesToVictory();
         if (exactMinMoves <= 0) exactMinMoves = 3;
         
-        // Лимит ходов формируется умножением точного значения на настраиваемый коэффициент
         maxAllowedMoves = (int) Math.ceil(exactMinMoves * difficultyMultiplier);
 
         levelTextView.setText("УР: " + level + "/6");
@@ -576,7 +570,6 @@ public class MainActivity extends Activity {
                     triggerQuantumWave(row, col);
                     movesOnLevel++;
                     
-                    // Каждый следующий ход пересчитывает стратегию на лету по текущей комбинации
                     recalculateMaxMovesFromCurrentState();
                     updateHintButtonText();
 
@@ -596,7 +589,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // ИСПРАВЛЕНО: Клетки больше НЕ ДРОЖАТ снаружи. Внутри квадрата символы плавно покачиваются/вращаются.
     private void startLivingCellAnimation(final View cell) {
         ObjectAnimator rotateAnim = ObjectAnimator.ofFloat(cell, "rotation", -5f, 5f);
         rotateAnim.setDuration(1500 + new Random().nextInt(500));
@@ -778,9 +770,7 @@ public class MainActivity extends Activity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setCancelable(false);
         builder.setTitle("💥 КРАХ ЯДРА! ПЕРЕГРУЗКА!");
-        builder.setMessage("Лимит ходов исчерпан. Квантовая матрица взорвалась!
-
-Хочешь возобновить игру и попробовать снова?");
+        builder.setMessage("Лимит ходов исчерпан. Квантовая матрица взорвалась!\n\nХочешь возобновить игру и попробовать снова?");
         builder.setPositiveButton("ВОЗОБНОВИТЬ ИГРУ 🔄", (dialog, which) -> loadLevel(currentLevel));
         builder.setNegativeButton("Выход ❌", (dialog, which) -> finishAndRemoveTask());
         builder.show();
@@ -796,18 +786,14 @@ public class MainActivity extends Activity {
 
         if (currentLevel < 6) {
             builder.setTitle("⚡ СЕКТОР " + currentLevel + " СТАБИЛИЗИРОВАН!");
-            builder.setMessage("Уровень пройден за " + movesOnLevel + " ходов.
-Набрано очков: +" + levelBonus + "
-
-Переходим в следующий квантовый сектор?");
+            builder.setMessage("Уровень пройден за " + movesOnLevel + " ходов.\nНабрано очков: +" + levelBonus + "\n\nПереходим в следующий квантовый сектор?");
             builder.setPositiveButton("Следующий сектор 🚀", (dialog, which) -> {
                 currentLevel++;
                 loadLevel(currentLevel);
             });
         } else {
             builder.setTitle("🏆 ЯДРО ПОЛНОСТЬЮ СКОМПИЛИРОВАНО!");
-            builder.setMessage("ЛЕГЕНДАРНО! Все 6 уровней пройдены.
-Итоговый счет: " + totalScore + " очков.");
+            builder.setMessage("ЛЕГЕНДАРНО! Все 6 уровней пройдены.\nИтоговый счет: " + totalScore + " очков.");
             builder.setPositiveButton("Пройти заново 🔄", (dialog, which) -> {
                 currentLevel = 1;
                 totalScore = 0;
