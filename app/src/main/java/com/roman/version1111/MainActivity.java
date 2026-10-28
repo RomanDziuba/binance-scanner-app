@@ -1,4 +1,4 @@
-package com.roman.version321;
+package com.roman.version1111;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -1395,7 +1395,7 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * СТРОГОЕ ОБНОВЛЕНИЕ ПЕРВОЙ СТРОКИ: ВСЕГДА ВПИСЫВАЕТ ПОЛНЫЙ ПАКЕТ (package com.roman.version321;)
+     * СТРОГОЕ ОБНОВЛЕНИЕ ПЕРВОЙ СТРОКИ: ВСЕГДА ВПИСЫВАЕТ ПОЛНЫЙ ПАКЕТ (package com.roman.version1111;)
      */
     private String sanitizeAndInjectJavaCode(String code, String pkg) {
         if (code != null) {
