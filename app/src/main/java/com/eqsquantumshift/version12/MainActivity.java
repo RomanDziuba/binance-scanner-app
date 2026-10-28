@@ -49,7 +49,6 @@ public class MainActivity extends Activity {
     
     // --- ПЕРЕМЕННЫЕ НАСТРОЙКИ АНИМАЦИЙ ---
     private float animRotationMax = 20f;      // Максимальный угол поворота (градусы)
-    private int animSpeedMultiplier = 50;     // Скорость живой волны
     private int rgbAnimDuration = 3000;       // Скорость RGB-перелива нижней кнопки (мс)
     private float explosionIntensity = 1.0f;  // Сила тряски при взрыве
 
@@ -61,8 +60,13 @@ public class MainActivity extends Activity {
     
     private Handler clockHandler = new Handler(Looper.getMainLooper());
     private Runnable clockRunnable;
+    
+    // Надежный Handler-движок для живой анимации клеток (как у часов!)
+    private Handler gridAnimHandler = new Handler(Looper.getMainLooper());
+    private Runnable gridAnimRunnable;
+    private long animStartTime = System.currentTimeMillis();
+
     private ValueAnimator rgbAnimator;
-    private ValueAnimator globalAnimLoop;     // Глобальный движок анимации сетки
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -225,8 +229,8 @@ public class MainActivity extends Activity {
 
         setContentView(rootLayout);
         
-        // Запускаем глобальный непрерывный движок анимации клеток
-        startGlobalCellAnimationLoop();
+        // Запускаем живой Handler-аниматор клеток (30 кадров в секунду)
+        startHandlerCellAnimationLoop();
         
         loadLevel(currentLevel);
     }
@@ -248,36 +252,38 @@ public class MainActivity extends Activity {
         rgbAnimator.start();
     }
 
-    // --- ГЛОБАЛЬНЫЙ ДВИЖОК АНИМАЦИИ КЛЕТОК (ГАРАНТИРОВАННО РАБОТАЕТ) ---
-    private void startGlobalCellAnimationLoop() {
-        if (globalAnimLoop != null) {
-            globalAnimLoop.cancel();
-        }
-        globalAnimLoop = ValueAnimator.ofFloat(0f, 1000f);
-        globalAnimLoop.setDuration(10000);
-        globalAnimLoop.setRepeatCount(ValueAnimator.INFINITE);
-        globalAnimLoop.setInterpolator(new LinearInterpolator());
-        globalAnimLoop.addUpdateListener(animation -> {
-            float progress = (float) animation.getAnimatedValue();
-            if (cellViews != null) {
-                int rows = cellViews.length;
-                int cols = cellViews[0].length;
-                for (int i = 0; i < rows; i++) {
-                    for (int j = 0; j < cols; j++) {
-                        TextView cell = cellViews[i][j];
-                        if (cell != null) {
-                            // Плавная синусоидальная волна вращения и пульсации прозрачности
-                            float angle = (float) (Math.sin((progress + (i * 20) + (j * 20)) * 0.05f) * animRotationMax);
-                            cell.setRotation(angle);
+    // --- СВЕРХНАДЕЖНЫЙ HANDLER-ЦИКЛ АНИМАЦИИ КЛЕТОК (ГАРАНТИРОВАННО РАБОТАЕТ) ---
+    private void startHandlerCellAnimationLoop() {
+        animStartTime = System.currentTimeMillis();
+        gridAnimRunnable = new Runnable() {
+            @Override
+            public void run() {
+                long elapsed = System.currentTimeMillis() - animStartTime;
+                float progress = elapsed * 0.05f; // скорость волны
 
-                            float alpha = 0.70f + (float) (Math.cos((progress + i + j) * 0.08f) * 0.30f);
-                            cell.setAlpha(alpha);
+                if (cellViews != null) {
+                    int rows = cellViews.length;
+                    int cols = cellViews[0].length;
+                    for (int i = 0; i < rows; i++) {
+                        for (int j = 0; j < cols; j++) {
+                            TextView cell = cellViews[i][j];
+                            if (cell != null) {
+                                // Плавный синусоидальный поворот каждой клетки
+                                float angle = (float) (Math.sin((progress + (i * 30) + (j * 30)) * 0.05f) * animRotationMax);
+                                cell.setRotation(angle);
+
+                                // Плавная пульсация прозрачности (эффект сияния)
+                                float alpha = 0.70f + (float) (Math.cos((progress + (i * 20) + (j * 20)) * 0.07f) * 0.30f);
+                                cell.setAlpha(alpha);
+                            }
                         }
                     }
                 }
+                // Вызываем следующий кадр примерно через 33 миллисекунды (~30 FPS)
+                gridAnimHandler.postDelayed(this, 33);
             }
-        });
-        globalAnimLoop.start();
+        };
+        gridAnimHandler.post(gridAnimRunnable);
     }
 
     private void showAnimationSettingsDialog() {
@@ -409,11 +415,11 @@ public class MainActivity extends Activity {
         if (clockHandler != null && clockRunnable != null) {
             clockHandler.removeCallbacks(clockRunnable);
         }
+        if (gridAnimHandler != null && gridAnimRunnable != null) {
+            gridAnimHandler.removeCallbacks(gridAnimRunnable);
+        }
         if (rgbAnimator != null) {
             rgbAnimator.cancel();
-        }
-        if (globalAnimLoop != null) {
-            globalAnimLoop.cancel();
         }
     }
 
