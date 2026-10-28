@@ -9,7 +9,7 @@ android {
         applicationId "com.clock.version96"
         minSdk 21
         targetSdk 34
-        versionCode 7
+        versionCode 8
         versionName "96"
     }
     compileOptions {
