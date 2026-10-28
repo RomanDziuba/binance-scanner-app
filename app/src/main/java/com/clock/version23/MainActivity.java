@@ -42,7 +42,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * 🚀 MONSTER COMPILER CI/CD ENGINE v9.4 PRO
+ * 🚀 MONSTER COMPILER CI/CD ENGINE v9.5 PRO (Zero-Waste Engine)
  * Полный профессиональный компилятор Android APK через GitHub Actions и Telegram Bot.
  * Автор: Dziuba Roman
  */
@@ -132,7 +132,7 @@ public class MainActivity extends Activity {
 
         // Заголовок авторства
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v9.4 Pro ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v9.5 Pro ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -158,7 +158,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🚀 Android Monster Compiler (Pro Engine v9.4)");
+        titleView.setText("🚀 Android Monster Compiler (Pro Engine v9.5)");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -192,12 +192,12 @@ public class MainActivity extends Activity {
         btnBuild.setOnClickListener(v -> triggerGitHubBuild());
         card.addView(btnBuild);
 
-        // 2. Версия (динамическое отображение текущей версии)
+        // 2. Версия
         btnVersion = createStyledButton("", "#334155");
         btnVersion.setOnClickListener(v -> showEditVersionDialog());
         card.addView(btnVersion);
 
-        // 3. Имя (используется только для имени APK в Telegram)
+        // 3. Имя (для APK в Telegram)
         btnTitle = createStyledButton("", "#334155");
         btnTitle.setOnClickListener(v -> showEditTitleDialog());
         card.addView(btnTitle);
@@ -289,7 +289,7 @@ public class MainActivity extends Activity {
         setContentView(rootLayout);
 
         updateAllButtonLabels();
-        logEditText.setText("=== 🚀 MONSTER COMPILER PRO V9.4 ЗАПУЩЕН ===\n" +
+        logEditText.setText("=== 🚀 MONSTER COMPILER PRO V9.5 ЗАПУЩЕН ===\n" +
                             "• Имя для Telegram APK: " + telegramApkTitle + "\n" +
                             "• Пакет: " + packageName + "\n" +
                             "• Версия: " + appVersion + " (Code: " + versionCode + ")\n" +
@@ -300,9 +300,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    /**
-     * Создание стилизованной темно-контрастной кнопки без белого фона
-     */
     private Button createStyledButton(String text, String colorHex) {
         Button btn = new Button(this);
         btn.setText(text);
@@ -337,10 +334,6 @@ public class MainActivity extends Activity {
         return "🚀 Скомпилировать APK\n📦 " + telegramApkTitle + " (v" + appVersion + ")";
     }
 
-    /**
-     * Извлечение второго элемента пути из кода (первая строка/пакет),
-     * а третий элемент формируется из версии со словом version (например com/clock/version001)
-     */
     private void updatePackageNameFromCode(String code) {
         String secondElement = "clock";
         if (code != null) {
@@ -472,9 +465,6 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    /**
-     * Полноэкранный браузер репозитория GitHub в едином окне с мгновенным закрытием
-     */
     private void openRepositoryFileManager() {
         if (githubToken.isEmpty()) {
             Toast.makeText(this, "⚠️ Введите GitHub Token в настройках!", Toast.LENGTH_LONG).show();
@@ -531,7 +521,6 @@ public class MainActivity extends Activity {
         dialogLayout.setPadding(15, 15, 15, 15);
         dialogLayout.setBackgroundColor(Color.parseColor("#090D16"));
 
-        // 1. Кнопка "Шаг назад" расположена ВЫШЕ ВСЕХ кнопок
         Button btnStepBack = createStyledButton("⬆️ Шаг назад", "#334155");
         dialogLayout.addView(btnStepBack);
 
@@ -552,11 +541,9 @@ public class MainActivity extends Activity {
         Button btnUploadHere = createStyledButton("➕ Загрузить файл в текущую папку", "#0F766E");
         dialogLayout.addView(btnUploadHere);
 
-        // Кнопка очистки репозитория в безопасном месте с подтверждением
         Button btnCleanRepoManager = createStyledButton("🗑 Полная очистка репозитория", "#991B1B");
         dialogLayout.addView(btnCleanRepoManager);
 
-        // Кнопка закрытия менеджера репозитория — полностью закрывает менеджер без шагов назад
         Button btnCloseManager = createStyledButton("🚪 Закрыть менеджер репозитория", "#475569");
         dialogLayout.addView(btnCloseManager);
 
@@ -911,8 +898,8 @@ public class MainActivity extends Activity {
 
     private void performCleanAndPushNewFile(String rawCode, String fileName) {
         ProgressDialog progressDialog = new ProgressDialog(this);
-        progressDialog.setTitle("🧹 Зачистка и синхронизация");
-        progressDialog.setMessage("Удаление старых веток/файлов и заливка нового шаблона...");
+        progressDialog.setTitle("🧹 Авто-зачистка хвостов");
+        progressDialog.setMessage("Удаление всех старых папок версий и загрузка нового файла...");
         progressDialog.setCancelable(false);
         progressDialog.show();
 
@@ -925,7 +912,8 @@ public class MainActivity extends Activity {
 
         new Thread(() -> {
             try {
-                deleteOldProjectPaths();
+                // ДИНАМИЧЕСКИЙ СБОРЩИК МУСОРА: вычищает все старые версии из репо
+                performDeepRecursiveClean();
 
                 boolean success = false;
                 int attempts = 0;
@@ -951,18 +939,17 @@ public class MainActivity extends Activity {
                     progressDialog.dismiss();
                     if (isSuccess) {
                         if (btnRetryUpload != null) btnRetryUpload.setVisibility(View.GONE);
-                        Toast.makeText(this, "Старые файлы очищены, новый проект загружен!", Toast.LENGTH_SHORT).show();
-                        statusTextView.setText("Статус: ✅ Новый проект готов к компиляции!");
-                        logEditText.setText("=== 🧹 ЗАЧИСТКА И ЗАГРУЗКА УСПЕШНА ===\n" +
-                                            "• Файл: " + fileName + "\n" +
-                                            "• Новый путь пакета: " + targetPath + "\n" +
-                                            "• Версия: " + appVersion + "\n" +
-                                            "• Попыток: " + finalAttempts);
+                        Toast.makeText(this, "Старые версии удалены, проект синхронизирован!", Toast.LENGTH_SHORT).show();
+                        statusTextView.setText("Статус: ✅ Проект чист, готов к компиляции!");
+                        logEditText.setText("=== 🧹 ГЛУБОКАЯ ЗАЧИСТКА УСПЕШНА ===\n" +
+                                            "• Все старые хвосты версий удалены!\n" +
+                                            "• Активный путь: " + targetPath + "\n" +
+                                            "• Версия: " + appVersion);
                     } else {
                         lastFailedBytes = uploadBytes;
                         lastFailedPath = targetPath;
                         if (btnRetryUpload != null) btnRetryUpload.setVisibility(View.VISIBLE);
-                        statusTextView.setText("Статус: ❌ Ошибка сети при зачистке/отправке");
+                        statusTextView.setText("Статус: ❌ Ошибка сети при зачистке");
                     }
                     updateAllButtonLabels();
                 });
@@ -975,12 +962,38 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    private void deleteOldProjectPaths() {
+    /**
+     * Динамическое сканирование дерева Git и удаление всех старых MainActivity.java
+     */
+    private void performDeepRecursiveClean() {
         try {
-            deleteGitHubFile("app/src/main/java/com/app/app/MainActivity.java", "Clean old path");
-            deleteGitHubFile("app/src/main/java/com/monster/clock/MainActivity.java", "Clean old path");
-            deleteGitHubFile("app/src/main/java/com/roma/monster/MainActivity.java", "Clean old path");
-            deleteGitHubFile("app/src/main/java/com/clock/version001/MainActivity.java", "Clean old path");
+            String treeUrl = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/git/trees/main?recursive=1";
+            URL url = new URL(treeUrl);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Authorization", "Bearer " + githubToken);
+            conn.setRequestProperty("Accept", "application/vnd.github+json");
+
+            if (conn.getResponseCode() == 200) {
+                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                JSONObject json = new JSONObject(sb.toString());
+                JSONArray tree = json.optJSONArray("tree");
+                if (tree != null) {
+                    String currentActivePath = getMainActivityPath();
+                    for (int i = 0; i < tree.length(); i++) {
+                        JSONObject obj = tree.getJSONObject(i);
+                        String path = obj.optString("path");
+                        String type = obj.optString("type");
+                        // Если это файл MainActivity.java и он НЕ равен текущему активному пути — удаляем!
+                        if ("blob".equals(type) && path.endsWith("MainActivity.java") && !path.equals(currentActivePath)) {
+                            deleteGitHubFile(path, "Auto-clean old version tail: " + path);
+                        }
+                    }
+                }
+            }
         } catch (Exception ignored) {}
     }
 
@@ -1732,9 +1745,6 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    /**
-     * Метод полной очистки репозитория под корень
-     */
     private void performFullRepositoryCleanAndReset() {
         if (githubToken.isEmpty()) {
             Toast.makeText(this, "⚠️ Введите GitHub Token в настройках!", Toast.LENGTH_LONG).show();
@@ -1747,14 +1757,15 @@ public class MainActivity extends Activity {
 
         new Thread(() -> {
             try {
+                // Полная глубокая зачистка перед сбросом
+                performDeepRecursiveClean();
+
                 activeCodeContent = generateClockTemplate();
                 currentJavaFileName = "Шаблон: Часы с фонариком и яркостью";
                 telegramApkTitle = "MonsterClock";
                 appVersion = "001";
                 versionCode = 1;
                 saveSettings();
-
-                deleteOldProjectPaths();
 
                 boolean synced = pushFileToGitHub("build.gradle", getRootGradleContent(), "Clean & Reset root gradle") &&
                                  pushFileToGitHub("settings.gradle", getSettingsGradleContent(), "Clean & Reset settings") &&
@@ -1769,7 +1780,7 @@ public class MainActivity extends Activity {
                     if (synced) {
                         statusTextView.setText("Статус: ✅ Репозиторий очищен под корень!");
                         Toast.makeText(MainActivity.this, "Репозиторий полностью очищен!", Toast.LENGTH_LONG).show();
-                        logEditText.setText("=== 🗑 ПОЛНАЯ ОЧИСТКА И СБРОС КЭША УСПЕШНЫ ===\n• Лишние папки удалены.\n• Восстановлена базовая структура и шаблон.");
+                        logEditText.setText("=== 🗑 ПОЛНАЯ ОЧИСТКА И СБРОС КЭША УСПЕШНЫ ===\n• Все старые хвосты версий удалены.\n• Восстановлена базовая структура и шаблон.");
                     } else {
                         statusTextView.setText("Статус: ❌ Ошибка очистки репозитория");
                         Toast.makeText(MainActivity.this, "Ошибка при очистке", Toast.LENGTH_SHORT).show();
@@ -1813,15 +1824,14 @@ public class MainActivity extends Activity {
                 if (cleanVer.isEmpty()) cleanVer = "001";
                 
                 appVersion = cleanVer;
-                
-                deleteOldProjectPaths();
                 saveSettings();
 
                 new Thread(() -> {
+                    performDeepRecursiveClean();
                     pushFileToGitHub(getMainActivityPath(), activeCodeContent, "Migrate project to new version branch: " + appVersion);
                 }).start();
 
-                Toast.makeText(this, "Версия обновлена, проект перемещен на ветку версии " + appVersion + "!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Версия обновлена, старые хвосты удалены!", Toast.LENGTH_SHORT).show();
                 logEditText.setText("=== 🔢 ВЕРСИЯ И ПУТЬ ОБНОВЛЕНЫ ===\n• Новая версия: " + appVersion + "\n• Новый путь: " + getMainActivityPath());
                 updateAllButtonLabels();
             })
