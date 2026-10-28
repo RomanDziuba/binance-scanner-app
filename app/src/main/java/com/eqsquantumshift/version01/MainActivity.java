@@ -161,9 +161,10 @@ public class MainActivity extends Activity {
     }
 
     private void openFileSelector() {
+        // Прямой и универсальный вызов выбора файлов без громоздких оберток
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("image/*");
-        startActivityForResult(Intent.createChooser(intent, "Выберите фото Ким"), PICK_IMAGE_REQUEST);
+        startActivityForResult(intent, PICK_IMAGE_REQUEST);
     }
 
     @Override
