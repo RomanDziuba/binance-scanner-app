@@ -9,7 +9,7 @@ android {
         applicationId "com.roman.version02333"
         minSdk 26
         targetSdk 34
-        versionCode 5
+        versionCode 6
         versionName "02333"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "персонаж_v02333-" + variant.name + ".apk"
+            outputFileName = "компиляция_v02333-" + variant.name + ".apk"
         }
     }
 }
