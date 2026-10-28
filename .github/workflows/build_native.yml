@@ -13,7 +13,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Setup Android SDK
+      - name: Setup Android SDK (Native Bash)
         run: |
           export ANDROID_HOME=/usr/local/lib/android/sdk
           export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
@@ -27,11 +27,11 @@ jobs:
       - name: Build APK
         run: |
           gradle clean assembleDebug --info --stacktrace --no-daemon
-      - name: Send Named APK to Telegram
+      - name: Send Named APK and Java Code Duplicate to Telegram
         if: success()
         run: |
           RAW_APK=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
-          TARGET_NAME="kompiljator_v02333"
+          TARGET_NAME="персонаж_v02333"
           FINAL_APK="${TARGET_NAME}.apk"
           TXT_PATH="${TARGET_NAME}.java.txt"
           cp "$RAW_APK" "$FINAL_APK"
