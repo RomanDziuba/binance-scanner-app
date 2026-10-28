@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.eqsquantumshift.version01'
+    namespace 'com.roman.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.eqsquantumshift.version01"
+        applicationId "com.roman.version01"
         minSdk 26
         targetSdk 34
         versionCode 18
