@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.eqsquantumshift.version14'
+    namespace 'com.personag.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.eqsquantumshift.version14"
+        applicationId "com.personag.version01"
         minSdk 21
         targetSdk 34
-        versionCode 3
-        versionName "14"
+        versionCode 4
+        versionName "01"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "RomaMonsterApp_v14-" + variant.name + ".apk"
+            outputFileName = "персонаж_v01-" + variant.name + ".apk"
         }
     }
 }
