@@ -9,7 +9,7 @@ android {
         applicationId "com.monstercompiler.version01"
         minSdk 21
         targetSdk 34
-        versionCode 17
+        versionCode 18
         versionName "01"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "арктек_v01-" + variant.name + ".apk"
+            outputFileName = "MonsterCompilerPro_v01-" + variant.name + ".apk"
         }
     }
 }
