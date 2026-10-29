@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.compilerultra.version03'
+    namespace 'com.arcteq.version03'
     compileSdk 34
     defaultConfig {
-        applicationId "com.compilerultra.version03"
+        applicationId "com.arcteq.version03"
         minSdk 21
         targetSdk 34
         versionCode 10
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "KOMPILEL_ULTRA_ENGINE_v03-" + variant.name + ".apk"
+            outputFileName = "ARCTEQ1_v03-" + variant.name + ".apk"
         }
     }
 }
