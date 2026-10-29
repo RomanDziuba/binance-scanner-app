@@ -9,7 +9,7 @@ android {
         applicationId "com.arcteq.version01"
         minSdk 21
         targetSdk 34
-        versionCode 18
+        versionCode 19
         versionName "01"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "RomaMonsterApp_v01-" + variant.name + ".apk"
+            outputFileName = "арктек_v01-" + variant.name + ".apk"
         }
     }
 }
