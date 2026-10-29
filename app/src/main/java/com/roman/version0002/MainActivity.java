@@ -45,8 +45,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * 🚀 MONSTER COMPILER CI/CD ENGINE v1.2 ULTRA AI DOCTOR
- * (Live Package Injector, Smart Purge, Deep Log Diagnostics & Automatic AI Doctor)
+ * 🚀 MONSTER COMPILER CI/CD ENGINE v1.2.1 ULTRA AI DOCTOR
+ * (Original Package Transliteration Restored, Live Package Injector, Smart Purge & Deep Log Diagnostics)
  * Автор: Dziuba Roman
  */
 public class MainActivity extends Activity {
@@ -131,7 +131,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v1.2 Ultra ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v1.2.1 Ultra ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -156,7 +156,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🚀 Android Monster Compiler (Ultra Engine v1.2)");
+        titleView.setText("🚀 Android Monster Compiler (Ultra Engine v1.2.1)");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -273,7 +273,7 @@ public class MainActivity extends Activity {
         setContentView(rootLayout);
 
         updateAllButtonLabels();
-        logEditText.setText("=== 🚀 MONSTER COMPILER PRO V1.2 ULTRA ЗАПУЩЕН ===\n" +
+        logEditText.setText("=== 🚀 MONSTER COMPILER PRO V1.2.1 ЗАПУЩЕН ===\n" +
                             "• Имя для Telegram APK: " + telegramApkTitle + "\n" +
                             "• Пакет: " + packageName + "\n" +
                             "• Версия: " + appVersion + " (Code: " + versionCode + ")\n" +
@@ -319,10 +319,11 @@ public class MainActivity extends Activity {
         return "🚀 Скомпилировать APK\n📦 " + telegramApkTitle + " (v" + appVersion + ")";
     }
 
+    /**
+     * ОРИГИНАЛЬНАЯ ЛОГИКА ИЗВЛЕЧЕНИЯ И ТРАНСЛИТЕРАЦИИ ИМЕНИ ПАКЕТА ИЗ КОДА
+     */
     private String extractAndCleanPackageFromCode(String code) {
         if (code == null || code.isEmpty()) return "roman";
-        
-        code = sanitizeAndInjectJavaCode(code, "com.roman.temp");
         
         String[] lines = code.split("\n");
         String targetLine = "";
@@ -1639,10 +1640,6 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    /**
-     * РАСШИРЕННЫЙ АВТОМАТИЧЕСКИЙ AI-ДОКТОР (v1.2 ULTRA): 
-     * МАКСИМАЛЬНОЕ РАСПОЗНАВАНИЕ ОШИБОК + ИНТЕРАКТИВНЫЙ ДИАЛОГ С ЛОГАМИ И КНОПКАМИ КОПИРОВАНИЯ/ЛЕЧЕНИЯ
-     */
     private void fetchLogsAsync(long runId) {
         new Thread(() -> {
             try {
@@ -1674,7 +1671,6 @@ public class MainActivity extends Activity {
                             boolean repaired = false;
                             StringBuilder report = new StringBuilder("=== 🎓 AI-ПРОФЕССОР: ПОЛНЫЙ ДИАГНОСТИЧЕСКИЙ ОТЧЕТ ===\n\n");
 
-                            // 1. Поиск текстовых блоков / несогласованной версии Java
                             if (lastErrorLog.contains("text blocks are not supported in -source 8") || lastErrorLog.contains("feature is not supported in -source")) {
                                 report.append("• 🧬 Проблема: Код использует текстовые блоки \"\"\" или функции выше Java 8.\n");
                                 javaVersion = "17";
@@ -1684,7 +1680,6 @@ public class MainActivity extends Activity {
                                 report.append("  ➜ 🛠 Авто-Патч: Версия проекта переключена на Java 17 / SDK 26!\n");
                             }
 
-                            // 2. Очистка от BOM, невидимых символов и неверных управляющих байтов
                             if (lastErrorLog.contains("illegal character") || lastErrorLog.contains("\ufeff") || lastErrorLog.contains("\uFEFF") || fixedCode.contains("\uFEFF")) {
                                 report.append("• 🧬 Проблема: Обнаружены запрещенные невидимые символы (BOM, Control Chars) или неверный слэш \\.\n");
                                 fixedCode = sanitizeAndInjectJavaCode(fixedCode, packageName);
@@ -1692,7 +1687,6 @@ public class MainActivity extends Activity {
                                 report.append("  ➜ 🛠 Авто-Патч: Код полностью очищен от BOM, слэшей и скрытого мусора!\n");
                             }
 
-                            // 3. Исправление незакрытых строк и кавычек
                             if (lastErrorLog.contains("unclosed string literal") || lastErrorLog.contains("not a statement")) {
                                 report.append("• 🧬 Проблема: Незакрытые строковые литералы или битые кавычки в коде.\n");
                                 fixedCode = sanitizeAndInjectJavaCode(fixedCode, packageName);
@@ -1700,7 +1694,6 @@ public class MainActivity extends Activity {
                                 report.append("  ➜ 🛠 Авто-Патч: Нормализованы строковые экраны и кавычки.\n");
                             }
 
-                            // 4. Импорты WebView
                             if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("WebView") || lastErrorLog.contains("WebSettings"))) {
                                 report.append("• 🧬 Проблема: Отсутствуют импорты компонентов WebView.\n");
                                 if (!fixedCode.contains("import android.webkit.WebView;")) {
@@ -1710,7 +1703,6 @@ public class MainActivity extends Activity {
                                 }
                             }
 
-                            // 5. Импорты AppCompatActivity
                             if (lastErrorLog.contains("AppCompatActivity") || lastErrorLog.contains("cannot find symbol class AppCompatActivity")) {
                                 report.append("• 🧬 Проблема: Класс расширяет AppCompatActivity без импорта.\n");
                                 if (!fixedCode.contains("import androidx.appcompat.app.AppCompatActivity;")) {
@@ -1720,7 +1712,6 @@ public class MainActivity extends Activity {
                                 }
                             }
 
-                            // 6. Импорты коллекций, регулярных выражений и IO
                             if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("List") || lastErrorLog.contains("Pattern") || lastErrorLog.contains("Matcher") || lastErrorLog.contains("InputStream"))) {
                                 report.append("• 🧬 Проблема: Отсутствуют базовые импорты утилит Java (List, Pattern, IO).\n");
                                 if (!fixedCode.contains("import java.util.*;")) {
@@ -1730,7 +1721,6 @@ public class MainActivity extends Activity {
                                 }
                             }
 
-                            // Выжимка ключевых строк ошибок из сырого лога
                             report.append("\n📋 ВЫЖИМКА ОШИБОК КОМПИЛЯТОРА С GITHUB:\n");
                             String[] logLines = lastErrorLog.split("\n");
                             int count = 0;
@@ -1756,9 +1746,6 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    /**
-     * ПОЛНОЦЕННОЕ ДИАГНОСТИЧЕСКОЕ ОКНО AI-ПРОФЕССОРА С ПОЛЬНЫМИ ЛОГАМИ И КНОПКАМИ
-     */
     private void showAIDoctorDiagnosticsDialog(String reportText, String fixedCode, boolean isRepaired) {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
