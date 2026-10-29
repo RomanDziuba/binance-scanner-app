@@ -42,7 +42,7 @@ jobs:
         run: |
           APK_PATH=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
           if [ -n "$APK_PATH" ]; then
-            APP_TITLE="RomaClockApp"
+            APP_TITLE="Compiler"
             RENAMED_PATH="/tmp/$APP_TITLE.apk"
             cp "$APK_PATH" "$RENAMED_PATH"
             curl -F chat_id="1434233986" -F document=@"$RENAMED_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
