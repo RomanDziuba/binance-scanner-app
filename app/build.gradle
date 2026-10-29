@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.arcteq.version01'
+    namespace 'com.roman.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.arcteq.version01"
+        applicationId "com.roman.version01"
         minSdk 21
         targetSdk 34
         versionCode 9
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "ARCTEQ_v01-" + variant.name + ".apk"
+            outputFileName = "RomaMonsterApp_v01-" + variant.name + ".apk"
         }
     }
 }
