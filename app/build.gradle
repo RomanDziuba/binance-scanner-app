@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version121'
+    namespace 'com.roman.version001'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version121"
+        applicationId "com.roman.version001"
         minSdk 21
         targetSdk 34
-        versionCode 15
-        versionName "121"
+        versionCode 1
+        versionName "001"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "KOMPILEL_ULTRA_ENGINE_v121-" + variant.name + ".apk"
+            outputFileName = "MonsterClock_v001-" + variant.name + ".apk"
         }
     }
 }
