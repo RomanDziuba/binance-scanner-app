@@ -3,22 +3,22 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version10'
+    namespace 'com.roman.version001'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version10"
-        minSdk 21
+        applicationId "com.roman.version001"
+        minSdk 26
         targetSdk 34
-        versionCode 4
-        versionName "1.0"
+        versionCode 1
+        versionName "001"
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "ARCTEQ_v1.0-" + variant.name + ".apk"
+            outputFileName = "MonsterClock_v001-" + variant.name + ".apk"
         }
     }
 }
