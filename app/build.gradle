@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version003'
+    namespace 'com.compilernovij.version003'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version003"
+        applicationId "com.compilernovij.version003"
         minSdk 21
         targetSdk 34
-        versionCode 5
+        versionCode 7
         versionName "003"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "Compiler3_v003-" + variant.name + ".apk"
+            outputFileName = "ARCTEQ_v003-" + variant.name + ".apk"
         }
     }
 }
