@@ -1,2 +1,2 @@
-rootProject.name = "ARCTEQ"
+rootProject.name = "CompilerProEnginev002"
 include ':app'
