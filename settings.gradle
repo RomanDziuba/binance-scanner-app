@@ -1,2 +1,2 @@
-rootProject.name = "KOMPILEL_ULTRA_ENGINE"
+rootProject.name = "MonsterClock"
 include ':app'
