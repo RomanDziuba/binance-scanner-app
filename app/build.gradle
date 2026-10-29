@@ -9,7 +9,7 @@ android {
         applicationId "com.roman.version13"
         minSdk 21
         targetSdk 34
-        versionCode 2
+        versionCode 3
         versionName "13"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "MonsterClock_v13-" + variant.name + ".apk"
+            outputFileName = "compiler1.3ultraPro_v13-" + variant.name + ".apk"
         }
     }
 }
