@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.compilernovij.version003'
+    namespace 'com.roman.version003'
     compileSdk 34
     defaultConfig {
-        applicationId "com.compilernovij.version003"
+        applicationId "com.roman.version003"
         minSdk 21
         targetSdk 34
         versionCode 8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "Compiler3_v003-" + variant.name + ".apk"
+            outputFileName = "MonsterClock_v003-" + variant.name + ".apk"
         }
     }
 }
