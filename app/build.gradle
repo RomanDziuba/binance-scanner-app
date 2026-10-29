@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.arcteq.version04'
+    namespace 'com.roman.version121'
     compileSdk 34
     defaultConfig {
-        applicationId "com.arcteq.version04"
+        applicationId "com.roman.version121"
         minSdk 21
         targetSdk 34
-        versionCode 14
-        versionName "04"
+        versionCode 15
+        versionName "121"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "RomaMonsterApp_v04-" + variant.name + ".apk"
+            outputFileName = "KOMPILEL_ULTRA_ENGINE_v121-" + variant.name + ".apk"
         }
     }
 }
