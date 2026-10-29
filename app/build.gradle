@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "Compiler3_v003-" + variant.name + ".apk"
+            outputFileName = "ARCTEQ_v003-" + variant.name + ".apk"
         }
     }
 }
