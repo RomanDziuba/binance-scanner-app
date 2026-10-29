@@ -1,2 +1,2 @@
-rootProject.name = "Compiler"
+rootProject.name = "Compiler3"
 include ':app'
