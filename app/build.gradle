@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version10101010'
+    namespace 'com.roman.version1010101010'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version10101010"
+        applicationId "com.roman.version1010101010"
         minSdk 21
         targetSdk 34
         versionCode 13
-        versionName "10101010"
+        versionName "1010101010"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "Компилятор пробный_v10101010-" + variant.name + ".apk"
+            outputFileName = "RomaMonsterApp_v1010101010-" + variant.name + ".apk"
         }
     }
 }
