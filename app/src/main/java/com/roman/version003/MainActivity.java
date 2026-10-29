@@ -1,4 +1,4 @@
-package com.roman.version11;
+package com.roman.version003;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -332,7 +332,7 @@ public class MainActivity extends Activity {
         if (code == null || code.isEmpty()) return "roman";
         
         // Strict Sanitization of invisible characters and BOM
-        code = code.replace("﻿", "").replace("﻿", "").replace("​", "").replace(" ", " ");
+        code = code.replace("", "").replace("", "").replace("​", "").replace(" ", " ");
         code = code.replace("
 ", "
 ").trim();
@@ -1456,7 +1456,7 @@ public class MainActivity extends Activity {
 
 ");
 
-            if (rawLogs.contains("illegal character: '\ufeff'") || rawLogs.contains("﻿") || fixedCode.contains("﻿")) {
+            if (rawLogs.contains("illegal character: '\ufeff'") || rawLogs.contains("") || fixedCode.contains("")) {
                 report.append("• 🧬 Проблема: Обнаружен скрытый символ BOM (\ufeff) в первой строке файла.
 ");
                 fixedCode = sanitizeAndInjectJavaCode(fixedCode, packageName);
@@ -1581,14 +1581,14 @@ import java.util.regex.*;");
 
     /**
      * АБСОЛЮТНАЯ ЧИСТОТА КОДА И ЗАЩИТА ОТ МУСОРА (SANITIZER):
-     * Жестко и автоматически вычищает BOM (﻿, ﻿), все невидимые символы нулевой ширины (​),
-     * неразрывные пробелы ( ) и управляющие символы.
+     * Жестко и автоматически вычищает BOM (, ), все невидимые символы нулевой ширины (​),
+     * неразрывные пробелы ( ) и управляющие символы.
      */
     private String sanitizeAndInjectJavaCode(String code, String pkg) {
         if (code == null) code = "";
         
         // Тотальная зачистка BOM, нулевой ширины, неразрывных пробелов
-        code = code.replace("﻿", "").replace("﻿", "").replace("​", "").replace(" ", " ");
+        code = code.replace("", "").replace("", "").replace("​", "").replace(" ", " ");
         code = code.replace("
 ", "
 ").replace("
