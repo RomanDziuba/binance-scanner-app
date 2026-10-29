@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version02333'
+    namespace 'com.arcteq.version02333'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version02333"
+        applicationId "com.arcteq.version02333"
         minSdk 26
         targetSdk 34
         versionCode 6
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "компиляция_v02333-" + variant.name + ".apk"
+            outputFileName = "Новый компилятор_v02333-" + variant.name + ".apk"
         }
     }
 }
