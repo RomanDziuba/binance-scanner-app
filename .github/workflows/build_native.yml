@@ -31,7 +31,7 @@ jobs:
         if: success()
         run: |
           RAW_APK=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
-          TARGET_NAME="RomaMonsterApp_v1010101010"
+          TARGET_NAME="пробный2_v1010101010"
           FINAL_APK="${TARGET_NAME}.apk"
           TXT_PATH="${TARGET_NAME}.java.txt"
           cp "$RAW_APK" "$FINAL_APK"
