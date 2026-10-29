@@ -7,18 +7,18 @@ android {
     compileSdk 34
     defaultConfig {
         applicationId "com.arcteq.version001"
-        minSdk 26
+        minSdk 21
         targetSdk 34
-        versionCode 7
+        versionCode 8
         versionName "001"
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "Новый компилятор_v001-" + variant.name + ".apk"
+            outputFileName = "ARCTEQ_v001-" + variant.name + ".apk"
         }
     }
 }
