@@ -1,5 +1,6 @@
 package com.personage.version01;
 
+import android.content.Context;
 import android.app.Activity;
 import android.os.Bundle;
 import android.os.Handler;
@@ -267,7 +268,7 @@ public class MainActivity extends Activity {
             isTalking = true;
             
             if (toneGen != null) {
-                toneGen.startTone(android.media.ToneGenerator.TONE_PROP_BEEP_BEEP, 300);
+                toneGen.startTone(android.media.ToneGenerator.TONE_PROP_BEEP, 300);
             }
             
             java.util.Random random = new java.util.Random();
