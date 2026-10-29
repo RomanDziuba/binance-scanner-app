@@ -45,7 +45,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * 🚀 MONSTER COMPILER CI/CD ENGINE v1.3 ULTRA PRO
+ * 🚀 MONSTER COMPILER CI/CD ENGINE v1.0 ULTRA PRO
  * (Smart Package Builder, Safe Clipboard, Advanced Editor Search & AI Doctor)
  * Автор: Dziuba Roman
  */
@@ -131,7 +131,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v1.3 Ultra ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v1.0 Ultra ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -156,7 +156,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🚀 Android Monster Compiler (Ultra Engine v1.3)");
+        titleView.setText("🚀 Android Monster Compiler (Ultra Engine v1.0)");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -268,7 +268,7 @@ public class MainActivity extends Activity {
         setContentView(rootLayout);
 
         updateAllButtonLabels();
-        logEditText.setText("=== 🚀 MONSTER COMPILER PRO V1.3 ULTRA ЗАПУЩЕН ===\n" +
+        logEditText.setText("=== 🚀 MONSTER COMPILER PRO V1.0 ULTRA ЗАПУЩЕН ===\n" +
                             "• Имя для Telegram APK: " + telegramApkTitle + "\n" +
                             "• Пакет: " + packageName + "\n" +
                             "• Версия: " + appVersion + " (Code: " + versionCode + ")\n" +
