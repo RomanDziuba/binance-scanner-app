@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version13'
+    namespace 'com.eqsquantumshift.version14'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version13"
+        applicationId "com.eqsquantumshift.version14"
         minSdk 21
         targetSdk 34
         versionCode 3
-        versionName "13"
+        versionName "14"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "compiler1.3ultraPro_v13-" + variant.name + ".apk"
+            outputFileName = "RomaMonsterApp_v14-" + variant.name + ".apk"
         }
     }
 }
