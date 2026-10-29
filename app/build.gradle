@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.arcteq.version01'
+    namespace 'com.personage.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.arcteq.version01"
+        applicationId "com.personage.version01"
         minSdk 21
         targetSdk 34
-        versionCode 19
+        versionCode 20
         versionName "01"
     }
     compileOptions {
