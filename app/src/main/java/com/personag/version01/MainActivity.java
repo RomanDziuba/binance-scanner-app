@@ -1,5 +1,9 @@
 package com.personag.version01;
 
+import java.util.*;
+import java.util.regex.*;
+import java.io.*;
+
 import android.app.Activity;
 import android.os.Bundle;
 import android.os.Handler;
