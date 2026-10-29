@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.javaapk.version01'
+    namespace 'com.roman.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.javaapk.version01"
+        applicationId "com.roman.version01"
         minSdk 21
         targetSdk 34
         versionCode 9
