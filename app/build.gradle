@@ -9,7 +9,7 @@ android {
         applicationId "com.compilernovij.version003"
         minSdk 21
         targetSdk 34
-        versionCode 7
+        versionCode 8
         versionName "003"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "ARCTEQ_v003-" + variant.name + ".apk"
+            outputFileName = "Compiler3_v003-" + variant.name + ".apk"
         }
     }
 }
