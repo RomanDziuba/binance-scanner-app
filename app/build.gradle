@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version0002'
+    namespace 'com.arcteq.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version0002"
+        applicationId "com.arcteq.version01"
         minSdk 21
         targetSdk 34
-        versionCode 7
-        versionName "0002"
+        versionCode 8
+        versionName "01"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "CompilerProEnginev002_v0002-" + variant.name + ".apk"
+            outputFileName = "ARCTEQ_v01-" + variant.name + ".apk"
         }
     }
 }
