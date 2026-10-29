@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version1010101010'
+    namespace 'com.arcteq.version1010101010'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version1010101010"
+        applicationId "com.arcteq.version1010101010"
         minSdk 21
         targetSdk 34
         versionCode 14
