@@ -9,7 +9,7 @@ android {
         applicationId "com.roman.version1010101010"
         minSdk 21
         targetSdk 34
-        versionCode 13
+        versionCode 14
         versionName "1010101010"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "RomaMonsterApp_v1010101010-" + variant.name + ".apk"
+            outputFileName = "пробный2_v1010101010-" + variant.name + ".apk"
         }
     }
 }
