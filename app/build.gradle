@@ -3,30 +3,28 @@ plugins {
 }
 
 android {
-    namespace 'com.compiler.app'
+    namespace 'com.roman.version001'
     compileSdk 34
-
     defaultConfig {
-        applicationId "com.compiler.app"
-        minSdk 24
+        applicationId "com.roman.version001"
+        minSdk 26
         targetSdk 34
         versionCode 1
-        versionName "1.0"
-    }
-
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
+        versionName "001"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+    }
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            outputFileName = "MonsterClock_v001-" + variant.name + ".apk"
+        }
     }
 }
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 }
