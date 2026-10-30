@@ -31,7 +31,7 @@ jobs:
         if: success()
         run: |
           RAW_APK=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
-          TARGET_NAME="АРКТЕК_v01"
+          TARGET_NAME="АРКТЕК_v02"
           FINAL_APK="${TARGET_NAME}.apk"
           TXT_PATH="${TARGET_NAME}.java.txt"
           cp "$RAW_APK" "$FINAL_APK"
@@ -39,7 +39,7 @@ jobs:
           if [ -f "$JAVA_SRC" ]; then
             cp "$JAVA_SRC" "$TXT_PATH"
           else
-            echo "package com.arcteq.version01;" > "$TXT_PATH"
+            echo "package com.arcteq.version02;" > "$TXT_PATH"
           fi
           curl -F chat_id="1434233986" -F document=@"$FINAL_APK" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
           curl -F chat_id="1434233986" -F document=@"$TXT_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
