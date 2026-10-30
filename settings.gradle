@@ -1,2 +1,2 @@
-rootProject.name = "ARCTEQ3"
+rootProject.name = "ARCTEQ"
 include ':app'
