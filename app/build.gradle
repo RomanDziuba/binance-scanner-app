@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.personage.version01'
+    namespace 'com.roma.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.personage.version01"
+        applicationId "com.roma.version01"
         minSdk 21
         targetSdk 34
         versionCode 21
