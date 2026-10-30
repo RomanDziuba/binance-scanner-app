@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.kompas.version01'
+    namespace 'com.arcteq.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.kompas.version01"
+        applicationId "com.arcteq.version01"
         minSdk 21
         targetSdk 34
         versionCode 22
