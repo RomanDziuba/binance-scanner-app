@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.roma.version01'
+    namespace 'com.kompas.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roma.version01"
+        applicationId "com.kompas.version01"
         minSdk 21
         targetSdk 34
-        versionCode 21
+        versionCode 22
         versionName "01"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "арктек_v01-" + variant.name + ".apk"
+            outputFileName = "КОМПАС_v01-" + variant.name + ".apk"
         }
     }
 }
