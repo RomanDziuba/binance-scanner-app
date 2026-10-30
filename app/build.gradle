@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.arcteq.version02'
+    namespace 'com.arcteq.version03'
     compileSdk 34
     defaultConfig {
-        applicationId "com.arcteq.version02"
+        applicationId "com.arcteq.version03"
         minSdk 21
         targetSdk 34
-        versionCode 24
-        versionName "02"
+        versionCode 25
+        versionName "03"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "АРКТЕК_v02-" + variant.name + ".apk"
+            outputFileName = "ARCTEQ3_v03-" + variant.name + ".apk"
         }
     }
 }
