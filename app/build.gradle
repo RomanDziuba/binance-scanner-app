@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.arcteq.version04'
+    namespace 'com.binance.version05'
     compileSdk 34
     defaultConfig {
-        applicationId "com.arcteq.version04"
+        applicationId "com.binance.version05"
         minSdk 21
         targetSdk 34
         versionCode 31
-        versionName "04"
+        versionName "05"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "ARCTEQ_v04-" + variant.name + ".apk"
+            outputFileName = "ARCTEQ_v05-" + variant.name + ".apk"
         }
     }
 }
