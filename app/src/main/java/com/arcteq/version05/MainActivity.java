@@ -155,7 +155,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onError(String message) {
-                runOnUiThread(() -> Toast.makeText(BinanceScannerCompleteApp.this, "Data Error: " + message, Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Data Error: " + message, Toast.LENGTH_SHORT).show());
             }
 
             @Override
@@ -380,9 +380,9 @@ public class MainActivity extends AppCompatActivity {
                 settingsManager.setTelegramChatId(inputChatId.getText().toString());
 
                 marketDataManager.reloadSymbols();
-                Toast.makeText(BinanceScannerCompleteApp.this, "Settings Saved!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "Settings Saved!", Toast.LENGTH_SHORT).show();
             } catch (Exception e) {
-                Toast.makeText(BinanceScannerCompleteApp.this, "Invalid Inputs!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "Invalid Inputs!", Toast.LENGTH_SHORT).show();
             }
         });
 
