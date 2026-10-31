@@ -340,22 +340,14 @@ public class MainActivity extends AppCompatActivity {
         final CheckBox chkSound = new CheckBox(this);
         chkSound.setText("Enable Audio Notifications");
         chkSound.setChecked(settingsManager.isSoundEnabled());
-        chkSound.setTextColor(0xFFEAECF5)
-
-
-
-);
+        chkSound.setTextColor(0xFFEAECF5);
         layout.addView(chkSound);
 
         // Telegram Alerts
         final CheckBox chkTelegram = new CheckBox(this);
         chkTelegram.setText("Enable Telegram Bot Alerts");
         chkTelegram.setChecked(settingsManager.isTelegramEnabled());
-        chkTelegram.setTextColor(0xFFEAECF5
-
-
-
-);
+        chkTelegram.setTextColor(0xFFEAECF5);
         layout.addView(chkTelegram);
 
         TextView txtBotToken = new TextView(this);
