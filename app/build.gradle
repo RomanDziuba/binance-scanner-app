@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.arcteq.version05'
+    namespace 'com.arcteq.version001'
     compileSdk 34
     defaultConfig {
-        applicationId "com.arcteq.version05"
+        applicationId "com.arcteq.version001"
         minSdk 21
         targetSdk 34
-        versionCode 39
-        versionName "05"
+        versionCode 1
+        versionName "001"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "ARCTEQ_v05-" + variant.name + ".apk"
+            outputFileName = "MonsterClock_v001-" + variant.name + ".apk"
         }
     }
 }
