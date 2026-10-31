@@ -131,7 +131,7 @@ public class MainActivity extends AppCompatActivity {
         // Dynamic Layout Initialization
         setContentView(buildMainLayout());
         
-        toolbar = tb;
+        
         setSupportActionBar(toolbar);
         
         settingsManager = new SettingsManager(this);
@@ -180,12 +180,12 @@ public class MainActivity extends AppCompatActivity {
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
         root.setBackgroundColor(0xFF12161C); // Binance Dark Theme
 
-        Toolbar tb = new Toolbar(this);
-        tb.setId(View.generateViewId());
-        tb.setBackgroundColor(0xFF1E2329);
-        tb.setTitleTextColor(0xFFFFFFFF);
-        tb.setTitle("Binance Futures Scanner & Matrix Pro");
-        root.addView(tb, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, wrapOrDp(48)));
+        toolbar = new Toolbar(this);
+        toolbar.setId(View.generateViewId());
+        toolbar.setBackgroundColor(0xFF1E2329);
+        toolbar.setTitleTextColor(0xFFFFFFFF);
+        toolbar.setTitle("Binance Futures Scanner & Matrix Pro");
+        root.addView(toolbar, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, wrapOrDp(48)));
 
         LinearLayout statusContainer = new LinearLayout(this);
         statusContainer.setOrientation(LinearLayout.HORIZONTAL);
