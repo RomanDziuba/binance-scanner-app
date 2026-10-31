@@ -131,7 +131,7 @@ public class MainActivity extends AppCompatActivity {
         // Dynamic Layout Initialization
         setContentView(buildMainLayout());
         
-        toolbar = findViewById(R.id.main_toolbar);
+        toolbar = tb;
         setSupportActionBar(toolbar);
         
         settingsManager = new SettingsManager(this);
@@ -181,7 +181,7 @@ public class MainActivity extends AppCompatActivity {
         root.setBackgroundColor(0xFF12161C); // Binance Dark Theme
 
         Toolbar tb = new Toolbar(this);
-        tb.setId(R.id.main_toolbar);
+        tb.setId(View.generateViewId());
         tb.setBackgroundColor(0xFF1E2329);
         tb.setTitleTextColor(0xFFFFFFFF);
         tb.setTitle("Binance Futures Scanner & Matrix Pro");
@@ -207,17 +207,17 @@ public class MainActivity extends AppCompatActivity {
 
         // Frame Layout for Container views
         android.widget.FrameLayout contentContainer = new android.widget.FrameLayout(this);
-        contentContainer.setId(R.id.content_container);
+        contentContainer.setId(View.generateViewId());
         
         recyclerView = new RecyclerView(this);
-        recyclerView.setId(R.id.recycler_view);
+        recyclerView.setId(View.generateViewId());
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setBackgroundColor(0xFF12161C);
         contentContainer.addView(recyclerView, new android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT, android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
 
         matrixView = new MatrixView(this);
-        matrixView.setId(R.id.matrix_view);
+        matrixView.setId(View.generateViewId());
         matrixView.setVisibility(View.GONE);
         contentContainer.addView(matrixView, new android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT, android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
