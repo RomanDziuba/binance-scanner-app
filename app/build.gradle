@@ -9,7 +9,7 @@ android {
         applicationId "com.arcteq.version04"
         minSdk 21
         targetSdk 34
-        versionCode 26
+        versionCode 27
         versionName "04"
     }
     compileOptions {
