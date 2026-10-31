@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.monstercompilerxxx.version001'
+    namespace 'com.monstercompiler.version001'
     compileSdk 34
     defaultConfig {
-        applicationId "com.monstercompilerxxx.version001"
+        applicationId "com.monstercompiler.version001"
         minSdk 21
         targetSdk 34
         versionCode 2
