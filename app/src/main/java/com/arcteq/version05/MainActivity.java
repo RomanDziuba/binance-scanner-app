@@ -331,7 +331,7 @@ public class MainActivity extends AppCompatActivity {
 
         final EditText inputCorr = new EditText(this);
         inputCorr.setText(String.valueOf(settingsManager.getCorrelationPeriod()));
-        inputCorr.setTextColor(0xFFEAECF5
+        inputCorr.setTextColor(0xFFEAECF5);
 
 );
         layout.addView(inputCorr);
