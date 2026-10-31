@@ -248,7 +248,7 @@ public class MainActivity extends AppCompatActivity {
     private Button createNavButton(String text, View.OnClickListener listener) {
         Button btn = new Button(this);
         btn.setText(text);
-        btn.setTextColor(0xFFEAECSF);
+        btn.setTextColor(0xFFEAECF5);
         btn.setTextSize(11);
         btn.setBackgroundColor(0x00000000);
         btn.setOnClickListener(listener);
@@ -320,7 +320,7 @@ public class MainActivity extends AppCompatActivity {
 
         final EditText inputVol = new EditText(this);
         inputVol.setText(String.valueOf(settingsManager.getMinVolumeUsdt()));
-        inputVol.setTextColor(0xFFEAECSF);
+        inputVol.setTextColor(0xFFEAECF5);
         layout.addView(inputVol);
 
         // Correlation Period Setting
@@ -331,21 +331,31 @@ public class MainActivity extends AppCompatActivity {
 
         final EditText inputCorr = new EditText(this);
         inputCorr.setText(String.valueOf(settingsManager.getCorrelationPeriod()));
-        inputCorr.setTextColor(0xFFEAECSF);
+        inputCorr.setTextColor(0xFFEAECF5
+
+);
         layout.addView(inputCorr);
 
         // Sound Alerts Checkbox
         final CheckBox chkSound = new CheckBox(this);
         chkSound.setText("Enable Audio Notifications");
         chkSound.setChecked(settingsManager.isSoundEnabled());
-        chkSound.setTextColor(0xFFEAECSF);
+        chkSound.setTextColor(0xFFEAECF5)
+
+
+
+);
         layout.addView(chkSound);
 
         // Telegram Alerts
         final CheckBox chkTelegram = new CheckBox(this);
         chkTelegram.setText("Enable Telegram Bot Alerts");
         chkTelegram.setChecked(settingsManager.isTelegramEnabled());
-        chkTelegram.setTextColor(0xFFEAECSF);
+        chkTelegram.setTextColor(0xFFEAECF5
+
+
+
+);
         layout.addView(chkTelegram);
 
         TextView txtBotToken = new TextView(this);
@@ -355,7 +365,7 @@ public class MainActivity extends AppCompatActivity {
 
         final EditText inputToken = new EditText(this);
         inputToken.setText(settingsManager.getTelegramBotToken());
-        inputToken.setTextColor(0xFFEAECSF);
+        inputToken.setTextColor(0xFFEAECF5);
         layout.addView(inputToken);
 
         TextView txtChatId = new TextView(this);
@@ -365,7 +375,7 @@ public class MainActivity extends AppCompatActivity {
 
         final EditText inputChatId = new EditText(this);
         inputChatId.setText(settingsManager.getTelegramChatId());
-        inputChatId.setTextColor(0xFFEAECSF);
+        inputChatId.setTextColor(0xFFEAECF5);
         layout.addView(inputChatId);
 
         builder.setView(layout);
@@ -1109,7 +1119,7 @@ public class MainActivity extends AppCompatActivity {
             itemLayout.addView(txtSymbol, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 2.0f));
 
             TextView txtPrice = new TextView(parent.getContext());
-            txtPrice.setTextColor(0xFFEAECSF);
+            txtPrice.setTextColor(0xFFEAECF5);
             txtPrice.setTextSize(14);
             itemLayout.addView(txtPrice, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 2.0f));
 
