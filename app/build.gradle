@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version01'
+    namespace 'com.kamera.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version01"
+        applicationId "com.kamera.version01"
         minSdk 21
         targetSdk 34
         versionCode 37
