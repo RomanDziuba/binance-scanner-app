@@ -85,7 +85,7 @@ public class MainActivity extends Activity {
         effectsLayout.setOrientation(LinearLayout.VERTICAL);
         effectsLayout.setGravity(Gravity.CENTER_HORIZONTAL);
 
-        // Добавляем кнопки для каждого режима
+        // Отдельные кнопки для каждого режима
         addEffectButton(effectsLayout, "✏️ Карандашный скетч", 0, "#2563EB");
         addEffectButton(effectsLayout, "💬 Стиль комикс", 1, "#7C3AED");
         addEffectButton(effectsLayout, "📜 Ретро-сепия", 2, "#B45309");
@@ -155,7 +155,7 @@ public class MainActivity extends Activity {
                 if (original != null) {
                     Bitmap artBitmap = applyArtisticFilter(original, styleIndex);
 
-                    // Сохранение напрямую в публичную галерею (Pictures/MonsterArtDrawings)
+                    // Сохранение напрямую в галерею телефона (Pictures/MonsterArtDrawings)
                     ContentValues values = new ContentValues();
                     String fileName = "Art_" + System.currentTimeMillis() + ".jpg";
                     values.put(MediaStore.Images.Media.DISPLAY_NAME, fileName);
@@ -280,7 +280,6 @@ public class MainActivity extends Activity {
     private Bitmap toPixelArt(Bitmap src) {
         int pixelSize = 12;
         int w = src.getWidth();
-        int h.getHeight(); // wait, h is int, h is height
         int h = src.getHeight();
         Bitmap dest = Bitmap.createBitmap(w, h, src.getConfig());
         for (int y = 0; y < h; y += pixelSize) {
