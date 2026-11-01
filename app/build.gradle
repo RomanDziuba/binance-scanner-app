@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.kamera.version01'
+    namespace 'com.compilermonster.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.kamera.version01"
+        applicationId "com.compilermonster.version01"
         minSdk 21
         targetSdk 34
         versionCode 32
