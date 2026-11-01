@@ -3,11 +3,15 @@ package com.kamera.version01;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.*;
@@ -35,7 +39,6 @@ public class MainActivity extends Activity {
         layout.setBackgroundColor(Color.parseColor("#030712"));
         layout.setPadding(24, 24, 24, 24);
 
-        // Заголовок
         TextView title = new TextView(this);
         title.setText("🚀 Multi-Path Monster Camera Scanner");
         title.setTextColor(Color.parseColor("#38BDF8"));
@@ -45,7 +48,6 @@ public class MainActivity extends Activity {
         title.setPadding(0, 0, 0, 16);
         layout.addView(title);
 
-        // Статус
         statusText = new TextView(this);
         statusText.setText("Статус: Готов к многопутевому сканированию");
         statusText.setTextColor(Color.parseColor("#10B981"));
@@ -54,9 +56,8 @@ public class MainActivity extends Activity {
         statusText.setPadding(0, 0, 0, 16);
         layout.addView(statusText);
 
-        // Кнопка запуска всех путей
         Button btnScanAll = new Button(this);
-        btnScanAll.setText("🔍 Запустить все пути поиска (Подсети + Порты)");
+        btnScanAll.setText("🔍 Запустить все пути поиска");
         btnScanAll.setTextColor(Color.parseColor("#F8FAFC"));
         btnScanAll.setTextSize(12f);
         btnScanAll.setTypeface(Typeface.DEFAULT_BOLD);
@@ -64,7 +65,6 @@ public class MainActivity extends Activity {
         btnScanAll.setPadding(16, 16, 16, 16);
         layout.addView(btnScanAll);
 
-        // Список найденных устройств
         cameraListView = new ListView(this);
         LinearLayout.LayoutParams listParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 800
@@ -75,7 +75,7 @@ public class MainActivity extends Activity {
 
         adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, foundDevices) {
             @Override
-            public View getView(int position, View convertView, android.view.ViewGroup parent) {
+            public View getView(int position, View convertView, ViewGroup parent) {
                 View view = super.getView(position, convertView, parent);
                 TextView tv = view.findViewById(android.R.id.text1);
                 if (tv != null) {
@@ -88,11 +88,10 @@ public class MainActivity extends Activity {
         };
         cameraListView.setAdapter(adapter);
 
-        // Обработка нажатия на элемент списка
         cameraListView.setOnItemClickListener((parent, view, position, id) -> {
             String selectedItem = foundDevices.get(position);
             if (selectedItem.startsWith("⚠️")) return;
-            String addressPart = selectedItem.split(" ")[0]; // Извлекаем IP:Порт
+            String addressPart = selectedItem.split(" ")[0];
             showConnectionOptions(addressPart);
         });
 
@@ -114,7 +113,6 @@ public class MainActivity extends Activity {
         statusText.setText("Статус: 🔄 Сканирование всех подсетей и портов...");
 
         new Thread(() -> {
-            // Формируем список подсетей (текущая + альтернативные шлюзы)
             List<String> targetSubnets = new ArrayList<>();
             String currentSubnet = getLocalSubnet();
             if (currentSubnet != null && !targetSubnets.contains(currentSubnet)) {
@@ -127,7 +125,6 @@ public class MainActivity extends Activity {
             targetSubnets.add("10.0.0.");
             targetSubnets.add("172.16.0.");
 
-            // Целевые порты (HTTP, RTSP, DVR)
             int[] targetPorts = {80, 8080, 554, 8000, 37777};
 
             for (String subnet : targetSubnets) {
@@ -138,8 +135,7 @@ public class MainActivity extends Activity {
 
                     for (int port : targetPorts) {
                         if (!isScanning) break;
-                        // Быстрый таймаут в 50мс для ускорения поиска по множеству сетей
-                        if (isPortOpen(host, port, 50)) {
+                        if (isPortOpen(host, port, 40)) {
                             String protoName = getProtocolName(port);
                             final String resultStr = host + ":" + port + " (" + protoName + ")";
                             
@@ -189,18 +185,20 @@ public class MainActivity extends Activity {
     private String getLocalSubnet() {
         try {
             WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-            int ipAddress = wifiManager.getConnectionInfo().getIpAddress();
-            if (ipAddress == 0) return null;
+            if (wifiManager != null) {
+                int ipAddress = wifiManager.getConnectionInfo().getIpAddress();
+                if (ipAddress != 0) {
+                    String ipString = String.format("%d.%d.%d.%d",
+                            (ipAddress & 0xff),
+                            (ipAddress >> 8 & 0xff),
+                            (ipAddress >> 16 & 0xff),
+                            (ipAddress >> 24 & 0xff));
 
-            String ipString = String.format("%d.%d.%d.%d",
-                    (ipAddress & 0xff),
-                    (ipAddress >> 8 & 0xff),
-                    (ipAddress >> 16 & 0xff),
-                    (ipAddress >> 24 & 0xff));
-
-            int lastDot = ipString.lastIndexOf('.');
-            if (lastDot != -1) {
-                return ipString.substring(0, lastDot + 1);
+                    int lastDot = ipString.lastIndexOf('.');
+                    if (lastDot != -1) {
+                        return ipString.substring(0, lastDot + 1);
+                    }
+                }
             }
         } catch (Exception ignored) {}
         return null;
@@ -256,8 +254,8 @@ public class MainActivity extends Activity {
 
     private void copyToClipboard(String text) {
         try {
-            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            android.content.ClipData clip = android.content.ClipData.newPlainText("CameraLink", text);
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            ClipData clip = ClipData.newPlainText("CameraLink", text);
             clipboard.setPrimaryClip(clip);
         } catch (Exception ignored) {}
     }
