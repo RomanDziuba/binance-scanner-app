@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.co.version1234'
+    namespace 'com.compilermonster.version02'
     compileSdk 34
     defaultConfig {
-        applicationId "com.co.version1234"
+        applicationId "com.compilermonster.version02"
         minSdk 21
         targetSdk 34
-        versionCode 29
-        versionName "1234"
+        versionCode 30
+        versionName "02"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "RomaMonsterApp_v1234-" + variant.name + ".apk"
+            outputFileName = "MonsterCompilerPro2_v02-" + variant.name + ".apk"
         }
     }
 }
