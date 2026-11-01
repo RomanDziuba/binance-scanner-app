@@ -1,4 +1,4 @@
-package com.monstercompilerxxx.app;
+package com.monstercompilerxxx.version11;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -315,7 +315,8 @@ public class MainActivity extends Activity {
         while (code.startsWith("\uFEFF") || code.startsWith("\ufeff") || (code.length() > 0 && code.charAt(0) == 65279)) {
             code = code.substring(1);
         }
-        code = code.replace('\u00A0', ' ').replace("\r\n", "\n").trim();
+        code = code.replace('\u00A0', ' ').replace("
+", "\n").trim();
         String[] lines = code.split("\n");
         String targetLine = "";
         for (String l : lines) {
@@ -1459,8 +1460,10 @@ public class MainActivity extends Activity {
         while (code.startsWith("\uFEFF") || code.startsWith("\ufeff") || (code.length() > 0 && code.charAt(0) == 65279)) {
             code = code.substring(1);
         }
-        code = code.replace('\u00A0', ' ').replace("\r\n", "\n").trim();
-        code = code.replace('\u00A0', ' ').replace("\r\n", "\n").trim();
+        code = code.replace('\u00A0', ' ').replace("
+", "\n").trim();
+        code = code.replace('\u00A0', ' ').replace("
+", "\n").trim();
         code = "package " + pkg + ";\n" + code;
         if (!code.contains("import android.app.Activity;")) {
             code = code.replaceFirst("package\\s+[a-zA-Z0-9_.]+;", "$0\nimport android.app.Activity;\nimport android.os.Bundle;\nimport android.widget.*;\nimport android.graphics.*;\nimport android.view.*;");
