@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.monstercompiler.version0000001'
+    namespace 'com.monstercompiler11.version11'
     compileSdk 34
     defaultConfig {
-        applicationId "com.monstercompiler.version0000001"
+        applicationId "com.monstercompiler11.version11"
         minSdk 21
         targetSdk 34
-        versionCode 4
-        versionName "0000001"
+        versionCode 5
+        versionName "11"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "Arcteq_v0000001-" + variant.name + ".apk"
+            outputFileName = "CompilerMonster_v1.1_v11-" + variant.name + ".apk"
         }
     }
 }
