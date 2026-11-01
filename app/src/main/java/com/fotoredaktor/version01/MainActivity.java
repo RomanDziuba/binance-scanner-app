@@ -74,25 +74,24 @@ public class MainActivity extends Activity {
 
         // Заголовок секции режимов
         TextView modesTitle = new TextView(this);
-        modesTitle.setText("\n👇 Выберите режим обработки:");
+        modesTitle.setText("\n👇 Уникальные методы художественной обработки:");
         modesTitle.setTextColor(Color.parseColor("#94A3B8"));
         modesTitle.setTextSize(14f);
         modesTitle.setPadding(0, 10, 0, 10);
         layout.addView(modesTitle);
 
-        // Панель с кнопками всех 7 режимов
+        // Панель с кнопками уникальных режимов
         effectsLayout = new LinearLayout(this);
         effectsLayout.setOrientation(LinearLayout.VERTICAL);
         effectsLayout.setGravity(Gravity.CENTER_HORIZONTAL);
 
-        // Отдельные кнопки для каждого режима
-        addEffectButton(effectsLayout, "✏️ Карандашный скетч", 0, "#2563EB");
-        addEffectButton(effectsLayout, "💬 Стиль комикс", 1, "#7C3AED");
-        addEffectButton(effectsLayout, "📜 Ретро-сепия", 2, "#B45309");
-        addEffectButton(effectsLayout, "🎨 Постеризация (Мультяшный)", 3, "#047857");
-        addEffectButton(effectsLayout, "🎞 Жесткий нуар", 4, "#334155");
-        addEffectButton(effectsLayout, "🧩 Пиксель-арт (Мозаика)", 5, "#BE185D");
-        addEffectButton(effectsLayout, "⚡ Неоновый киберпанк", 6, "#4F46E5");
+        addEffectButton(effectsLayout, "✏️ Настоящий Карандашный Скетч", 0, "#2563EB");
+        addEffectButton(effectsLayout, "💬 Графический Комикс (Инкер)", 1, "#7C3AED");
+        addEffectButton(effectsLayout, "🎨 Масляная Живопись кистью", 2, "#B45309");
+        addEffectButton(effectsLayout, "📜 Старинная Гравюра (Вуудкут)", 3, "#047857");
+        addEffectButton(effectsLayout, "💧 Художественная Акварель", 4, "#334155");
+        addEffectButton(effectsLayout, "🧩 Мозаичный Витраж", 5, "#BE185D");
+        addEffectButton(effectsLayout, "⚡ Неоновый Кибер-Чертеж", 6, "#4F46E5");
 
         layout.addView(effectsLayout);
         mainScroll.addView(layout);
@@ -138,13 +137,13 @@ public class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode == RESULT_OK && requestCode == PICK_SINGLE_PHOTO && data != null && data.getData() != null) {
             selectedPhotoUri = data.getData();
-            statusTextView.setText("✅ Фото выбрано! Нажмите нужный режим ниже.");
+            statusTextView.setText("✅ Фото выбрано! Нажмите нужный художественный метод.");
             Toast.makeText(this, "Фото загружено в память!", Toast.LENGTH_SHORT).show();
         }
     }
 
     private void processPhotoWithStyle(int styleIndex, String styleName) {
-        statusTextView.setText("Статус: 🔄 Применяется " + styleName + "...");
+        statusTextView.setText("Статус: 🔄 Применяется метод: " + styleName + "...");
         
         new Thread(() -> {
             try {
@@ -153,7 +152,18 @@ public class MainActivity extends Activity {
                 if (is != null) is.close();
 
                 if (original != null) {
-                    Bitmap artBitmap = applyArtisticFilter(original, styleIndex);
+                    // Ограничиваем размер для быстрой и стабильной обработки
+                    int maxDim = 800;
+                    int w = original.getWidth();
+                    int h = original.getHeight();
+                    if (w > maxDim || h > maxDim) {
+                        float ratio = Math.min((float) maxDim / w, (float) maxDim / h);
+                        w = Math.round(w * ratio);
+                        h = Math.round(h * ratio);
+                        original = Bitmap.createScaledBitmap(original, w, h, true);
+                    }
+
+                    Bitmap artBitmap = applyUniqueArtMethod(original, styleIndex);
 
                     // Сохранение напрямую в галерею телефона (Pictures/MonsterArtDrawings)
                     ContentValues values = new ContentValues();
@@ -173,7 +183,7 @@ public class MainActivity extends Activity {
 
                     runOnUiThread(() -> {
                         statusTextView.setText("Готово! Сохранено в Галерею (Pictures/MonsterArtDrawings)");
-                        Toast.makeText(MainActivity.this, "🖼 Рисунок сохранен в Галерею!", Toast.LENGTH_LONG).show();
+                        Toast.makeText(MainActivity.this, "🖼 Художественный рисунок сохранен в Галерею!", Toast.LENGTH_LONG).show();
                     });
                 }
             } catch (Exception e) {
@@ -185,145 +195,242 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    // Менеджер художественных стилей (7 режимов)
-    private Bitmap applyArtisticFilter(Bitmap src, int styleType) {
-        switch (styleType) {
+    // Диспетчер уникальных методов рисования
+    private Bitmap applyUniqueArtMethod(Bitmap src, int methodType) {
+        switch (methodType) {
             case 0: return toPencilSketch(src);
-            case 1: return toComicBook(src);
-            case 2: return toSepiaVintage(src);
-            case 3: return toPosterize(src);
-            case 4: return toNoirContrast(src);
-            case 5: return toPixelArt(src);
-            case 6: return toNeonCyberpunk(src);
+            case 1: return toInkComic(src);
+            case 2: return toOilPainting(src);
+            case 3: return toWoodcut(src);
+            case 4: return toWatercolor(src);
+            case 5: return toStainedGlass(src);
+            case 6: return toNeonBlueprint(src);
             default: return toPencilSketch(src);
         }
     }
 
+    // МЕТОД 0: Настоящий Карандашный Скетч (Color Dodge алгоритм)
     private Bitmap toPencilSketch(Bitmap src) {
         int w = src.getWidth();
         int h = src.getHeight();
-        Bitmap dest = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(dest);
-        Paint paint = new Paint();
-        ColorMatrix cm = new ColorMatrix();
-        cm.setSaturation(0);
-        paint.setColorFilter(new ColorMatrixColorFilter(cm));
-        canvas.drawBitmap(src, 0, 0, paint);
-        return invertAndContrast(dest);
-    }
+        int[] pixels = new int[w * h];
+        src.getPixels(pixels, 0, w, 0, 0, w, h);
 
-    private Bitmap toComicBook(Bitmap src) {
-        Bitmap bmp = toPosterize(src);
-        int w = bmp.getWidth();
-        int h = bmp.getHeight();
-        Bitmap dest = Bitmap.createBitmap(w, h, bmp.getConfig());
+        int[] gray = new int[w * h];
+        int[] inverted = new int[w * h];
+        for (int i = 0; i < pixels.length; i++) {
+            int p = pixels[i];
+            int g = (int)(0.299 * Color.red(p) + 0.587 * Color.green(p) + 0.114 * Color.blue(p));
+            gray[i] = g;
+            inverted[i] = 255 - g;
+        }
+
+        // Размытие инвертированного слоя (симуляция света)
+        int radius = 3;
+        int[] blurred = new int[w * h];
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
-                int pixel = bmp.getPixel(x, y);
-                int r = Math.min(255, Color.red(pixel) * 3 / 2);
-                int g = Math.min(255, Color.green(pixel) * 3 / 2);
-                int b = Math.min(255, Color.blue(pixel) * 3 / 2);
-                dest.setPixel(x, y, Color.rgb(r, g, b));
-            }
-        }
-        return dest;
-    }
-
-    private Bitmap toSepiaVintage(Bitmap src) {
-        int w = src.getWidth();
-        int h = src.getHeight();
-        Bitmap dest = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(dest);
-        Paint paint = new Paint();
-        ColorMatrix cm = new ColorMatrix(new float[] {
-            0.393f, 0.769f, 0.189f, 0, 0,
-            0.349f, 0.686f, 0.168f, 0, 0,
-            0.272f, 0.534f, 0.131f, 0, 0,
-            0, 0, 0, 1, 0
-        });
-        paint.setColorFilter(new ColorMatrixColorFilter(cm));
-        canvas.drawBitmap(src, 0, 0, paint);
-        return dest;
-    }
-
-    private Bitmap toPosterize(Bitmap src) {
-        int w = src.getWidth();
-        int h = src.getHeight();
-        Bitmap dest = Bitmap.createBitmap(w, h, src.getConfig());
-        for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
-                int p = src.getPixel(x, y);
-                int r = (Color.red(p) / 64) * 64;
-                int g = (Color.green(p) / 64) * 64;
-                int b = (Color.blue(p) / 64) * 64;
-                dest.setPixel(x, y, Color.rgb(r, g, b));
-            }
-        }
-        return dest;
-    }
-
-    private Bitmap toNoirContrast(Bitmap src) {
-        int w = src.getWidth();
-        int h = src.getHeight();
-        Bitmap dest = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-        for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
-                int p = src.getPixel(x, y);
-                int lum = (int)(0.299 * Color.red(p) + 0.587 * Color.green(p) + 0.114 * Color.blue(p));
-                int val = lum > 120 ? 255 : 0;
-                dest.setPixel(x, y, Color.rgb(val, val, val));
-            }
-        }
-        return dest;
-    }
-
-    private Bitmap toPixelArt(Bitmap src) {
-        int pixelSize = 12;
-        int w = src.getWidth();
-        int h = src.getHeight();
-        Bitmap dest = Bitmap.createBitmap(w, h, src.getConfig());
-        for (int y = 0; y < h; y += pixelSize) {
-            for (int x = 0; x < w; x += pixelSize) {
-                int color = src.getPixel(Math.min(x, w - 1), Math.min(y, h - 1));
-                for (int dy = 0; dy < pixelSize && (y + dy) < h; dy++) {
-                    for (int dx = 0; dx < pixelSize && (x + dx) < w; dx++) {
-                        dest.setPixel(x + dx, y + dy, color);
+                int sum = 0, count = 0;
+                for (int dy = -radius; dy <= radius; dy++) {
+                    for (int dx = -radius; dx <= radius; dx++) {
+                        int nx = x + dx, ny = y + dy;
+                        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                            sum += inverted[ny * w + nx];
+                            count++;
+                        }
                     }
+                }
+                blurred[y * w + x] = sum / count;
+            }
+        }
+
+        // Color Dodge смешивание
+        int[] result = new int[w * h];
+        for (int i = 0; i < gray.length; i++) {
+            int top = gray[i];
+            int bottom = blurred[i];
+            int dodge = bottom >= 255 ? 255 : Math.min(255, (top * 256) / (255 - bottom));
+            result[i] = Color.rgb(dodge, dodge, dodge);
+        }
+
+        Bitmap dest = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        dest.setPixels(result, 0, w, 0, 0, w, h);
+        return dest;
+    }
+
+    // МЕТОД 1: Графический Комикс / Инкер (Контуры + Постеризация палитры)
+    private Bitmap toInkComic(Bitmap src) {
+        int w = src.getWidth();
+        int h = src.getHeight();
+        int[] pixels = new int[w * h];
+        src.getPixels(pixels, 0, w, 0, 0, w, h);
+        int[] result = new int[w * h];
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int idx = y * w + x;
+                int p = pixels[idx];
+                int r = Color.red(p);
+                int g = Color.green(p);
+                int b = Color.blue(p);
+
+                r = (r / 64) * 85;
+                g = (g / 64) * 85;
+                b = (b / 64) * 85;
+
+                if (x > 0 && y > 0) {
+                    int pPrev = pixels[(y - 1) * w + (x - 1)];
+                    if (Math.abs(r - Color.red(pPrev)) > 35) {
+                        r = 0; g = 0; b = 0; // Черная тушь контура
+                    }
+                }
+                result[idx] = Color.rgb(Math.min(255, r), Math.min(255, g), Math.min(255, b));
+            }
+        }
+        Bitmap dest = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        dest.setPixels(result, 0, w, 0, 0, w, h);
+        return dest;
+    }
+
+    // МЕТОД 2: Масляная Живопись кистью
+    private Bitmap toOilPainting(Bitmap src) {
+        int w = src.getWidth();
+        int h = src.getHeight();
+        int[] pixels = new int[w * h];
+        src.getPixels(pixels, 0, w, 0, 0, w, h);
+        int[] result = new int[w * h];
+        int radius = 3;
+        int levels = 8;
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int[] intensityCount = new int[levels];
+                int[] sumR = new int[levels], sumG = new int[levels], sumB = new int[levels];
+
+                for (int dy = -radius; dy <= radius; dy++) {
+                    for (int dx = -radius; dx <= radius; dx++) {
+                        int nx = x + dx, ny = y + dy;
+                        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                            int p = pixels[ny * w + nx];
+                            int r = Color.red(p), g = Color.green(p), b = Color.blue(p);
+                            int curLevel = (r + g + b) / 3 * levels / 256;
+                            if (curLevel >= levels) curLevel = levels - 1;
+                            intensityCount[curLevel]++;
+                            sumR[curLevel] += r; sumG[curLevel] += g; sumB[curLevel] += b;
+                        }
+                    }
+                }
+
+                int maxIndex = 0, maxCount = 0;
+                for (int i = 0; i < levels; i++) {
+                    if (intensityCount[i] > maxCount) { maxCount = intensityCount[i]; maxIndex = i; }
+                }
+
+                if (maxCount > 0) {
+                    result[y * w + x] = Color.rgb(sumR[maxIndex] / maxCount, sumG[maxIndex] / maxCount, sumB[maxIndex] / maxCount);
+                } else {
+                    result[y * w + x] = pixels[y * w + x];
                 }
             }
         }
+        Bitmap dest = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        dest.setPixels(result, 0, w, 0, 0, w, h);
         return dest;
     }
 
-    private Bitmap toNeonCyberpunk(Bitmap src) {
+    // МЕТОД 3: Старинная Гравюра (Вуудкут)
+    private Bitmap toWoodcut(Bitmap src) {
         int w = src.getWidth();
         int h = src.getHeight();
-        Bitmap dest = Bitmap.createBitmap(w, h, src.getConfig());
+        int[] pixels = new int[w * h];
+        src.getPixels(pixels, 0, w, 0, 0, w, h);
+        int[] result = new int[w * h];
+
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
-                int p = src.getPixel(x, y);
-                int r = 255 - Color.blue(p);
-                int g = 255 - Color.red(p);
-                int b = 255 - Color.green(p);
-                dest.setPixel(x, y, Color.rgb(r, g, b));
+                int p = pixels[y * w + x];
+                int lum = (int)(0.299 * Color.red(p) + 0.587 * Color.green(p) + 0.114 * Color.blue(p));
+                if ((y % 4) < (lum * 4 / 255)) {
+                    result[y * w + x] = Color.rgb(15, 15, 15);
+                } else {
+                    result[y * w + x] = Color.rgb(245, 240, 230);
+                }
             }
         }
+        Bitmap dest = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        dest.setPixels(result, 0, w, 0, 0, w, h);
         return dest;
     }
 
-    private Bitmap invertAndContrast(Bitmap src) {
+    // МЕТОД 4: Художественная Акварель
+    private Bitmap toWatercolor(Bitmap src) {
         int w = src.getWidth();
         int h = src.getHeight();
-        Bitmap dest = Bitmap.createBitmap(w, h, src.getConfig());
+        Bitmap small = Bitmap.createScaledBitmap(src, w / 2, h / 2, true);
+        Bitmap dest = Bitmap.createScaledBitmap(small, w, h, true);
+        
+        Canvas canvas = new Canvas(dest);
+        Paint paint = new Paint();
+        ColorMatrix cm = new ColorMatrix();
+        cm.setSaturation(1.5f); // Сочные акварельные цвета
+        paint.setColorFilter(new ColorMatrixColorFilter(cm));
+        canvas.drawBitmap(dest, 0, 0, paint);
+        return dest;
+    }
+
+    // МЕТОД 5: Мозаичный Витраж
+    private Bitmap toStainedGlass(Bitmap src) {
+        int w = src.getWidth();
+        int h = src.getHeight();
+        int blockSize = 16;
+        int[] pixels = new int[w * h];
+        src.getPixels(pixels, 0, w, 0, 0, w, h);
+        int[] result = new int[w * h];
+
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
-                int p = src.getPixel(x, y);
-                int r = 255 - Color.red(p);
-                int g = 255 - Color.green(p);
-                int b = 255 - Color.blue(p);
-                dest.setPixel(x, y, Color.rgb(r, g, b));
+                int bx = Math.min(w - 1, (x / blockSize) * blockSize + blockSize / 2);
+                int by = Math.min(h - 1, (y / blockSize) * blockSize + blockSize / 2);
+                int centerColor = pixels[by * w + bx];
+                
+                if ((x % blockSize == 0) || (y % blockSize == 0)) {
+                    result[y * w + x] = Color.BLACK; // Свинцовые перегородки витража
+                } else {
+                    result[y * w + x] = centerColor;
+                }
             }
         }
+        Bitmap dest = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        dest.setPixels(result, 0, w, 0, 0, w, h);
+        return dest;
+    }
+
+    // МЕТОД 6: Неоновый Кибер-Чертеж
+    private Bitmap toNeonBlueprint(Bitmap src) {
+        int w = src.getWidth();
+        int h = src.getHeight();
+        int[] pixels = new int[w * h];
+        src.getPixels(pixels, 0, w, 0, 0, w, h);
+        int[] result = new int[w * h];
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int idx = y * w + x;
+                int p = pixels[idx];
+                int edge = 0;
+                if (x > 0 && y > 0) {
+                    edge = Math.abs(Color.red(p) - Color.red(pixels[(y - 1) * w + (x - 1)]));
+                }
+                
+                if (edge > 30) {
+                    result[idx] = Color.rgb(0, 255, 255); // Яркий неон
+                } else {
+                    result[idx] = Color.rgb(5, 10, 35);   // Темный чертежный фон
+                }
+            }
+        }
+        Bitmap dest = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        dest.setPixels(result, 0, w, 0, 0, w, h);
         return dest;
     }
 }
