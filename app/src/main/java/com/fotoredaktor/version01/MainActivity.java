@@ -1,17 +1,18 @@
 package com.fotoredaktor.version01;
 
 import android.app.Activity;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.graphics.*;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.MediaStore;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.*;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
 
 // THEME: @android:style/Theme.Material.Light.NoActionBar
 public class MainActivity extends Activity {
@@ -25,7 +26,6 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Главный контейнер с прокруткой, чтобы все кнопки режимов поместились на экране
         ScrollView mainScroll = new ScrollView(this);
         mainScroll.setBackgroundColor(Color.parseColor("#030712"));
 
@@ -85,7 +85,7 @@ public class MainActivity extends Activity {
         effectsLayout.setOrientation(LinearLayout.VERTICAL);
         effectsLayout.setGravity(Gravity.CENTER_HORIZONTAL);
 
-        // Добавляем отдельную кнопку для каждого режима
+        // Добавляем кнопки для каждого режима
         addEffectButton(effectsLayout, "✏️ Карандашный скетч", 0, "#2563EB");
         addEffectButton(effectsLayout, "💬 Стиль комикс", 1, "#7C3AED");
         addEffectButton(effectsLayout, "📜 Ретро-сепия", 2, "#B45309");
@@ -153,22 +153,27 @@ public class MainActivity extends Activity {
                 if (is != null) is.close();
 
                 if (original != null) {
-                    // Применяем выбранный художественный стиль
                     Bitmap artBitmap = applyArtisticFilter(original, styleIndex);
 
-                    // Безопасное сохранение в папку приложения (изнурительные ошибки ENOENT исключены)
-                    File outputDir = new File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "MonsterArtDrawings");
-                    if (!outputDir.exists()) outputDir.mkdirs();
-                    
-                    File outFile = new File(outputDir, "Art_" + System.currentTimeMillis() + ".jpg");
-                    FileOutputStream fos = new FileOutputStream(outFile);
-                    artBitmap.compress(Bitmap.CompressFormat.JPEG, 90, fos);
-                    fos.flush();
-                    fos.close();
+                    // Сохранение напрямую в публичную галерею (Pictures/MonsterArtDrawings)
+                    ContentValues values = new ContentValues();
+                    String fileName = "Art_" + System.currentTimeMillis() + ".jpg";
+                    values.put(MediaStore.Images.Media.DISPLAY_NAME, fileName);
+                    values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+                    values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/MonsterArtDrawings");
+
+                    Uri imageUri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+                    if (imageUri != null) {
+                        try (OutputStream fos = getContentResolver().openOutputStream(imageUri)) {
+                            if (fos != null) {
+                                artBitmap.compress(Bitmap.CompressFormat.JPEG, 90, fos);
+                            }
+                        }
+                    }
 
                     runOnUiThread(() -> {
-                        statusTextView.setText("Готово! Сохранено в папки приложения:\n" + outFile.getName());
-                        Toast.makeText(MainActivity.this, "Рисунок готов!", Toast.LENGTH_LONG).show();
+                        statusTextView.setText("Готово! Сохранено в Галерею (Pictures/MonsterArtDrawings)");
+                        Toast.makeText(MainActivity.this, "🖼 Рисунок сохранен в Галерею!", Toast.LENGTH_LONG).show();
                     });
                 }
             } catch (Exception e) {
@@ -275,6 +280,7 @@ public class MainActivity extends Activity {
     private Bitmap toPixelArt(Bitmap src) {
         int pixelSize = 12;
         int w = src.getWidth();
+        int h.getHeight(); // wait, h is int, h is height
         int h = src.getHeight();
         Bitmap dest = Bitmap.createBitmap(w, h, src.getConfig());
         for (int y = 0; y < h; y += pixelSize) {
