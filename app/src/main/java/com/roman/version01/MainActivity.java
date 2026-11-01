@@ -216,39 +216,23 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this)
             .setTitle("☁️ База Cloud API и шлюзов")
             .setItems(cloudProviders, (dialog, which) -> {
-                String title = "";
-                String info = "";
-                if (which == 0) {
-                    title = "Tuya / Smart Life API";
-                    info = "• Официальное приложение использует OpenAPI (api.tuya.com).\n" +
-                           "• Локальный RTSP для шлюзов:\n  rtsp://[IP]:8554/live/ch0\n" +
-                           "• Требует токен авторизации через Tuya Developer Platform.";
-                } else if (which == 1) {
-                    title = "EZVIZ / Hik-Connect Cloud";
-                    info = "• Облачные камеры отдают поток по протоколу HLS/RTSP через сессионный ключ.\n" +
-                           "• Ссылка потока:\n  rtsp://[IP]:554/h264/ch1/main/av_stream\n" +
-                           "• Проверка через EZVIZ Open API.";
-                } else if (which == 2) {
-                    title = "Провайдерские домофоны (Ростелеком/Дом.ру)";
-                    info = "• Видеопоток завязан на закрытые VLAN.\n" +
-                           "• Ссылки обычно имеют вид:\n  https://[город].domru.ru/video/[id]/index.m3u8\n" +
-                           "• Доступен через сниффинг трафика официального приложения.";
-                } else if (which == 3) {
-                    title = "Xiaomi / Yi Home";
-                    info = "• Камеры прошиваются кастомными RTSP-серверами (Yi-Hack).\n" +
-                           "• Стандартный локальный поток:\n  rtsp://[IP]:554/ch0_0.h264";
-                } else {
-                    title = "Ivideon / Trassir Cloud";
-                    info = "• Облачный сервис с поддержкойпрямых API запросов.\n" +
-                           "• Ссылка интеграции:\n  rtsp://ivideon:[password]@[IP]:10554/v1/u";
-                }
+                final String title = which == 0 ? "Tuya / Smart Life API" :
+                                     which == 1 ? "EZVIZ / Hik-Connect Cloud" :
+                                     which == 2 ? "Провайдерские домофоны (Ростелеком/Дом.ру)" :
+                                     which == 3 ? "Xiaomi / Yi Home" : "Ivideon / Trassir Cloud";
 
-                new AlertDialog.Builder(this)
+                final String info = which == 0 ? "• Официальное приложение использует OpenAPI (api.tuya.com).\n• Локальный RTSP для шлюзов:\n  rtsp://[IP]:8554/live/ch0\n• Требует токен авторизации через Tuya Developer Platform." :
+                                    which == 1 ? "• Облачные камеры отдают поток по протоколу HLS/RTSP через сессионный ключ.\n• Ссылка потока:\n  rtsp://[IP]:554/h264/ch1/main/av_stream\n• Проверка через EZVIZ Open API." :
+                                    which == 2 ? "• Видеопоток завязан на закрытые VLAN.\n• Ссылки обычно имеют вид:\n  https://[город].domru.ru/video/[id]/index.m3u8\n• Доступен через сниффинг трафика официального приложения." :
+                                    which == 3 ? "• Камеры прошиваются кастомными RTSP-серверами (Yi-Hack).\n• Стандартный локальный поток:\n  rtsp://[IP]:554/ch0_0.h264" :
+                                                 "• Облачный сервис с поддержкой прямых API запросов.\n• Ссылка интеграции:\n  rtsp://ivideon:[password]@[IP]:10554/v1/u";
+
+                new AlertDialog.Builder(MainActivity.this)
                     .setTitle(title)
                     .setMessage(info)
                     .setPositiveButton("Скопировать шаблон", (d, w) -> {
                         copyToClipboard(info);
-                        Toast.makeText(this, "Информация скопирована!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(MainActivity.this, "Информация скопирована!", Toast.LENGTH_SHORT).show();
                     })
                     .setNegativeButton("Назад", (d, w) -> showCloudApiDatabaseDialog())
                     .show();
@@ -318,7 +302,6 @@ public class MainActivity extends Activity {
                                     adapter.notifyDataSetChanged();
                                 }
                             });
-                            // Не прерываем сразу по IP, так как у камеры может быть открыто несколько портов (например, 80 и 554)
                         }
                     }
                 }
