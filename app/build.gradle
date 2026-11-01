@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.kamera.version01'
+    namespace 'com.fotoredaktor.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.kamera.version01"
+        applicationId "com.fotoredaktor.version01"
         minSdk 21
         targetSdk 34
-        versionCode 37
+        versionCode 38
         versionName "01"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "Камера_v01-" + variant.name + ".apk"
+            outputFileName = "фоторедактор_v01-" + variant.name + ".apk"
         }
     }
 }
