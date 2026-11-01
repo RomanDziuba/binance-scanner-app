@@ -2,36 +2,36 @@ package com.fotoredaktor.version01;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.database.Cursor;
 import android.graphics.*;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
-import android.provider.MediaStore;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.*;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
 
 // THEME: @android:style/Theme.Material.Light.NoActionBar
 public class MainActivity extends Activity {
 
     private static final int PICK_SINGLE_PHOTO = 2001;
     private TextView statusTextView;
-    private Button btnPickSingle, btnScanAll;
+    private Uri selectedPhotoUri = null;
+    private LinearLayout effectsLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
+
+        // Главный контейнер с прокруткой, чтобы все кнопки режимов поместились на экране
+        ScrollView mainScroll = new ScrollView(this);
+        mainScroll.setBackgroundColor(Color.parseColor("#030712"));
+
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setGravity(Gravity.CENTER);
-        layout.setBackgroundColor(Color.parseColor("#030712"));
+        layout.setGravity(Gravity.CENTER_HORIZONTAL);
         layout.setPadding(30, 30, 30, 30);
 
         // ✦ Красивый логотип автора ✦
@@ -41,7 +41,7 @@ public class MainActivity extends Activity {
         logoView.setTextSize(15f);
         logoView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
         logoView.setGravity(Gravity.CENTER);
-        logoView.setPadding(0, 0, 0, 20);
+        logoView.setPadding(0, 0, 0, 15);
         layout.addView(logoView);
 
         TextView title = new TextView(this);
@@ -50,20 +50,20 @@ public class MainActivity extends Activity {
         title.setTextSize(20f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, 20);
+        title.setPadding(0, 0, 0, 15);
         layout.addView(title);
 
         statusTextView = new TextView(this);
-        statusTextView.setText("Статус: Готов к работе 🚀");
+        statusTextView.setText("Статус: Сначала выберите фото 📂");
         statusTextView.setTextColor(Color.parseColor("#10B981"));
         statusTextView.setTextSize(13f);
         statusTextView.setGravity(Gravity.CENTER);
-        statusTextView.setPadding(0, 0, 0, 30);
+        statusTextView.setPadding(0, 0, 0, 20);
         layout.addView(statusTextView);
 
-        // Кнопка 1: Выбрать конкретное фото вручную из любой папки
-        btnPickSingle = new Button(this);
-        btnPickSingle.setText("📂 Выбрать фото вручную");
+        // Кнопка выбора фото
+        Button btnPickSingle = new Button(this);
+        btnPickSingle.setText("📂 Выбрать фото из галереи");
         btnPickSingle.setTextColor(Color.WHITE);
         btnPickSingle.setTextSize(13f);
         btnPickSingle.setTypeface(Typeface.DEFAULT_BOLD);
@@ -72,31 +72,60 @@ public class MainActivity extends Activity {
         btnPickSingle.setOnClickListener(v -> openGalleryPicker());
         layout.addView(btnPickSingle);
 
-        // Отступ
-        Space space = new Space(this);
-        space.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 20));
-        layout.addView(space);
+        // Заголовок секции режимов
+        TextView modesTitle = new TextView(this);
+        modesTitle.setText("\n👇 Выберите режим обработки:");
+        modesTitle.setTextColor(Color.parseColor("#94A3B8"));
+        modesTitle.setTextSize(14f);
+        modesTitle.setPadding(0, 10, 0, 10);
+        layout.addView(modesTitle);
 
-        // Кнопка 2: Автоматически обработать все фото через MediaStore
-        btnScanAll = new Button(this);
-        btnScanAll.setText("🚀 Обработать все фото телефона");
-        btnScanAll.setTextColor(Color.WHITE);
-        btnScanAll.setTextSize(13f);
-        btnScanAll.setTypeface(Typeface.DEFAULT_BOLD);
-        btnScanAll.setBackgroundColor(Color.parseColor("#2563EB"));
-        btnScanAll.setPadding(20, 20, 20, 20);
-        btnScanAll.setOnClickListener(v -> {
-            btnScanAll.setEnabled(false);
-            btnPickSingle.setEnabled(false);
-            statusTextView.setText("Статус: 🔄 Сканирование через MediaStore...");
-            new Thread(this::processAllPhotosViaMediaStore).start();
-        });
-        layout.addView(btnScanAll);
+        // Панель с кнопками всех 7 режимов
+        effectsLayout = new LinearLayout(this);
+        effectsLayout.setOrientation(LinearLayout.VERTICAL);
+        effectsLayout.setGravity(Gravity.CENTER_HORIZONTAL);
 
-        setContentView(layout);
+        // Добавляем отдельную кнопку для каждого режима
+        addEffectButton(effectsLayout, "✏️ Карандашный скетч", 0, "#2563EB");
+        addEffectButton(effectsLayout, "💬 Стиль комикс", 1, "#7C3AED");
+        addEffectButton(effectsLayout, "📜 Ретро-сепия", 2, "#B45309");
+        addEffectButton(effectsLayout, "🎨 Постеризация (Мультяшный)", 3, "#047857");
+        addEffectButton(effectsLayout, "🎞 Жесткий нуар", 4, "#334155");
+        addEffectButton(effectsLayout, "🧩 Пиксель-арт (Мозаика)", 5, "#BE185D");
+        addEffectButton(effectsLayout, "⚡ Неоновый киберпанк", 6, "#4F46E5");
+
+        layout.addView(effectsLayout);
+        mainScroll.addView(layout);
+        setContentView(mainScroll);
     }
 
-    // Открытие системного файлового менеджера/галереи для выбора фото
+    private void addEffectButton(LinearLayout parent, String text, int styleIndex, String colorHex) {
+        Button btn = new Button(this);
+        btn.setText(text);
+        btn.setTextColor(Color.WHITE);
+        btn.setTextSize(12f);
+        btn.setTypeface(Typeface.DEFAULT_BOLD);
+        btn.setBackgroundColor(Color.parseColor(colorHex));
+        btn.setPadding(15, 15, 15, 15);
+        
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.setMargins(0, 6, 0, 6);
+        btn.setLayoutParams(params);
+
+        btn.setOnClickListener(v -> {
+            if (selectedPhotoUri == null) {
+                Toast.makeText(this, "⚠️ Сначала выберите фото кнопкой выше!", Toast.LENGTH_SHORT).show();
+                statusTextView.setText("Ошибка: Фото не выбрано!");
+                return;
+            }
+            processPhotoWithStyle(styleIndex, text);
+        });
+
+        parent.addView(btn);
+    }
+
     private void openGalleryPicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("image/*");
@@ -108,91 +137,50 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode == RESULT_OK && requestCode == PICK_SINGLE_PHOTO && data != null && data.getData() != null) {
-            Uri uri = data.getData();
-            statusTextView.setText("Статус: 🎨 Обработка выбранного фото...");
-            new Thread(() -> {
-                try {
-                    InputStream is = getContentResolver().openInputStream(uri);
-                    Bitmap original = BitmapFactory.decodeStream(is);
-                    if (is != null) is.close();
+            selectedPhotoUri = data.getData();
+            statusTextView.setText("✅ Фото выбрано! Нажмите нужный режим ниже.");
+            Toast.makeText(this, "Фото загружено в память!", Toast.LENGTH_SHORT).show();
+        }
+    }
 
-                    if (original != null) {
-                        // Применяем случайный художественный стиль
-                        int styleIndex = (int)(Math.random() * 7);
-                        Bitmap artBitmap = applyArtisticFilter(original, styleIndex);
+    private void processPhotoWithStyle(int styleIndex, String styleName) {
+        statusTextView.setText("Статус: 🔄 Применяется " + styleName + "...");
+        
+        new Thread(() -> {
+            try {
+                InputStream is = getContentResolver().openInputStream(selectedPhotoUri);
+                Bitmap original = BitmapFactory.decodeStream(is);
+                if (is != null) is.close();
 
-                        // Сохраняем результат в папку MonsterArtDrawings
-                        File outputDir = new File(Environment.getExternalStorageDirectory(), "MonsterArtDrawings");
-                        if (!outputDir.exists()) outputDir.mkdirs();
-                        
-                        File outFile = new File(outputDir, "Art_Single_" + System.currentTimeMillis() + ".jpg");
-                        FileOutputStream fos = new FileOutputStream(outFile);
-                        artBitmap.compress(Bitmap.CompressFormat.JPEG, 90, fos);
-                        fos.flush();
-                        fos.close();
+                if (original != null) {
+                    // Применяем выбранный художественный стиль
+                    Bitmap artBitmap = applyArtisticFilter(original, styleIndex);
 
-                        runOnUiThread(() -> {
-                            statusTextView.setText("Готово! Сохранено в: MonsterArtDrawings");
-                            Toast.makeText(MainActivity.this, "Фото успешно перерисовано!", Toast.LENGTH_LONG).show();
-                        });
-                    }
-                } catch (Exception e) {
-                    runOnUiThread(() -> statusTextView.setText("Ошибка обработки: " + e.getMessage()));
+                    // Безопасное сохранение в папку приложения (изнурительные ошибки ENOENT исключены)
+                    File outputDir = new File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "MonsterArtDrawings");
+                    if (!outputDir.exists()) outputDir.mkdirs();
+                    
+                    File outFile = new File(outputDir, "Art_" + System.currentTimeMillis() + ".jpg");
+                    FileOutputStream fos = new FileOutputStream(outFile);
+                    artBitmap.compress(Bitmap.CompressFormat.JPEG, 90, fos);
+                    fos.flush();
+                    fos.close();
+
+                    runOnUiThread(() -> {
+                        statusTextView.setText("Готово! Сохранено в папки приложения:\n" + outFile.getName());
+                        Toast.makeText(MainActivity.this, "Рисунок готов!", Toast.LENGTH_LONG).show();
+                    });
                 }
-            }).start();
-        }
-    }
-
-    // Надежное сканирование всех фотографий устройства через MediaStore API
-    private void processAllPhotosViaMediaStore() {
-        File outputDir = new File(Environment.getExternalStorageDirectory(), "MonsterArtDrawings");
-        if (!outputDir.exists()) outputDir.mkdirs();
-
-        int processedCount = 0;
-        Uri uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
-        String[] projection = {MediaStore.Images.Media.DATA};
-
-        try (Cursor cursor = getContentResolver().query(uri, projection, null, null, null)) {
-            if (cursor != null && cursor.moveToFirst()) {
-                int columnIdx = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
-                do {
-                    String filePath = cursor.getString(columnIdx);
-                    if (filePath != null) {
-                        File imgFile = new File(filePath);
-                        if (imgFile.exists()) {
-                            try {
-                                Bitmap original = decodeSampledBitmapFromFile(imgFile.getAbsolutePath(), 800, 800);
-                                if (original != null) {
-                                    int styleIndex = processedCount % 7;
-                                    Bitmap artisticCopy = applyArtisticFilter(original, styleIndex);
-
-                                    File outFile = new File(outputDir, "Art_" + styleIndex + "_" + imgFile.getName());
-                                    FileOutputStream fos = new FileOutputStream(outFile);
-                                    artisticCopy.compress(Bitmap.CompressFormat.JPEG, 90, fos);
-                                    fos.flush();
-                                    fos.close();
-                                    
-                                    processedCount++;
-                                }
-                            } catch (Exception ignored) {}
-                        }
-                    }
-                } while (cursor.moveToNext());
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    statusTextView.setText("Ошибка: " + e.getMessage());
+                    Toast.makeText(MainActivity.this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        final int finalCount = processedCount;
-        runOnUiThread(() -> {
-            statusTextView.setText("Готово! Обработано рисунков: " + finalCount);
-            btnScanAll.setEnabled(true);
-            btnPickSingle.setEnabled(true);
-            Toast.makeText(MainActivity.this, "Массовая обработка завершена!", Toast.LENGTH_LONG).show();
-        });
+        }).start();
     }
 
-    // Менеджер художественных стилей (7 вариантов)
+    // Менеджер художественных стилей (7 режимов)
     private Bitmap applyArtisticFilter(Bitmap src, int styleType) {
         switch (styleType) {
             case 0: return toPencilSketch(src);
@@ -332,28 +320,5 @@ public class MainActivity extends Activity {
             }
         }
         return dest;
-    }
-
-    private Bitmap decodeSampledBitmapFromFile(String path, int reqWidth, int reqHeight) {
-        final BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inJustDecodeBounds = true;
-        BitmapFactory.decodeFile(path, options);
-        options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
-        options.inJustDecodeBounds = false;
-        return BitmapFactory.decodeFile(path, options);
-    }
-
-    private int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
-        final int height = options.outHeight;
-        final int width = options.outWidth;
-        int inSampleSize = 1;
-        if (height > reqHeight || width > reqWidth) {
-            final int halfHeight = height / 2;
-            final int halfWidth = width / 2;
-            while ((halfHeight / inSampleSize) >= reqHeight && (halfWidth / inSampleSize) >= reqWidth) {
-                inSampleSize *= 2;
-            }
-        }
-        return inSampleSize;
     }
 }
