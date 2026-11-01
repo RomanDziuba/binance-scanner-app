@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.kompil.version1234'
+    namespace 'com.co.version1234'
     compileSdk 34
     defaultConfig {
-        applicationId "com.kompil.version1234"
+        applicationId "com.co.version1234"
         minSdk 26
         targetSdk 34
         versionCode 28
