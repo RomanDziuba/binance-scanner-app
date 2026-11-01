@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.arcteq.version0000001'
+    namespace 'com.monstercompiler.version0000001'
     compileSdk 34
     defaultConfig {
-        applicationId "com.arcteq.version0000001"
+        applicationId "com.monstercompiler.version0000001"
         minSdk 21
         targetSdk 34
         versionCode 4
