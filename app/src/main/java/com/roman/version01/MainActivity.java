@@ -17,8 +17,6 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.*;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -49,41 +47,44 @@ public class MainActivity extends Activity {
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setGravity(Gravity.CENTER_HORIZONTAL);
         layout.setBackgroundColor(Color.parseColor("#030712"));
-        layout.setPadding(20, 20, 20, 20);
+        layout.setPadding(16, 16, 16, 16);
 
         // Заголовок
         TextView title = new TextView(this);
-        title.setText("🚀 Super-Monster Camera Scanner v3.0");
+        title.setText("🚀 Ultimate Monster Scanner v4.0 Pro");
         title.setTextColor(Color.parseColor("#38BDF8"));
-        title.setTextSize(16f);
+        title.setTextSize(15f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, 12);
+        title.setPadding(0, 0, 0, 10);
         layout.addView(title);
 
         // Статус
         statusText = new TextView(this);
-        statusText.setText("Статус: Готов к супер-поиску (Все методы)");
+        statusText.setText("Статус: Готов к глубокому поиску");
         statusText.setTextColor(Color.parseColor("#10B981"));
         statusText.setTextSize(11f);
         statusText.setGravity(Gravity.CENTER);
-        statusText.setPadding(0, 0, 0, 12);
+        statusText.setPadding(0, 0, 0, 10);
         layout.addView(statusText);
 
-        // Панель кнопок (Поиск + Консоль)
+        // Панель кнопок (Поиск + Консоль + Cloud API)
         LinearLayout btnLayout = new LinearLayout(this);
         btnLayout.setOrientation(LinearLayout.HORIZONTAL);
         btnLayout.setGravity(Gravity.CENTER);
 
-        Button btnScanAll = createStyledButton("⚡ Найти ВСЕМИ путями", "#2563EB", 1.0f);
-        Button btnConsole = createStyledButton("💻 Консоль логов", "#475569", 1.0f);
+        Button btnScanAll = createStyledButton("⚡ Бренд-Скан", "#2563EB", 1.0f);
+        Button btnCloudApi = createStyledButton("☁️ Cloud API", "#0D9488", 1.0f);
+        Button btnConsole = createStyledButton("💻 Логи", "#475569", 1.0f);
 
         btnLayout.addView(btnScanAll);
         
-        ViewGroup.MarginLayoutParams consoleParams = (ViewGroup.MarginLayoutParams) btnConsole.getLayoutParams();
-        if (consoleParams != null) {
-            consoleParams.setMargins(10, 0, 0, 0);
-        }
+        ViewGroup.MarginLayoutParams p1 = (ViewGroup.MarginLayoutParams) btnCloudApi.getLayoutParams();
+        if (p1 != null) p1.setMargins(8, 0, 0, 0);
+        btnLayout.addView(btnCloudApi);
+
+        ViewGroup.MarginLayoutParams p2 = (ViewGroup.MarginLayoutParams) btnConsole.getLayoutParams();
+        if (p2 != null) p2.setMargins(8, 0, 0, 0);
         btnLayout.addView(btnConsole);
 
         layout.addView(btnLayout);
@@ -91,9 +92,9 @@ public class MainActivity extends Activity {
         // Список найденных устройств
         cameraListView = new ListView(this);
         LinearLayout.LayoutParams listParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 850
+            LinearLayout.LayoutParams.MATCH_PARENT, 820
         );
-        listParams.setMargins(0, 15, 0, 15);
+        listParams.setMargins(0, 12, 0, 12);
         cameraListView.setLayoutParams(listParams);
         layout.addView(cameraListView);
 
@@ -115,12 +116,13 @@ public class MainActivity extends Activity {
         // События кнопок
         btnScanAll.setOnClickListener(v -> {
             if (!isScanning) {
-                startAllDiscoveryMethods();
+                startComprehensiveBrandScan();
             } else {
                 Toast.makeText(this, "Сканирование уже выполняется...", Toast.LENGTH_SHORT).show();
             }
         });
 
+        btnCloudApi.setOnClickListener(v -> showCloudApiDatabaseDialog());
         btnConsole.setOnClickListener(v -> showDebugConsoleDialog());
 
         // Нажатие на элемент списка
@@ -132,17 +134,17 @@ public class MainActivity extends Activity {
         });
 
         setContentView(layout);
-        logDebug("Приложение запущено. Все модули (ONVIF, ARP, Subnet, Web) активны.");
+        logDebug("Приложение v4.0 запущенно. База брендов и Cloud API загружена.");
     }
 
     private Button createStyledButton(String text, String colorHex, float weight) {
         Button btn = new Button(this);
         btn.setText(text);
         btn.setTextColor(Color.parseColor("#F8FAFC"));
-        btn.setTextSize(11f);
+        btn.setTextSize(10f);
         btn.setTypeface(Typeface.DEFAULT_BOLD);
         btn.setBackgroundColor(Color.parseColor(colorHex));
-        btn.setPadding(10, 12, 10, 12);
+        btn.setPadding(6, 10, 6, 10);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
             0, LinearLayout.LayoutParams.WRAP_CONTENT, weight
         );
@@ -195,76 +197,174 @@ public class MainActivity extends Activity {
         consoleLayout.addView(btnClear);
 
         new AlertDialog.Builder(this)
-            .setTitle("💻 Консоль отладки")
+            .setTitle("💻 Отладочная консоль")
             .setView(consoleLayout)
             .setPositiveButton("Закрыть", null)
             .show();
     }
 
-    // ЗАПУСК ВСЕХ МЕТОДОВ В ПАРАЛЛЕЛИ
-    private void startAllDiscoveryMethods() {
+    // БАЗА ДАННЫХ CLOUD API И ШЛЮЗОВ ОФИЦИАЛЬНЫХ ПРИЛОЖЕНИЙ
+    private void showCloudApiDatabaseDialog() {
+        CharSequence[] cloudProviders = {
+            "🌐 Tuya / Smart Life (Шлюзы и Облако)",
+            "📹 EZVIZ / Hik-Connect (Токены и Потоки)",
+            "🏠 Ростелеком / Дом.ру / Уфанет (Домофония)",
+            "📱 Xiaomi Mi Home / Yi Home (Cloud Links)",
+            "☁️ Ivideon / Trassir Cloud Web API"
+        };
+
+        new AlertDialog.Builder(this)
+            .setTitle("☁️ База Cloud API и шлюзов")
+            .setItems(cloudProviders, (dialog, which) -> {
+                String title = "";
+                String info = "";
+                if (which == 0) {
+                    title = "Tuya / Smart Life API";
+                    info = "• Официальное приложение использует OpenAPI (api.tuya.com).\n" +
+                           "• Локальный RTSP для шлюзов:\n  rtsp://[IP]:8554/live/ch0\n" +
+                           "• Требует токен авторизации через Tuya Developer Platform.";
+                } else if (which == 1) {
+                    title = "EZVIZ / Hik-Connect Cloud";
+                    info = "• Облачные камеры отдают поток по протоколу HLS/RTSP через сессионный ключ.\n" +
+                           "• Ссылка потока:\n  rtsp://[IP]:554/h264/ch1/main/av_stream\n" +
+                           "• Проверка через EZVIZ Open API.";
+                } else if (which == 2) {
+                    title = "Провайдерские домофоны (Ростелеком/Дом.ру)";
+                    info = "• Видеопоток завязан на закрытые VLAN.\n" +
+                           "• Ссылки обычно имеют вид:\n  https://[город].domru.ru/video/[id]/index.m3u8\n" +
+                           "• Доступен через сниффинг трафика официального приложения.";
+                } else if (which == 3) {
+                    title = "Xiaomi / Yi Home";
+                    info = "• Камеры прошиваются кастомными RTSP-серверами (Yi-Hack).\n" +
+                           "• Стандартный локальный поток:\n  rtsp://[IP]:554/ch0_0.h264";
+                } else {
+                    title = "Ivideon / Trassir Cloud";
+                    info = "• Облачный сервис с поддержкойпрямых API запросов.\n" +
+                           "• Ссылка интеграции:\n  rtsp://ivideon:[password]@[IP]:10554/v1/u";
+                }
+
+                new AlertDialog.Builder(this)
+                    .setTitle(title)
+                    .setMessage(info)
+                    .setPositiveButton("Скопировать шаблон", (d, w) -> {
+                        copyToClipboard(info);
+                        Toast.makeText(this, "Информация скопирована!", Toast.LENGTH_SHORT).show();
+                    })
+                    .setNegativeButton("Назад", (d, w) -> showCloudApiDatabaseDialog())
+                    .show();
+            })
+            .setNegativeButton("Закрыть", null)
+            .show();
+    }
+
+    // КОМПЛЕКСНЫЙ СКАНЕР С УЧЕТОМ СПЕЦИФИЧЕСКИХ ПОРТОВ БРЕНДОВ
+    private void startComprehensiveBrandScan() {
         foundDevices.clear();
         adapter.notifyDataSetChanged();
         isScanning = true;
-        statusText.setText("Статус: 🔄 Работают все методы поиска...");
-        logDebug("=== СТАРТ ПОЛНОГО КОМПЛЕКСНОГО ПОИСКА ===");
+        statusText.setText("Статус: 🔄 Сканирование портов брендов и ONVIF...");
+        logDebug("=== СТАРТ РАСШИРЕННОГО СКАНЕРА БРЕНДОВ ===");
 
-        // 1. Мгновенно читаем ARP кэш
-        readSystemArpTable();
-
-        // 2. В отдельном потоке запускаем ONVIF и Сканирование подсетей
         new Thread(() -> {
+            // 1. Запуск ONVIF широковещания
             startOnvifDiscovery();
-            startSubnetPortScan();
+
+            // 2. Сканирование подсетей с расширенными портами брендов
+            List<String> targetSubnets = new ArrayList<>();
+            String currentSubnet = getLocalSubnet();
+            if (currentSubnet != null) targetSubnets.add(currentSubnet);
+
+            targetSubnets.add("192.168.1.");
+            targetSubnets.add("192.168.0.");
+            targetSubnets.add("192.168.8.");
+            targetSubnets.add("192.168.100.");
+            targetSubnets.add("10.0.0.");
+
+            // РАСШИРЕННЫЙ СПИСОК СПЕЦИФИЧЕСКИХ ПОРТОВ ПРОИЗВОДИТЕЛЕЙ
+            int[] brandPorts = {
+                80,    // Стандартный Web
+                443,   // Защищенный Web (SSL)
+                554,   // RTSP Поток
+                8080,  // Альтернативный Web
+                8554,  // Tuya / VLC RTSP
+                8000,  // Hikvision SDK / Service
+                37020, // Hikvision SADP
+                37777, // Dahua DVR / NVR
+                37778, // Dahua Service
+                88,    // Foscam Web
+                9000,  // Reolink Media
+                2020   // TP-Link Tapo / VIGI
+            };
+
+            for (String subnet : targetSubnets) {
+                if (!isScanning) break;
+                logDebug("Сканирование диапазона: " + subnet + "1-254");
+
+                for (int i = 1; i < 255; i++) {
+                    if (!isScanning) break;
+                    final String host = subnet + i;
+
+                    for (int port : brandPorts) {
+                        if (!isScanning) break;
+
+                        if (isPortOpen(host, port, 30)) {
+                            String brandName = getBrandNameByPort(port);
+                            final String resultStr = host + ":" + port + " (" + brandName + ")";
+                            logDebug("✅ НАЙДЕНО [Бренд/Порт]: " + resultStr);
+
+                            runOnUiThread(() -> {
+                                if (!foundDevices.contains(resultStr)) {
+                                    foundDevices.add(resultStr);
+                                    adapter.notifyDataSetChanged();
+                                }
+                            });
+                            // Не прерываем сразу по IP, так как у камеры может быть открыто несколько портов (например, 80 и 554)
+                        }
+                    }
+                }
+            }
 
             runOnUiThread(() -> {
                 isScanning = false;
-                statusText.setText("Статус: ✅ Все варианты поиска завершены.");
-                logDebug("=== ВСЕ МЕТОДЫ ЗАВЕРШЕНЫ. Найдено объектов: " + foundDevices.size() + " ===");
+                statusText.setText("Статус: ✅ Поиск брендов завершен.");
+                logDebug("=== СКАНИРОВАНИЕ ЗАВЕРШЕНО. Найдено: " + foundDevices.size() + " ===");
                 if (foundDevices.isEmpty()) {
-                    foundDevices.add("⚠️ Устройства не найдены ни одним из методов.");
+                    foundDevices.add("⚠️ Устройства брендов не найдены.");
                     adapter.notifyDataSetChanged();
                 }
             });
         }).start();
     }
 
-    // МЕТОД 1: Чтение ARP-кэша Android
-    private void readSystemArpTable() {
-        logDebug("📖 [ARP-Кэш] Чтение системной таблицы железа...");
-        try (BufferedReader br = new BufferedReader(new FileReader("/proc/net/arp"))) {
-            String line;
-            boolean firstLine = true;
-            while ((line = br.readLine()) != null) {
-                if (firstLine) {
-                    firstLine = false;
-                    continue;
-                }
-                String[] parts = line.split("\\s+");
-                if (parts.length >= 4) {
-                    String ip = parts[0];
-                    String mac = parts[3];
-                    if (!ip.equals("0.0.0.0") && !mac.equals("00:00:00:00:00:00")) {
-                        final String arpEntry = ip + ":80 (Устройство из ARP-кэша)";
-                        logDebug("📌 [ARP Найдено]: " + ip + " [MAC: " + mac + "]");
-                        
-                        runOnUiThread(() -> {
-                            if (!foundDevices.contains(arpEntry)) {
-                                foundDevices.add(arpEntry);
-                                adapter.notifyDataSetChanged();
-                            }
-                        });
-                    }
-                }
-            }
+    private boolean isPortOpen(String ip, int port, int timeout) {
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress(ip, port), timeout);
+            return true;
         } catch (Exception e) {
-            logDebug("❌ [ARP Ошибка]: " + e.getMessage());
+            return false;
         }
     }
 
-    // МЕТОД 2: ONVIF Broadcast (UDP 3702)
+    private String getBrandNameByPort(int port) {
+        switch (port) {
+            case 80: return "HTTP / Универсальный Web";
+            case 443: return "HTTPS Защищенный Web";
+            case 554: return "RTSP Стандартный поток";
+            case 8080: return "HTTP Альтернативный";
+            case 8554: return "Tuya / Smart Life RTSP";
+            case 8000: return "Hikvision (SDK / DVR)";
+            case 37020: return "Hikvision SADP";
+            case 37777: return "Dahua (DVR / IPC)";
+            case 37778: return "Dahua Service";
+            case 88: return "Foscam Camera";
+            case 9000: return "Reolink Media Port";
+            case 2020: return "TP-Link Tapo / VIGI";
+            default: return "Порт " + port;
+        }
+    }
+
     private void startOnvifDiscovery() {
-        logDebug("📡 [ONVIF] Запуск аппаратного широковещания (UDP 3702)...");
+        logDebug("📡 [ONVIF] Запуск широковещательного поиска (UDP 3702)...");
         try {
             String probeMessage = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
                 "<e:Envelope xmlns:e=\"http://www.w3.org/2003/05/soap-envelope\" " +
@@ -283,7 +383,7 @@ public class MainActivity extends Activity {
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length, broadcastAddress, 3702);
             socket.send(packet);
 
-            socket.setSoTimeout(2500);
+            socket.setSoTimeout(2000);
             byte[] recvBuf = new byte[4096];
             DatagramPacket recvPacket = new DatagramPacket(recvBuf, recvBuf.length);
 
@@ -292,7 +392,7 @@ public class MainActivity extends Activity {
                     socket.receive(recvPacket);
                     String senderIp = recvPacket.getAddress().getHostAddress();
                     logDebug("🎯 [ONVIF Ответ от железа!]: " + senderIp);
-                    final String cameraResult = senderIp + ":554 (ONVIF Камера / Домофон)";
+                    final String cameraResult = senderIp + ":554 (ONVIF / IP-Камера)";
 
                     runOnUiThread(() -> {
                         if (!foundDevices.contains(cameraResult)) {
@@ -305,75 +405,9 @@ public class MainActivity extends Activity {
                 }
             }
             socket.close();
-            logDebug("✅ [ONVIF] Завершено.");
+            logDebug("✅ [ONVIF] Поиск завершен.");
         } catch (Exception e) {
             logDebug("❌ [ONVIF Ошибка]: " + e.getMessage());
-        }
-    }
-
-    // МЕТОД 3: Сканирование портов и подсетей
-    private void startSubnetPortScan() {
-        logDebug("🔎 [PortScan] Сканирование диапазонов и портов...");
-        List<String> targetSubnets = new ArrayList<>();
-        String currentSubnet = getLocalSubnet();
-        if (currentSubnet != null) {
-            targetSubnets.add(currentSubnet);
-        }
-
-        targetSubnets.add("192.168.1.");
-        targetSubnets.add("192.168.0.");
-        targetSubnets.add("192.168.8.");
-        targetSubnets.add("192.168.100.");
-        targetSubnets.add("10.0.0.");
-        targetSubnets.add("172.16.0.");
-
-        int[] targetPorts = {80, 8080, 554, 8000, 37777};
-
-        for (String subnet : targetSubnets) {
-            if (!isScanning) break;
-
-            for (int i = 1; i < 255; i++) {
-                if (!isScanning) break;
-                final String host = subnet + i;
-
-                for (int port : targetPorts) {
-                    if (!isScanning) break;
-
-                    if (isPortOpen(host, port, 35)) {
-                        String protoName = getProtocolName(port);
-                        final String resultStr = host + ":" + port + " (" + protoName + ")";
-                        logDebug("✅ [PortScan НАЙДЕНО]: " + resultStr);
-
-                        runOnUiThread(() -> {
-                            if (!foundDevices.contains(resultStr)) {
-                                foundDevices.add(resultStr);
-                                adapter.notifyDataSetChanged();
-                            }
-                        });
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    private boolean isPortOpen(String ip, int port, int timeout) {
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(ip, port), timeout);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    private String getProtocolName(int port) {
-        switch (port) {
-            case 80: return "HTTP / Web";
-            case 8080: return "HTTP Alt";
-            case 554: return "RTSP Поток";
-            case 8000: return "Hikvision";
-            case 37777: return "Dahua";
-            default: return "Порт " + port;
         }
     }
 
@@ -399,12 +433,12 @@ public class MainActivity extends Activity {
         return null;
     }
 
-    // МЕНЮ УПРАВЛЕНИЯ
+    // МЕНЮ УПРАВЛЕНИЯ УСТРОЙСТВОМ
     private void showMainMenuForCamera(String ipAndPort) {
         CharSequence[] options = {
-            "🌐 Открыть Веб-панель (Исправлена клавиатура и масштаб)",
-            "📹 Подменю RTSP потоков",
-            "🔍 Проверить отклик (Пинг)",
+            "🌐 Открыть Веб-интерфейс (С крупным шрифтом)",
+            "📹 Подменю RTSP потоков брендов",
+            "🔍 Проверить пинг / Статус",
             "📋 Скопировать IP:Порт"
         };
 
@@ -419,7 +453,7 @@ public class MainActivity extends Activity {
                     testConnectionStatus(ipAndPort);
                 } else if (which == 3) {
                     copyToClipboard(ipAndPort);
-                    Toast.makeText(this, "IP:Порт скопирован!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Скопировано в буфер!", Toast.LENGTH_SHORT).show();
                 }
             })
             .setNegativeButton("Закрыть", null)
@@ -429,23 +463,23 @@ public class MainActivity extends Activity {
     private void showRtspSubmenu(String ipAndPort) {
         String pureIp = ipAndPort.split(":")[0];
         CharSequence[] rtspOptions = {
-            "📹 Основной поток (stream1)",
-            "📹 Субпоток / Low quality (stream2)",
-            "📹 Поток live.sdp",
-            "📹 H264 Превью",
-            "📋 Скопировать стандартную ссылку"
+            "📹 Стандартный / Hikvision (stream1)",
+            "📹 Доп. поток / Substream (stream2)",
+            "📹 Dahua / Uniview (cam/realmonitor)",
+            "📹 Tuya / Smart Life (live/ch0)",
+            "📋 Скопировать универсальную ссылку"
         };
 
         new AlertDialog.Builder(this)
-            .setTitle("📦 RTSP ссылки: " + pureIp)
+            .setTitle("📦 RTSP ссылки брендов: " + pureIp)
             .setItems(rtspOptions, (dialog, which) -> {
                 String url = "rtsp://" + pureIp + ":554/stream1";
                 if (which == 1) url = "rtsp://" + pureIp + ":554/stream2";
-                else if (which == 2) url = "rtsp://" + pureIp + ":554/live.sdp";
-                else if (which == 3) url = "rtsp://" + pureIp + ":554/h264Preview_01_main";
+                else if (which == 2) url = "rtsp://" + pureIp + ":554/cam/realmonitor?channel=1&subtype=0";
+                else if (which == 3) url = "rtsp://" + pureIp + ":8554/live/ch0";
 
                 copyToClipboard(url);
-                Toast.makeText(this, "Скопировано! Вставьте в плеер (например, VLC)", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "RTSP скопирована! Вставьте в VLC Player", Toast.LENGTH_LONG).show();
             })
             .setNegativeButton("Назад", (d, w) -> showMainMenuForCamera(ipAndPort))
             .show();
@@ -476,7 +510,7 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    // УЛУЧШЕННЫЙ ВЕБ-БРАУЗЕР С КРУПНЫМ ШРИФТОМ И КЛАВИАТУРОЙ
+    // УЛУЧШЕННЫЙ ВЕБ-БРАУЗЕР (КРУПНЫЙ ШРИФТ + КЛАВИАТУРА)
     private void openWebStream(String url) {
         LinearLayout webLayout = new LinearLayout(this);
         webLayout.setOrientation(LinearLayout.VERTICAL);
@@ -484,7 +518,7 @@ public class MainActivity extends Activity {
 
         WebView webView = new WebView(this);
         
-        // Включаем фокус для всплывающей клавиатуры
+        // Фокус для клавиатуры
         webView.setFocusable(true);
         webView.setFocusableInTouchMode(true);
         webView.requestFocus(View.FOCUS_DOWN);
@@ -494,15 +528,21 @@ public class MainActivity extends Activity {
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
 
-        // КРУПНЫЙ ШРИФТ И МАСШТАБИРОВАНИЕ
+        // МАСШТАБ И КРУПНЫЙ ШРИФТ
         settings.setUseWideViewPort(true);
         settings.setLoadWithOverviewMode(true);
         settings.setSupportZoom(true);
         settings.setBuiltInZoomControls(true);
-        settings.setDisplayZoomControls(false); // Прячем уродливые кнопки зума
-        settings.setTextZoom(130); // Увеличиваем размер текста на 130%
+        settings.setDisplayZoomControls(false);
+        settings.setTextZoom(130); // Увеличение текста на 30%
 
-        webView.setWebViewClient(new WebViewClient());
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onReceivedSslError(WebView view, android.webkit.SslErrorHandler handler, android.net.http.SslError error) {
+                handler.proceed(); // Игнорируем SSL ошибки камер
+            }
+        });
+
         webView.loadUrl(url);
 
         webLayout.addView(webView, new LinearLayout.LayoutParams(
@@ -510,12 +550,11 @@ public class MainActivity extends Activity {
         ));
 
         AlertDialog dialog = new AlertDialog.Builder(this)
-            .setTitle("🌐 Открыто: " + url)
+            .setTitle("🌐 Веб-панель: " + url)
             .setView(webLayout)
             .setPositiveButton("Закрыть", (d, w) -> webView.destroy())
             .create();
 
-        // Позволяем всплывать клавиатуре поверх диалогового окна
         if (dialog.getWindow() != null) {
             dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         }
