@@ -268,10 +268,14 @@ public class MainActivity extends Activity {
         setContentView(rootLayout);
 
         updateAllButtonLabels();
-        logEditText.setText("=== 🚀 MONSTER COMPILER PRO V1.0 ULTRA ЗАПУЩЕН ===\n" +
-                            "• Имя для Telegram APK: " + telegramApkTitle + "\n" +
-                            "• Пакет: " + packageName + "\n" +
-                            "• Версия: " + appVersion + " (Code: " + versionCode + ")\n" +
+        logEditText.setText("=== 🚀 MONSTER COMPILER PRO V1.0 ULTRA ЗАПУЩЕН ===
+" +
+                            "• Имя для Telegram APK: " + telegramApkTitle + "
+" +
+                            "• Пакет: " + packageName + "
+" +
+                            "• Версия: " + appVersion + " (Code: " + versionCode + ")
+" +
                             "• GitHub Token: " + (githubToken.isEmpty() ? "⚠️ Не введен" : "✅ Загружен"));
 
         if (!githubToken.isEmpty()) {
@@ -320,8 +324,10 @@ public class MainActivity extends Activity {
 
     private void updateAllButtonLabels() {
         String profile = javaVersion.equals("8") ? "⚡ Стабильный (Java 8)" : "🚀 Java 17";
-        String info = "🏷 Имя APK: " + telegramApkTitle + " | 📦 Пакет: " + packageName + "\n" +
-                      "🔢 Версия: " + appVersion + " (Code: " + versionCode + ") | 📂 Репо: " + repoOwner + "/" + repoName + "\n" +
+        String info = "🏷 Имя APK: " + telegramApkTitle + " | 📦 Пакет: " + packageName + "
+" +
+                      "🔢 Версия: " + appVersion + " (Code: " + versionCode + ") | 📂 Репо: " + repoOwner + "/" + repoName + "
+" +
                       "☕ Java: " + javaVersion + " | minSdk: " + minSdk + " [" + profile + "]";
         if (infoTextView != null) infoTextView.setText(info);
         if (btnTitle != null) btnTitle.setText("🏷 Имя для Telegram APK: " + telegramApkTitle);
@@ -333,13 +339,15 @@ public class MainActivity extends Activity {
     }
 
     private String getBuildButtonText() {
-        return "🚀 Скомпилировать APK\n📦 " + telegramApkTitle + " (v" + appVersion + ")";
+        return "🚀 Скомпилировать APK
+📦 " + telegramApkTitle + " (v" + appVersion + ")";
     }
 
     private String extractAndCleanPackageFromCode(String code) {
         if (code == null || code.isEmpty()) return transliterateToLatin(telegramApkTitle);
         
-        String[] lines = code.split("\n");
+        String[] lines = code.split("
+");
         String targetLine = "";
         
         for (String l : lines) {
@@ -354,13 +362,13 @@ public class MainActivity extends Activity {
             targetLine = lines[0].trim();
         }
         
-        Matcher m = Pattern.compile("^package\\s+([a-zA-Z0-9_.]+);?").matcher(targetLine);
+        Matcher m = Pattern.compile("^package\s+([a-zA-Z0-9_.]+);?").matcher(targetLine);
         if (m.find()) {
             String rawPkg = m.group(1);
-            String[] parts = rawPkg.split("\\.");
+            String[] parts = rawPkg.split("\.");
             if (parts.length >= 2) {
                 for (String p : parts) {
-                    if (!p.equals("com") && !p.startsWith("version") && !p.matches("\\d+")) {
+                    if (!p.equals("com") && !p.startsWith("version") && !p.matches("\d+")) {
                         return transliterateToLatin(p);
                     }
                 }
@@ -371,12 +379,12 @@ public class MainActivity extends Activity {
         }
         
         for (int i = 0; i < Math.min(lines.length, 5); i++) {
-            Matcher m2 = Pattern.compile("package\\s+([a-zA-Z0-9_.]+);?").matcher(lines[i]);
+            Matcher m2 = Pattern.compile("package\s+([a-zA-Z0-9_.]+);?").matcher(lines[i]);
             if (m2.find()) {
                 String rawPkg = m2.group(1);
-                String[] parts = rawPkg.split("\\.");
+                String[] parts = rawPkg.split("\.");
                 for (String p : parts) {
-                    if (!p.equals("com") && !p.startsWith("version") && !p.matches("\\d+")) {
+                    if (!p.equals("com") && !p.startsWith("version") && !p.matches("\d+")) {
                         return transliterateToLatin(p);
                     }
                 }
@@ -479,22 +487,25 @@ public class MainActivity extends Activity {
                     BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
                     StringBuilder sb = new StringBuilder();
                     String line;
-                    while ((line = br.readLine()) != null) sb.append(line).append("\n");
+                    while ((line = br.readLine()) != null) sb.append(line).append("
+");
                     JSONObject json = new JSONObject(sb.toString());
-                    String contentB64 = json.getString("content").replaceAll("\\s", "");
+                    String contentB64 = json.getString("content").replaceAll("\s", "");
                     String gradleContent = new String(android.util.Base64.decode(contentB64, android.util.Base64.DEFAULT), StandardCharsets.UTF_8);
 
-                    Matcher vMatcher = Pattern.compile("versionName\\s+\"([^\"]+)\"").matcher(gradleContent);
+                    Matcher vMatcher = Pattern.compile("versionName\s+"([^"]+)"").matcher(gradleContent);
                     if (vMatcher.find()) appVersion = vMatcher.group(1);
-                    Matcher vcMatcher = Pattern.compile("versionCode\\s+(\\d+)").matcher(gradleContent);
+                    Matcher vcMatcher = Pattern.compile("versionCode\s+(\d+)").matcher(gradleContent);
                     if (vcMatcher.find()) versionCode = Integer.parseInt(vcMatcher.group(1));
-                    Matcher nsMatcher = Pattern.compile("namespace\\s+'([^']+)'").matcher(gradleContent);
+                    Matcher nsMatcher = Pattern.compile("namespace\s+'([^']+)'").matcher(gradleContent);
                     if (nsMatcher.find()) packageName = nsMatcher.group(1);
 
                     handler.post(() -> {
                         saveSettings();
                         statusTextView.setText("Статус: ✅ Репозиторий синхронизирован!");
-                        logEditText.setText("=== 🔄 СИНХРОНИЗАЦИЯ УСПЕШНА ===\n• Пакет: " + packageName + "\n• Версия: " + appVersion);
+                        logEditText.setText("=== 🔄 СИНХРОНИЗАЦИЯ УСПЕШНА ===
+• Пакет: " + packageName + "
+• Версия: " + appVersion);
                     });
                 } else {
                     handler.post(() -> statusTextView.setText("Статус: Готов к работе 🚀"));
@@ -725,7 +736,8 @@ public class MainActivity extends Activity {
                 String fullPath = currentDir.isEmpty() ? name : currentDir + "/" + name;
                 statusTextView.setText("Статус: ⚙️ Создание файла...");
                 new Thread(() -> {
-                    boolean success = pushFileToGitHub(fullPath, "// Новый файл\n", "Create new file: " + fullPath);
+                    boolean success = pushFileToGitHub(fullPath, "// Новый файл
+", "Create new file: " + fullPath);
                     handler.post(() -> {
                         statusTextView.setText("Статус: Готов к работе 🚀");
                         if (success) {
@@ -808,7 +820,7 @@ public class MainActivity extends Activity {
                     String line;
                     while ((line = br.readLine()) != null) sb.append(line);
                     JSONObject json = new JSONObject(sb.toString());
-                    String contentB64 = json.getString("content").replaceAll("\\s", "");
+                    String contentB64 = json.getString("content").replaceAll("\s", "");
                     String fileContent = new String(android.util.Base64.decode(contentB64, android.util.Base64.DEFAULT), StandardCharsets.UTF_8);
 
                     handler.post(() -> {
@@ -853,7 +865,7 @@ public class MainActivity extends Activity {
                     String line;
                     while ((line = br.readLine()) != null) sb.append(line);
                     JSONObject json = new JSONObject(sb.toString());
-                    String contentB64 = json.getString("content").replaceAll("\\s", "");
+                    String contentB64 = json.getString("content").replaceAll("\s", "");
                     String fileContent = new String(android.util.Base64.decode(contentB64, android.util.Base64.DEFAULT), StandardCharsets.UTF_8);
 
                     handler.post(() -> {
@@ -1056,7 +1068,7 @@ public class MainActivity extends Activity {
                         Toast.makeText(MainActivity.this, "Файл загружен!", Toast.LENGTH_SHORT).show();
                         openRepositoryFileManager();
                     }
-                    statusTextView.setText("Статус: Готов к работе 🚀");
+                    statusTextView.setText("Статус: Готов к работе ??");
                 });
             }).start();
         } catch (Exception e) {
@@ -1105,7 +1117,8 @@ public class MainActivity extends Activity {
             BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
             StringBuilder sb = new StringBuilder();
             String line;
-            while ((line = br.readLine()) != null) sb.append(line).append("\n");
+            while ((line = br.readLine()) != null) sb.append(line).append("
+");
             br.close();
 
             String code = sb.toString();
@@ -1142,7 +1155,8 @@ public class MainActivity extends Activity {
                     success = pushFileToGitHub("build.gradle", getRootGradleContent(), "Update root gradle") &&
                               pushFileToGitHub("settings.gradle", getSettingsGradleContent(), "Update settings") &&
                               pushFileToGitHub("gradle.properties", getGradlePropertiesContent(), "Update gradle.properties") &&
-                              pushFileToGitHub("local.properties", "sdk.dir=/usr/local/lib/android/sdk\n", "Update local.properties") &&
+                              pushFileToGitHub("local.properties", "sdk.dir=/usr/local/lib/android/sdk
+", "Update local.properties") &&
                               pushFileToGitHub("app/src/main/AndroidManifest.xml", generateManifest(), "Update manifest") &&
                               pushFileToGitHub("app/build.gradle", generateAppGradle(), "Update app gradle") &&
                               pushFileToGitHub(".github/workflows/build_native.yml", getWorkflowContent(), "Update workflow") &&
@@ -1160,9 +1174,12 @@ public class MainActivity extends Activity {
                         if (btnRetryUpload != null) btnRetryUpload.setVisibility(View.GONE);
                         Toast.makeText(this, "Старые пути зачищены, новый код выгружен!", Toast.LENGTH_SHORT).show();
                         statusTextView.setText("Статус: ✅ Новый проект синхронизирован!");
-                        logEditText.setText("=== 🧹 ЗАЧИСТКА И ПЕРЕНОС УСПЕШНЫ ===\n" +
-                                            "• Файл: " + fileName + "\n" +
-                                            "• Актуальный пакет: " + packageName + "\n" +
+                        logEditText.setText("=== 🧹 ЗАЧИСТКА И ПЕРЕНОС УСПЕШНЫ ===
+" +
+                                            "• Файл: " + fileName + "
+" +
+                                            "• Актуальный пакет: " + packageName + "
+" +
                                             "• Новый путь: " + targetPath);
                     } else {
                         lastFailedBytes = uploadBytes;
@@ -1242,7 +1259,8 @@ public class MainActivity extends Activity {
                     if (btnRetryUpload != null) btnRetryUpload.setVisibility(View.GONE);
                     Toast.makeText(this, "Файл успешно отправлен!", Toast.LENGTH_SHORT).show();
                     statusTextView.setText("Статус: ✅ Файл синхронизирован!");
-                    logEditText.setText("=== ✅ ПОВТОРНАЯ ОТПРАВКА УСПЕШНА ===\nФайл успешно загружен на GitHub.");
+                    logEditText.setText("=== ✅ ПОВТОРНАЯ ОТПРАВКА УСПЕШНА ===
+Файл успешно загружен на GitHub.");
                 } else {
                     Toast.makeText(this, "Снова ошибка сети. Проверьте интернет.", Toast.LENGTH_LONG).show();
                 }
@@ -1275,7 +1293,8 @@ public class MainActivity extends Activity {
                     BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
                     StringBuilder sb = new StringBuilder();
                     String line;
-                    while ((line = br.readLine()) != null) sb.append(line).append("\n");
+                    while ((line = br.readLine()) != null) sb.append(line).append("
+");
                     br.close();
                     decompiledJava = sb.toString();
                 }
@@ -1516,6 +1535,7 @@ public class MainActivity extends Activity {
         code = code.replaceAll("[\p{Cntrl}&&[^
 \t]]", "");
         code = code.replace("
+
 ", "
 ").trim();
         code = code.replaceAll("(?m)^\s*package\s+[a-zA-Z0-9_.]+;?", "").trim();
@@ -1742,7 +1762,8 @@ import android.view.*;");
 
         btnBuild.setEnabled(false);
         btnBuild.setBackgroundColor(Color.parseColor("#1E3A8A"));
-        btnBuild.setText("⏳ Компиляция на сервере...\n📦 " + telegramApkTitle);
+        btnBuild.setText("⏳ Компиляция на сервере...
+📦 " + telegramApkTitle);
         statusTextView.setText("Статус: ⚙️ Синхронизация репозитория...");
         logEditText.setText("Отправка кода и конфигурации на GitHub...");
 
@@ -1754,7 +1775,8 @@ import android.view.*;");
                 boolean synced = pushFileToGitHub("build.gradle", getRootGradleContent(), "Update root gradle") &&
                                  pushFileToGitHub("settings.gradle", getSettingsGradleContent(), "Update settings") &&
                                  pushFileToGitHub("gradle.properties", getGradlePropertiesContent(), "Update gradle.properties") &&
-                                 pushFileToGitHub("local.properties", "sdk.dir=/usr/local/lib/android/sdk\n", "Update local.properties") &&
+                                 pushFileToGitHub("local.properties", "sdk.dir=/usr/local/lib/android/sdk
+", "Update local.properties") &&
                                  pushFileToGitHub("app/src/main/AndroidManifest.xml", generateManifest(), "Update manifest") &&
                                  pushFileToGitHub("app/build.gradle", generateAppGradle(), "Update app gradle") &&
                                  pushFileToGitHub(".github/workflows/build_native.yml", getWorkflowContent(), "Update workflow") &&
@@ -1779,13 +1801,14 @@ import android.view.*;");
                 conn.setDoOutput(true);
 
                 try (OutputStream os = conn.getOutputStream()) {
-                    os.write("{\"ref\":\"main\"}".getBytes(StandardCharsets.UTF_8));
+                    os.write("{"ref":"main"}".getBytes(StandardCharsets.UTF_8));
                 }
 
                 if (conn.getResponseCode() == 204 || conn.getResponseCode() == 201) {
                     handler.post(() -> {
                         statusTextView.setText("Статус: 🚀 Сборка запущена! Ожидание APK...");
-                        logEditText.setText("GitHub Actions компилирует ваш проект...\nКак только сборка завершится, бот пришлет APK и Java-дубликат (.txt) в Telegram с точным именем.");
+                        logEditText.setText("GitHub Actions компилирует ваш проект...
+Как только сборка завершится, бот пришлет APK и Java-дубликат (.txt) в Telegram с точным именем.");
                         startMonitoringBuild();
                     });
                 } else {
@@ -1951,69 +1974,98 @@ import android.view.*;");
                         if (logConn.getResponseCode() == 200) {
                             BufferedReader lb = new BufferedReader(new InputStreamReader(logConn.getInputStream(), StandardCharsets.UTF_8));
                             StringBuilder ls = new StringBuilder();
-                            while ((line = lb.readLine()) != null) ls.append(line).append("\n");
+                            while ((line = lb.readLine()) != null) ls.append(line).append("
+");
                             lastErrorLog = ls.toString();
 
                             String fixedCode = activeCodeContent;
                             boolean repaired = false;
-                            StringBuilder report = new StringBuilder("=== 🎓 AI-ПРОФЕССОР: ПОЛНЫЙ ДИАГНОСТИЧЕСКИЙ ОТЧЕТ ===\n\n");
+                            StringBuilder report = new StringBuilder("=== 🎓 AI-ПРОФЕССОР: ПОЛНЫЙ ДИАГНОСТИЧЕСКИЙ ОТЧЕТ ===
+
+");
 
                             if (lastErrorLog.contains("text blocks are not supported in -source 8") || lastErrorLog.contains("feature is not supported in -source")) {
-                                report.append("• 🧬 Проблема: Код использует текстовые блоки \"\"\" или функции выше Java 8.\n");
+                                report.append("• 🧬 Проблема: Код использует текстовые блоки """ или функции выше Java 8.
+");
                                 javaVersion = "17";
                                 minSdk = 26;
                                 saveSettings();
                                 repaired = true;
-                                report.append("  ➜ 🛠 Авто-Патч: Версия проекта переключена на Java 17 / SDK 26!\n");
+                                report.append("  ➜ 🛠 Авто-Патч: Версия проекта переключена на Java 17 / SDK 26!
+");
                             }
 
-                            if (lastErrorLog.contains("illegal character") || lastErrorLog.contains("\ufeff") || lastErrorLog.contains("\uFEFF") || fixedCode.contains("\uFEFF")) {
-                                report.append("• 🧬 Проблема: Обнаружены запрещенные невидимые символы (BOM, Control Chars) или неверный слэш \\.\n");
+                            if (lastErrorLog.contains("illegal character") || lastErrorLog.contains("") || lastErrorLog.contains("") || fixedCode.contains("")) {
+                                report.append("• 🧬 Проблема: Обнаружены запрещенные невидимые символы (BOM, Control Chars) или неверный слэш \.
+");
                                 fixedCode = sanitizeAndInjectJavaCode(fixedCode, packageName);
                                 repaired = true;
-                                report.append("  ➜ 🛠 Авто-Патч: Код полностью очищен от BOM, слэшей и скрытого мусора!\n");
+                                report.append("  ➜ 🛠 Авто-Патч: Код полностью очищен от BOM, слэшей и скрытого мусора!
+");
                             }
 
                             if (lastErrorLog.contains("unclosed string literal") || lastErrorLog.contains("not a statement")) {
-                                report.append("• 🧬 Проблема: Незакрытые строковые литералы или битые кавычки в коде.\n");
+                                report.append("• 🧬 Проблема: Незакрытые строковые литералы или битые кавычки в коде.
+");
                                 fixedCode = sanitizeAndInjectJavaCode(fixedCode, packageName);
                                 repaired = true;
-                                report.append("  ➜ 🛠 Авто-Патч: Нормализованы строковые экраны и кавычки.\n");
+                                report.append("  ➜ 🛠 Авто-Патч: Нормализованы строковые экраны и кавычки.
+");
                             }
 
                             if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("WebView") || lastErrorLog.contains("WebSettings"))) {
-                                report.append("• 🧬 Проблема: Отсутствуют импорты компонентов WebView.\n");
+                                report.append("• 🧬 Проблема: Отсутствуют импорты компонентов WebView.
+");
                                 if (!fixedCode.contains("import android.webkit.WebView;")) {
-                                    fixedCode = fixedCode.replaceFirst("package\\s+[a-zA-Z0-9_.]+;", "$0\n\nimport android.webkit.WebView;\nimport android.webkit.WebSettings;\nimport android.webkit.WebViewClient;");
+                                    fixedCode = fixedCode.replaceFirst("package\s+[a-zA-Z0-9_.]+;", "$0
+
+import android.webkit.WebView;
+import android.webkit.WebSettings;
+import android.webkit.WebViewClient;");
                                     repaired = true;
-                                    report.append("  ➜ 🛠 Авто-Патч: Автоматически подключены импорты android.webkit.*\n");
+                                    report.append("  ➜ 🛠 Авто-Патч: Автоматически подключены импорты android.webkit.*
+");
                                 }
                             }
 
                             if (lastErrorLog.contains("AppCompatActivity") || lastErrorLog.contains("cannot find symbol class AppCompatActivity")) {
-                                report.append("• 🧬 Проблема: Класс расширяет AppCompatActivity без импорта.\n");
+                                report.append("• 🧬 Проблема: Класс расширяет AppCompatActivity без импорта.
+");
                                 if (!fixedCode.contains("import androidx.appcompat.app.AppCompatActivity;")) {
-                                    fixedCode = fixedCode.replaceFirst("package\\s+[a-zA-Z0-9_.]+;", "$0\n\nimport androidx.appcompat.app.AppCompatActivity;");
+                                    fixedCode = fixedCode.replaceFirst("package\s+[a-zA-Z0-9_.]+;", "$0
+
+import androidx.appcompat.app.AppCompatActivity;");
                                     repaired = true;
-                                    report.append("  ➜ 🛠 Авто-Патч: Добавлен импорт androidx.appcompat.app.AppCompatActivity.\n");
+                                    report.append("  ➜ 🛠 Авто-Патч: Добавлен импорт androidx.appcompat.app.AppCompatActivity.
+");
                                 }
                             }
 
                             if (lastErrorLog.contains("cannot find symbol") && (lastErrorLog.contains("List") || lastErrorLog.contains("Pattern") || lastErrorLog.contains("Matcher") || lastErrorLog.contains("InputStream"))) {
-                                report.append("• 🧬 Проблема: Отсутствуют базовые импорты утилит Java (List, Pattern, IO).\n");
+                                report.append("• 🧬 Проблема: Отсутствуют базовые импорты утилит Java (List, Pattern, IO).
+");
                                 if (!fixedCode.contains("import java.util.*;")) {
-                                    fixedCode = fixedCode.replaceFirst("package\\s+[a-zA-Z0-9_.]+;", "$0\n\nimport java.util.*;\nimport java.util.regex.*;\nimport java.io.*;");
+                                    fixedCode = fixedCode.replaceFirst("package\s+[a-zA-Z0-9_.]+;", "$0
+
+import java.util.*;
+import java.util.regex.*;
+import java.io.*;");
                                     repaired = true;
-                                    report.append("  ➜ 🛠 Авто-Патч: Подключены комплекты java.util.*, java.util.regex.* и java.io.*\n");
+                                    report.append("  ➜ 🛠 Авто-Патч: Подключены комплекты java.util.*, java.util.regex.* и java.io.*
+");
                                 }
                             }
 
-                            report.append("\n📋 ВЫЖИМКА ОШИБОК КОМПИЛЯТОРА С GITHUB:\n");
-                            String[] logLines = lastErrorLog.split("\n");
+                            report.append("
+📋 ВЫЖИМКА ОШИБОК КОМПИЛЯТОРА С GITHUB:
+");
+                            String[] logLines = lastErrorLog.split("
+");
                             int count = 0;
                             for (String ll : logLines) {
                                 if ((ll.contains("error:") || ll.contains("FAILED") || ll.contains("Exception") || ll.contains(".java:")) && count < 15) {
-                                    report.append("❌ ").append(ll.trim()).append("\n");
+                                    report.append("❌ ").append(ll.trim()).append("
+");
                                     count++;
                                 }
                             }
@@ -2123,7 +2175,8 @@ import android.view.*;");
                 boolean synced = pushFileToGitHub("build.gradle", getRootGradleContent(), "Clean & Reset root gradle") &&
                                  pushFileToGitHub("settings.gradle", getSettingsGradleContent(), "Clean & Reset settings") &&
                                  pushFileToGitHub("gradle.properties", getGradlePropertiesContent(), "Clean & Reset gradle.properties") &&
-                                 pushFileToGitHub("local.properties", "sdk.dir=/usr/local/lib/android/sdk\n", "Clean & Reset local.properties") &&
+                                 pushFileToGitHub("local.properties", "sdk.dir=/usr/local/lib/android/sdk
+", "Clean & Reset local.properties") &&
                                  pushFileToGitHub("app/src/main/AndroidManifest.xml", generateManifest(), "Clean & Reset manifest") &&
                                  pushFileToGitHub("app/build.gradle", generateAppGradle(), "Clean & Reset app gradle") &&
                                  pushFileToGitHub(".github/workflows/build_native.yml", getWorkflowContent(), "Clean & Reset workflow") &&
@@ -2133,7 +2186,9 @@ import android.view.*;");
                     if (synced) {
                         statusTextView.setText("Статус: ✅ Репозиторий очищен под корень!");
                         Toast.makeText(MainActivity.this, "Репозиторий полностью очищен!", Toast.LENGTH_LONG).show();
-                        logEditText.setText("=== 🗑 ПОЛНАЯ ОЧИСТКА И СБРОС КЭША УСПЕШНЫ ===\n• Лишние файлы удалены.\n• Восстановлена базовая структура и шаблон.");
+                        logEditText.setText("=== 🗑 ПОЛНАЯ ОЧИСТКА И СБРОС КЭША УСПЕШНЫ ===
+• Лишние файлы удалены.
+• Восстановлена базовая структура и шаблон.");
                     } else {
                         statusTextView.setText("Статус: ❌ Ошибка очистки репозитория");
                         Toast.makeText(MainActivity.this, "Ошибка при очистке", Toast.LENGTH_SHORT).show();
@@ -2159,7 +2214,8 @@ import android.view.*;");
                 if (telegramApkTitle.isEmpty()) telegramApkTitle = "RomaMonsterApp";
                 saveSettings();
                 Toast.makeText(this, "Имя для APK обновлено!", Toast.LENGTH_SHORT).show();
-                logEditText.setText("=== 🏷 ИМЯ APK ОБНОВЛЕНО ===\n• Новое имя для отправки в Telegram: " + telegramApkTitle);
+                logEditText.setText("=== 🏷 ИМЯ APK ОБНОВЛЕНО ===
+• Новое имя для отправки в Telegram: " + telegramApkTitle);
             })
             .setNegativeButton("Отмена", null)
             .show();
@@ -2192,7 +2248,9 @@ import android.view.*;");
                         progressDialog.dismiss();
                         if (success) {
                             Toast.makeText(this, "Версия обновлена, старые пути удалены!", Toast.LENGTH_SHORT).show();
-                            logEditText.setText("=== 🔢 ВЕРСИЯ И ПУТЬ ОБНОВЛЕНЫ ===\n• Новая версия: " + appVersion + "\n• Новый путь: " + getMainActivityPath());
+                            logEditText.setText("=== 🔢 ВЕРСИЯ И ПУТЬ ОБНОВЛЕНЫ ===
+• Новая версия: " + appVersion + "
+• Новый путь: " + getMainActivityPath());
                         } else {
                             Toast.makeText(this, "Ошибка синхронизации версии", Toast.LENGTH_SHORT).show();
                         }
@@ -2239,7 +2297,9 @@ import android.view.*;");
                         progressDialog.dismiss();
                         if (success) {
                             Toast.makeText(this, "Пакет изменен, старые папки удалены!", Toast.LENGTH_SHORT).show();
-                            logEditText.setText("=== 📦 ИМЯ ПАКЕТА ОБНОВЛЕНО ===\n• Новый пакет: " + packageName + "\n• Новый путь: " + getMainActivityPath());
+                            logEditText.setText("=== 📦 ИМЯ ПАКЕТА ОБНОВЛЕНО ===
+• Новый пакет: " + packageName + "
+• Новый путь: " + getMainActivityPath());
                         } else {
                             Toast.makeText(this, "Ошибка синхронизации с GitHub", Toast.LENGTH_SHORT).show();
                         }
@@ -2285,10 +2345,14 @@ import android.view.*;");
                 minSdk = spinner.getSelectedItemPosition() == 0 ? 21 : 26;
                 saveSettings();
                 Toast.makeText(this, "Настройки сохранены!", Toast.LENGTH_SHORT).show();
-                logEditText.setText("=== ⚙️ НАСТРОЙКИ ОБНОВЛЕНЫ ===\n" +
-                                    "• GitHub Token: " + (githubToken.isEmpty() ? "⚠️ Пусто" : "✅ Сохранен") + "\n" +
-                                    "• Telegram Bot: ✅ Сохранен\n" +
-                                    "• Chat ID: " + chatId + "\n" +
+                logEditText.setText("=== ⚙️ НАСТРОЙКИ ОБНОВЛЕНЫ ===
+" +
+                                    "• GitHub Token: " + (githubToken.isEmpty() ? "⚠️ Пусто" : "✅ Сохранен") + "
+" +
+                                    "• Telegram Bot: ✅ Сохранен
+" +
+                                    "• Chat ID: " + chatId + "
+" +
                                     "• Java Version: " + javaVersion + " (minSdk: " + minSdk + ")");
                 if (!githubToken.isEmpty()) {
                     fetchRemoteRepositoryInfo();
@@ -2311,47 +2375,112 @@ import android.view.*;");
     }
 
     private String getRootGradleContent() {
-        return "buildscript {\n    repositories {\n        google()\n        mavenCentral()\n    }\n    dependencies {\n        classpath 'com.android.tools.build:gradle:8.2.2'\n    }\n}\nallprojects {\n    repositories {\n        google()\n        mavenCentral()\n    }\n}\n";
+        return "buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.2.2'
+    }
+}
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+";
     }
 
     private String getSettingsGradleContent() {
-        return "rootProject.name = \"" + telegramApkTitle + "\"\ninclude ':app'\n";
+        return "rootProject.name = "" + telegramApkTitle + ""
+include ':app'
+";
     }
 
     private String getGradlePropertiesContent() {
-        return "org.gradle.jvmargs=-Xmx2048M -Dfile.encoding=UTF-8\n" +
-               "android.useAndroidX=true\n" +
-               "android.useJetifier=true\n";
+        return "org.gradle.jvmargs=-Xmx2048M -Dfile.encoding=UTF-8
+" +
+               "android.useAndroidX=true
+" +
+               "android.useJetifier=true
+";
     }
 
     private String getWorkflowContent() {
-        return "name: Build Monster APK\n" +
-               "on:\n  workflow_dispatch:\n\n" +
-               "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" +
-               "      - name: Checkout\n        uses: actions/checkout@v4\n" +
-               "      - name: Set up JDK 17\n        uses: actions/setup-java@v5\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n" +
-               "      - name: Setup Android SDK (Native Bash)\n        run: |\n" +
-               "          export ANDROID_HOME=/usr/local/lib/android/sdk\n" +
-               "          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n" +
-               "          yes | sdkmanager --licenses || true\n" +
-               "          sdkmanager \"platform-tools\" \"platforms;android-" + compileSdk + "\" \"build-tools;34.0.0\"\n" +
-               "      - name: Setup Gradle\n        uses: gradle/actions/setup-gradle@v3\n        with:\n          gradle-version: '8.5'\n          cache-disabled: true\n" +
-               "      - name: Build APK\n        run: |\n" +
-               "          gradle clean assembleDebug --info --stacktrace --no-daemon\n" +
-               "      - name: Send Named APK and Java Code Duplicate to Telegram\n        if: success()\n        run: |\n" +
-               "          RAW_APK=$(find app/build/outputs/apk/debug/ -name \"*.apk\" | head -n 1)\n" +
-               "          TARGET_NAME=\"" + telegramApkTitle + "_v" + appVersion + "\"\n" +
-               "          FINAL_APK=\"${TARGET_NAME}.apk\"\n" +
-               "          TXT_PATH=\"${TARGET_NAME}.java.txt\"\n" +
-               "          cp \"$RAW_APK\" \"$FINAL_APK\"\n" +
-               "          JAVA_SRC=$(find app/src/main/java/ -name \"MainActivity.java\" | head -n 1)\n" +
-               "          if [ -f \"$JAVA_SRC\" ]; then\n" +
-               "            cp \"$JAVA_SRC\" \"$TXT_PATH\"\n" +
-               "          else\n" +
-               "            echo \"package " + packageName + ";\" > \"$TXT_PATH\"\n" +
-               "          fi\n" +
-               "          curl -F chat_id=\"" + chatId + "\" -F document=@\"$FINAL_APK\" https://api.telegram.org/bot" + botToken + "/sendDocument\n" +
-               "          curl -F chat_id=\"" + chatId + "\" -F document=@\"$TXT_PATH\" https://api.telegram.org/bot" + botToken + "/sendDocument\n";
+        return "name: Build Monster APK
+" +
+               "on:
+  workflow_dispatch:
+
+" +
+               "jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+" +
+               "      - name: Checkout
+        uses: actions/checkout@v4
+" +
+               "      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+" +
+               "      - name: Setup Android SDK (Native Bash)
+        run: |
+" +
+               "          export ANDROID_HOME=/usr/local/lib/android/sdk
+" +
+               "          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
+" +
+               "          yes | sdkmanager --licenses || true
+" +
+               "          sdkmanager "platform-tools" "platforms;android-" + compileSdk + "" "build-tools;34.0.0"
+" +
+               "      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.5'
+          cache-disabled: true
+" +
+               "      - name: Build APK
+        run: |
+" +
+               "          gradle clean assembleDebug --info --stacktrace --no-daemon
+" +
+               "      - name: Send Named APK and Java Code Duplicate to Telegram
+        if: success()
+        run: |
+" +
+               "          RAW_APK=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
+" +
+               "          TARGET_NAME="" + telegramApkTitle + "_v" + appVersion + ""
+" +
+               "          FINAL_APK="${TARGET_NAME}.apk"
+" +
+               "          TXT_PATH="${TARGET_NAME}.java.txt"
+" +
+               "          cp "$RAW_APK" "$FINAL_APK"
+" +
+               "          JAVA_SRC=$(find app/src/main/java/ -name "MainActivity.java" | head -n 1)
+" +
+               "          if [ -f "$JAVA_SRC" ]; then
+" +
+               "            cp "$JAVA_SRC" "$TXT_PATH"
+" +
+               "          else
+" +
+               "            echo "package " + packageName + ";" > "$TXT_PATH"
+" +
+               "          fi
+" +
+               "          curl -F chat_id="" + chatId + "" -F document=@"$FINAL_APK" https://api.telegram.org/bot" + botToken + "/sendDocument
+" +
+               "          curl -F chat_id="" + chatId + "" -F document=@"$TXT_PATH" https://api.telegram.org/bot" + botToken + "/sendDocument
+";
     }
 
     private String extractCustomThemeFromCode(String code) {
@@ -2369,168 +2498,352 @@ import android.view.*;");
             themeAttr = "@android:style/Theme.Material.Light.NoActionBar";
         }
 
-        return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
-               "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n" +
-               "    <uses-permission android:name=\"android.permission.INTERNET\" />\n" +
-               "    <uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\" />\n" +
-               "    <uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\" />\n" +
-               "    <uses-permission android:name=\"android.permission.CHANGE_WIFI_STATE\" />\n" +
-               "    <uses-permission android:name=\"android.permission.CHANGE_NETWORK_STATE\" />\n" +
-               "    <uses-permission android:name=\"android.permission.CHANGE_WIFI_MULTICAST_STATE\" />\n" +
-               "    <uses-permission android:name=\"android.permission.MANAGE_EXTERNAL_STORAGE\" />\n" +
-               "    <uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\" android:maxSdkVersion=\"33\" />\n" +
-               "    <uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\" android:maxSdkVersion=\"33\" />\n" +
-               "    <uses-permission android:name=\"android.permission.READ_MEDIA_AUDIO\" />\n" +
-               "    <uses-permission android:name=\"android.permission.READ_MEDIA_IMAGES\" />\n" +
-               "    <uses-permission android:name=\"android.permission.READ_MEDIA_VIDEO\" />\n" +
-               "    <uses-permission android:name=\"android.permission.READ_MEDIA_VISUAL_USER_SELECTED\" />\n" +
-               "    <uses-permission android:name=\"android.permission.RECORD_AUDIO\" />\n" +
-               "    <uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\" />\n" +
-               "    <uses-permission android:name=\"android.permission.CAPTURE_AUDIO_OUTPUT\" />\n" +
-               "    <uses-permission android:name=\"android.permission.CAMERA\" />\n" +
-               "    <uses-permission android:name=\"android.permission.FLASHLIGHT\" />\n" +
-               "    <uses-permission android:name=\"android.permission.BLUETOOTH\" />\n" +
-               "    <uses-permission android:name=\"android.permission.BLUETOOTH_ADMIN\" />\n" +
-               "    <uses-permission android:name=\"android.permission.BLUETOOTH_CONNECT\" />\n" +
-               "    <uses-permission android:name=\"android.permission.BLUETOOTH_SCAN\" />\n" +
-               "    <uses-permission android:name=\"android.permission.BLUETOOTH_ADVERTISE\" />\n" +
-               "    <uses-permission android:name=\"android.permission.NFC\" />\n" +
-               "    <uses-permission android:name=\"android.permission.ACCESS_FINE_LOCATION\" />\n" +
-               "    <uses-permission android:name=\"android.permission.ACCESS_COARSE_LOCATION\" />\n" +
-               "    <uses-permission android:name=\"android.permission.ACCESS_BACKGROUND_LOCATION\" />\n" +
-               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\" />\n" +
-               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MICROPHONE\" />\n" +
-               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_CAMERA\" />\n" +
-               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_LOCATION\" />\n" +
-               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE\" />\n" +
-               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_DATA_SYNC\" />\n" +
-               "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK\" />\n" +
-               "    <uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\" />\n" +
-               "    <uses-permission android:name=\"android.permission.WAKE_LOCK\" />\n" +
-               "    <uses-permission android:name=\"android.permission.VIBRATE\" />\n" +
-               "    <uses-permission android:name=\"android.permission.RECEIVE_BOOT_COMPLETED\" />\n" +
-               "    <uses-permission android:name=\"android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS\" />\n" +
-               "    <uses-permission android:name=\"android.permission.SYSTEM_ALERT_WINDOW\" />\n" +
-               "    <uses-permission android:name=\"android.permission.WRITE_SETTINGS\" />\n" +
-               "    <uses-permission android:name=\"android.permission.EXPAND_STATUS_BAR\" />\n" +
-               "    <uses-permission android:name=\"android.permission.REQUEST_INSTALL_PACKAGES\" />\n" +
-               "    <uses-permission android:name=\"android.permission.USE_FULL_SCREEN_INTENT\" />\n" +
-               "    <uses-permission android:name=\"android.permission.SCHEDULE_EXACT_ALARM\" />\n" +
-               "    <uses-permission android:name=\"com.android.vending.BILLING\" />\n" +
-               "    <uses-permission android:name=\"android.permission.BODY_SENSORS\" />\n" +
-               "    <uses-permission android:name=\"android.permission.BODY_SENSORS_BACKGROUND\" />\n" +
-               "    <application android:allowBackup=\"true\" android:icon=\"@mipmap/ic_launcher\" android:label=\"" + telegramApkTitle + "\" android:theme=\"" + themeAttr + "\">\n" +
-               "        <activity android:name=\".MainActivity\" android:exported=\"true\">\n" +
-               "            <intent-filter>\n" +
-               "                <action android:name=\"android.intent.action.MAIN\" />\n" +
-               "                <category android:name=\"android.intent.category.LAUNCHER\" />\n" +
-               "            </intent-filter>\n" +
-               "        </activity>\n" +
-               "    </application>\n" +
+        return "<?xml version="1.0" encoding="utf-8"?>
+" +
+               "<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+" +
+               "    <uses-permission android:name="android.permission.INTERNET" />
+" +
+               "    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+" +
+               "    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+" +
+               "    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+" +
+               "    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+" +
+               "    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+" +
+               "    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+" +
+               "    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="33" />
+" +
+               "    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="33" />
+" +
+               "    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+" +
+               "    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+" +
+               "    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+" +
+               "    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+" +
+               "    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+" +
+               "    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+" +
+               "    <uses-permission android:name="android.permission.CAPTURE_AUDIO_OUTPUT" />
+" +
+               "    <uses-permission android:name="android.permission.CAMERA" />
+" +
+               "    <uses-permission android:name="android.permission.FLASHLIGHT" />
+" +
+               "    <uses-permission android:name="android.permission.BLUETOOTH" />
+" +
+               "    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+" +
+               "    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+" +
+               "    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+" +
+               "    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+" +
+               "    <uses-permission android:name="android.permission.NFC" />
+" +
+               "    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+" +
+               "    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+" +
+               "    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+" +
+               "    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+" +
+               "    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+" +
+               "    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+" +
+               "    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+" +
+               "    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+" +
+               "    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+" +
+               "    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+" +
+               "    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+" +
+               "    <uses-permission android:name="android.permission.WAKE_LOCK" />
+" +
+               "    <uses-permission android:name="android.permission.VIBRATE" />
+" +
+               "    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+" +
+               "    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+" +
+               "    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+" +
+               "    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+" +
+               "    <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
+" +
+               "    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+" +
+               "    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+" +
+               "    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+" +
+               "    <uses-permission android:name="com.android.vending.BILLING" />
+" +
+               "    <uses-permission android:name="android.permission.BODY_SENSORS" />
+" +
+               "    <uses-permission android:name="android.permission.BODY_SENSORS_BACKGROUND" />
+" +
+               "    <application android:allowBackup="true" android:icon="@mipmap/ic_launcher" android:label="" + telegramApkTitle + "" android:theme="" + themeAttr + "">
+" +
+               "        <activity android:name=".MainActivity" android:exported="true">
+" +
+               "            <intent-filter>
+" +
+               "                <action android:name="android.intent.action.MAIN" />
+" +
+               "                <category android:name="android.intent.category.LAUNCHER" />
+" +
+               "            </intent-filter>
+" +
+               "        </activity>
+" +
+               "    </application>
+" +
                "</manifest>";
     }
 
     private String generateAppGradle() {
         String compat = javaVersion.equals("8") ? "JavaVersion.VERSION_1_8" : "JavaVersion.VERSION_17";
-        return "plugins {\n    id 'com.android.application'\n}\n\n" +
-               "android {\n    namespace '" + packageName + "'\n    compileSdk " + compileSdk + "\n" +
-               "    defaultConfig {\n        applicationId \"" + packageName + "\"\n" +
-               "        minSdk " + minSdk + "\n        targetSdk " + compileSdk + "\n        versionCode " + versionCode + "\n        versionName \"" + appVersion + "\"\n    }\n" +
-               "    compileOptions {\n        sourceCompatibility " + compat + "\n        targetCompatibility " + compat + "\n    }\n" +
-               "    applicationVariants.all { variant ->\n" +
-               "        variant.outputs.all { output ->\n" +
-               "            outputFileName = \"" + telegramApkTitle + "_v" + appVersion + "-\" + variant.name + \".apk\"\n" +
-               "        }\n" +
-               "    }\n" +
-               "}\n\n" +
-               "dependencies {\n    implementation 'androidx.appcompat:appcompat:1.6.1'\n    implementation 'com.google.android.material:material:1.11.0'\n    implementation 'com.squareup.okhttp3:okhttp:4.12.0'\n}\n";
+        return "plugins {
+    id 'com.android.application'
+}
+
+" +
+               "android {
+    namespace '" + packageName + "'
+    compileSdk " + compileSdk + "
+" +
+               "    defaultConfig {
+        applicationId "" + packageName + ""
+" +
+               "        minSdk " + minSdk + "
+        targetSdk " + compileSdk + "
+        versionCode " + versionCode + "
+        versionName "" + appVersion + ""
+    }
+" +
+               "    compileOptions {
+        sourceCompatibility " + compat + "
+        targetCompatibility " + compat + "
+    }
+" +
+               "    applicationVariants.all { variant ->
+" +
+               "        variant.outputs.all { output ->
+" +
+               "            outputFileName = "" + telegramApkTitle + "_v" + appVersion + "-" + variant.name + ".apk"
+" +
+               "        }
+" +
+               "    }
+" +
+               "}
+
+" +
+               "dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+}
+";
     }
 
     private String generateClockTemplate() {
-        return "package " + packageName + ";\n\n" +
-               "import android.app.Activity;\n" +
-               "import android.content.Context;\n" +
-               "import android.hardware.camera2.CameraManager;\n" +
-               "import android.os.Bundle;\n" +
-               "import android.view.Gravity;\n" +
-               "import android.view.WindowManager;\n" +
-               "import android.widget.*;\n" +
-               "import android.graphics.Color;\n" +
-               "import android.graphics.Typeface;\n\n" +
-               "public class MainActivity extends Activity {\n" +
-               "    private boolean isFlashOn = false;\n" +
-               "    private CameraManager cameraManager;\n" +
-               "    private String cameraId;\n\n" +
-               "    @Override\n" +
-               "    protected void onCreate(Bundle savedInstanceState) {\n" +
-               "        super.onCreate(savedInstanceState);\n" +
-               "        LinearLayout layout = new LinearLayout(this);\n" +
-               "        layout.setOrientation(LinearLayout.VERTICAL);\n" +
-               "        layout.setGravity(Gravity.CENTER);\n" +
-               "        layout.setBackgroundColor(Color.parseColor(\"#030712\"));\n" +
-               "        layout.setPadding(30, 30, 30, 30);\n\n" +
-               "        TextView title = new TextView(this);\n" +
-               "        title.setText(\"⚡ Monster Clock & Flash\");\n" +
-               "        title.setTextColor(Color.parseColor(\"#38BDF8\"));\n" +
-               "        title.setTextSize(20f);\n" +
-               "        title.setTypeface(Typeface.DEFAULT_BOLD);\n" +
-               "        title.setGravity(Gravity.CENTER);\n" +
-               "        title.setPadding(0, 0, 0, 30);\n" +
-               "        layout.addView(title);\n\n" +
-               "        TextClock clock = new TextClock(this);\n" +
-               "        clock.setTextColor(Color.parseColor(\"#10B981\"));\n" +
-               "        clock.setTextSize(52f);\n" +
-               "        clock.setTypeface(Typeface.DEFAULT_BOLD);\n" +
-               "        clock.setGravity(Gravity.CENTER);\n" +
-               "        clock.setPadding(0, 0, 0, 40);\n" +
-               "        layout.addView(clock);\n\n" +
-               "        Button flashBtn = new Button(this);\n" +
-               "        flashBtn.setText(\"🔦 Включить фонарик\");\n" +
-               "        flashBtn.setTextColor(Color.WHITE);\n" +
-               "        flashBtn.setTextSize(14f);\n" +
-               "        flashBtn.setBackgroundColor(Color.parseColor(\"#2563EB\"));\n" +
-               "        flashBtn.setPadding(20, 20, 20, 20);\n" +
-               "        layout.addView(flashBtn);\n\n" +
-               "        TextView brightLabel = new TextView(this);\n" +
-               "        brightLabel.setText(\"☀️ Яркость экрана\");\n" +
-               "        brightLabel.setTextColor(Color.parseColor(\"#94A3B8\"));\n" +
-               "        brightLabel.setTextSize(12f);\n" +
-               "        brightLabel.setPadding(0, 30, 0, 10);\n" +
-               "        layout.addView(brightLabel);\n\n" +
-               "        SeekBar seekBar = new SeekBar(this);\n" +
-               "        seekBar.setMax(100);\n" +
-               "        seekBar.setProgress(50);\n" +
-               "        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {\n" +
-               "            @Override\n" +
-               "            public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {\n" +
-               "                try {\n" +
-               "                    WindowManager.LayoutParams lp = getWindow().getAttributes();\n" +
-               "                    lp.screenBrightness = Math.max(0.01f, progress / 100f);\n" +
-               "                    getWindow().setAttributes(lp);\n" +
-               "                } catch (Exception ignored) {}\n" +
-               "            }\n" +
-               "            @Override public void onStartTrackingTouch(SeekBar sb) {}\n" +
-               "            @Override public void onStopTrackingTouch(SeekBar sb) {}\n" +
-               "        });\n" +
-               "        layout.addView(seekBar);\n\n" +
-               "        cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);\n" +
-               "        try {\n" +
-               "            if (cameraManager != null && cameraManager.getCameraIdList().length > 0) {\n" +
-               "                cameraId = cameraManager.getCameraIdList()[0];\n" +
-               "            }\n" +
-               "        } catch (Exception ignored) {}\n\n" +
-               "        flashBtn.setOnClickListener(v -> {\n" +
-               "            try {\n" +
-               "                if (cameraManager != null && cameraId != null) {\n" +
-               "                    isFlashOn = !isFlashOn;\n" +
-               "                    cameraManager.setTorchMode(cameraId, isFlashOn);\n" +
-               "                    flashBtn.setText(isFlashOn ? \"🔦 Выключить фонарик\" : \"🔦 Включить фонарик\");\n" +
-               "                    flashBtn.setBackgroundColor(Color.parseColor(isFlashOn ? \"#DC2626\" : \"#2563EB\"));\n" +
-               "                }\n" +
-               "            } catch (Exception e) {}\n" +
-               "        });\n\n" +
-               "        setContentView(layout);\n" +
-               "    }\n" +
-               "}\n";
+        return "package " + packageName + ";
+
+" +
+               "import android.app.Activity;
+" +
+               "import android.content.Context;
+" +
+               "import android.hardware.camera2.CameraManager;
+" +
+               "import android.os.Bundle;
+" +
+               "import android.view.Gravity;
+" +
+               "import android.view.WindowManager;
+" +
+               "import android.widget.*;
+" +
+               "import android.graphics.Color;
+" +
+               "import android.graphics.Typeface;
+
+" +
+               "public class MainActivity extends Activity {
+" +
+               "    private boolean isFlashOn = false;
+" +
+               "    private CameraManager cameraManager;
+" +
+               "    private String cameraId;
+
+" +
+               "    @Override
+" +
+               "    protected void onCreate(Bundle savedInstanceState) {
+" +
+               "        super.onCreate(savedInstanceState);
+" +
+               "        LinearLayout layout = new LinearLayout(this);
+" +
+               "        layout.setOrientation(LinearLayout.VERTICAL);
+" +
+               "        layout.setGravity(Gravity.CENTER);
+" +
+               "        layout.setBackgroundColor(Color.parseColor("#030712"));
+" +
+               "        layout.setPadding(30, 30, 30, 30);
+
+" +
+               "        TextView title = new TextView(this);
+" +
+               "        title.setText("⚡ Monster Clock & Flash");
+" +
+               "        title.setTextColor(Color.parseColor("#38BDF8"));
+" +
+               "        title.setTextSize(20f);
+" +
+               "        title.setTypeface(Typeface.DEFAULT_BOLD);
+" +
+               "        title.setGravity(Gravity.CENTER);
+" +
+               "        title.setPadding(0, 0, 0, 30);
+" +
+               "        layout.addView(title);
+
+" +
+               "        TextClock clock = new TextClock(this);
+" +
+               "        clock.setTextColor(Color.parseColor("#10B981"));
+" +
+               "        clock.setTextSize(52f);
+" +
+               "        clock.setTypeface(Typeface.DEFAULT_BOLD);
+" +
+               "        clock.setGravity(Gravity.CENTER);
+" +
+               "        clock.setPadding(0, 0, 0, 40);
+" +
+               "        layout.addView(clock);
+
+" +
+               "        Button flashBtn = new Button(this);
+" +
+               "        flashBtn.setText("🔦 Включить фонарик");
+" +
+               "        flashBtn.setTextColor(Color.WHITE);
+" +
+               "        flashBtn.setTextSize(14f);
+" +
+               "        flashBtn.setBackgroundColor(Color.parseColor("#2563EB"));
+" +
+               "        flashBtn.setPadding(20, 20, 20, 20);
+" +
+               "        layout.addView(flashBtn);
+
+" +
+               "        TextView brightLabel = new TextView(this);
+" +
+               "        brightLabel.setText("☀️ Яркость экрана");
+" +
+               "        brightLabel.setTextColor(Color.parseColor("#94A3B8"));
+" +
+               "        brightLabel.setTextSize(12f);
+" +
+               "        brightLabel.setPadding(0, 30, 0, 10);
+" +
+               "        layout.addView(brightLabel);
+
+" +
+               "        SeekBar seekBar = new SeekBar(this);
+" +
+               "        seekBar.setMax(100);
+" +
+               "        seekBar.setProgress(50);
+" +
+               "        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+" +
+               "            @Override
+" +
+               "            public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {
+" +
+               "                try {
+" +
+               "                    WindowManager.LayoutParams lp = getWindow().getAttributes();
+" +
+               "                    lp.screenBrightness = Math.max(0.01f, progress / 100f);
+" +
+               "                    getWindow().setAttributes(lp);
+" +
+               "                } catch (Exception ignored) {}
+" +
+               "            }
+" +
+               "            @Override public void onStartTrackingTouch(SeekBar sb) {}
+" +
+               "            @Override public void onStopTrackingTouch(SeekBar sb) {}
+" +
+               "        });
+" +
+               "        layout.addView(seekBar);
+
+" +
+               "        cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+" +
+               "        try {
+" +
+               "            if (cameraManager != null && cameraManager.getCameraIdList().length > 0) {
+" +
+               "                cameraId = cameraManager.getCameraIdList()[0];
+" +
+               "            }
+" +
+               "        } catch (Exception ignored) {}
+
+" +
+               "        flashBtn.setOnClickListener(v -> {
+" +
+               "            try {
+" +
+               "                if (cameraManager != null && cameraId != null) {
+" +
+               "                    isFlashOn = !isFlashOn;
+" +
+               "                    cameraManager.setTorchMode(cameraId, isFlashOn);
+" +
+               "                    flashBtn.setText(isFlashOn ? "🔦 Выключить фонарик" : "🔦 Включить фонарик");
+" +
+               "                    flashBtn.setBackgroundColor(Color.parseColor(isFlashOn ? "#DC2626" : "#2563EB"));
+" +
+               "                }
+" +
+               "            } catch (Exception e) {}
+" +
+               "        });
+
+" +
+               "        setContentView(layout);
+" +
+               "    }
+" +
+               "}
+";
     }
 }
