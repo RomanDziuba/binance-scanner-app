@@ -1,2 +1,2 @@
-rootProject.name = "Камера"
+rootProject.name = "фоторедактор"
 include ':app'
