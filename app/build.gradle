@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version02'
+    namespace 'com.kamera.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version02"
+        applicationId "com.kamera.version01"
         minSdk 21
         targetSdk 34
-        versionCode 30
-        versionName "02"
+        versionCode 31
+        versionName "01"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "RomaMonsterApp_v02-" + variant.name + ".apk"
+            outputFileName = "RomaMonsterApp_v01-" + variant.name + ".apk"
         }
     }
 }
