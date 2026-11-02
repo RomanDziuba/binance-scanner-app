@@ -24,35 +24,34 @@ public class MainActivity extends Activity {
     private Method transmitMethod = null;
     private boolean isIrAvailable = false;
 
-    // База данных кодов для перебора (симуляция таймингов)
     private final int[][] irDatabase = generateIrDatabase();
     private int currentScanIndex = 0;
     private boolean isScanning = false;
-    private int scanPauseMs = 500; // Пауза по умолчанию 0.5 сек
+    private int scanPauseMs = 500;
 
     private Handler scanHandler = new Handler(Looper.getMainLooper());
     private Runnable scanRunnable;
 
-    // Хранилище привязанных команд к кнопкам пульта
     private Map<String, int[]> customButtonCodes = new HashMap<>();
     private Map<String, Button> remoteButtons = new HashMap<>();
 
     private TextView statusIndicator;
+    
+    // Глобальный буфер логов для отладки
+    private static StringBuilder debugLogs = new StringBuilder();
+    private static TextView dialogLogView = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Безопасная инициализация ИК-передатчика через рефлексию (чтобы сервер GitHub Actions не ругался на отсутствие пакета)
         initIrManagerSafe();
 
-        // Главный корневой макет
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
         rootLayout.setBackgroundColor(Color.parseColor("#030712"));
         rootLayout.setPadding(20, 20, 20, 20);
 
-        // Верхняя панель управления и кнопка калибровки
         LinearLayout topBar = new LinearLayout(this);
         topBar.setOrientation(LinearLayout.HORIZONTAL);
         topBar.setGravity(Gravity.CENTER_VERTICAL);
@@ -67,7 +66,6 @@ public class MainActivity extends Activity {
         appTitle.setLayoutParams(titleParams);
         topBar.addView(appTitle);
 
-        // Маленькая кнопка калибровки в углу пульта
         Button btnCalibration = new Button(this);
         btnCalibration.setText("⚙️ Калибровка");
         btnCalibration.setTextColor(Color.parseColor("#F59E0B"));
@@ -79,7 +77,6 @@ public class MainActivity extends Activity {
 
         rootLayout.addView(topBar);
 
-        // Индикатор статуса ИК
         statusIndicator = new TextView(this);
         statusIndicator.setText(isIrAvailable ? "✅ ИК-порт готов к работе" : "⚠️ ИК-порт (эмуляция / недоступен)");
         statusIndicator.setTextColor(isIrAvailable ? Color.parseColor("#10B981") : Color.parseColor("#FBBF24"));
@@ -87,7 +84,6 @@ public class MainActivity extends Activity {
         statusIndicator.setPadding(0, 0, 0, 15);
         rootLayout.addView(statusIndicator);
 
-        // Сетка кнопок пульта
         ScrollView remoteScroll = new ScrollView(this);
         LinearLayout remoteGrid = new LinearLayout(this);
         remoteGrid.setOrientation(LinearLayout.VERTICAL);
@@ -106,6 +102,7 @@ public class MainActivity extends Activity {
         rootLayout.addView(remoteScroll);
 
         setContentView(rootLayout);
+        appendLog("App started. IR Available: " + isIrAvailable);
     }
 
     private void initIrManagerSafe() {
@@ -114,10 +111,25 @@ public class MainActivity extends Activity {
             if (irManager != null) {
                 Method hasEmitter = irManager.getClass().getMethod("hasIrEmitter");
                 isIrAvailable = (Boolean) hasEmitter.invoke(irManager);
+                // Пробуем найти метод transmit
                 transmitMethod = irManager.getClass().getMethod("transmit", int.class, int[].class);
+                appendLog("IR Manager инициализирован успешно.");
+            } else {
+                appendLog("SystemService consumer_ir вернул null.");
             }
         } catch (Exception e) {
             isIrAvailable = false;
+            appendLog("Ошибка initIrManagerSafe: " + e.toString());
+        }
+    }
+
+    private void appendLog(String text) {
+        String msg = "• " + text + "\n";
+        debugLogs.append(msg);
+        if (dialogLogView != null) {
+            dialogLogView.post(() -> {
+                dialogLogView.setText(debugLogs.toString());
+            });
         }
     }
 
@@ -142,7 +154,7 @@ public class MainActivity extends Activity {
                 transmitIr(code);
                 Toast.makeText(this, "Отправлена команда: " + btn.getText(), Toast.LENGTH_SHORT).show();
             } else {
-                Toast.makeText(this, "Кнопка '" + btn.getText() + "' не откалибрована! Нажмите 'Калибровка'", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Кнопка не откалибрована!", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -152,27 +164,27 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * ПАНЕЛЬ КАЛИБРОВКИ И АВТОПОИСКА
+     * ПАНЕЛЬ КАЛИБРОВКИ С ОКНОМ ОТЛАДОЧНЫХ ЛОГОВ
      */
     private void showCalibrationPanel() {
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
-        panel.setPadding(20, 20, 20, 20);
+        panel.setPadding(15, 15, 15, 15);
         panel.setBackgroundColor(Color.parseColor("#090D16"));
 
         TextView header = new TextView(this);
-        header.setText("🔬 Студия калибровки и авто-поиска ИК");
+        header.setText("🔬 Студия отладки и калибровки ИК");
         header.setTextColor(Color.parseColor("#38BDF8"));
         header.setTextSize(13f);
         header.setTypeface(Typeface.DEFAULT_BOLD);
-        header.setPadding(0, 0, 0, 15);
+        header.setPadding(0, 0, 0, 10);
         panel.addView(header);
 
         final TextView lblPacketInfo = new TextView(this);
         lblPacketInfo.setText("Пакет №: " + currentScanIndex + " / " + irDatabase.length);
         lblPacketInfo.setTextColor(Color.parseColor("#FBBF24"));
-        lblPacketInfo.setTextSize(14f);
-        lblPacketInfo.setPadding(0, 0, 0, 10);
+        lblPacketInfo.setTextSize(13f);
+        lblPacketInfo.setPadding(0, 0, 0, 8);
         panel.addView(lblPacketInfo);
 
         // Настройка паузы
@@ -194,10 +206,10 @@ public class MainActivity extends Activity {
         pauseLayout.addView(txtPause);
         panel.addView(pauseLayout);
 
-        // Кнопки управления автопоиском
+        // Кнопки управления
         LinearLayout controlsRow1 = new LinearLayout(this);
         controlsRow1.setOrientation(LinearLayout.HORIZONTAL);
-        controlsRow1.setPadding(0, 10, 0, 5);
+        controlsRow1.setPadding(0, 8, 0, 4);
 
         Button btnStartAuto = createStyledButton("▶️ Авто-скан", "#047857", 1.0f);
         Button btnStopAuto = createStyledButton("⏹ Стоп", "#B91C1B", 1.0f);
@@ -207,7 +219,7 @@ public class MainActivity extends Activity {
 
         LinearLayout controlsRow2 = new LinearLayout(this);
         controlsRow2.setOrientation(LinearLayout.HORIZONTAL);
-        controlsRow2.setPadding(0, 5, 0, 10);
+        controlsRow2.setPadding(0, 4, 0, 8);
 
         Button btnPrev = createStyledButton("⬅️ Назад", "#334155", 1.0f);
         Button btnNext = createStyledButton("➡️ Шаг", "#334155", 1.0f);
@@ -221,10 +233,33 @@ public class MainActivity extends Activity {
         Button btnAssign = createStyledButton("🎯 Привязать этот пакет к кнопке пульта", "#7C3AED", 0.0f);
         panel.addView(btnAssign);
 
+        // --- ОКНО ВЫВОДА ЛОГОВ В РЕЖИМЕ КАЛИБРОВКИ ---
+        TextView logTitle = new TextView(this);
+        logTitle.setText("📋 Отладочные логи ИК-порта:");
+        logTitle.setTextColor(Color.parseColor("#64748B"));
+        logTitle.setTextSize(10f);
+        logTitle.setPadding(0, 10, 0, 2);
+        panel.addView(logTitle);
+
+        ScrollView logScroll = new ScrollView(this);
+        logScroll.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 220));
+        
+        dialogLogView = new TextView(this);
+        dialogLogView.setText(debugLogs.toString());
+        dialogLogView.setTextColor(Color.parseColor("#34D399"));
+        dialogLogView.setTextSize(9f);
+        dialogLogView.setTypeface(Typeface.MONOSPACE);
+        logScroll.addView(dialogLogView);
+        panel.addView(logScroll);
+        // ---------------------------------------------
+
         AlertDialog calibDialog = new AlertDialog.Builder(this)
-                .setTitle("⚙️ Меню калибровки пульта")
+                .setTitle("⚙️ Калибровка и Логи")
                 .setView(panel)
-                .setNegativeButton("Закрыть", (d, w) -> stopAutoScan())
+                .setNegativeButton("Закрыть", (d, w) -> {
+                    stopAutoScan();
+                    dialogLogView = null;
+                })
                 .create();
 
         scanRunnable = new Runnable() {
@@ -250,13 +285,13 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {}
             
             isScanning = true;
-            Toast.makeText(this, "Автосканирование запущенно...", Toast.LENGTH_SHORT).show();
+            appendLog("Старт автоскана с паузой " + scanPauseMs + "мс");
             scanHandler.post(scanRunnable);
         });
 
         btnStopAuto.setOnClickListener(v -> {
             stopAutoScan();
-            Toast.makeText(this, "Сканирование остановлено на пакете #" + currentScanIndex, Toast.LENGTH_SHORT).show();
+            appendLog("Автоскан остановлен на пакете #" + currentScanIndex);
             lblPacketInfo.setText("⏹ Остановлено на пакете № " + currentScanIndex);
         });
 
@@ -273,8 +308,8 @@ public class MainActivity extends Activity {
         });
 
         btnTestCurrent.setOnClickListener(v -> {
+            appendLog("Ручной тест пакета #" + currentScanIndex);
             transmitIr(irDatabase[currentScanIndex]);
-            Toast.makeText(this, "Тест пакета #" + currentScanIndex, Toast.LENGTH_SHORT).show();
         });
 
         btnAssign.setOnClickListener(v -> {
@@ -310,7 +345,8 @@ public class MainActivity extends Activity {
                     String newName = inputName.getText().toString();
                     customButtonCodes.put(selectedKey, irDatabase[packetIndex]);
                     if (targetBtn != null) targetBtn.setText(newName);
-                    Toast.makeText(this, "Пакет #" + packetIndex + " привязан к кнопке '" + newName + "'!", Toast.LENGTH_LONG).show();
+                    appendLog("Пакет #" + packetIndex + " привязан к кнопке " + newName);
+                    Toast.makeText(this, "Успешно привязано!", Toast.LENGTH_LONG).show();
                 })
                 .setNegativeButton("Отмена", null)
                 .show();
@@ -321,12 +357,17 @@ public class MainActivity extends Activity {
     private void transmitIr(int[] pattern) {
         try {
             if (irManager != null && transmitMethod != null) {
+                // Вызываем системный метод через рефлексию
                 transmitMethod.invoke(irManager, 38000, pattern);
+                appendLog("OK: Пакет отправлен (38кГц, элементов: " + pattern.length + ")");
             } else {
-                Toast.makeText(this, "Симуляция ИК (порт неактивен)", Toast.LENGTH_SHORT).show();
+                appendLog("ERROR: ИК-менеджер или метод transmit равны null");
+                Toast.makeText(this, "ИК-порт не инициализирован", Toast.LENGTH_SHORT).show();
             }
         } catch (Exception e) {
-            Toast.makeText(this, "Ошибка отправки ИК", Toast.LENGTH_SHORT).show();
+            String err = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
+            appendLog("FAIL transmit: " + err);
+            Toast.makeText(this, "Ошибка отправки: " + err, Toast.LENGTH_SHORT).show();
         }
     }
 
