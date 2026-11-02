@@ -34,7 +34,7 @@ public class MainActivity extends Activity {
     private final int[][] irDatabase = generateAllUniversalIrDatabase();
     private int currentScanIndex = 0;
     private boolean isScanning = false;
-    private int scanPauseMs = 400;
+    private int scanPauseMs = 600;
 
     private Handler scanHandler = new Handler(Looper.getMainLooper());
     private Runnable scanRunnable;
