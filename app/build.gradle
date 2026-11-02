@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.roblox.version01'
+    namespace 'com.pult.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roblox.version01"
+        applicationId "com.pult.version01"
         minSdk 21
         targetSdk 34
         versionCode 65
