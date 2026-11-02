@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.pult2.version02'
+    namespace 'com.pult.version03'
     compileSdk 34
     defaultConfig {
-        applicationId "com.pult2.version02"
+        applicationId "com.pult.version03"
         minSdk 21
         targetSdk 34
         versionCode 53
-        versionName "02"
+        versionName "03"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "Пульт_v02-" + variant.name + ".apk"
+            outputFileName = "Пульт3_v03-" + variant.name + ".apk"
         }
     }
 }
