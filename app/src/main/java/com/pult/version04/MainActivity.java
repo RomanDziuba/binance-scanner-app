@@ -36,13 +36,14 @@ public class MainActivity extends Activity {
     private Handler scanHandler = new Handler(Looper.getMainLooper());
     private Runnable scanRunnable;
 
-    // 30 кастомных кнопок + 1 главная кнопка питания (btn_power)
+    // 30 кастомных кнопок (29 обычных + 1 отдельная большая кнопка питания)
     private Map<String, int[]> customButtonCodes = new HashMap<>();
     private Map<String, String> customButtonLabels = new HashMap<>();
     private Map<String, Button> remoteButtons = new HashMap<>();
 
-    private String deviceTitle = "📺 Телевизор";
+    private String currentDeviceTitle = "📺 Телевизор";
     private TextView lblDeviceTitle;
+    private TextView authorView;
 
     private static StringBuilder debugLogs = new StringBuilder();
     private static TextView dialogLogView = null;
@@ -52,7 +53,7 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         initIrManagerSafe();
-        loadSavedConfigs();
+        loadSavedButtonConfigs();
 
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
@@ -60,7 +61,7 @@ public class MainActivity extends Activity {
         rootLayout.setPadding(12, 12, 12, 12);
         rootLayout.setGravity(Gravity.CENTER_HORIZONTAL);
 
-        // Верхняя панель: Название устройства + Кнопка Меню
+        // Верхняя панель (Редактируемое имя устройства + Кнопка МЕНЮ)
         LinearLayout topBar = new LinearLayout(this);
         topBar.setOrientation(LinearLayout.HORIZONTAL);
         topBar.setGravity(Gravity.CENTER_VERTICAL);
@@ -74,13 +75,13 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams topParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        topParams.setMargins(0, 0, 0, 8);
+        topParams.setMargins(0, 0, 0, 10);
         topBar.setLayoutParams(topParams);
 
         lblDeviceTitle = new TextView(this);
-        lblDeviceTitle.setText(deviceTitle);
+        lblDeviceTitle.setText(currentDeviceTitle);
         lblDeviceTitle.setTextColor(Color.parseColor("#38BDF8"));
-        lblDeviceTitle.setTextSize(14f);
+        lblDeviceTitle.setTextSize(15f);
         lblDeviceTitle.setTypeface(Typeface.DEFAULT_BOLD);
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
         lblDeviceTitle.setLayoutParams(titleParams);
@@ -89,7 +90,7 @@ public class MainActivity extends Activity {
         Button btnCalibration = new Button(this);
         btnCalibration.setText("⚙️ МЕНЮ");
         btnCalibration.setTextColor(Color.parseColor("#F59E0B"));
-        btnCalibration.setTextSize(10f);
+        btnCalibration.setTextSize(11f);
         btnCalibration.setTypeface(Typeface.DEFAULT_BOLD);
         btnCalibration.setBackgroundColor(Color.parseColor("#1E293B"));
         btnCalibration.setPadding(12, 6, 12, 6);
@@ -120,26 +121,33 @@ public class MainActivity extends Activity {
         remoteBody.setLayoutParams(bodyParams);
 
         // 1. ОТДЕЛЬНАЯ БОЛЬШАЯ КНОПКА ВКЛЮЧЕНИЯ/ВЫКЛЮЧЕНИЯ ВВЕРХУ (без надписей по умолчанию)
-        Button btnPower = createCustomButton("btn_power", "", 3.2f, 130);
+        Button btnPowerBig = createCustomStyledButton("btn_power", "");
         LinearLayout.LayoutParams powerParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 130
+            LinearLayout.LayoutParams.MATCH_PARENT, 120
         );
         powerParams.setMargins(6, 4, 6, 12);
-        btnPower.setLayoutParams(powerParams);
-        remoteBody.addView(btnPower);
+        btnPowerBig.setLayoutParams(powerParams);
+        remoteBody.addView(btnPowerBig);
 
-        // 2. СЕТКА ИЗ 30 УНИВЕРСАЛЬНЫХ КНОПОК (10 рядов по 3 кнопки)
-        for (int r = 1; r <= 10; r++) {
+        // 2. СЕТКА ОСТАЛЬНЫХ 29 КНОПОК (в ряд по 4 штуки)
+        for (int r = 1; r <= 8; r++) {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER);
             row.setPadding(0, 4, 0, 4);
 
-            for (int c = 1; c <= 3; c++) {
-                int btnIndex = (r - 1) * 3 + c;
+            for (int c = 1; c <= 4; c++) {
+                int btnIndex = (r - 1) * 4 + c;
+                if (btnIndex > 29) break; // Всего 29 обычных + 1 большая = 30 кнопок
+                
                 String keyId = "btn_" + btnIndex;
-                Button btn = createCustomButton(keyId, "🔘 #" + btnIndex, 1.0f, 95);
-                remoteBody.addView(btn);
+                Button btn = createCustomStyledButton(keyId, "");
+
+                LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(0, 95, 1.0f);
+                btnParams.setMargins(5, 3, 5, 3);
+                btn.setLayoutParams(btnParams);
+
+                row.addView(btn);
             }
             remoteBody.addView(row);
         }
@@ -147,9 +155,9 @@ public class MainActivity extends Activity {
         remoteScroll.addView(remoteBody);
         rootLayout.addView(remoteScroll);
 
-        // --- ЕДИНАЯ НИЖНЯЯ ПОДПИСЬ ---
-        TextView authorView = new TextView(this);
-        authorView.setText("✦ Універсальний IR • Dziuba Roman — 2026 ✦");
+        // --- ЕДИНСТВЕННАЯ ПОДПИСЬ ВНИЗУ (Универсальный IR + Авторство) ---
+        authorView = new TextView(this);
+        authorView.setText("Универсальный IR • Dziuba Roman 2026");
         authorView.setTextColor(Color.parseColor("#94A3B8"));
         authorView.setTextSize(11f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -158,30 +166,26 @@ public class MainActivity extends Activity {
         rootLayout.addView(authorView);
 
         setContentView(rootLayout);
-        appendLog("Пульт инициализирован. Всего кнопок: 31");
+        updateAllButtonVisuals();
     }
 
-    private Button createCustomButton(String keyId, String defaultFallback, float weight, int height) {
+    private Button createCustomStyledButton(String keyId, String defaultLabel) {
         Button btn = new Button(this);
-        String label = customButtonLabels.containsKey(keyId) ? customButtonLabels.get(keyId) : defaultFallback;
+        String label = customButtonLabels.containsKey(keyId) ? customButtonLabels.get(keyId) : defaultLabel;
         btn.setText(label);
         btn.setTextColor(Color.WHITE);
         btn.setTextSize(11f);
         btn.setTypeface(Typeface.DEFAULT_BOLD);
 
-        updateButtonStyle(btn, customButtonCodes.containsKey(keyId));
-
-        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(0, height, weight);
-        btnParams.setMargins(5, 3, 5, 3);
-        btn.setLayoutParams(btnParams);
+        updateButtonBackgroundStyle(btn, keyId);
 
         btn.setOnClickListener(v -> {
             int[] code = customButtonCodes.get(keyId);
             if (code != null) {
                 transmitIr(code);
-                Toast.makeText(this, "Команда: " + btn.getText(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Сигнал отправлен!", Toast.LENGTH_SHORT).show();
             } else {
-                Toast.makeText(this, "Кнопка не настроена! Откройте '⚙️ МЕНЮ'", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Кнопка не настроена! Откройте 'МЕНЮ'", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -189,75 +193,94 @@ public class MainActivity extends Activity {
         return btn;
     }
 
-    private void updateButtonStyle(Button btn, boolean isAssigned) {
+    // Красиво округляем кнопки и подсвечиваем активные (привязанные) другим цветом
+    private void updateButtonBackgroundStyle(Button btn, String keyId) {
+        boolean isAssigned = customButtonCodes.containsKey(keyId) && customButtonCodes.get(keyId) != null;
+        
         GradientDrawable btnBg = new GradientDrawable();
-        btnBg.setCornerRadius(20f); // Красивое сильное округление кнопок
         if (isAssigned) {
-            // Подсветка активной (привязанной) кнопки другим цветом (бирюзово-зеленый оттенок)
+            // Активная (привязанная) кнопка аккуратно подсвечена другим цветом (#0D9488 - бирюзовый акцент)
             btnBg.setColor(Color.parseColor("#0D9488"));
             btnBg.setStroke(2, Color.parseColor("#2DD4BF"));
         } else {
-            // Стандартный цвет нетронутой кнопки
+            // Непривязанная кнопка
             btnBg.setColor(Color.parseColor("#334155"));
             btnBg.setStroke(2, Color.parseColor("#475569"));
         }
+        btnBg.setCornerRadius(18f);
         btn.setBackground(btnBg);
     }
 
-    private void loadSavedConfigs() {
-        SharedPreferences sp = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        deviceTitle = sp.getString("deviceTitle", "📺 Телевизор");
-
-        // Главная кнопка питания
-        String powerLabel = sp.getString("btn_power_label", "");
-        customButtonLabels.put("btn_power", powerLabel);
-        String powerCodeStr = sp.getString("btn_power_code", "");
-        if (!powerCodeStr.isEmpty()) parseAndStoreCode("btn_power", powerCodeStr);
-
-        // 30 универсальных кнопок
-        for (int i = 1; i <= 30; i++) {
-            String keyId = "btn_" + i;
-            String savedLabel = sp.getString(keyId + "_label", "🔘 #" + i);
-            customButtonLabels.put(keyId, savedLabel);
-
-            String savedCodeStr = sp.getString(keyId + "_code", "");
-            if (!savedCodeStr.isEmpty()) parseAndStoreCode(keyId, savedCodeStr);
+    private void updateAllButtonVisuals() {
+        for (Map.Entry<String, Button> entry : remoteButtons.entrySet()) {
+            String keyId = entry.getKey();
+            Button btn = entry.getValue();
+            String label = customButtonLabels.containsKey(keyId) ? customButtonLabels.get(keyId) : "";
+            btn.setText(label);
+            updateButtonBackgroundStyle(btn, keyId);
+        }
+        if (lblDeviceTitle != null) {
+            lblDeviceTitle.setText(currentDeviceTitle);
         }
     }
 
-    private void parseAndStoreCode(String keyId, String codeStr) {
-        String[] parts = codeStr.split(",");
-        int[] code = new int[parts.length];
-        try {
-            for (int p = 0; p < parts.length; p++) code[p] = Integer.parseInt(parts[p]);
-            customButtonCodes.put(keyId, code);
-        } catch (Exception ignored) {}
+    private void loadSavedButtonConfigs() {
+        SharedPreferences sp = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        currentDeviceTitle = sp.getString("device_title", "📺 Телевизор");
+
+        // Большая кнопка питания (btn_power) + 29 кнопок сетки
+        loadSingleButtonConfig(sp, "btn_power");
+        for (int i = 1; i <= 29; i++) {
+            loadSingleButtonConfig(sp, "btn_" + i);
+        }
+    }
+
+    private void loadSingleButtonConfig(SharedPreferences sp, String keyId) {
+        String savedLabel = sp.getString(keyId + "_label", "");
+        customButtonLabels.put(keyId, savedLabel);
+
+        String savedCodeStr = sp.getString(keyId + "_code", "");
+        if (!savedCodeStr.isEmpty()) {
+            String[] parts = savedCodeStr.split(",");
+            int[] code = new int[parts.length];
+            try {
+                for (int p = 0; p < parts.length; p++) code[p] = Integer.parseInt(parts[p]);
+                customButtonCodes.put(keyId, code);
+            } catch (Exception ignored) {}
+        }
     }
 
     private void saveButtonConfig(String keyId, String label, int[] code) {
         customButtonLabels.put(keyId, label);
-        customButtonCodes.put(keyId, code);
+        if (code != null) {
+            customButtonCodes.put(keyId, code);
+        } else {
+            customButtonCodes.remove(keyId);
+        }
 
         SharedPreferences.Editor editor = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit();
         editor.putString(keyId + "_label", label);
 
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < code.length; i++) {
-            sb.append(code[i]);
-            if (i < code.length - 1) sb.append(",");
+        if (code != null) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < code.length; i++) {
+                sb.append(code[i]);
+                if (i < code.length - 1) sb.append(",");
+            }
+            editor.putString(keyId + "_code", sb.toString());
+        } else {
+            editor.remove(keyId + "_code");
         }
-        editor.putString(keyId + "_code", sb.toString());
         editor.apply();
+        updateAllButtonVisuals();
     }
 
-    private void resetButtonConfig(String keyId, String defaultLabel) {
-        customButtonCodes.remove(keyId);
-        customButtonLabels.put(keyId, defaultLabel);
-
+    private void saveDeviceTitle(String title) {
+        currentDeviceTitle = title;
         SharedPreferences.Editor editor = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit();
-        editor.remove(keyId + "_label");
-        editor.remove(keyId + "_code");
+        editor.putString("device_title", title);
         editor.apply();
+        if (lblDeviceTitle != null) lblDeviceTitle.setText(title);
     }
 
     private void initIrManagerSafe() {
@@ -267,7 +290,7 @@ public class MainActivity extends Activity {
                 Method hasEmitter = irManager.getClass().getMethod("hasIrEmitter");
                 isIrAvailable = (Boolean) hasEmitter.invoke(irManager);
                 transmitMethod = irManager.getClass().getMethod("transmit", int.class, int[].class);
-                appendLog("ИК-порт успешно активирован.");
+                appendLog("ИК-передатчик активен.");
             }
         } catch (Exception e) {
             isIrAvailable = false;
@@ -284,7 +307,7 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * МЕНЮ КАЛИБРОВКИ, НАСТРОЙКИ НАЗВАНИЯ И СБРОСА
+     * МЕНЮ КАЛИБРОВКИ, НАСТРОЙКИ КНОПОК И СБРОСА
      */
     private void showCalibrationPanel() {
         LinearLayout panel = new LinearLayout(this);
@@ -293,44 +316,55 @@ public class MainActivity extends Activity {
         panel.setBackgroundColor(Color.parseColor("#090D16"));
 
         TextView header = new TextView(this);
-        header.setText("⚙️ Меню настройки устройства и кнопок");
+        header.setText("⚙️ Управление и Автопоиск (150+ кодов)");
         header.setTextColor(Color.parseColor("#38BDF8"));
         header.setTextSize(12f);
         header.setTypeface(Typeface.DEFAULT_BOLD);
         header.setPadding(0, 0, 0, 8);
         panel.addView(header);
 
-        // Настройка названия верхней панели (например, Телевизор / Кондиционер)
-        LinearLayout titleEditLayout = new LinearLayout(this);
-        titleEditLayout.setOrientation(LinearLayout.HORIZONTAL);
-        titleEditLayout.setGravity(Gravity.CENTER_VERTICAL);
-        titleEditLayout.setPadding(0, 0, 0, 8);
+        // Настройка названия устройства сверху
+        LinearLayout devLayout = new LinearLayout(this);
+        devLayout.setOrientation(LinearLayout.HORIZONTAL);
+        devLayout.setGravity(Gravity.CENTER_VERTICAL);
+        devLayout.setPadding(0, 0, 0, 8);
 
-        final EditText txtDeviceTitle = new EditText(this);
-        txtDeviceTitle.setText(deviceTitle);
-        txtDeviceTitle.setTextColor(Color.WHITE);
-        txtDeviceTitle.setTextSize(11f);
-        txtDeviceTitle.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
-        titleEditLayout.addView(txtDeviceTitle);
+        TextView lblDev = new TextView(this);
+        lblDev.setText("Тип техники: ");
+        lblDev.setTextColor(Color.parseColor("#94A3B8"));
+        lblDev.setTextSize(11f);
+        devLayout.addView(lblDev);
 
-        Button btnSaveTitle = createStyledButton("💾 Название", "#047857", 0.0f);
-        titleEditLayout.addView(btnSaveTitle);
-        panel.addView(titleEditLayout);
+        final EditText txtDevTitle = new EditText(this);
+        txtDevTitle.setText(currentDeviceTitle);
+        txtDevTitle.setTextColor(Color.WHITE);
+        txtDevTitle.setTextSize(11f);
+        txtDevTitle.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+        devLayout.addView(txtDevTitle);
+
+        Button btnSaveDev = createStyledButton("💾 Сохранить", "#0F766E", 0.0f);
+        btnSaveDev.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        btnSaveDev.setOnClickListener(v -> {
+            saveDeviceTitle(txtDevTitle.getText().toString().trim());
+            Toast.makeText(this, "Название устройства обновлено!", Toast.LENGTH_SHORT).show();
+        });
+        devLayout.addView(btnSaveDev);
+        panel.addView(devLayout);
 
         final TextView lblPacketInfo = new TextView(this);
-        lblPacketInfo.setText("Пакет поиска №: " + currentScanIndex + " / " + irDatabase.length);
+        lblPacketInfo.setText("Пакет №: " + currentScanIndex + " / " + irDatabase.length);
         lblPacketInfo.setTextColor(Color.parseColor("#FBBF24"));
-        lblPacketInfo.setTextSize(12f);
+        lblPacketInfo.setTextSize(13f);
         lblPacketInfo.setPadding(0, 4, 0, 6);
         panel.addView(lblPacketInfo);
 
-        // Пауза автоскана
+        // Пауза перебора
         LinearLayout pauseLayout = new LinearLayout(this);
         pauseLayout.setOrientation(LinearLayout.HORIZONTAL);
         pauseLayout.setGravity(Gravity.CENTER_VERTICAL);
         
         TextView lblPause = new TextView(this);
-        lblPause.setText("Пауза (мс): ");
+        lblPause.setText("Пауза перебора (мс): ");
         lblPause.setTextColor(Color.parseColor("#94A3B8"));
         lblPause.setTextSize(11f);
         pauseLayout.addView(lblPause);
@@ -339,14 +373,14 @@ public class MainActivity extends Activity {
         txtPause.setText(String.valueOf(scanPauseMs));
         txtPause.setTextColor(Color.WHITE);
         txtPause.setTextSize(11f);
-        txtPause.setLayoutParams(new LinearLayout.LayoutParams(130, ViewGroup.LayoutParams.WRAP_CONTENT));
+        txtPause.setLayoutParams(new LinearLayout.LayoutParams(150, ViewGroup.LayoutParams.WRAP_CONTENT));
         pauseLayout.addView(txtPause);
         panel.addView(pauseLayout);
 
-        // Кнопки управления поиском
+        // Кнопки автопоиска
         LinearLayout controlsRow1 = new LinearLayout(this);
         controlsRow1.setOrientation(LinearLayout.HORIZONTAL);
-        controlsRow1.setPadding(0, 6, 0, 4);
+        controlsRow1.setPadding(0, 6, 0, 3);
 
         Button btnStartAuto = createStyledButton("▶️ Авто-скан", "#047857", 1.0f);
         Button btnStopAuto = createStyledButton("⏹ Стоп", "#B91C1B", 1.0f);
@@ -356,7 +390,7 @@ public class MainActivity extends Activity {
 
         LinearLayout controlsRow2 = new LinearLayout(this);
         controlsRow2.setOrientation(LinearLayout.HORIZONTAL);
-        controlsRow2.setPadding(0, 2, 0, 6);
+        controlsRow2.setPadding(0, 3, 0, 6);
 
         Button btnPrev = createStyledButton("⬅️ Назад", "#334155", 1.0f);
         Button btnNext = createStyledButton("➡️ Шаг", "#334155", 1.0f);
@@ -364,22 +398,25 @@ public class MainActivity extends Activity {
         controlsRow2.addView(btnNext);
         panel.addView(controlsRow2);
 
-        Button btnTestCurrent = createStyledButton("🧪 Тест текущего пакета вручную", "#1D4ED8", 0.0f);
+        Button btnTestCurrent = createStyledButton("🧪 Проверить текущий пакет вручную", "#1D4ED8", 0.0f);
         panel.addView(btnTestCurrent);
 
-        Button btnAssign = createStyledButton("🎯 Назначить пакет на кнопку пульта", "#7C3AED", 0.0f);
+        Button btnAssign = createStyledButton("🎯 Назначить этот пакет на кнопку", "#7C3AED", 0.0f);
         panel.addView(btnAssign);
+
+        Button btnResetSingle = createStyledButton("🗑 Сбросить привязку конкретной кнопки", "#991B1B", 0.0f);
+        panel.addView(btnResetSingle);
 
         // Терминал логов
         TextView logTitle = new TextView(this);
-        logTitle.setText("📋 Логи:");
+        logTitle.setText("📋 Логи отладки:");
         logTitle.setTextColor(Color.parseColor("#64748B"));
         logTitle.setTextSize(10f);
-        logTitle.setPadding(0, 6, 0, 2);
+        logTitle.setPadding(0, 8, 0, 2);
         panel.addView(logTitle);
 
         ScrollView logScroll = new ScrollView(this);
-        logScroll.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 160));
+        logScroll.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 180));
         
         dialogLogView = new TextView(this);
         dialogLogView.setText(debugLogs.toString());
@@ -390,7 +427,7 @@ public class MainActivity extends Activity {
         panel.addView(logScroll);
 
         AlertDialog calibDialog = new AlertDialog.Builder(this)
-                .setTitle("⚙️ Меню настроек")
+                .setTitle("⚙️ Настройки пульта")
                 .setView(panel)
                 .setNegativeButton("Закрыть", (d, w) -> {
                     stopAutoScan();
@@ -398,18 +435,11 @@ public class MainActivity extends Activity {
                 })
                 .create();
 
-        btnSaveTitle.setOnClickListener(v -> {
-            deviceTitle = txtDeviceTitle.getText().toString().trim();
-            if (deviceTitle.isEmpty()) deviceTitle = "📺 Устройство";
-            lblDeviceTitle.setText(deviceTitle);
-            getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putString("deviceTitle", deviceTitle).apply();
-            Toast.makeText(this, "Название обновлено!", Toast.LENGTH_SHORT).show();
-        });
-
         scanRunnable = new Runnable() {
             @Override
             public void run() {
                 if (!isScanning) return;
+                
                 if (currentScanIndex < irDatabase.length) {
                     transmitIr(irDatabase[currentScanIndex]);
                     lblPacketInfo.setText("⚡ Перебор: Пакет № " + currentScanIndex + " / " + irDatabase.length);
@@ -426,6 +456,7 @@ public class MainActivity extends Activity {
             try {
                 scanPauseMs = Integer.parseInt(txtPause.getText().toString().trim());
             } catch (Exception ignored) {}
+            
             isScanning = true;
             appendLog("Старт автоскана с паузой " + scanPauseMs + "мс");
             scanHandler.post(scanRunnable);
@@ -450,13 +481,18 @@ public class MainActivity extends Activity {
         });
 
         btnTestCurrent.setOnClickListener(v -> {
-            appendLog("Тест пакета #" + currentScanIndex);
+            appendLog("Ручной тест пакета #" + currentScanIndex);
             transmitIr(irDatabase[currentScanIndex]);
         });
 
         btnAssign.setOnClickListener(v -> {
             stopAutoScan();
             showButtonAssignmentDialog(currentScanIndex);
+        });
+
+        btnResetSingle.setOnClickListener(v -> {
+            stopAutoScan();
+            showButtonResetDialog();
         });
 
         calibDialog.show();
@@ -468,15 +504,15 @@ public class MainActivity extends Activity {
     }
 
     private void showButtonAssignmentDialog(final int packetIndex) {
-        final CharSequence[] buttonNames = new CharSequence[31];
-        final CharSequence[] buttonKeys = new CharSequence[31];
+        final CharSequence[] buttonNames = new CharSequence[30];
+        final CharSequence[] buttonKeys = new CharSequence[30];
         
         buttonKeys[0] = "btn_power";
-        buttonNames[0] = "⚡ Кнопка Питания (Верхняя)";
-
-        for (int i = 1; i <= 30; i++) {
+        buttonNames[0] = "🔴 Кнопка питания (Большая)";
+        for (int i = 1; i <= 29; i++) {
             buttonKeys[i] = "btn_" + i;
-            buttonNames[i] = "Кнопка #" + i + " (" + customButtonLabels.get("btn_" + i) + ")";
+            String lbl = customButtonLabels.get("btn_" + i);
+            buttonNames[i] = "Кнопка #" + i + (lbl != null && !lbl.isEmpty() ? " [" + lbl + "]" : "");
         }
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -489,51 +525,45 @@ public class MainActivity extends Activity {
             editLayout.setPadding(20, 20, 20, 20);
 
             final EditText inputLabel = new EditText(this);
-            inputLabel.setHint("Текст или смайл (например: 🔴 выкл)");
+            inputLabel.setHint("Текст или смайл (например: 🔌 или TV)");
             inputLabel.setText(customButtonLabels.get(selectedKey));
             editLayout.addView(inputLabel);
 
-            // Кнопка сброса привязки
-            Button btnReset = createStyledButton("🗑 Сбросить (очистить кнопку)", "#991B1B", 0.0f);
-            editLayout.addView(btnReset);
-
-            AlertDialog assignDialog = new AlertDialog.Builder(this)
-                .setTitle("Настройка кнопки")
+            new AlertDialog.Builder(this)
+                .setTitle("Настроить надпись/смайл")
                 .setView(editLayout)
-                .setPositiveButton("Привязать", (d2, w2) -> {
+                .setPositiveButton("Сохранить", (d2, w2) -> {
                     String newLabel = inputLabel.getText().toString().trim();
-                    if (newLabel.isEmpty()) newLabel = selectedKey.equals("btn_power") ? "" : "🔘";
-
                     saveButtonConfig(selectedKey, newLabel, irDatabase[packetIndex]);
-
-                    Button targetBtn = remoteButtons.get(selectedKey);
-                    if (targetBtn != null) {
-                        targetBtn.setText(newLabel);
-                        updateButtonStyle(targetBtn, true);
-                    }
-
                     appendLog("Пакет #" + packetIndex + " привязан к " + selectedKey);
-                    Toast.makeText(this, "Кнопка настроена!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Успешно привязано!", Toast.LENGTH_SHORT).show();
                 })
                 .setNegativeButton("Отмена", null)
-                .create();
+                .show();
+        });
+        builder.show();
+    }
 
-            btnReset.setOnClickListener(v -> {
-                String defaultFallback = selectedKey.equals("btn_power") ? "" : "🔘 #" + selectedKey.replace("btn_", "");
-                resetButtonConfig(selectedKey, defaultFallback);
+    // Меню выбора кнопки для полного сброса привязки
+    private void showButtonResetDialog() {
+        final CharSequence[] buttonNames = new CharSequence[30];
+        final CharSequence[] buttonKeys = new CharSequence[30];
+        
+        buttonKeys[0] = "btn_power";
+        buttonNames[0] = "🔴 Кнопка питания (Большая)";
+        for (int i = 1; i <= 29; i++) {
+            buttonKeys[i] = "btn_" + i;
+            String lbl = customButtonLabels.get("btn_" + i);
+            buttonNames[i] = "Кнопка #" + i + (lbl != null && !lbl.isEmpty() ? " [" + lbl + "]" : "");
+        }
 
-                Button targetBtn = remoteButtons.get(selectedKey);
-                if (targetBtn != null) {
-                    targetBtn.setText(defaultFallback);
-                    updateButtonStyle(targetBtn, false);
-                }
-
-                appendLog("Кнопка " + selectedKey + " сброшена в исходное состояние.");
-                Toast.makeText(this, "Сброс выполнен!", Toast.LENGTH_SHORT).show();
-                assignDialog.dismiss();
-            });
-
-            assignDialog.show();
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Выберите кнопку для сброса");
+        builder.setItems(buttonNames, (dialog, which) -> {
+            String selectedKey = (String) buttonKeys[which];
+            saveButtonConfig(selectedKey, "", null);
+            appendLog("Сброшена привязка для " + selectedKey);
+            Toast.makeText(this, "Кнопка сброшена в исходное состояние!", Toast.LENGTH_SHORT).show();
         });
         builder.show();
     }
@@ -573,18 +603,18 @@ public class MainActivity extends Activity {
     }
 
     private int[][] generateMegaIrDatabase() {
-        int[][] db = new int[200][];
-        for (int i = 0; i < 200; i++) {
-            int head1 = 7500 + (i * 20) % 2500;
-            int head2 = 3800 - (i * 12) % 1200;
-            int p1 = 350 + (i * 15);
-            int p2 = 1100 + (i * 10);
+        int[][] db = new int[150][];
+        for (int i = 0; i < 150; i++) {
+            int head1 = 8000 + (i * 15) % 2000;
+            int head2 = 4000 - (i * 10) % 1000;
+            int p1 = 400 + (i * 18);
+            int p2 = 1200 + (i * 12);
             db[i] = new int[] {
                 head1, head2,
                 p1, 560, p1, 560, p1, p2,
                 p1, 560, p1, p2, p1, p2, p1, 560,
-                p1, p2, p1, 560, p1, 560, p1, p2,
-                p1, 560, p1, 560, p1, p2, p1, p2,
+                p1, p2, p1, 560, p1, p2, p1, p2,
+                p1, 560, p1, 560, p1, 560, p1, p2,
                 560, 40000
             };
         }
