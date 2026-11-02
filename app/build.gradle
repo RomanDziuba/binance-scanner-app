@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.pult.version02'
+    namespace 'com.pult2.version02'
     compileSdk 34
     defaultConfig {
-        applicationId "com.pult.version02"
+        applicationId "com.pult2.version02"
         minSdk 21
         targetSdk 34
-        versionCode 51
+        versionCode 52
         versionName "02"
     }
     compileOptions {
