@@ -9,7 +9,7 @@ android {
         applicationId "com.pro5.version6"
         minSdk 21
         targetSdk 34
-        versionCode 70
+        versionCode 71
         versionName "6"
     }
     compileOptions {
