@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -32,12 +33,10 @@ public class MainActivity extends Activity {
     private Handler scanHandler = new Handler(Looper.getMainLooper());
     private Runnable scanRunnable;
 
+    // Мапа привязки ID кнопок к ИК-кодам
     private Map<String, int[]> customButtonCodes = new HashMap<>();
     private Map<String, Button> remoteButtons = new HashMap<>();
 
-    private TextView statusIndicator;
-    
-    // Глобальный буфер логов для отладки
     private static StringBuilder debugLogs = new StringBuilder();
     private static TextView dialogLogView = null;
 
@@ -47,20 +46,34 @@ public class MainActivity extends Activity {
 
         initIrManagerSafe();
 
+        // Главный фон на весь экран (темный премиальный стиль)
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
         rootLayout.setBackgroundColor(Color.parseColor("#030712"));
-        rootLayout.setPadding(20, 20, 20, 20);
+        rootLayout.setPadding(16, 16, 16, 16);
+        rootLayout.setGravity(Gravity.CENTER_HORIZONTAL);
 
+        // Верхняя панель (Заголовок + Кнопка калибровки)
         LinearLayout topBar = new LinearLayout(this);
         topBar.setOrientation(LinearLayout.HORIZONTAL);
         topBar.setGravity(Gravity.CENTER_VERTICAL);
-        topBar.setPadding(0, 0, 0, 20);
+        topBar.setPadding(10, 10, 10, 10);
+        
+        GradientDrawable topBarBg = new GradientDrawable();
+        topBarBg.setColor(Color.parseColor("#0F172A"));
+        topBarBg.setCornerRadius(16f);
+        topBar.setBackground(topBarBg);
+        
+        LinearLayout.LayoutParams topParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        topParams.setMargins(0, 0, 0, 12);
+        topBar.setLayoutParams(topParams);
 
         TextView appTitle = new TextView(this);
         appTitle.setText("⚡ Monster Smart Remote");
         appTitle.setTextColor(Color.parseColor("#38BDF8"));
-        appTitle.setTextSize(16f);
+        appTitle.setTextSize(14f);
         appTitle.setTypeface(Typeface.DEFAULT_BOLD);
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
         appTitle.setLayoutParams(titleParams);
@@ -70,39 +83,207 @@ public class MainActivity extends Activity {
         btnCalibration.setText("⚙️ Калибровка");
         btnCalibration.setTextColor(Color.parseColor("#F59E0B"));
         btnCalibration.setTextSize(10f);
+        btnCalibration.setTypeface(Typeface.DEFAULT_BOLD);
         btnCalibration.setBackgroundColor(Color.parseColor("#1E293B"));
-        btnCalibration.setPadding(10, 5, 10, 5);
+        btnCalibration.setPadding(12, 8, 12, 8);
         btnCalibration.setOnClickListener(v -> showCalibrationPanel());
         topBar.addView(btnCalibration);
-
         rootLayout.addView(topBar);
 
-        statusIndicator = new TextView(this);
-        statusIndicator.setText(isIrAvailable ? "✅ ИК-порт готов к работе" : "⚠️ ИК-порт (эмуляция / недоступен)");
-        statusIndicator.setTextColor(isIrAvailable ? Color.parseColor("#10B981") : Color.parseColor("#FBBF24"));
-        statusIndicator.setTextSize(11f);
-        statusIndicator.setPadding(0, 0, 0, 15);
-        rootLayout.addView(statusIndicator);
-
+        // --- КОРПУС ПУЛЬТА НА ВЕСЬ ЭКРАН (Стилизация под скриншот) ---
         ScrollView remoteScroll = new ScrollView(this);
-        LinearLayout remoteGrid = new LinearLayout(this);
-        remoteGrid.setOrientation(LinearLayout.VERTICAL);
-        remoteGrid.setGravity(Gravity.CENTER_HORIZONTAL);
+        remoteScroll.setLayoutParams(new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f
+        ));
 
-        remoteGrid.addView(createRemoteRow("btn_power", "🔴 POWER", "#DC2626", 400, 120));
-        remoteGrid.addView(createRemoteRow("btn_vol_up", "🔊 Громкость +", "#2563EB", 300, 100));
-        remoteGrid.addView(createRemoteRow("btn_vol_down", "🔉 Громкость -", "#2563EB", 300, 100));
-        remoteGrid.addView(createRemoteRow("btn_ch_up", "📺 Канал +", "#0D9488", 300, 100));
-        remoteGrid.addView(createRemoteRow("btn_ch_down", "📉 Канал -", "#0D9488", 300, 100));
-        remoteGrid.addView(createRemoteRow("btn_mute", "🔇 Mute", "#7C3AED", 250, 90));
-        remoteGrid.addView(createRemoteRow("btn_custom1", "⭐ Избранное 1", "#475569", 350, 90));
-        remoteGrid.addView(createRemoteRow("btn_custom2", "⭐ Избранное 2", "#475569", 350, 90));
+        LinearLayout remoteBody = new LinearLayout(this);
+        remoteBody.setOrientation(LinearLayout.VERTICAL);
+        remoteBody.setGravity(Gravity.CENTER_HORIZONTAL);
+        remoteBody.setPadding(20, 30, 20, 20);
 
-        remoteScroll.addView(remoteGrid);
+        // Текстура корпуса пульта (серый скругленный матовый пластик с темной рамкой)
+        GradientDrawable bodyBg = new GradientDrawable();
+        bodyBg.setColor(Color.parseColor("#334155"));
+        bodyBg.setCornerRadius(36f);
+        bodyBg.setStroke(4, Color.parseColor("#475569"));
+        remoteBody.setBackground(bodyBg);
+
+        LinearLayout.LayoutParams bodyParams = new LinearLayout.LayoutParams(
+            850, LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        remoteBody.setLayoutParams(bodyParams);
+
+        // 1. Верхний ряд: две круглые кнопки (Power слева, Инфо/Меню справа)
+        LinearLayout topButtonsRow = new LinearLayout(this);
+        topButtonsRow.setOrientation(LinearLayout.HORIZONTAL);
+        topButtonsRow.setGravity(Gravity.CENTER);
+        topButtonsRow.setPadding(0, 0, 0, 25);
+
+        Button btnPower = createRoundButton("btn_power", "⏻", "#DC2626"); // Красная круглая
+        Button btnSettings = createRoundButton("btn_settings", "⚙", "#0D9488"); // Бирюзовая круглая
+        
+        LinearLayout.LayoutParams roundParams = new LinearLayout.LayoutParams(110, 110);
+        roundParams.setMargins(40, 0, 40, 0);
+        btnPower.setLayoutParams(roundParams);
+        btnSettings.setLayoutParams(roundParams);
+
+        topButtonsRow.addView(btnPower);
+        topButtonsRow.addView(btnSettings);
+        remoteBody.addView(topButtonsRow);
+
+        // 2. Сетка прямоугольных кнопок (5 рядов по 4 кнопки, как на образце)
+        String[][] gridKeys = {
+            {"btn_1", "btn_2", "btn_3", "btn_mute"},
+            {"btn_4", "btn_5", "btn_6", "btn_vol_up"},
+            {"btn_7", "btn_8", "btn_9", "btn_vol_down"},
+            {"btn_star", "btn_0", "btn_hash", "btn_ch_up"},
+            {"btn_back", "btn_home", "btn_menu", "btn_ch_down"}
+        };
+        
+        String[][] gridLabels = {
+            {"1", "2", "3", "Mute"},
+            {"4", "5", "6", "Vol +"},
+            {"7", "8", "9", "Vol -"},
+            {"*", "0", "#", "Ch +"},
+            {"Back", "Home", "Menu", "Ch -"}
+        };
+
+        for (int r = 0; r < gridKeys.length; r++) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER);
+            row.setPadding(0, 6, 0, 6);
+
+            for (int c = 0; c < gridKeys[r].length; c++) {
+                String keyId = gridKeys[r][c];
+                String label = gridLabels[r][c];
+                
+                Button btn = new Button(this);
+                btn.setText(label);
+                btn.setTextColor(Color.WHITE);
+                btn.setTextSize(11f);
+                btn.setTypeface(Typeface.DEFAULT_BOLD);
+                
+                // Цвет кнопок: функциональные чуть темнее, цифровые стандартные
+                String btnColor = (c == 3) ? "#1E293B" : "#475569";
+                GradientDrawable btnBg = new GradientDrawable();
+                btnBg.setColor(Color.parseColor(btnColor));
+                btnBg.setCornerRadius(12f);
+                btn.setBackground(btnBg);
+
+                LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(155, 75);
+                btnParams.setMargins(6, 4, 6, 4);
+                btn.setLayoutParams(btnParams);
+
+                btn.setOnClickListener(v -> executeButtonAction(keyId, label));
+                remoteButtons.put(keyId, btn);
+                row.addView(btn);
+            }
+            remoteBody.addView(row);
+        }
+
+        // 3. Нижний блок: Навигационный круг (Крестовина со скруглениями и центральной кнопкой OK)
+        LinearLayout navContainer = new LinearLayout(this);
+        navContainer.setOrientation(LinearLayout.VERTICAL);
+        navContainer.setGravity(Gravity.CENTER);
+        navContainer.setPadding(0, 30, 0, 10);
+
+        // Внешнее кольцо навигации
+        FrameLayout dPadLayout = new FrameLayout(this);
+        dPadLayout.setLayoutParams(new LinearLayout.LayoutParams(340, 340));
+
+        GradientDrawable ringBg = new GradientDrawable();
+        ringBg.setShape(GradientDrawable.OVAL);
+        ringBg.setColor(Color.parseColor("#1E293B"));
+        ringBg.setStroke(3, Color.parseColor("#0D9488"));
+        dPadLayout.setBackground(ringBg);
+
+        // Кнопка ВВЕРХ
+        Button btnUp = createNavButton("btn_up", "▲", 110, 70, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 0, 10, 0, 0);
+        // Кнопка ВНИЗ
+        Button btnDown = createNavButton("btn_down", "▼", 110, 70, Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM, 0, 0, 0, 10);
+        // Кнопка ВЛЕВО
+        Button btnLeft = createNavButton("btn_left", "◄", 70, 110, Gravity.LEFT | Gravity.CENTER_VERTICAL, 10, 0, 0, 0);
+        // Кнопка ВПРАВО
+        Button btnRight = createNavButton("btn_right", "►", 70, 110, Gravity.RIGHT | Gravity.CENTER_VERTICAL, 0, 0, 10, 0);
+        // Центральная кнопка OK (красная круглая)
+        Button btnOk = createRoundButton("btn_ok", "OK", "#DC2626");
+        FrameLayout.LayoutParams okParams = new FrameLayout.LayoutParams(110, 110);
+        okParams.gravity = Gravity.CENTER;
+        btnOk.setLayoutParams(okParams);
+        btnOk.setTextSize(12f);
+        btnOk.setOnClickListener(v -> executeButtonAction("btn_ok", "OK"));
+        remoteButtons.put("btn_ok", btnOk);
+
+        dPadLayout.addView(btnUp);
+        dPadLayout.addView(btnDown);
+        dPadLayout.addView(btnLeft);
+        dPadLayout.addView(btnRight);
+        dPadLayout.addView(btnOk);
+
+        navContainer.addView(dPadLayout);
+        remoteBody.addView(navContainer);
+
+        remoteScroll.addView(remoteBody);
         rootLayout.addView(remoteScroll);
 
+        // --- БЛОК АВТОРСТВА (Внизу экрана) ---
+        TextView authorView = new TextView(this);
+        authorView.setText("✦ Dziuba Roman — 2026 ✦");
+        authorView.setTextColor(Color.parseColor("#94A3B8"));
+        authorView.setTextSize(11f);
+        authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
+        authorView.setGravity(Gravity.CENTER);
+        authorView.setPadding(0, 10, 0, 5);
+        rootLayout.addView(authorView);
+
         setContentView(rootLayout);
-        appendLog("App started. IR Available: " + isIrAvailable);
+        appendLog("Remote initialized successfully. Ready.");
+    }
+
+    private Button createRoundButton(String keyId, String label, String hexColor) {
+        Button btn = new Button(this);
+        btn.setText(label);
+        btn.setTextColor(Color.WHITE);
+        btn.setTextSize(14f);
+        btn.setTypeface(Typeface.DEFAULT_BOLD);
+        
+        GradientDrawable bg = new GradientDrawable();
+        bg.setShape(GradientDrawable.OVAL);
+        bg.setColor(Color.parseColor(hexColor));
+        btn.setBackground(bg);
+
+        btn.setOnClickListener(v -> executeButtonAction(keyId, label));
+        remoteButtons.put(keyId, btn);
+        return btn;
+    }
+
+    private Button createNavButton(String keyId, String label, int w, int h, int gravity, int l, int t, int r, int b) {
+        Button btn = new Button(this);
+        btn.setText(label);
+        btn.setTextColor(Color.parseColor("#38BDF8"));
+        btn.setTextSize(12f);
+        btn.setTypeface(Typeface.DEFAULT_BOLD);
+        btn.setBackgroundColor(Color.TRANSPARENT);
+
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(w, h);
+        params.gravity = gravity;
+        params.setMargins(l, t, r, b);
+        btn.setLayoutParams(params);
+
+        btn.setOnClickListener(v -> executeButtonAction(keyId, label));
+        remoteButtons.put(keyId, btn);
+        return btn;
+    }
+
+    private void executeButtonAction(String keyId, String defaultLabel) {
+        int[] code = customButtonCodes.get(keyId);
+        if (code != null) {
+            transmitIr(code);
+            Toast.makeText(this, "Команда: " + remoteButtons.get(keyId).getText(), Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "Кнопка '" + defaultLabel + "' не откалибрована! Нажмите 'Калибровка'", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void initIrManagerSafe() {
@@ -111,15 +292,12 @@ public class MainActivity extends Activity {
             if (irManager != null) {
                 Method hasEmitter = irManager.getClass().getMethod("hasIrEmitter");
                 isIrAvailable = (Boolean) hasEmitter.invoke(irManager);
-                // Пробуем найти метод transmit
                 transmitMethod = irManager.getClass().getMethod("transmit", int.class, int[].class);
-                appendLog("IR Manager инициализирован успешно.");
-            } else {
-                appendLog("SystemService consumer_ir вернул null.");
+                appendLog("IR Manager готов.");
             }
         } catch (Exception e) {
             isIrAvailable = false;
-            appendLog("Ошибка initIrManagerSafe: " + e.toString());
+            appendLog("Ошибка init IR: " + e.toString());
         }
     }
 
@@ -127,44 +305,12 @@ public class MainActivity extends Activity {
         String msg = "• " + text + "\n";
         debugLogs.append(msg);
         if (dialogLogView != null) {
-            dialogLogView.post(() -> {
-                dialogLogView.setText(debugLogs.toString());
-            });
+            dialogLogView.post(() -> dialogLogView.setText(debugLogs.toString()));
         }
     }
 
-    private LinearLayout createRemoteRow(String keyId, String defaultLabel, String colorHex, int width, int height) {
-        LinearLayout row = new LinearLayout(this);
-        row.setGravity(Gravity.CENTER);
-        row.setPadding(0, 6, 0, 6);
-
-        Button btn = new Button(this);
-        btn.setText(defaultLabel);
-        btn.setTextColor(Color.WHITE);
-        btn.setTextSize(12f);
-        btn.setTypeface(Typeface.DEFAULT_BOLD);
-        btn.setBackgroundColor(Color.parseColor(colorHex));
-        
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(width, height);
-        btn.setLayoutParams(params);
-
-        btn.setOnClickListener(v -> {
-            int[] code = customButtonCodes.get(keyId);
-            if (code != null) {
-                transmitIr(code);
-                Toast.makeText(this, "Отправлена команда: " + btn.getText(), Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "Кнопка не откалибрована!", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        remoteButtons.put(keyId, btn);
-        row.addView(btn);
-        return row;
-    }
-
     /**
-     * ПАНЕЛЬ КАЛИБРОВКИ С ОКНОМ ОТЛАДОЧНЫХ ЛОГОВ
+     * СТУДИЯ КАЛИБРОВКИ И ЛОГОВ
      */
     private void showCalibrationPanel() {
         LinearLayout panel = new LinearLayout(this);
@@ -173,9 +319,9 @@ public class MainActivity extends Activity {
         panel.setBackgroundColor(Color.parseColor("#090D16"));
 
         TextView header = new TextView(this);
-        header.setText("🔬 Студия отладки и калибровки ИК");
+        header.setText("🔬 Калибровка ИК-пультов (Dziuba Roman 2026)");
         header.setTextColor(Color.parseColor("#38BDF8"));
-        header.setTextSize(13f);
+        header.setTextSize(12f);
         header.setTypeface(Typeface.DEFAULT_BOLD);
         header.setPadding(0, 0, 0, 10);
         panel.addView(header);
@@ -206,7 +352,7 @@ public class MainActivity extends Activity {
         pauseLayout.addView(txtPause);
         panel.addView(pauseLayout);
 
-        // Кнопки управления
+        // Кнопки управления автосканом
         LinearLayout controlsRow1 = new LinearLayout(this);
         controlsRow1.setOrientation(LinearLayout.HORIZONTAL);
         controlsRow1.setPadding(0, 8, 0, 4);
@@ -233,7 +379,7 @@ public class MainActivity extends Activity {
         Button btnAssign = createStyledButton("🎯 Привязать этот пакет к кнопке пульта", "#7C3AED", 0.0f);
         panel.addView(btnAssign);
 
-        // --- ОКНО ВЫВОДА ЛОГОВ В РЕЖИМЕ КАЛИБРОВКИ ---
+        // Терминал логов
         TextView logTitle = new TextView(this);
         logTitle.setText("📋 Отладочные логи ИК-порта:");
         logTitle.setTextColor(Color.parseColor("#64748B"));
@@ -242,7 +388,7 @@ public class MainActivity extends Activity {
         panel.addView(logTitle);
 
         ScrollView logScroll = new ScrollView(this);
-        logScroll.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 220));
+        logScroll.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 200));
         
         dialogLogView = new TextView(this);
         dialogLogView.setText(debugLogs.toString());
@@ -251,10 +397,9 @@ public class MainActivity extends Activity {
         dialogLogView.setTypeface(Typeface.MONOSPACE);
         logScroll.addView(dialogLogView);
         panel.addView(logScroll);
-        // ---------------------------------------------
 
         AlertDialog calibDialog = new AlertDialog.Builder(this)
-                .setTitle("⚙️ Калибровка и Логи")
+                .setTitle("⚙️ Меню калибровки")
                 .setView(panel)
                 .setNegativeButton("Закрыть", (d, w) -> {
                     stopAutoScan();
@@ -291,7 +436,7 @@ public class MainActivity extends Activity {
 
         btnStopAuto.setOnClickListener(v -> {
             stopAutoScan();
-            appendLog("Автоскан остановлен на пакете #" + currentScanIndex);
+            appendLog("Остановлено на пакете #" + currentScanIndex);
             lblPacketInfo.setText("⏹ Остановлено на пакете № " + currentScanIndex);
         });
 
@@ -326,11 +471,17 @@ public class MainActivity extends Activity {
     }
 
     private void showButtonAssignmentDialog(final int packetIndex) {
-        final CharSequence[] buttonKeys = {"btn_power", "btn_vol_up", "btn_vol_down", "btn_ch_up", "btn_ch_down", "btn_mute", "btn_custom1", "btn_custom2"};
-        final CharSequence[] buttonNames = {"POWER", "Громкость +", "Громкость -", "Канал +", "Канал -", "Mute", "Избранное 1", "Избранное 2"};
+        final CharSequence[] buttonKeys = {
+            "btn_power", "btn_settings", "btn_ok", "btn_up", "btn_down", "btn_left", "btn_right",
+            "btn_1", "btn_2", "btn_3", "btn_mute", "btn_vol_up", "btn_vol_down", "btn_ch_up", "btn_ch_down"
+        };
+        final CharSequence[] buttonNames = {
+            "POWER (Красная)", "Настройки (Бирюзовая)", "OK (Центр)", "Вверх ▲", "Вниз ▼", "Влево ◄", "Вправо ►",
+            "Кнопка 1", "Кнопка 2", "Кнопка 3", "Mute", "Vol +", "Vol -", "Ch +", "Ch -"
+        };
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Выберите кнопку для пакета #" + packetIndex);
+        builder.setTitle("Привязать пакет #" + packetIndex + " к кнопке:");
         builder.setItems(buttonNames, (dialog, which) -> {
             String selectedKey = (String) buttonKeys[which];
             Button targetBtn = remoteButtons.get(selectedKey);
@@ -339,14 +490,14 @@ public class MainActivity extends Activity {
             inputName.setText(targetBtn != null ? targetBtn.getText().toString() : "Команда");
 
             new AlertDialog.Builder(this)
-                .setTitle("Введите имя для кнопки")
+                .setTitle("Название для кнопки")
                 .setView(inputName)
                 .setPositiveButton("Сохранить", (d2, w2) -> {
                     String newName = inputName.getText().toString();
                     customButtonCodes.put(selectedKey, irDatabase[packetIndex]);
                     if (targetBtn != null) targetBtn.setText(newName);
-                    appendLog("Пакет #" + packetIndex + " привязан к кнопке " + newName);
-                    Toast.makeText(this, "Успешно привязано!", Toast.LENGTH_LONG).show();
+                    appendLog("Пакет #" + packetIndex + " привязан к '" + newName + "'");
+                    Toast.makeText(this, "Успешно привязано!", Toast.LENGTH_SHORT).show();
                 })
                 .setNegativeButton("Отмена", null)
                 .show();
@@ -357,17 +508,15 @@ public class MainActivity extends Activity {
     private void transmitIr(int[] pattern) {
         try {
             if (irManager != null && transmitMethod != null) {
-                // Вызываем системный метод через рефлексию
                 transmitMethod.invoke(irManager, 38000, pattern);
-                appendLog("OK: Пакет отправлен (38кГц, элементов: " + pattern.length + ")");
+                appendLog("OK: Отправлено (элементов: " + pattern.length + ")");
             } else {
-                appendLog("ERROR: ИК-менеджер или метод transmit равны null");
-                Toast.makeText(this, "ИК-порт не инициализирован", Toast.LENGTH_SHORT).show();
+                appendLog("ERROR: ИК-порт недоступен");
             }
         } catch (Exception e) {
             String err = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
-            appendLog("FAIL transmit: " + err);
-            Toast.makeText(this, "Ошибка отправки: " + err, Toast.LENGTH_SHORT).show();
+            appendLog("FAIL: " + err);
+            Toast.makeText(this, "Ошибка: " + err, Toast.LENGTH_SHORT).show();
         }
     }
 
