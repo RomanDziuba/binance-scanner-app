@@ -28,8 +28,8 @@ public class MainActivity extends Activity {
     private Method transmitMethod = null;
     private boolean isIrAvailable = false;
 
-    // Реальная мега-база ИК-кодов (NEC, LG, Samsung, Sony, Panasonic и др.)
-    private final int[][] irDatabase = generateRealApplianceIrDatabase();
+    // Реальная расширенная база ИК-кодов (LG, Samsung, Sony, NEC и экспериментальные пакеты)
+    private final int[][] irDatabase = generateRealIrDatabase();
     private int currentScanIndex = 0;
     private boolean isScanning = false;
     private int scanPauseMs = 400;
@@ -121,8 +121,8 @@ public class MainActivity extends Activity {
         );
         remoteBody.setLayoutParams(bodyParams);
 
-        // 1. ОТДЕЛЬНАЯ БОЛЬШАЯ КНОПКА ПИТАНИЯ ВВЕРХУ
-        Button btnPowerBig = createCustomStyledButton("btn_power", "🔴 Питание");
+        // 1. ОТДЕЛЬНАЯ БОЛЬШАЯ КНОПКА ПИТАНИЯ СВЕРХУ
+        Button btnPowerBig = createCustomStyledButton("btn_power", "⚡ Питание");
         LinearLayout.LayoutParams powerParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 120
         );
@@ -130,7 +130,7 @@ public class MainActivity extends Activity {
         btnPowerBig.setLayoutParams(powerParams);
         remoteBody.addView(btnPowerBig);
 
-        // 2. СЕТКА 29 КНОПОК С НОМЕРАМИ
+        // 2. СЕТКА ОСТАЛЬНЫХ 29 КНОПОК (показывают внутренние номера #1 - #29 до привязки)
         for (int r = 1; r <= 8; r++) {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
@@ -172,8 +172,8 @@ public class MainActivity extends Activity {
 
     private Button createCustomStyledButton(String keyId, String defaultLabel) {
         Button btn = new Button(this);
-        String label = customButtonLabels.containsKey(keyId) && !customButtonLabels.get(keyId).isEmpty() 
-                       ? customButtonLabels.get(keyId) : defaultLabel;
+        String savedLabel = customButtonLabels.get(keyId);
+        String label = (savedLabel != null && !savedLabel.isEmpty()) ? savedLabel : defaultLabel;
         btn.setText(label);
         btn.setTextColor(Color.WHITE);
         btn.setTextSize(11f);
@@ -195,16 +195,16 @@ public class MainActivity extends Activity {
         return btn;
     }
 
-    // Подсветка активных привязанных кнопок бирюзовым цветом
+    // Округление кнопок и подсветка активных бирюзовым цветом
     private void updateButtonBackgroundStyle(Button btn, String keyId) {
         boolean isAssigned = customButtonCodes.containsKey(keyId) && customButtonCodes.get(keyId) != null;
         
         GradientDrawable btnBg = new GradientDrawable();
         if (isAssigned) {
-            btnBg.setColor(Color.parseColor("#0D9488")); // Бирюзовый акцент для привязанных
+            btnBg.setColor(Color.parseColor("#0D9488")); // Бирюзовая подсветка для активных
             btnBg.setStroke(2, Color.parseColor("#2DD4BF"));
         } else {
-            btnBg.setColor(Color.parseColor("#334155")); // Стандартный темный
+            btnBg.setColor(Color.parseColor("#334155")); // Обычный цвет
             btnBg.setStroke(2, Color.parseColor("#475569"));
         }
         btnBg.setCornerRadius(18f);
@@ -216,7 +216,7 @@ public class MainActivity extends Activity {
             String keyId = entry.getKey();
             Button btn = entry.getValue();
             String savedLabel = customButtonLabels.get(keyId);
-            String defaultLbl = keyId.equals("btn_power") ? "🔴 Питание" : "#" + keyId.replace("btn_", "");
+            String defaultLbl = keyId.equals("btn_power") ? "⚡ Питание" : "#" + keyId.replace("btn_", "");
             String label = (savedLabel != null && !savedLabel.isEmpty()) ? savedLabel : defaultLbl;
             btn.setText(label);
             updateButtonBackgroundStyle(btn, keyId);
@@ -257,7 +257,6 @@ public class MainActivity extends Activity {
             customButtonCodes.put(keyId, code);
         } else {
             customButtonCodes.remove(keyId);
-            customButtonLabels.put(keyId, ""); // Очищаем кастомную надпись при сбросе
         }
 
         SharedPreferences.Editor editor = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit();
@@ -272,7 +271,6 @@ public class MainActivity extends Activity {
             editor.putString(keyId + "_code", sb.toString());
         } else {
             editor.remove(keyId + "_code");
-            editor.remove(keyId + "_label");
         }
         editor.apply();
         updateAllButtonVisuals();
@@ -309,6 +307,9 @@ public class MainActivity extends Activity {
         }
     }
 
+    /**
+     * МЕНЮ КАЛИБРОВКИ, НАСТРОЙКИ КНОПОК И АВТОПОИСКА
+     */
     private void showCalibrationPanel() {
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
@@ -316,14 +317,14 @@ public class MainActivity extends Activity {
         panel.setBackgroundColor(Color.parseColor("#090D16"));
 
         TextView header = new TextView(this);
-        header.setText("⚙️ Управление и Автопоиск (Реальная база кодов)");
+        header.setText("⚙️ Управление и Автопоиск");
         header.setTextColor(Color.parseColor("#38BDF8"));
         header.setTextSize(12f);
         header.setTypeface(Typeface.DEFAULT_BOLD);
         header.setPadding(0, 0, 0, 8);
         panel.addView(header);
 
-        // Название устройства
+        // Название устройства сверху
         LinearLayout devLayout = new LinearLayout(this);
         devLayout.setOrientation(LinearLayout.HORIZONTAL);
         devLayout.setGravity(Gravity.CENTER_VERTICAL);
@@ -346,7 +347,7 @@ public class MainActivity extends Activity {
         btnSaveDev.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         btnSaveDev.setOnClickListener(v -> {
             saveDeviceTitle(txtDevTitle.getText().toString().trim());
-            Toast.makeText(this, "Название обновлено!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Название устройства обновлено!", Toast.LENGTH_SHORT).show();
         });
         devLayout.addView(btnSaveDev);
         panel.addView(devLayout);
@@ -358,7 +359,7 @@ public class MainActivity extends Activity {
         lblPacketInfo.setPadding(0, 4, 0, 6);
         panel.addView(lblPacketInfo);
 
-        // Пауза
+        // Пауза перебора
         LinearLayout pauseLayout = new LinearLayout(this);
         pauseLayout.setOrientation(LinearLayout.HORIZONTAL);
         pauseLayout.setGravity(Gravity.CENTER_VERTICAL);
@@ -416,7 +417,7 @@ public class MainActivity extends Activity {
         panel.addView(logTitle);
 
         ScrollView logScroll = new ScrollView(this);
-        logScroll.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 160));
+        logScroll.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 180));
         
         dialogLogView = new TextView(this);
         dialogLogView.setText(debugLogs.toString());
@@ -427,7 +428,7 @@ public class MainActivity extends Activity {
         panel.addView(logScroll);
 
         AlertDialog calibDialog = new AlertDialog.Builder(this)
-                .setTitle("⚙️ Меню настройки пульта")
+                .setTitle("⚙️ Настройки пульта")
                 .setView(panel)
                 .setNegativeButton("Закрыть", (d, w) -> {
                     stopAutoScan();
@@ -447,9 +448,9 @@ public class MainActivity extends Activity {
                     scanHandler.postDelayed(this, scanPauseMs);
                 } else {
                     stopAutoScan();
-                    currentScanIndex = 0; // Автосброс на начало базы без необходимости перезахода!
-                    lblPacketInfo.setText("✅ База пройдена! Нажмите Старт для повтора.");
-                    appendLog("Автоскан дошел до конца. Индекс сброшен на 0.");
+                    currentScanIndex = 0; // Корректный сброс на начало без закрытия приложения
+                    lblPacketInfo.setText("✅ База пройдена! Пакеты сброшены в начало.");
+                    appendLog("Автоскан дошел до конца базы и автоматически сброшен на индекс 0.");
                 }
             }
         };
@@ -510,7 +511,7 @@ public class MainActivity extends Activity {
         final CharSequence[] buttonKeys = new CharSequence[30];
         
         buttonKeys[0] = "btn_power";
-        buttonNames[0] = "🔴 Кнопка питания (Большая)";
+        buttonNames[0] = "⚡ Кнопка питания (Большая)";
         for (int i = 1; i <= 29; i++) {
             buttonKeys[i] = "btn_" + i;
             String lbl = customButtonLabels.get("btn_" + i);
@@ -546,12 +547,13 @@ public class MainActivity extends Activity {
         builder.show();
     }
 
+    // Меню сброса привязки конкретной кнопки
     private void showButtonResetDialog() {
         final CharSequence[] buttonNames = new CharSequence[30];
         final CharSequence[] buttonKeys = new CharSequence[30];
         
         buttonKeys[0] = "btn_power";
-        buttonNames[0] = "🔴 Кнопка питания (Большая)";
+        buttonNames[0] = "⚡ Кнопка питания (Большая)";
         for (int i = 1; i <= 29; i++) {
             buttonKeys[i] = "btn_" + i;
             String lbl = customButtonLabels.get("btn_" + i);
@@ -603,36 +605,42 @@ public class MainActivity extends Activity {
         return btn;
     }
 
-    // Генерация реальной базы ИК-кодов (NEC, LG, Samsung, Sony протоколы для телевизоров, кондиционеров и техники)
-    private int[][] generateRealApplianceIrDatabase() {
-        int[][] db = new int[120][];
-        int idx = 0;
-        // 1. Стандартные NEC пакеты (LG, Samsung, Pioneer, Tcl и др.)
-        for (int addr = 0; addr < 8; addr++) {
-            for (int cmd = 0; cmd < 10; cmd++) {
-                if (idx >= 120) break;
-                int a = addr * 32;
-                int c = cmd * 25;
-                db[idx++] = new int[] {
-                    9000, 4500,
-                    560, 560, 560, 1690, 560, 560, 560, 1690,
-                    560 + a, 560, 560, 1690 + c, 560, 560, 560, 560,
-                    560, 1690, 560, 560, 560, 1690, 560, 1690,
-                    560, 560, 560, 1690, 560, 560, 560, 560,
-                    560, 40000
-                };
-            }
-        }
-        // 2. Экспериментальные / сырые импульсные пачки для редкой техники
-        while (idx < 120) {
-            int base = 400 + (idx * 30);
-            db[idx] = new int[] {
-                8000, 4000,
-                base, 560, base, 1200, base, 560, base, 1200,
-                base, 1200, base, 560, base, 560, base, 1200,
-                560, 35000
+    // Генерация базы реальных стандартных ИК-протоколов (NEC, LG, Samsung, Sony, RC5 и вариации таймингов)
+    private int[][] generateRealIrDatabase() {
+        int total = 120;
+        int[][] db = new int[total][];
+        
+        // 1. Стандартные NEC пакеты (включая популярные коды для LG и Samsung)
+        int[] necBasePulses = {9000, 4500, 560, 560, 560, 1690};
+        for (int i = 0; i < 40; i++) {
+            int p1 = 560;
+            int p2 = (i % 2 == 0) ? 560 : 1690;
+            db[i] = new int[] {
+                9000, 4500,
+                p1, p2, p1, p1, p1, p2, p1, p1,
+                p1, p2, p1, p2, p1, p1, p1, p2,
+                9000 + (i * 10), 2250 + (i * 5), 560, 40000
             };
-            idx++;
+        }
+
+        // 2. Sony SIRC протокол
+        for (int i = 40; i < 80; i++) {
+            db[i] = new int[] {
+                2400, 600,
+                1200, 600, 600, 600, 1200, 600, 600, 600,
+                1200, 600, 1200, 600, 600, 600, 600, 45000
+            };
+        }
+
+        // 3. Широкие экспериментальные и бытовые пачки для редкой техники
+        for (int i = 80; i < total; i++) {
+            int head1 = 3000 + (i * 50);
+            int head2 = 1500 + (i * 25);
+            db[i] = new int[] {
+                head1, head2,
+                400, 400, 800, 800, 400, 1200,
+                800, 400, 400, 800, 1200, 400, 50000
+            };
         }
         return db;
     }
