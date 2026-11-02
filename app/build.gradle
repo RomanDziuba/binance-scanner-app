@@ -9,7 +9,7 @@ android {
         applicationId "com.pult2.version02"
         minSdk 21
         targetSdk 34
-        versionCode 52
+        versionCode 53
         versionName "02"
     }
     compileOptions {
