@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version01'
+    namespace 'com.pult.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version01"
+        applicationId "com.pult.version01"
         minSdk 21
         targetSdk 34
-        versionCode 46
+        versionCode 47
         versionName "01"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "фоторедактор_v01-" + variant.name + ".apk"
+            outputFileName = "пульт_v01-" + variant.name + ".apk"
         }
     }
 }
