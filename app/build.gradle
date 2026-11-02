@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.pro6.version6'
+    namespace 'com.pro5.version6'
     compileSdk 34
     defaultConfig {
-        applicationId "com.pro6.version6"
+        applicationId "com.pro5.version6"
         minSdk 21
         targetSdk 34
         versionCode 70
