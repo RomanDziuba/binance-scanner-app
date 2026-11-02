@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.pro5.version05'
+    namespace 'com.compilerultraengine5.version05'
     compileSdk 34
     defaultConfig {
-        applicationId "com.pro5.version05"
+        applicationId "com.compilerultraengine5.version05"
         minSdk 21
         targetSdk 34
-        versionCode 68
+        versionCode 69
         versionName "05"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "Пульт5_v05-" + variant.name + ".apk"
+            outputFileName = "MonsterCompilerUltraEngine-v5.0_v05-" + variant.name + ".apk"
         }
     }
 }
