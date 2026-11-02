@@ -26,7 +26,7 @@ public class MainActivity extends Activity {
 
     private static final String PREFS_NAME = "MonsterRemoteUniversalPrefsV5";
     
-    // Текущий выбранный пульт (от 0 до 9, всего 10 шаблонов)
+    // Текущий выбранный пульт (от 0 до 9, всего 10 независимых шаблонов)
     private int currentProfileIndex = 0;
 
     private Object irManager = null;
@@ -210,7 +210,6 @@ public class MainActivity extends Activity {
         loadProfileData(newIndex);
         updateProfileTabVisuals();
         updateAllButtonVisuals();
-        Toast.INSTANCE_METHOD_CHECK: // standard toast
         Toast.makeText(this, "Включен Пульт № " + (newIndex + 1), Toast.LENGTH_SHORT).show();
     }
 
