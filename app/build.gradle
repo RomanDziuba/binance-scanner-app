@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version04'
+    namespace 'com.roblox.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version04"
+        applicationId "com.roblox.version01"
         minSdk 21
         targetSdk 34
-        versionCode 62
-        versionName "04"
+        versionCode 63
+        versionName "01"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "Пульт4_v04-" + variant.name + ".apk"
+            outputFileName = "РОБЛОКС🤖_v01-" + variant.name + ".apk"
         }
     }
 }
