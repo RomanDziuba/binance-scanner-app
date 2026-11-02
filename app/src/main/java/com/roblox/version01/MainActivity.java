@@ -3,6 +3,7 @@ package com.roblox.version01;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.*;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -29,18 +30,15 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Главный контейнер (эмулятор экрана телефона)
         FrameLayout rootLayout = new FrameLayout(this);
         rootLayout.setBackgroundColor(Color.parseColor("#030712"));
 
-        // Игровой движок (Canvas View)
         gameView = new GameView(this);
         rootLayout.addView(gameView, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
         ));
 
-        // Верхняя панель интерфейса (HUD в стиле Roblox)
         LinearLayout hudLayout = new LinearLayout(this);
         hudLayout.setOrientation(LinearLayout.HORIZONTAL);
         hudLayout.setPadding(40, 40, 40, 40);
@@ -53,7 +51,6 @@ public class MainActivity extends Activity {
         scoreTextView.setTypeface(Typeface.DEFAULT_BOLD);
         scoreTextView.setPadding(20, 10, 20, 10);
         
-        // Полупрозрачный фон для панели счёта
         GradientDrawable hudBg = new GradientDrawable();
         hudBg.setColor(Color.parseColor("#990F172A"));
         hudBg.setCornerRadius(16f);
@@ -75,13 +72,11 @@ public class MainActivity extends Activity {
         runOnUiThread(() -> scoreTextView.setText("💎 Монеты: " + score));
     }
 
-    // --- ИГРОВОЙ ДВИЖОК И КОНТРОЛЛЕРЫ (РОБЛОКС СТИЛЬ) ---
     private class GameView extends View {
         private Paint paint;
         private Handler handler = new Handler(Looper.getMainLooper());
         private Runnable updater;
 
-        // Игрок (Кубический персонаж Roblox)
         private float playerX = 100, playerY = 400;
         private float playerWidth = 60, playerHeight = 90;
         private float vx = 0, vy = 0;
@@ -90,19 +85,16 @@ public class MainActivity extends Activity {
         private final float jumpForce = -15f;
         private final float moveSpeed = 5f;
 
-        // Джойстик (Левый стик управления)
         private float joystickCenterX = 200, joystickCenterY = 1400;
         private float joystickRadius = 120;
         private float stickX = 200, stickY = 1400;
         private boolean isJoystickActive = false;
         private int joystickTouchId = -1;
 
-        // Кнопка прыжка (Правая сторона)
         private float jumpBtnX, jumpBtnY = 1350, jumpBtnRadius = 80;
         private boolean isJumpPressed = false;
         private int jumpTouchId = -1;
 
-        // Мир (Платформы и монеты)
         private List<RectF> platforms = new ArrayList<>();
         private List<Coin> coins = new ArrayList<>();
         private Random random = new Random();
@@ -112,18 +104,15 @@ public class MainActivity extends Activity {
             paint = new Paint();
             paint.setAntiAlias(true);
 
-            // Создаем мир (карту)
-            platforms.add(new RectF(0, 1100, 1080, 1300)); // Земля
-            platforms.add(new RectF(200, 900, 600, 940));  // Платформа 1
-            platforms.add(new RectF(500, 700, 900, 740));  // Платформа 2
-            platforms.add(new RectF(100, 500, 500, 540));  // Платформа 3
+            platforms.add(new RectF(0, 1100, 1080, 1300));
+            platforms.add(new RectF(200, 900, 600, 940));
+            platforms.add(new RectF(500, 700, 900, 740));
+            platforms.add(new RectF(100, 500, 500, 540));
 
-            // Спавним монеты
             coins.add(new Coin(350, 830));
             coins.add(new Coin(700, 630));
             coins.add(new Coin(300, 430));
 
-            // Игровой цикл (~60 FPS)
             updater = new Runnable() {
                 @Override
                 public void run() {
@@ -136,7 +125,6 @@ public class MainActivity extends Activity {
         }
 
         private void updatePhysics() {
-            // Обработка движения от джойстика
             if (isJoystickActive) {
                 float dx = stickX - joystickCenterX;
                 if (Math.abs(dx) > 10) {
@@ -148,23 +136,18 @@ public class MainActivity extends Activity {
                 vx = 0;
             }
 
-            // Гравитация
             vy += gravity;
             playerX += vx;
             playerY += vy;
 
-            // Ограничения экрана
             if (playerX < 0) playerX = 0;
             if (playerX > getWidth() - playerWidth) playerX = getWidth() - playerWidth;
 
-            // Коллизии с платформами
             isGrounded = false;
             RectF playerRect = new RectF(playerX, playerY, playerX + playerWidth, playerY + playerHeight);
 
             for (RectF p : platforms) {
-                // Проверяем приземление сверху
                 if (playerRect.intersect(p) && vy > 0) {
-                    // Если падали сверху платформы
                     if (playerY + playerHeight - vy <= p.top + 15) {
                         playerY = p.top - playerHeight;
                         vy = 0;
@@ -173,7 +156,6 @@ public class MainActivity extends Activity {
                 }
             }
 
-            // Проверка сбора монет
             for (int i = coins.size() - 1; i >= 0; i--) {
                 Coin c = coins.get(i);
                 if (!c.collected && playerRect.intersects(c.x, c.y, c.x + c.size, c.y + c.size)) {
@@ -183,7 +165,6 @@ public class MainActivity extends Activity {
                 }
             }
 
-            // Авто-респаун при падении ниже экрана
             if (playerY > 1800) {
                 playerX = 100;
                 playerY = 300;
@@ -195,22 +176,18 @@ public class MainActivity extends Activity {
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
 
-            // Инициализация координат кнопки прыжка при первом рендере
             if (jumpBtnX == 0) {
                 jumpBtnX = getWidth() - 220;
             }
 
-            // 1. Отрисовка платформ (Стиль Roblox Obby)
             paint.setColor(Color.parseColor("#1E293B"));
             for (RectF p : platforms) {
                 canvas.drawRoundRect(p, 12, 12, paint);
-                // Неоновая подсветка грани платформы
                 paint.setColor(Color.parseColor("#38BDF8"));
                 canvas.drawRect(p.left, p.top, p.right, p.top + 6, paint);
                 paint.setColor(Color.parseColor("#1E293B"));
             }
 
-            // 2. Отрисовка монеток
             for (Coin c : coins) {
                 if (!c.collected) {
                     paint.setColor(Color.parseColor("#F59E0B"));
@@ -220,34 +197,25 @@ public class MainActivity extends Activity {
                 }
             }
 
-            // 3. Отрисовка игрока (Блочный персонаж Roblox)
-            // Тело (Синяя футболка)
             paint.setColor(Color.parseColor("#2563EB"));
             canvas.drawRect(playerX, playerY + 25, playerX + playerWidth, playerY + playerHeight - 20, paint);
-            // Голова (Желтая классическая голова)
             paint.setColor(Color.parseColor("#FACC15"));
             canvas.drawRect(playerX + 10, playerY, playerX + playerWidth - 10, playerY + 30, paint);
-            // Ноги (Черные штаны)
             paint.setColor(Color.parseColor("#0F172A"));
             canvas.drawRect(playerX + 5, playerY + playerHeight - 20, playerX + playerWidth/2 - 2, playerY + playerHeight, paint);
             canvas.drawRect(playerX + playerWidth/2 + 2, playerY + playerHeight - 20, playerX + playerWidth - 5, playerY + playerHeight, paint);
 
-            // 4. Отрисовка элементов управления (UI Joystick & Jump Button в стиле Roblox Mobile)
-            // База джойстика
             paint.setColor(Color.parseColor("#334155"));
             paint.setAlpha(120);
             canvas.drawCircle(joystickCenterX, joystickCenterY, joystickRadius, paint);
-            // Стикло (ручка джойстика)
             paint.setColor(Color.parseColor("#38BDF8"));
             paint.setAlpha(200);
             canvas.drawCircle(stickX, stickY, 50, paint);
 
-            // Кнопка прыжка
             paint.setColor(Color.parseColor("#DC2626"));
             paint.setAlpha(160);
             canvas.drawCircle(jumpBtnX, jumpBtnY, jumpBtnRadius, paint);
             
-            // Текст внутри кнопки прыжка
             paint.setAlpha(255);
             paint.setColor(Color.WHITE);
             paint.setTextSize(36f);
@@ -267,7 +235,6 @@ public class MainActivity extends Activity {
             switch (action) {
                 case MotionEvent.ACTION_DOWN:
                 case MotionEvent.ACTION_POINTER_DOWN:
-                    // Проверяем нажатие на джойстик (левая половина экрана)
                     if (x < getWidth() / 2 && !isJoystickActive) {
                         isJoystickActive = true;
                         joystickTouchId = pointerId;
@@ -275,9 +242,7 @@ public class MainActivity extends Activity {
                         joystickCenterY = y;
                         stickX = x;
                         stickY = y;
-                    }
-                    // Проверяем нажатие на кнопку прыжка (правая нижняя область)
-                    else if (Math.hypot(x - jumpBtnX, y - jumpBtnY) < jumpBtnRadius + 50 && !isJumpPressed) {
+                    } else if (Math.hypot(x - jumpBtnX, y - jumpBtnY) < jumpBtnRadius + 50 && !isJumpPressed) {
                         isJumpPressed = true;
                         jumpTouchId = pointerId;
                         if (isGrounded) {
@@ -315,7 +280,6 @@ public class MainActivity extends Activity {
                     if (pointerId == joystickTouchId) {
                         isJoystickActive = false;
                         joystickTouchId = -1;
-                        // Возвращаем центр джойстика на исходную позицию
                         joystickCenterX = 200;
                         joystickCenterY = 1400;
                         stickX = 200;
@@ -331,7 +295,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // Класс для объектов монет
     private static class Coin {
         float x, y;
         float size = 40;
