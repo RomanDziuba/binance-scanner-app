@@ -9,7 +9,7 @@ android {
         applicationId "com.roblox.version01"
         minSdk 21
         targetSdk 34
-        versionCode 64
+        versionCode 65
         versionName "01"
     }
     compileOptions {
