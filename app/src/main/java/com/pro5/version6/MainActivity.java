@@ -45,7 +45,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * 🚀 MONSTER COMPILER CI/CD ENGINE v6.0 ULTRA PRO
+ * 🚀 MONSTER COMPILER CI/CD ENGINE v7.0 ULTRA PRO
  * (Dynamic Theme Manifest, Advanced Search & Repository Management)
  * Автор: Dziuba Roman
  */
@@ -131,7 +131,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView authorView = new TextView(this);
-        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v6.0 Ultra ✦");
+        authorView.setText("✦ Dziuba Roman — Monster CI/CD Engine v7.0 Ultra ✦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(15f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -156,7 +156,7 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardParams);
 
         TextView titleView = new TextView(this);
-        titleView.setText("🚀 Android Monster Compiler (Ultra Engine v6.0)");
+        titleView.setText("🚀 Android Monster Compiler (Ultra Engine v7.0)");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -268,7 +268,7 @@ public class MainActivity extends Activity {
         setContentView(rootLayout);
 
         updateAllButtonLabels();
-        logEditText.setText("=== 🚀 MONSTER COMPILER PRO V6.0 ULTRA ЗАПУЩЕН ===\n" +
+        logEditText.setText("=== 🚀 MONSTER COMPILER PRO V7.0 ULTRA ЗАПУЩЕН ===\n" +
                             "• Имя для Telegram APK: " + telegramApkTitle + "\n" +
                             "• Пакет: " + packageName + "\n" +
                             "• Версия: " + appVersion + " (Code: " + versionCode + ")\n" +
@@ -2328,7 +2328,7 @@ public class MainActivity extends Activity {
                "on:\n  workflow_dispatch:\n\n" +
                "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" +
                "      - name: Checkout\n        uses: actions/checkout@v4\n" +
-               "      - name: Set up JDK 17\n        uses: actions/setup-java@v6\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n" +
+               "      - name: Set up JDK 17\n        uses: actions/setup-java@v7\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n" +
                "      - name: Setup Android SDK (Native Bash)\n        run: |\n" +
                "          export ANDROID_HOME=/usr/local/lib/android/sdk\n" +
                "          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n" +
