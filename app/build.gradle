@@ -9,7 +9,7 @@ android {
         applicationId "com.pultik.version05"
         minSdk 21
         targetSdk 34
-        versionCode 66
+        versionCode 67
         versionName "05"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "РОБЛОКС🤖_v05-" + variant.name + ".apk"
+            outputFileName = "Пульт5_v05-" + variant.name + ".apk"
         }
     }
 }
