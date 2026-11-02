@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.pro5.version05'
+    namespace 'com.pro6.version6'
     compileSdk 34
     defaultConfig {
-        applicationId "com.pro5.version05"
+        applicationId "com.pro6.version6"
         minSdk 21
         targetSdk 34
-        versionCode 69
-        versionName "05"
+        versionCode 70
+        versionName "6"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "RomaMonsterApp_v05-" + variant.name + ".apk"
+            outputFileName = "MONSTERcompiler6_v6-" + variant.name + ".apk"
         }
     }
 }
