@@ -19,30 +19,30 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.yul.Map; // standard map import via java.util.*
+import java.util.Map;
 
 // THEME: @android:style/Theme.Material.Light.NoActionBar
 public class MainActivity extends Activity {
 
-    private static final String PREFS_NAME = "MonsterRemoteUniversalPrefs";
+    private static final String PREFS_NAME = "MonsterRemoteUniversalPrefsV3";
 
     private Object irManager = null;
     private Method transmitMethod = null;
     private boolean isIrAvailable = false;
 
-    // Глобальная мега-база ВСЕХ протоколов мира (NEC, RC5, RC6, Sony, Panasonic, JVC)
+    // Comprehensive universal IR database covering NEC, RC5, RC6, Sony, Panasonic, and JVC protocols
     private final int[][] irDatabase = generateAllUniversalIrDatabase();
     private int currentScanIndex = 0;
     private boolean isScanning = false;
-    private int scanPauseMs = 600;
+    private int scanPauseMs = 400;
 
     private Handler scanHandler = new Handler(Looper.getMainLooper());
     private Runnable scanRunnable;
 
-    // 30 кнопок (1 большая питания + 29 в сетке)
-    private java.util.Map<String, int[]> customButtonCodes = new java.util.HashMap<>();
-    private java.util.Map<String, String> customButtonLabels = new java.util.HashMap<>();
-    private java.util.Map<String, Button> remoteButtons = new java.util.HashMap<>();
+    // Storage for 30 buttons (1 large power button + 29 grid buttons)
+    private Map<String, int[]> customButtonCodes = new HashMap<>();
+    private Map<String, String> customButtonLabels = new HashMap<>();
+    private Map<String, Button> remoteButtons = new HashMap<>();
 
     private String currentDeviceTitle = "📺 Телевизор";
     private TextView lblDeviceTitle;
@@ -63,7 +63,7 @@ public class MainActivity extends Activity {
         rootLayout.setPadding(12, 12, 12, 12);
         rootLayout.setGravity(Gravity.CENTER_HORIZONTAL);
 
-        // Верхняя панель (Редактируемое название устройства + Кнопка МЕНЮ)
+        // Top control panel (Editable device title + MENU button)
         LinearLayout topBar = new LinearLayout(this);
         topBar.setOrientation(LinearLayout.HORIZONTAL);
         topBar.setGravity(Gravity.CENTER_VERTICAL);
@@ -100,7 +100,7 @@ public class MainActivity extends Activity {
         topBar.addView(btnCalibration);
         rootLayout.addView(topBar);
 
-        // --- КОРПУС ПУЛЬТА НА ВЕСЬ ЭКРАН ---
+        // --- FULL-SCREEN REMOTE BODY ---
         ScrollView remoteScroll = new ScrollView(this);
         remoteScroll.setLayoutParams(new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f
@@ -122,7 +122,7 @@ public class MainActivity extends Activity {
         );
         remoteBody.setLayoutParams(bodyParams);
 
-        // 1. ОТДЕЛЬНАЯ БОЛЬШАЯ КНОПКА ПИТАНИЯ СВЕРХУ
+        // 1. SEPARATE LARGE POWER BUTTON AT THE TOP
         Button btnPowerBig = createCustomStyledButton("btn_power", "⚡ Питание");
         LinearLayout.LayoutParams powerParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 120
@@ -131,7 +131,7 @@ public class MainActivity extends Activity {
         btnPowerBig.setLayoutParams(powerParams);
         remoteBody.addView(btnPowerBig);
 
-        // 2. СЕТКА ОСТАЛЬНЫХ 29 КНОПОК (#1 - #29)
+        // 2. GRID OF 29 ADDITIONAL BUTTONS (#1 through #29)
         for (int r = 1; r <= 8; r++) {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
@@ -157,7 +157,7 @@ public class MainActivity extends Activity {
         remoteScroll.addView(remoteBody);
         rootLayout.addView(remoteScroll);
 
-        // --- ЕДИНСТВЕННАЯ ПОДПИСЬ ВНИЗУ ---
+        // --- BOTTOM SIGNATURE ---
         TextView authorView = new TextView(this);
         authorView.setText("Универсальный IR • Dziuba Roman 2026");
         authorView.setTextColor(Color.parseColor("#94A3B8"));
@@ -201,7 +201,7 @@ public class MainActivity extends Activity {
         
         GradientDrawable btnBg = new GradientDrawable();
         if (isAssigned) {
-            btnBg.setColor(Color.parseColor("#0D9488")); // Бирюзовая подсветка активных привязанных кнопок
+            btnBg.setColor(Color.parseColor("#0D9488")); // Turquoise highlight for assigned buttons
             btnBg.setStroke(2, Color.parseColor("#2DD4BF"));
         } else {
             btnBg.setColor(Color.parseColor("#334155"));
@@ -212,7 +212,7 @@ public class MainActivity extends Activity {
     }
 
     private void updateAllButtonVisuals() {
-        for (java.util.Map.Entry<String, Button> entry : remoteButtons.entrySet()) {
+        for (Map.Entry<String, Button> entry : remoteButtons.entrySet()) {
             String keyId = entry.getKey();
             Button btn = entry.getValue();
             String savedLabel = customButtonLabels.get(keyId);
@@ -441,7 +441,7 @@ public class MainActivity extends Activity {
                     scanHandler.postDelayed(this, scanPauseMs);
                 } else {
                     stopAutoScan();
-                    currentScanIndex = 0; // Автоматический сброс на 0 при окончании базы
+                    currentScanIndex = 0; // Automatically reset to index 0 upon completion without closing app
                     lblPacketInfo.setText("✅ База пройдена! Сброс на Пакет № 0.");
                     appendLog("Автоскан дошел до конца базы и автоматически сброшен в начало.");
                 }
@@ -598,13 +598,12 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * ПОЛНАЯ МЕГА-БАЗА ВСЕХ ИК-ПРОТОКОЛОВ МИРА (NEC, RC5, RC6, SONY, PANASONIC, JVC)
+     * COMPREHENSIVE UNIVERSAL IR DATABASE (NEC, RC5, RC6, SONY, PANASONIC, JVC)
      */
     private int[][] generateAllUniversalIrDatabase() {
         List<int[]> list = new ArrayList<>();
 
-        // 1. СТАНДАРТНЫЙ NEC (LG, Samsung, Toshiba, Sharp, Pioneer)
-        // Перебор всех основных системных адресов и команд
+        // 1. STANDARD NEC (LG, Samsung, Toshiba, Sharp, Pioneer)
         int[] commonAddresses = {0x00, 0x04, 0x07, 0x08, 0x10, 0x20, 0x40, 0x5F, 0xBF};
         for (int addr : commonAddresses) {
             for (int cmd = 0; cmd < 32; cmd++) {
@@ -612,28 +611,28 @@ public class MainActivity extends Activity {
             }
         }
 
-        // 2. ПРОТОКОЛ PHILIPS RC5 (Телевизоры, аудио, VCR, европейская техника)
+        // 2. PHILIPS RC5 PROTOCOL (TVs, Audio, VCR, European electronics)
         for (int sys = 0; sys <= 6; sys++) {
             for (int cmd = 0; cmd < 64; cmd++) {
                 list.add(buildRc5Pattern(sys, cmd));
             }
         }
 
-        // 3. ПРОТОКОЛ PHILIPS RC6 (Современные Philips, ресиверы)
+        // 3. PHILIPS RC6 PROTOCOL (Modern Philips, Receivers)
         for (int addr = 0; addr <= 3; addr++) {
             for (int cmd = 0; cmd < 32; cmd++) {
                 list.add(buildRc6Pattern(addr, cmd));
             }
         }
 
-        // 4. SONY SIRC (12-bit, 15-bit, 20-bit для аппаратуры Sony)
+        // 4. SONY SIRC (12-bit, 15-bit, 20-bit Sony equipment)
         for (int addr = 0; addr <= 5; addr++) {
             for (int cmd = 0; cmd < 32; cmd++) {
                 list.add(buildSonyPattern(cmd, addr));
             }
         }
 
-        // 5. PANASONIC / JVC (Климатическая техника, музыкальные центры, японские ТВ)
+        // 5. PANASONIC / JVC (Air conditioners, audio systems, Japanese TVs)
         for (int i = 0; i < 30; i++) {
             list.add(buildPanasonicPattern(0x4004, i));
             list.add(buildJvcPattern(0x01, i));
@@ -642,7 +641,7 @@ public class MainActivity extends Activity {
         return list.toArray(new int[list.size()][]);
     }
 
-    // --- ГЕНЕРАТОРЫ ТОЧНЫХ ПРОТОКОЛОВ ---
+    // --- PROTOCOL GENERATORS ---
 
     private int[] buildNecPattern(int address, int command) {
         int[] pattern = new int[67];
@@ -683,10 +682,9 @@ public class MainActivity extends Activity {
     }
 
     private int[] buildRc6Pattern(int address, int command) {
-        // RC6 базовый протокол (Лидер: 2666 / 889)
         List<Integer> p = new ArrayList<>();
-        p.add(2666); p.add(889); // Стартовый лидер
-        p.add(444); p.add(444);  // Режим 0
+        p.add(2666); p.add(889); // Leader
+        p.add(444); p.add(444);  // Mode 0
         
         int data = ((address & 0x07) << 6) | (command & 0x3F);
         for (int i = 8; i >= 0; i--) {
@@ -720,7 +718,6 @@ public class MainActivity extends Activity {
     private int[] buildPanasonicPattern(int customCode, int command) {
         int[] p = new int[67];
         p[0] = 3500; p[1] = 1750;
-        // Упрощенный паттерн Panasonic
         for(int i = 2; i < 66; i++) {
             p[i] = (i % 2 == 0) ? 500 : 400;
         }
