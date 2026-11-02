@@ -2379,6 +2379,7 @@ public class MainActivity extends Activity {
                "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n" +
                "    <uses-permission android:name=\"android.permission.INTERNET\" />\n" +
                "    <uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\" />\n" +
+               "    <uses-permission android:name=\"android.permission.TRANSMIT_IR\" />\n" +
                "    <uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\" />\n" +
                "    <uses-permission android:name=\"android.permission.CHANGE_WIFI_STATE\" />\n" +
                "    <uses-permission android:name=\"android.permission.CHANGE_NETWORK_STATE\" />\n" +
