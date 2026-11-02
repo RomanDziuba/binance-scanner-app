@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.pultik.version05'
+    namespace 'com.pro5.version05'
     compileSdk 34
     defaultConfig {
-        applicationId "com.pultik.version05"
+        applicationId "com.pro5.version05"
         minSdk 21
         targetSdk 34
         versionCode 68
