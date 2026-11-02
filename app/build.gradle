@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.pro4.version04'
+    namespace 'com.pult.version04'
     compileSdk 34
     defaultConfig {
-        applicationId "com.pro4.version04"
+        applicationId "com.pult.version04"
         minSdk 21
         targetSdk 34
         versionCode 50
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "pro4_v04-" + variant.name + ".apk"
+            outputFileName = "RomaMonsterApp_v04-" + variant.name + ".apk"
         }
     }
 }
