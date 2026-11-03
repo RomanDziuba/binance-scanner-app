@@ -13,7 +13,6 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.net.Uri;
 import android.os.Bundle;
@@ -25,6 +24,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
@@ -49,12 +49,10 @@ public class MainActivity extends AppCompatActivity {
     private static final int PICK_BG_IMAGE = 2;
     private static final int PERMISSION_CODE = 100;
 
-    // Слои графики
     private LayerView layerView;
     private Bitmap foregroundBitmap = null;
     private Bitmap backgroundBitmap = null;
 
-    // Состояние слоев (позиция, масштаб, прозрачность)
     private static class LayerState {
         float x = 0, y = 0;
         float scale = 1.0f;
@@ -65,7 +63,6 @@ public class MainActivity extends AppCompatActivity {
     private final LayerState bgState = new LayerState();
     private int activeLayer = 1; // 1 - Передний план, 0 - Фон
 
-    // ONNX Runtime
     private OrtEnvironment ortEnvironment;
     private OrtSession ortSession;
     private String modelPath;
@@ -74,20 +71,17 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Создаем главный интерфейс
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
         rootLayout.setPadding(24, 24, 24, 24);
         rootLayout.setBackgroundColor(Color.parseColor("#121212"));
 
-        // Кастомный холст для слоев
         layerView = new LayerView(this);
         LinearLayout.LayoutParams canvasParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
         layerView.setLayoutParams(canvasParams);
         rootLayout.addView(layerView);
 
-- Панель управления и настроек
         LinearLayout controlsLayout = new LinearLayout(this);
         controlsLayout.setOrientation(LinearLayout.VERTICAL);
 
@@ -131,10 +125,9 @@ public class MainActivity extends AppCompatActivity {
 
         controlsLayout.addView(rowLayout);
 
-        // Настройка прозрачности активного слоя
         LinearLayout alphaLayout = new LinearLayout(this);
         alphaLayout.setOrientation(LinearLayout.HORIZONTAL);
-        android.widget.TextView lblAlpha = new android.widget.TextView(this);
+        TextView lblAlpha = new TextView(this);
         lblAlpha.setText("Прозрачность: ");
         lblAlpha.setTextColor(Color.WHITE);
         alphaLayout.addView(lblAlpha);
@@ -157,7 +150,6 @@ public class MainActivity extends AppCompatActivity {
         alphaLayout.addView(seekBarAlpha);
         controlsLayout.addView(alphaLayout);
 
-        // Кнопки сохранения
         LinearLayout saveLayout = new LinearLayout(this);
         saveLayout.setOrientation(LinearLayout.HORIZONTAL);
 
@@ -221,7 +213,7 @@ public class MainActivity extends AppCompatActivity {
         try {
             File modelFile = new File(getFilesDir(), "u2netp.onnx");
             if (!modelFile.exists()) {
-                InputStream is = getAssets().open("u2netp.onnx"); // Копируем модель из активов[span_1](start_span)[span_1](end_span)
+                InputStream is = getAssets().open("u2netp.onnx");[span_0](start_span)[span_0](end_span)
                 FileOutputStream fos = new FileOutputStream(modelFile);
                 byte[] buffer = new byte[4096];
                 int read;
@@ -240,7 +232,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // Пайплайн удаления фона через u2netp.onnx
     private void removeBackgroundWithAI() {
         if (foregroundBitmap == null) {
             Toast.makeText(this, "Сначала загрузите переднее изображение!", Toast.LENGTH_SHORT).show();
@@ -255,10 +246,9 @@ public class MainActivity extends AppCompatActivity {
 
         new Thread(() -> {
             try {
-                int imgSize = 320; // Стандартный вход для u2netp
+                int imgSize = 320;
                 Bitmap resized = Bitmap.createScaledBitmap(foregroundBitmap, imgSize, imgSize, true);
                 
-                // Подготовка тензора [1, 3, 320, 320]
                 float[] inputArray = new float[1 * 3 * imgSize * imgSize];
                 int pixelIndex = 0;
                 for (int y = 0; y < imgSize; y++) {
@@ -268,7 +258,6 @@ public class MainActivity extends AppCompatActivity {
                         float g = ((pixel >> 8) & 0xFF) / 255.0f;
                         float b = (pixel & 0xFF) / 255.0f;
                         
-                        // Нормализация под U2Net
                         inputArray[pixelIndex] = (r - 0.485f) / 0.229f;
                         inputArray[pixelIndex + imgSize * imgSize] = (g - 0.456f) / 0.224f;
                         inputArray[pixelIndex + 2 * imgSize * imgSize] = (b - 0.406f) / 0.225f;
@@ -285,7 +274,6 @@ public class MainActivity extends AppCompatActivity {
                 OnnxTensor outputTensor = (OnnxTensor) result.get(0);
                 float[][][][] rawOutput = (float[][][][]) outputTensor.getValue();
 
-                // Создаем маску из результата сети
                 Bitmap maskBitmap = Bitmap.createBitmap(imgSize, imgSize, Bitmap.Config.ARGB_8888);
                 for (int y = 0; y < imgSize; y++) {
                     for (int x = 0; x < imgSize; x++) {
@@ -295,7 +283,6 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
 
-                // Накладываем альфа-канал на исходное изображение
                 Bitmap finalResult = Bitmap.createBitmap(foregroundBitmap.getWidth(), foregroundBitmap.getHeight(), Bitmap.Config.ARGB_8888);
                 Bitmap scaledMask = Bitmap.createScaledBitmap(maskBitmap, foregroundBitmap.getWidth(), foregroundBitmap.getHeight(), true);
                 
@@ -317,11 +304,10 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    // Сохранение итогового холста в PNG или JPG
     private void saveComposedImage(Bitmap.CompressFormat format) {
         Bitmap composed = Bitmap.createBitmap(layerView.getWidth(), layerView.getHeight(), Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(composed);
-        canvas.drawColor(Color.WHITE); // Подложка для JPG или прозрачность для PNG
+        canvas.drawColor(Color.WHITE);
         
         layerView.drawLayers(canvas);
 
@@ -334,13 +320,12 @@ public class MainActivity extends AppCompatActivity {
             composed.compress(format, 100, fos);
             fos.flush();
             fos.close();
-            Toast.makeText(this, "Сохранено в галерею: " + file.getAbsolutePath(), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Сохранено: " + file.getAbsolutePath(), Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка сохранения: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
-    // Интерактивный кастомный View для рендеринга и жестов слоев
     private class LayerView extends View {
         private float lastTouchX, lastTouchY;
         private final ScaleGestureDetector scaleDetector;
@@ -367,7 +352,6 @@ public class MainActivity extends AppCompatActivity {
         public void drawLayers(Canvas canvas) {
             Paint paint = new Paint();
 
-            // Отрисовка слоя фона (Слой 0)
             if (backgroundBitmap != null) {
                 canvas.save();
                 paint.setAlpha((int)(bgState.alpha * 255));
@@ -377,7 +361,6 @@ public class MainActivity extends AppCompatActivity {
                 canvas.restore();
             }
 
-            // Отрисовка переднего плана (Слой 1)
             if (foregroundBitmap != null) {
                 canvas.save();
                 paint.setAlpha((int)(fgState.alpha * 255));
