@@ -6,6 +6,7 @@ import android.content.ContentValues;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.Uri;
@@ -17,7 +18,6 @@ import android.provider.MediaStore;
 import android.util.Base64;
 import android.view.Gravity;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -57,7 +57,7 @@ public class MainActivity extends Activity {
     private Handler handler = new Handler(Looper.getMainLooper());
     
     private String selectedModel = "grapefruit";
-    private List<Button> modelButtons = new ArrayList<>();
+    private List<Button> modelButtons = new ArrayList<Button>();
 
     // Пул ключей AI Horde
     private List<String> hordeKeys = new ArrayList<String>();
@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // Инициализация ключей без лямбд
+        // Инициализация ключей
         hordeKeys.add("lJSv4pVAjwtzOYfVldIVxg");
         hordeKeys.add("OjbJD9mxPNcXGU7DfGQAXQ");
         hordeKeys.add("V0lhf56Xg982yORgPuZl6A");
@@ -269,11 +269,29 @@ public class MainActivity extends Activity {
 
                 Bitmap bmp = BitmapFactory.decodeByteArray(selectedImageBytes, 0, selectedImageBytes.length);
                 imageView.setImageBitmap(bmp);
-                statusText.setText("✅ Фото загружено. Пропорции сохранены!");
+                statusText.setText("✅ Фото загружено!");
             } catch (Exception e) {
                 Toast.makeText(this, "Ошибка загрузки: " + e.getMessage(), Toast.LENGTH_LONG).show();
             }
         }
+    }
+
+    // Превращение любого изображения в квадрат с добавлением черных полей
+    private Bitmap makeSquareBitmap(Bitmap source) {
+        int width = source.getWidth();
+        int height = source.getHeight();
+        if (width == height) {
+            return source;
+        }
+        int maxDim = Math.max(width, height);
+        Bitmap squareBitmap = Bitmap.createBitmap(maxDim, maxDim, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(squareBitmap);
+        canvas.drawColor(Color.BLACK); // Черные поля (квадратирование)
+        
+        int left = (maxDim - width) / 2;
+        int top = (maxDim - height) / 2;
+        canvas.drawBitmap(source, left, top, null);
+        return squareBitmap;
     }
 
     private String translateToEnglish(String text) {
@@ -351,7 +369,7 @@ public class MainActivity extends Activity {
 
         final ProgressDialog progress = new ProgressDialog(this);
         progress.setTitle("⏳ Обработка задачи");
-        progress.setMessage("Перевод текста и проверка ключей AI Horde...");
+        progress.setMessage("Подготовка изображения и проверка ключей...");
         progress.setCancelable(false);
         progress.show();
 
@@ -378,24 +396,26 @@ public class MainActivity extends Activity {
                         throw new RuntimeException("Нет активных ключей AI Horde с положительным балансом!");
                     }
 
-                    String base64Image = Base64.encodeToString(selectedImageBytes, Base64.NO_WRAP);
+                    // Квадратирование исходного изображения (добавление черных полос)
+                    Bitmap originalBmp = BitmapFactory.decodeByteArray(selectedImageBytes, 0, selectedImageBytes.length);
+                    Bitmap squareBmp = makeSquareBitmap(originalBmp);
+                    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                    squareBmp.compress(Bitmap.CompressFormat.JPEG, 100, stream);
+                    String base64Image = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP);
 
-                    String baseInject = "nude:1.5, masterpiece, best quality, highly detailed 3d pixar anime:1.2, seductive, flawless skin, perfect lighting, beautiful face, detailed eyes";
+                    // Сборка полного промпта с инъекциями и негативным промптом
+                    String hardcoreInject = "nude:1.5, masterpiece, best quality, highly detailed 3d pixar anime:1.2, seductive, flawless skin, perfect lighting, beautiful face, detailed eyes";
                     if (!translatedChanges.isEmpty()) {
-                        baseInject += ", " + translatedChanges;
+                        hardcoreInject += ", " + translatedChanges;
                     }
-                    String negativePrompt = "(deformed face, ugly, lowres, bad anatomy)";
-                    String fullPrompt = baseInject + " ### " + negativePrompt;
+                    String negativePrompt = "(lowres, bad anatomy, bad hands:1.5, poorly drawn hands:1.5, missing fingers:1.5, extra fingers:1.5, mutated hands:1.5, fused fingers:1.5, disfigured, text, ugly, blurry, twisted neck, backward head, facing away, disconnected head, broken posture)";
+                    String fullPrompt = hardcoreInject + " ### " + negativePrompt;
 
                     JSONObject paramsObj = new JSONObject();
                     paramsObj.put("sampler_name", "k_dpmpp_2m");
                     paramsObj.put("cfg_scale", 7.8);
                     paramsObj.put("steps", 35);
                     paramsObj.put("denoising_strength", 0.44);
-
-                    JSONArray postProc = new JSONArray();
-                    postProc.put("GFPGAN");
-                    paramsObj.put("post_processing", postProc);
 
                     byte[] resultBytes = null;
                     boolean successGenerated = false;
@@ -525,7 +545,7 @@ public class MainActivity extends Activity {
                         public void run() {
                             progress.dismiss();
                             imageView.setImageBitmap(finalBmp);
-                            statusText.setText("✅ Успешно! Сохранено в галерею (оригинальные пропорции).");
+                            statusText.setText("✅ Успешно! Сохранено в галерею.");
                             Toast.makeText(MainActivity.this, "Фото сохранено в Pictures/MonsterAI", Toast.LENGTH_LONG).show();
                         }
                     });
