@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version002'
+    namespace 'com.monsterclock.version002'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version002"
+        applicationId "com.monsterclock.version002"
         minSdk 21
         targetSdk 34
         versionCode 2
