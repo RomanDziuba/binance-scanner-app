@@ -95,6 +95,11 @@ public class MainActivity extends Activity {
     private OrtEnvironment ortEnvironment;
     private OrtSession ortSession;
 
+    // Функциональный интерфейс для ползунков
+    private interface OnProgressChangedListener {
+        void onProgress(int progress);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -293,20 +298,15 @@ public class MainActivity extends Activity {
         return layout;
     }
 
-    private SeekBar createInteractiveSeekBar(int max, int initialProgress, SeekBar.OnSeekBarChangeListener listener) {
+    private SeekBar createInteractiveSeekBar(int max, int initialProgress, OnProgressChangedListener listener) {
         SeekBar sb = new SeekBar(this);
         sb.setMax(max);
         sb.setProgress(initialProgress);
         sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
-            public void progressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (fromUser) {
-                    listener.onProgressChanged(seekBar, progress, fromUser);
-                }
-            }
-            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (fromUser) {
-                    listener.onProgressChanged(seekBar, progress, fromUser);
+                    listener.onProgress(progress);
                 }
             }
             @Override public void onStartTrackingTouch(SeekBar seekBar) {}
@@ -494,7 +494,6 @@ public class MainActivity extends Activity {
 
         Toast.makeText(this, "Анализ и удаление фона...", Toast.LENGTH_SHORT).show();
 
-        // Сохраняем оригинальный источник для интерактивной переработки маски
         if (activeLayer == 1) sourceForAI1 = bitmap1;
         else sourceForAI2 = bitmap2;
 
@@ -562,12 +561,11 @@ public class MainActivity extends Activity {
         int imgSize = 320;
         Bitmap maskBitmap = Bitmap.createBitmap(imgSize, imgSize, Bitmap.Config.ARGB_8888);
 
-        // Получаем значения из интерактивных ползунков (от 0 до 100)
         float haloVal = seekBarHalo != null ? seekBarHalo.getProgress() / 100.0f : 0.45f;
         float densityVal = seekBarDensity != null ? seekBarDensity.getProgress() / 100.0f : 0.50f;
 
-        float lowThreshold = haloVal * 0.4f; // 0.0 до 0.4
-        float gamma = 0.2f + densityVal * 1.8f; // 0.2 до 2.0
+        float lowThreshold = haloVal * 0.4f;
+        float gamma = 0.2f + densityVal * 1.8f;
 
         for (int y = 0; y < imgSize; y++) {
             for (int x = 0; x < imgSize; x++) {
@@ -727,8 +725,19 @@ public class MainActivity extends Activity {
                 lastTouchY = event.getY();
                 isScalingOrRotating = false;
 
-                // Переключение активного слоя по касанию (если нажали на слой 2, делаем его активным)
-                // По умолчанию слой 1 сверху. Если он пустой или хотим переключиться, проверяем касание.
+                // Переключение активного слоя по касанию
+                float touchX = event.getX();
+                float touchY = event.getY();
+                if (isTouchInsideBitmap(touchX, touchY, bitmap2, state2) && !isTouchInsideBitmap(touchX, touchY, bitmap1, state1)) {
+                    activeLayer = 2;
+                    syncUIWithActiveLayer();
+                    invalidate();
+                } else if (isTouchInsideBitmap(touchX, touchY, bitmap1, state1)) {
+                    activeLayer = 1;
+                    syncUIWithActiveLayer();
+                    invalidate();
+                }
+
             } else if (action == MotionEvent.ACTION_POINTER_DOWN && pointerCount == 2) {
                 isScalingOrRotating = true;
                 initialTouchAngle = getAngle(event);
@@ -785,6 +794,13 @@ public class MainActivity extends Activity {
                 }
             }
             return true;
+        }
+
+        private boolean isTouchInsideBitmap(float tx, float ty, Bitmap bmp, LayerState state) {
+            if (bmp == null) return false;
+            float localX = (tx - state.x) / state.scale;
+            float localY = (ty - state.y) / state.scale;
+            return localX >= 0 && localX <= bmp.getWidth() && localY >= 0 && localY <= bmp.getHeight();
         }
 
         private float getAngle(MotionEvent event) {
