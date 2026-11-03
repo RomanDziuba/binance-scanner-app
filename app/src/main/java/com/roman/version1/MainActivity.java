@@ -51,7 +51,7 @@ public class MainActivity extends Activity {
     private byte[] selectedImageBytes;
     private Handler handler = new Handler(Looper.getMainLooper());
     
-    // --- ПУЛ КЛЮЧЕЙ AI HORDE (из вашего скрипта) ---
+    // --- ПУЛ КЛЮЧЕЙ AI HORDE ---
     private List<String> hordeKeys = new ArrayList<String>() {{
         add("lJSv4pVAjwtzOYfVldIVxg");
         add("OjbJD9mxPNcXGU7DfGQAXQ");
@@ -165,7 +165,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // --- 1. ВАЛИДАЦИЯ ПУЛА КЛЮЧЕЙ И СОРТИРОВКА ПО KUDOS ---
     private List<String> getPrioritizedWorkingKeys() {
         List<KeyScore> workingKeys = new ArrayList<>();
         for (String key : hordeKeys) {
@@ -185,7 +184,6 @@ public class MainActivity extends Activity {
                 }
             } catch (Exception ignored) {}
         }
-        // Сортировка по количеству Kudos (у кого больше баланс — тот первый в очереди)
         Collections.sort(workingKeys, (a, b) -> Double.compare(b.kudos, a.kudos));
         List<String> sortedKeys = new ArrayList<>();
         for (KeyScore ks : workingKeys) {
@@ -203,7 +201,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // --- 2. ПОЛУЧЕНИЕ И ПРИОРИТЕТИЗАЦИЯ МОДЕЛЕЙ ПО ОЧЕРЕДИ ---
     private List<String> getPrioritizedModels() {
         List<String> defaultModels = new ArrayList<>();
         defaultModels.add("stable_diffusion");
@@ -244,7 +241,6 @@ public class MainActivity extends Activity {
                     if (!dynamicList.contains(mm.name)) dynamicList.add(mm.name);
                 }
                 if (!dynamicList.isEmpty()) {
-                    // Гарантируем стабильный fallback на stable_diffusion
                     if (dynamicList.contains("stable_diffusion")) {
                         dynamicList.remove("stable_diffusion");
                         dynamicList.add(0, "stable_diffusion");
@@ -256,7 +252,6 @@ public class MainActivity extends Activity {
         return defaultModels;
     }
 
-    // --- 3. ОСНОВНОЙ ПРОЦЕСС ГЕНЕРАЦИИ С ПОЛНЫМ ПЕРЕБОРОМ КЛЮЧЕЙ И МОДЕЛЕЙ ---
     private void startResilientGeneration() {
         if (selectedImageBytes == null) {
             Toast.makeText(this, "⚠️ Сначала выберите фото из галереи!", Toast.LENGTH_SHORT).show();
@@ -271,14 +266,12 @@ public class MainActivity extends Activity {
 
         new Thread(() -> {
             try {
-                // Шаг А: Проверяем и фильтруем ключи
                 handler.post(() -> progress.setMessage("Проверка пула API ключей..."));
                 List<String> workingKeys = getPrioritizedWorkingKeys();
                 if (workingKeys.isEmpty()) {
                     throw new RuntimeException("Все ключи AI Horde невалидны или исчерпали квоты (Kudos <= 0)!");
                 }
 
-                // Шаг Б: Получаем загруженность моделей
                 handler.post(() -> progress.setMessage("Анализ очередей свободных моделей..."));
                 List<String> modelsToTry = getPrioritizedModels();
 
@@ -300,7 +293,6 @@ public class MainActivity extends Activity {
                 byte[] resultBytes = null;
                 boolean successGenerated = false;
 
-                // Шаг В: Цикл перебора моделей и ключей (Failover Loop)
                 for (String modelName : modelsToTry) {
                     if (successGenerated) break;
                     
@@ -329,11 +321,14 @@ public class MainActivity extends Activity {
                                     .build();
 
                             Response response = httpClient.newCall(request).execute();
-                            if (response.code() in [401, 402, 403, 429]) {
-                                continue; // Ключ сдох, пробуем следующий ключ
+                            int respCode = response.code();
+                            
+                            // Исправленная проверка синтаксиса на Java
+                            if (respCode == 401 || respCode == 402 || respCode == 403 || respCode == 429) {
+                                continue; 
                             }
-                            if (response.code() == 400) {
-                                break; // Модель отклонила запрос, переходим к следующей модели
+                            if (respCode == 400) {
+                                break; 
                             }
                             if (!response.isSuccessful() || response.body() == null) {
                                 continue;
@@ -344,7 +339,6 @@ public class MainActivity extends Activity {
                             String jobId = respJson.optString("id", null);
                             if (jobId == null) continue;
 
-                            // Ожидание в очереди задачи
                             String statusUrl = "https://stablehorde.net/api/v2/generate/status/" + jobId;
                             boolean jobDone = false;
                             String imgUrl = null;
@@ -352,13 +346,12 @@ public class MainActivity extends Activity {
                             for (int attempt = 0; attempt < 120; attempt++) {
                                 Thread.sleep(5000);
                                 Request statusReq = new Request.Builder().url(statusUrl).get().build();
-                                Response statusResp = httpClient.newCall(statusReq).build(); // Fixed execute call
                                 Response statRespReal = httpClient.newCall(statusReq).execute();
                                 if (statRespReal.isSuccessful() && statRespReal.body() != null) {
                                     JSONObject stJson = new JSONObject(statRespReal.body().string());
                                     if (stJson.optBoolean("faulted", false)) {
                                         jobDone = true;
-                                        break; // Воркер сбросил
+                                        break;
                                     }
                                     if (stJson.optBoolean("done", false)) {
                                         JSONArray gens = stJson.optJSONArray("generations");
