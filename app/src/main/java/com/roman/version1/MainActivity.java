@@ -1,6 +1,7 @@
 package com.roman.version1;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.ContentValues;
 import android.content.Intent;
@@ -17,6 +18,7 @@ import android.provider.MediaStore;
 import android.util.Base64;
 import android.view.Gravity;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -49,6 +51,7 @@ public class MainActivity extends Activity {
     private TextView statusText;
     private Uri selectedImageUri;
     private byte[] selectedImageBytes;
+    private String customUserPrompt = "";
     private Handler handler = new Handler(Looper.getMainLooper());
     
     // --- ПУЛ КЛЮЧЕЙ AI HORDE ---
@@ -89,7 +92,7 @@ public class MainActivity extends Activity {
         rootLayout.addView(title);
 
         statusText = new TextView(this);
-        statusText.setText("ℹ️ Выберите фото из галереи. Авто-проверка ключей активна.");
+        statusText.setText("ℹ️ Шаг 1: Выберите фото из галереи телефона.");
         statusText.setTextColor(Color.parseColor("#94A3B8"));
         statusText.setTextSize(12f);
         statusText.setGravity(Gravity.CENTER);
@@ -98,7 +101,7 @@ public class MainActivity extends Activity {
 
         imageView = new ImageView(this);
         LinearLayout.LayoutParams imgParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 600
+                LinearLayout.LayoutParams.MATCH_PARENT, 550
         );
         imgParams.setMargins(0, 0, 0, 15);
         imageView.setLayoutParams(imgParams);
@@ -110,8 +113,8 @@ public class MainActivity extends Activity {
         btnPick.setOnClickListener(v -> openGallery());
         rootLayout.addView(btnPick);
 
-        Button btnProcess = createStyledButton("🚀 Старт с валидацией ключей и моделей", "#059669");
-        btnProcess.setOnClickListener(v -> startResilientGeneration());
+        Button btnProcess = createStyledButton("🚀 Запустить генерацию с изменениями", "#059669");
+        btnProcess.setOnClickListener(v -> showCustomChangesDialog());
         rootLayout.addView(btnProcess);
 
         setContentView(rootLayout);
@@ -158,13 +161,42 @@ public class MainActivity extends Activity {
 
                 Bitmap bmp = BitmapFactory.decodeByteArray(selectedImageBytes, 0, selectedImageBytes.length);
                 imageView.setImageBitmap(bmp);
-                statusText.setText("✅ Фото загружено. Готово к валидации и отправке.");
+                statusText.setText("✅ Фото загружено! Нажмите кнопку запуска для ввода изменений.");
             } catch (Exception e) {
                 Toast.makeText(this, "Ошибка загрузки: " + e.getMessage(), Toast.LENGTH_LONG).show();
             }
         }
     }
 
+    // --- ДИАЛОГ ВВОДА КАСТОМНЫХ ИЗМЕНЕНИЙ (КАК В ОРИГИНАЛЕ) ---
+    private void showCustomChangesDialog() {
+        if (selectedImageBytes == null) {
+            Toast.makeText(this, "⚠️ Сначала выберите фото из галереи!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        final EditText input = new EditText(this);
+        input.setHint("Например: сделать красные волосы, добавить очки...");
+        input.setTextColor(Color.WHITE);
+        input.setHintTextColor(Color.GRAY);
+        input.setPadding(20, 20, 20, 20);
+
+        new AlertDialog.Builder(this)
+            .setTitle("✍️ Внесите изменения")
+            .setMessage("Что нужно изменить или добавить на фото? (Оставьте пустым для обработки оригинала)")
+            .setView(input)
+            .setPositiveButton("Обработать", (dialog, which) -> {
+                customUserPrompt = input.getText().toString().trim();
+                startResilientGeneration();
+            })
+            .setNegativeButton("Пропустить (Как есть)", (dialog, which) -> {
+                customUserPrompt = "";
+                startResilientGeneration();
+            })
+            .show();
+    }
+
+    // --- ВАЛИДАЦИЯ ПУЛА КЛЮЧЕЙ И СОРТИРОВКА ПО KUDOS ---
     private List<String> getPrioritizedWorkingKeys() {
         List<KeyScore> workingKeys = new ArrayList<>();
         for (String key : hordeKeys) {
@@ -201,6 +233,7 @@ public class MainActivity extends Activity {
         }
     }
 
+    // --- ПОЛУЧЕНИЕ И ПРИОРИТЕТИЗАЦИЯ МОДЕЛЕЙ ПО ОЧЕРЕДИ ---
     private List<String> getPrioritizedModels() {
         List<String> defaultModels = new ArrayList<>();
         defaultModels.add("stable_diffusion");
@@ -252,12 +285,8 @@ public class MainActivity extends Activity {
         return defaultModels;
     }
 
+    // --- ОСНОВНОЙ ПРОЦЕСС ГЕНЕРАЦИИ С ПЕРЕБОРОМ КЛЮЧЕЙ И МОДЕЛЕЙ ---
     private void startResilientGeneration() {
-        if (selectedImageBytes == null) {
-            Toast.makeText(this, "⚠️ Сначала выберите фото из галереи!", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
         ProgressDialog progress = new ProgressDialog(this);
         progress.setTitle("🔍 Валидация и запуск");
         progress.setMessage("Проверка ключей и пула моделей AI Horde...");
@@ -276,9 +305,15 @@ public class MainActivity extends Activity {
                 List<String> modelsToTry = getPrioritizedModels();
 
                 String base64Image = Base64.encodeToString(selectedImageBytes, Base64.NO_WRAP);
-                String prompt = "nude:1.5, masterpiece, best quality, highly detailed 3d pixar anime:1.2, seductive, flawless skin, perfect lighting, beautiful face, detailed eyes";
+                
+                // Инъекция тегов и пользовательских изменений
+                String baseInject = "nude:1.5, masterpiece, best quality, highly detailed 3d pixar anime:1.2, seductive, flawless skin, perfect lighting, beautiful face, detailed eyes";
+                if (!customUserPrompt.isEmpty()) {
+                    baseInject += ", " + customUserPrompt;
+                }
+                
                 String negativePrompt = "(deformed face, ugly, lowres, bad anatomy)";
-                String fullPrompt = prompt + " ### " + negativePrompt;
+                String fullPrompt = baseInject + " ### " + negativePrompt;
 
                 JSONObject paramsObj = new JSONObject();
                 paramsObj.put("sampler_name", "k_dpmpp_2m");
@@ -322,8 +357,6 @@ public class MainActivity extends Activity {
 
                             Response response = httpClient.newCall(request).execute();
                             int respCode = response.code();
-                            
-                            // Исправленная проверка синтаксиса на Java
                             if (respCode == 401 || respCode == 402 || respCode == 403 || respCode == 429) {
                                 continue; 
                             }
@@ -351,7 +384,7 @@ public class MainActivity extends Activity {
                                     JSONObject stJson = new JSONObject(statRespReal.body().string());
                                     if (stJson.optBoolean("faulted", false)) {
                                         jobDone = true;
-                                        break;
+                                        break; 
                                     }
                                     if (stJson.optBoolean("done", false)) {
                                         JSONArray gens = stJson.optJSONArray("generations");
