@@ -14,6 +14,8 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -213,7 +215,7 @@ public class MainActivity extends AppCompatActivity {
         try {
             File modelFile = new File(getFilesDir(), "u2netp.onnx");
             if (!modelFile.exists()) {
-                InputStream is = getAssets().open("u2netp.onnx");[span_0](start_span)[span_0](end_span)
+                InputStream is = getAssets().open("u2netp.onnx");
                 FileOutputStream fos = new FileOutputStream(modelFile);
                 byte[] buffer = new byte[4096];
                 int read;
@@ -289,7 +291,7 @@ public class MainActivity extends AppCompatActivity {
                 Canvas canvas = new Canvas(finalResult);
                 Paint paint = new Paint();
                 canvas.drawBitmap(foregroundBitmap, 0, 0, paint);
-                paint.setXfermode(new android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_IN));
+                paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
                 canvas.drawBitmap(scaledMask, 0, 0, paint);
 
                 runOnUiThread(() -> {
