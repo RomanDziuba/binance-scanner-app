@@ -59,7 +59,7 @@ public class MainActivity extends Activity {
     private String selectedModel = "grapefruit";
     private List<Button> modelButtons = new ArrayList<Button>();
 
-    // Пул ключей AI Horde
+    // Пул ваших ключей AI Horde
     private List<String> hordeKeys = new ArrayList<String>();
     
     private OkHttpClient httpClient = new OkHttpClient.Builder()
@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // Инициализация ключей
+        // Заполнение пула ключей
         hordeKeys.add("lJSv4pVAjwtzOYfVldIVxg");
         hordeKeys.add("OjbJD9mxPNcXGU7DfGQAXQ");
         hordeKeys.add("V0lhf56Xg982yORgPuZl6A");
@@ -125,7 +125,6 @@ public class MainActivity extends Activity {
         });
         rootLayout.addView(btnPick);
 
-        // Поле ввода изменений: ЧЕРНЫЙ ТЕКСТ НА БЕЛОМ ФОНЕ
         TextView labelChanges = new TextView(this);
         labelChanges.setText("✍️ Что изменить на фото (рус/укр):");
         labelChanges.setTextColor(Color.parseColor("#F8FAFC"));
@@ -147,7 +146,6 @@ public class MainActivity extends Activity {
         inputChanges.setLayoutParams(editParams);
         rootLayout.addView(inputChanges);
 
-        // Секция выбора модели
         TextView labelModel = new TextView(this);
         labelModel.setText("🤖 Выберите модель ИИ:");
         labelModel.setTextColor(Color.parseColor("#F8FAFC"));
@@ -276,7 +274,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    // Автоматическое добавление черных полей до идеального квадрата
+    // Создание квадрата с черными полями для сохранения оригинальных пропорций
     private Bitmap makeSquareBitmap(Bitmap source) {
         int width = source.getWidth();
         int height = source.getHeight();
@@ -286,7 +284,7 @@ public class MainActivity extends Activity {
         int maxDim = Math.max(width, height);
         Bitmap squareBitmap = Bitmap.createBitmap(maxDim, maxDim, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(squareBitmap);
-        canvas.drawColor(Color.BLACK); // Черные поля по бокам/сверху
+        canvas.drawColor(Color.BLACK);
         
         int left = (maxDim - width) / 2;
         int top = (maxDim - height) / 2;
@@ -315,7 +313,7 @@ public class MainActivity extends Activity {
         return text;
     }
 
-    // Валидация ключей AI Horde и сортировка по балансу Kudos
+    // Надежная валидация ключей с гарантированным fallback на все ключи
     private List<String> getPrioritizedWorkingKeys() {
         List<KeyScore> workingKeys = new ArrayList<KeyScore>();
         for (int i = 0; i < hordeKeys.size(); i++) {
@@ -330,14 +328,18 @@ public class MainActivity extends Activity {
                 if (response.isSuccessful() && response.body() != null) {
                     JSONObject json = new JSONObject(response.body().string());
                     double kudos = json.optDouble("kudos", 0);
-                    if (kudos > 0) {
-                        workingKeys.add(new KeyScore(key, kudos));
-                    }
+                    workingKeys.add(new KeyScore(key, kudos));
                 }
             } catch (Exception ignored) {}
         }
         
-        // Сортировка по убыванию Kudos
+        // Если из-за сбоя сети валидация вернула пустоту, используем все ключи принудительно
+        if (workingKeys.isEmpty()) {
+            for (int i = 0; i < hordeKeys.size(); i++) {
+                workingKeys.add(new KeyScore(hordeKeys.get(i), 100.0));
+            }
+        }
+
         Collections.sort(workingKeys, new Comparator<KeyScore>() {
             @Override
             public int compare(KeyScore a, KeyScore b) {
@@ -361,16 +363,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    private List<String> getPriorictedWorkingKeysSafe() {
-        try {
-            List<String> keys = getPrioritizedWorkingKeys();
-            if (keys != null && !keys.isEmpty()) {
-                return keys;
-            }
-        } catch (Exception ignored) {}
-        return hordeKeys; // Надежный фоллбэк на весь пул, если проверка не удалась
-    }
-
     private void startGeneration() {
         if (selectedImageBytes == null) {
             Toast.makeText(this, "⚠️ Сначала выберите фото из галереи!", Toast.LENGTH_SHORT).show();
@@ -381,7 +373,7 @@ public class MainActivity extends Activity {
 
         final ProgressDialog progress = new ProgressDialog(this);
         progress.setTitle("⏳ Обработка задачи");
-        progress.setMessage("Проверка ключей и подготовка кадра...");
+        progress.setMessage("Подготовка фото и проверка ключей AI Horde...");
         progress.setCancelable(false);
         progress.show();
 
@@ -400,22 +392,23 @@ public class MainActivity extends Activity {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            progress.setMessage("Проверка пула API ключей AI Horde...");
+                            progress.setMessage("Проверка пула API ключей...");
                         }
                     });
-                    List<String> workingKeys = getPriorictedWorkingKeysSafe();
+                    List<String> workingKeys = getPrioritizedWorkingKeys();
                     if (workingKeys.isEmpty()) {
-                        throw new RuntimeException("Нет доступных ключей AI Horde!");
+                        workingKeys = hordeKeys; // Абсолютный резерв
                     }
 
-                    // Подготовка квадратирования изображения (черные поля)
+                    // Квадратирование изображения (черные полосы по краям)
                     Bitmap originalBmp = BitmapFactory.decodeByteArray(selectedImageBytes, 0, selectedImageBytes.length);
                     Bitmap squareBmp = makeSquareBitmap(originalBmp);
+                    int squareSize = squareBmp.getWidth(); // Фиксируем размер квадрата для передачи в params
+
                     ByteArrayOutputStream stream = new ByteArrayOutputStream();
                     squareBmp.compress(Bitmap.CompressFormat.JPEG, 100, stream);
                     String base64Image = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP);
 
-                    // Промпты с инъекциями и негативным фильтром
                     String hardcoreInject = "nude:1.5, masterpiece, best quality, highly detailed 3d pixar anime:1.2, seductive, flawless skin, perfect lighting, beautiful face, detailed eyes";
                     if (!translatedChanges.isEmpty()) {
                         hardcoreInject += ", " + translatedChanges;
@@ -428,11 +421,12 @@ public class MainActivity extends Activity {
                     paramsObj.put("cfg_scale", 7.8);
                     paramsObj.put("steps", 35);
                     paramsObj.put("denoising_strength", 0.44);
+                    paramsObj.put("width", squareSize);   // Обязательно для избежания ошибки 400
+                    paramsObj.put("height", squareSize);  // Обязательно для избежания ошибки 400
 
                     byte[] resultBytes = null;
                     boolean successGenerated = false;
 
-                    // Список моделей: выбранная пользователем идет первой, затем остальные как резерв
                     List<String> modelsToTry = new ArrayList<String>();
                     modelsToTry.add(selectedModel);
                     String[] allModels = {"grapefruit", "Yiffy", "WAI-NSFW-illustrious-SDXL", "Grapefruit Hentai", "Nova Furry Pony"};
@@ -453,7 +447,7 @@ public class MainActivity extends Activity {
                                 handler.post(new Runnable() {
                                     @Override
                                     public void run() {
-                                        progress.setMessage("Модель [" + modelName + "]. Отправка...");
+                                        progress.setMessage("Модель [" + modelName + "]. Запрос...");
                                     }
                                 });
 
@@ -480,10 +474,10 @@ public class MainActivity extends Activity {
                                 Response response = httpClient.newCall(request).execute();
                                 int code = response.code();
                                 if (code == 401 || code == 402 || code == 403 || code == 429) {
-                                    continue; // Пробуем следующий ключ
+                                    continue; // Ключ исчерпан или недействителен, пробуем следующий
                                 }
                                 if (code == 400) {
-                                    break; // Модель отклонила запрос, пробуем следующую модель
+                                    break; // Модель отклонила параметры, пробуем следующую модель
                                 }
                                 if (!response.isSuccessful() || response.body() == null) {
                                     continue;
@@ -547,7 +541,7 @@ public class MainActivity extends Activity {
                     }
 
                     if (!successGenerated || resultBytes == null) {
-                        throw new RuntimeException("Все модели перегружены или отклонили запрос. Попробуйте еще раз.");
+                        throw new RuntimeException("Все модели перегружены. Попробуйте запустить еще раз.");
                     }
 
                     final Bitmap finalBmp = BitmapFactory.decodeByteArray(resultBytes, 0, resultBytes.length);
@@ -558,7 +552,7 @@ public class MainActivity extends Activity {
                         public void run() {
                             progress.dismiss();
                             imageView.setImageBitmap(finalBmp);
-                            statusText.setText("✅ Успешно! Сохранено в галерею.");
+                            statusText.setText("✅ Успешно сгенерировано и сохранено!");
                             Toast.makeText(MainActivity.this, "Фото сохранено в Pictures/MonsterAI", Toast.LENGTH_LONG).show();
                         }
                     });
