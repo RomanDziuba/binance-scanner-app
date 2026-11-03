@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "COMPILER_PRO_7_v7-" + variant.name + ".apk"
+            outputFileName = "RomaMonsterApp_v7-" + variant.name + ".apk"
         }
     }
 }
