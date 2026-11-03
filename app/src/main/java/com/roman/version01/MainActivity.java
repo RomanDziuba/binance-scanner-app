@@ -59,7 +59,7 @@ public class MainActivity extends Activity {
     private String selectedModel = "grapefruit";
     private List<Button> modelButtons = new ArrayList<Button>();
 
-    // Пул ваших ключей AI Horde
+    // Пул ключей AI Horde
     private List<String> hordeKeys = new ArrayList<String>();
     
     private OkHttpClient httpClient = new OkHttpClient.Builder()
@@ -274,7 +274,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    // Создание квадрата с черными полями для сохранения оригинальных пропорций
+    // Создание квадрата с черными полями для сохранения пропорций
     private Bitmap makeSquareBitmap(Bitmap source) {
         int width = source.getWidth();
         int height = source.getHeight();
@@ -313,7 +313,7 @@ public class MainActivity extends Activity {
         return text;
     }
 
-    // Надежная валидация ключей с гарантированным fallback на все ключи
+    // Валидация ключей с обязательным заголовком Client-Agent
     private List<String> getPrioritizedWorkingKeys() {
         List<KeyScore> workingKeys = new ArrayList<KeyScore>();
         for (int i = 0; i < hordeKeys.size(); i++) {
@@ -322,6 +322,7 @@ public class MainActivity extends Activity {
                 Request request = new Request.Builder()
                         .url("https://stablehorde.net/api/v2/find_user")
                         .addHeader("apikey", key)
+                        .addHeader("Client-Agent", "MonsterAI:1.0:android")
                         .get()
                         .build();
                 Response response = httpClient.newCall(request).execute();
@@ -333,7 +334,7 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {}
         }
         
-        // Если из-за сбоя сети валидация вернула пустоту, используем все ключи принудительно
+        // Гарантированный fallback на все ключи, если проверка сети временно недоступна
         if (workingKeys.isEmpty()) {
             for (int i = 0; i < hordeKeys.size(); i++) {
                 workingKeys.add(new KeyScore(hordeKeys.get(i), 100.0));
@@ -397,13 +398,13 @@ public class MainActivity extends Activity {
                     });
                     List<String> workingKeys = getPrioritizedWorkingKeys();
                     if (workingKeys.isEmpty()) {
-                        workingKeys = hordeKeys; // Абсолютный резерв
+                        workingKeys = hordeKeys;
                     }
 
                     // Квадратирование изображения (черные полосы по краям)
                     Bitmap originalBmp = BitmapFactory.decodeByteArray(selectedImageBytes, 0, selectedImageBytes.length);
                     Bitmap squareBmp = makeSquareBitmap(originalBmp);
-                    int squareSize = squareBmp.getWidth(); // Фиксируем размер квадрата для передачи в params
+                    int squareSize = squareBmp.getWidth();
 
                     ByteArrayOutputStream stream = new ByteArrayOutputStream();
                     squareBmp.compress(Bitmap.CompressFormat.JPEG, 100, stream);
@@ -421,8 +422,8 @@ public class MainActivity extends Activity {
                     paramsObj.put("cfg_scale", 7.8);
                     paramsObj.put("steps", 35);
                     paramsObj.put("denoising_strength", 0.44);
-                    paramsObj.put("width", squareSize);   // Обязательно для избежания ошибки 400
-                    paramsObj.put("height", squareSize);  // Обязательно для избежания ошибки 400
+                    paramsObj.put("width", squareSize);
+                    paramsObj.put("height", squareSize);
 
                     byte[] resultBytes = null;
                     boolean successGenerated = false;
@@ -468,16 +469,18 @@ public class MainActivity extends Activity {
                                         .url("https://stablehorde.net/api/v2/generate/async")
                                         .addHeader("apikey", apiKey)
                                         .addHeader("accept", "application/json")
+                                        .addHeader("Content-Type", "application/json")
+                                        .addHeader("Client-Agent", "MonsterAI:1.0:android") // Обязательный заголовок AI Horde
                                         .post(body)
                                         .build();
 
                                 Response response = httpClient.newCall(request).execute();
                                 int code = response.code();
                                 if (code == 401 || code == 402 || code == 403 || code == 429) {
-                                    continue; // Ключ исчерпан или недействителен, пробуем следующий
+                                    continue;
                                 }
                                 if (code == 400) {
-                                    break; // Модель отклонила параметры, пробуем следующую модель
+                                    break;
                                 }
                                 if (!response.isSuccessful() || response.body() == null) {
                                     continue;
@@ -494,7 +497,11 @@ public class MainActivity extends Activity {
 
                                 for (int attempt = 0; attempt < 120; attempt++) {
                                     Thread.sleep(5000);
-                                    Request statusReq = new Request.Builder().url(statusUrl).get().build();
+                                    Request statusReq = new Request.Builder()
+                                            .url(statusUrl)
+                                            .addHeader("Client-Agent", "MonsterAI:1.0:android")
+                                            .get()
+                                            .build();
                                     Response statRespReal = httpClient.newCall(statusReq).execute();
                                     if (statRespReal.isSuccessful() && statRespReal.body() != null) {
                                         JSONObject stJson = new JSONObject(statRespReal.body().string());
@@ -541,7 +548,7 @@ public class MainActivity extends Activity {
                     }
 
                     if (!successGenerated || resultBytes == null) {
-                        throw new RuntimeException("Все модели перегружены. Попробуйте запустить еще раз.");
+                        throw new RuntimeException("Все модели перегружены или отклонили запрос.");
                     }
 
                     final Bitmap finalBmp = BitmapFactory.decodeByteArray(resultBytes, 0, resultBytes.length);
