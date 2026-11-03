@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.BlurMaskFilter;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -70,17 +71,15 @@ public class MainActivity extends Activity {
 
     private final LayerState state1 = new LayerState();
     private final LayerState state2 = new LayerState();
-    private int activeLayer = 1; // 1 или 2
+    private int activeLayer = 1;
 
-    private SeekBar seekBarAlpha, seekBarHalo, seekBarDensity;
+    private SeekBar seekBarAlpha, seekBarHalo, seekBarDensity, seekBarSmooth;
 
-    // Кэш для интерактивной обработки ИИ-маски
     private float[][][][] cachedRawOutput1 = null;
     private Bitmap sourceForAI1 = null;
     private float[][][][] cachedRawOutput2 = null;
     private Bitmap sourceForAI2 = null;
 
-    // История для Отменить / Повторить
     private static class HistorySnapshot {
         Bitmap bmp1, bmp2;
         LayerState s1 = new LayerState();
@@ -97,6 +96,7 @@ public class MainActivity extends Activity {
 
     private interface OnProgressChangedListener {
         void onProgress(int progress);
+        void onStartTracking();
     }
 
     @Override
@@ -108,7 +108,6 @@ public class MainActivity extends Activity {
         rootLayout.setPadding(8, 8, 8, 8);
         rootLayout.setBackgroundColor(Color.parseColor("#121212"));
 
-        // Холст с индикатором угла поворота
         FrameLayout container = new FrameLayout(this);
         LinearLayout.LayoutParams containerParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
@@ -134,7 +133,6 @@ public class MainActivity extends Activity {
         LinearLayout controlsLayout = new LinearLayout(this);
         controlsLayout.setOrientation(LinearLayout.VERTICAL);
 
-        // Кнопки загрузки Фотка 1 и Фотка 2 (рядом)
         LinearLayout loadRow = new LinearLayout(this);
         loadRow.setOrientation(LinearLayout.HORIZONTAL);
 
@@ -152,7 +150,6 @@ public class MainActivity extends Activity {
 
         controlsLayout.addView(loadRow);
 
-        // Кнопка удаления фона
         Button btnRemoveBg = new Button(this);
         btnRemoveBg.setText("✨ Удалить фон");
         btnRemoveBg.setPadding(12, 16, 12, 16);
@@ -162,7 +159,6 @@ public class MainActivity extends Activity {
         });
         controlsLayout.addView(btnRemoveBg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 120));
 
-        // Панель управления слоями: Поменять местами + Удалить слой
         LinearLayout rowLayerLayout = new LinearLayout(this);
         rowLayerLayout.setOrientation(LinearLayout.HORIZONTAL);
 
@@ -217,23 +213,32 @@ public class MainActivity extends Activity {
         rowLayerLayout.addView(btnDeleteLayer, new LinearLayout.LayoutParams(0, 120, 0.25f));
         controlsLayout.addView(rowLayerLayout);
 
-        // Интерактивные широкие ползунки (вертикальная структура для полной ширины)
-        controlsLayout.addView(createWideSeekBarLayout("Прозрачность:", seekBarAlpha = createInteractiveSeekBar(100, 100, progress -> {
-            float val = progress / 100.0f;
-            if (activeLayer == 1) state1.alpha = val;
-            else state2.alpha = val;
-            layerView.invalidate();
+        // Широкие интерактивные ползунки
+        controlsLayout.addView(createWideSeekBarLayout("Прозрачность:", seekBarAlpha = createInteractiveSeekBar(100, 100, new OnProgressChangedListener() {
+            @Override public void onProgress(int progress) {
+                float val = progress / 100.0f;
+                if (activeLayer == 1) state1.alpha = val;
+                else state2.alpha = val;
+                layerView.invalidate();
+            }
+            @Override public void onStartTracking() { saveStateToHistory(); }
         })));
 
-        controlsLayout.addView(createWideSeekBarLayout("Очистка ореолов (Мощная):", seekBarHalo = createInteractiveSeekBar(100, 50, progress -> {
-            applyInteractiveMaskSettings();
+        controlsLayout.addView(createWideSeekBarLayout("Очистка ореолов (Мощная):", seekBarHalo = createInteractiveSeekBar(100, 50, new OnProgressChangedListener() {
+            @Override public void onProgress(int progress) { applyInteractiveMaskSettings(); }
+            @Override public void onStartTracking() { saveStateToHistory(); }
         })));
 
-        controlsLayout.addView(createWideSeekBarLayout("Плотность краев:", seekBarDensity = createInteractiveSeekBar(100, 50, progress -> {
-            applyInteractiveMaskSettings();
+        controlsLayout.addView(createWideSeekBarLayout("Плотность краев:", seekBarDensity = createInteractiveSeekBar(100, 50, new OnProgressChangedListener() {
+            @Override public void onProgress(int progress) { applyInteractiveMaskSettings(); }
+            @Override public void onStartTracking() { saveStateToHistory(); }
         })));
 
-        // Панель действий: Отмена / Повтор / PNG / JPG
+        controlsLayout.addView(createWideSeekBarLayout("Сглаживание краев:", seekBarSmooth = createInteractiveSeekBar(100, 20, new OnProgressChangedListener() {
+            @Override public void onProgress(int progress) { applyInteractiveMaskSettings(); }
+            @Override public void onStartTracking() { saveStateToHistory(); }
+        })));
+
         LinearLayout actionLayout = new LinearLayout(this);
         actionLayout.setOrientation(LinearLayout.HORIZONTAL);
 
@@ -263,7 +268,6 @@ public class MainActivity extends Activity {
 
         controlsLayout.addView(actionLayout);
 
-        // Обязательная надпись внизу экрана
         TextView tvFooter = new TextView(this);
         tvFooter.setText("Created by Dziuba Roman 2026");
         tvFooter.setTextColor(Color.GRAY);
@@ -282,7 +286,7 @@ public class MainActivity extends Activity {
     private LinearLayout createWideSeekBarLayout(String labelText, SeekBar seekBar) {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(4, 4, 4, 4);
+        layout.setPadding(4, 2, 4, 2);
 
         TextView label = new TextView(this);
         label.setText(labelText);
@@ -306,7 +310,7 @@ public class MainActivity extends Activity {
                     listener.onProgress(progress);
                 }
             }
-            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStartTrackingTouch(SeekBar seekBar) { listener.onStartTracking(); }
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
         return sb;
@@ -533,7 +537,7 @@ public class MainActivity extends Activity {
                     if (activeLayer == 1) bitmap1 = finalResult;
                     else bitmap2 = finalResult;
                     layerView.invalidate();
-                    Toast.makeText(this, "Фон очищен с повышенной мощностью!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Фон очищен и сглажен!", Toast.LENGTH_SHORT).show();
                 });
 
             } catch (Exception e) {
@@ -560,10 +564,9 @@ public class MainActivity extends Activity {
 
         float haloVal = seekBarHalo != null ? seekBarHalo.getProgress() / 100.0f : 0.5f;
         float densityVal = seekBarDensity != null ? seekBarDensity.getProgress() / 100.0f : 0.5f;
+        float smoothVal = seekBarSmooth != null ? seekBarSmooth.getProgress() / 100.0f : 0.2f;
 
-        // Повышенная мощность очистки ореолов (до 0.85 отсечения)
         float lowThreshold = haloVal * 0.85f; 
-        // Повышенная мощность плотности краев (верхний порог сужается до 0.3 для жесткой отсечки шумов)
         float highThreshold = 1.0f - (densityVal * 0.7f);
 
         for (int y = 0; y < imgSize; y++) {
@@ -578,7 +581,7 @@ public class MainActivity extends Activity {
                     if (highThreshold > lowThreshold) {
                         val = (val - lowThreshold) / (highThreshold - lowThreshold);
                     }
-                    val = (float) Math.pow(Math.max(0f, Math.min(1f, val)), 0.4f); // Сверхконтрастный сглаживающий фильтр
+                    val = (float) Math.pow(Math.max(0f, Math.min(1f, val)), 0.4f);
                 }
 
                 int alpha = (int) (val * 255);
@@ -589,9 +592,15 @@ public class MainActivity extends Activity {
         Bitmap scaledMask = Bitmap.createScaledBitmap(maskBitmap, source.getWidth(), source.getHeight(), true);
         Bitmap finalResult = Bitmap.createBitmap(source.getWidth(), source.getHeight(), Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(finalResult);
+        
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+        
+        if (smoothVal > 0.01f) {
+            float blurRadius = smoothVal * 30.0f; 
+            paint.setMaskFilter(new BlurMaskFilter(blurRadius, BlurMaskFilter.Blur.NORMAL));
+        }
 
-        canvas.drawBitmap(source, 0, 0, paint);
+        canvas.drawBitmap(source, 0, 0, new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG));
         paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
         canvas.drawBitmap(scaledMask, 0, 0, paint);
 
