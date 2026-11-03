@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version3'
+    namespace 'com.hentay.version1'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version3"
+        applicationId "com.hentay.version1"
         minSdk 21
         targetSdk 34
-        versionCode 25
-        versionName "3"
+        versionCode 26
+        versionName "1"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "ФОН3_v3-" + variant.name + ".apk"
+            outputFileName = "хентайчик_v1-" + variant.name + ".apk"
         }
     }
 }
