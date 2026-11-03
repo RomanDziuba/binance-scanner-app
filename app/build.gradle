@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.fon2.version002'
+    namespace 'com.roman.version002'
     compileSdk 34
     defaultConfig {
-        applicationId "com.fon2.version002"
+        applicationId "com.roman.version002"
         minSdk 21
         targetSdk 34
         versionCode 2
