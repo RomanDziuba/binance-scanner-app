@@ -20,7 +20,6 @@ import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -51,6 +50,11 @@ public class MainActivity extends Activity {
     private LayerView layerView;
     private Bitmap foregroundBitmap = null;
     private Bitmap backgroundBitmap = null;
+    
+    // Кэш для интерактивной настройки маски без перезапуска ИИ
+    private Bitmap rawForegroundBitmap = null;
+    private float[][][][] lastRawOutput = null;
+
     private TextView tvAngleInfo;
 
     private static class LayerState {
@@ -72,12 +76,7 @@ public class MainActivity extends Activity {
     private final LayerState bgState = new LayerState();
     private int activeLayer = 1; // 1 - Передний план, 0 - Фон
 
-    private SeekBar seekBarAlpha, seekBarLowThresh, seekBarHighThresh;
-    private TextView tvLowVal, tvHighVal;
-
-    // Настройки фильтрации ИИ (управляются ползунками)
-    private float aiLowThreshold = 0.18f;
-    private float aiHighThreshold = 0.82f;
+    private SeekBar seekBarAlpha, seekBarHalo, seekBarEdge;
 
     // История для Отменить / Повторить
     private static class HistorySnapshot {
@@ -123,35 +122,30 @@ public class MainActivity extends Activity {
 
         rootLayout.addView(container);
 
-        // Обернем панель управления в ScrollView, чтобы все элементы и новые ползунки помещались на экране
-        ScrollView scrollView = new ScrollView(this);
-        scrollView.setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-
         LinearLayout controlsLayout = new LinearLayout(this);
         controlsLayout.setOrientation(LinearLayout.VERTICAL);
 
-        // Кнопки загрузки и ИИ (увеличенная высота 110px + отступы для текста, чтобы не обрезало)
+        // Кнопки загрузки и ИИ
         Button btnLoadFg = new Button(this);
         btnLoadFg.setText("📂 Загрузить передний план");
-        btnLoadFg.setPadding(12, 16, 12, 16);
+        btnLoadFg.setPadding(12, 14, 12, 14);
         btnLoadFg.setOnClickListener(v -> openGallery(PICK_FG_IMAGE));
-        controlsLayout.addView(btnLoadFg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 110));
+        controlsLayout.addView(btnLoadFg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 115));
 
         Button btnRemoveBg = new Button(this);
         btnRemoveBg.setText("✨ Удалить фон");
-        btnRemoveBg.setPadding(12, 16, 12, 16);
+        btnRemoveBg.setPadding(12, 14, 12, 14);
         btnRemoveBg.setOnClickListener(v -> {
             saveStateToHistory();
             removeBackgroundWithAI();
         });
-        controlsLayout.addView(btnRemoveBg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 110));
+        controlsLayout.addView(btnRemoveBg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 115));
 
         Button btnLoadBg = new Button(this);
         btnLoadBg.setText("🖼 Загрузить свой фон");
-        btnLoadBg.setPadding(12, 16, 12, 16);
+        btnLoadBg.setPadding(12, 14, 12, 14);
         btnLoadBg.setOnClickListener(v -> openGallery(PICK_BG_IMAGE));
-        controlsLayout.addView(btnLoadBg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 110));
+        controlsLayout.addView(btnLoadBg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 115));
 
         // Панель: Поменять местами + Кнопка удаления слоя
         LinearLayout rowLayerLayout = new LinearLayout(this);
@@ -159,7 +153,7 @@ public class MainActivity extends Activity {
 
         Button btnSwapLayers = new Button(this);
         btnSwapLayers.setText("🔀 Поменять местами (Верхний активен)");
-        btnSwapLayers.setPadding(8, 16, 8, 16);
+        btnSwapLayers.setPadding(8, 14, 8, 14);
         btnSwapLayers.setOnClickListener(v -> {
             saveStateToHistory();
             Bitmap tempBmp = foregroundBitmap;
@@ -176,12 +170,12 @@ public class MainActivity extends Activity {
             layerView.invalidate();
             Toast.makeText(this, "Слои поменялись местами. Верхний активен.", Toast.LENGTH_SHORT).show();
         });
-        rowLayerLayout.addView(btnSwapLayers, new LinearLayout.LayoutParams(0, 110, 0.75f));
+        rowLayerLayout.addView(btnSwapLayers, new LinearLayout.LayoutParams(0, 115, 0.78f));
 
         Button btnDeleteLayer = new Button(this);
         btnDeleteLayer.setText("🗑 Уд.");
         btnDeleteLayer.setTextColor(Color.RED);
-        btnDeleteLayer.setPadding(4, 16, 4, 16);
+        btnDeleteLayer.setPadding(4, 14, 4, 14);
         btnDeleteLayer.setOnClickListener(v -> {
             saveStateToHistory();
             if (activeLayer == 1) {
@@ -193,17 +187,72 @@ public class MainActivity extends Activity {
             }
             layerView.invalidate();
         });
-        rowLayerLayout.addView(btnDeleteLayer, new LinearLayout.LayoutParams(0, 110, 0.25f));
+        rowLayerLayout.addView(btnDeleteLayer, new LinearLayout.LayoutParams(0, 115, 0.22f));
         controlsLayout.addView(rowLayerLayout);
 
         // Ползунок прозрачности
-        LinearLayout alphaLayout = new LinearLayout(this);
-        alphaLayout.setOrientation(LinearLayout.HORIZONTAL);
-        alphaLayout.setPadding(4, 8, 4, 4);
-        TextView lblAlpha = new TextView(this);
-        lblAlpha.setText("Прозрачность: ");
-        lblAlpha.setTextColor(Color.WHITE);
-        alphaLayout.addView(lblAlpha);
+        controlsLayout.addView(createAlphaControlLayout());
+
+        // Интерактивный ползунок очистки ореолов
+        controlsLayout.addView(createHaloControlLayout());
+
+        // Интерактивный ползунок плотности краев
+        controlsLayout.addView(createEdgeControlLayout());
+
+        // Панель действий: Отмена / Повтор / PNG / JPG
+        LinearLayout actionLayout = new LinearLayout(this);
+        actionLayout.setOrientation(LinearLayout.HORIZONTAL);
+
+        Button btnUndo = new Button(this);
+        btnUndo.setText("↩️ Отмена");
+        btnUndo.setPadding(4, 14, 4, 14);
+        btnUndo.setOnClickListener(v -> undoAction());
+        actionLayout.addView(btnUndo, new LinearLayout.LayoutParams(0, 115, 0.25f));
+
+        Button btnRedo = new Button(this);
+        btnRedo.setText("🔄 Повтор");
+        btnRedo.setPadding(4, 14, 4, 14);
+        btnRedo.setOnClickListener(v -> redoAction());
+        actionLayout.addView(btnRedo, new LinearLayout.LayoutParams(0, 115, 0.25f));
+
+        Button btnSavePng = new Button(this);
+        btnSavePng.setText("💾 PNG");
+        btnSavePng.setPadding(4, 14, 4, 14);
+        btnSavePng.setOnClickListener(v -> saveComposedImage(Bitmap.CompressFormat.PNG));
+        actionLayout.addView(btnSavePng, new LinearLayout.LayoutParams(0, 115, 0.25f));
+
+        Button btnSaveJpg = new Button(this);
+        btnSaveJpg.setText("💾 JPG");
+        btnSaveJpg.setPadding(4, 14, 4, 14);
+        btnSaveJpg.setOnClickListener(v -> saveComposedImage(Bitmap.CompressFormat.JPEG));
+        actionLayout.addView(btnSaveJpg, new LinearLayout.LayoutParams(0, 115, 0.25f));
+
+        controlsLayout.addView(actionLayout);
+
+        // Обязательная подпись внизу главного экрана
+        TextView tvFooter = new TextView(this);
+        tvFooter.setText("Created by Dziuba Roman 2026");
+        tvFooter.setTextColor(Color.parseColor("#777777"));
+        tvFooter.setTextSize(11);
+        tvFooter.setGravity(android.view.Gravity.CENTER);
+        tvFooter.setPadding(4, 8, 4, 4);
+        controlsLayout.addView(tvFooter);
+
+        rootLayout.addView(controlsLayout);
+
+        setContentView(rootLayout);
+
+        checkPermissions();
+        initOnnxEnvironment();
+    }
+
+    private LinearLayout createAlphaControlLayout() {
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.HORIZONTAL);
+        TextView label = new TextView(this);
+        label.setText("Прозрачность: ");
+        label.setTextColor(Color.WHITE);
+        layout.addView(label);
 
         seekBarAlpha = new SeekBar(this);
         seekBarAlpha.setMax(100);
@@ -222,113 +271,64 @@ public class MainActivity extends Activity {
             @Override public void onStartTrackingTouch(SeekBar seekBar) {}
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
-        alphaLayout.addView(seekBarAlpha);
-        controlsLayout.addView(alphaLayout);
+        layout.addView(seekBarAlpha);
+        return layout;
+    }
 
-        // --- НОВЫЕ НАСТРОЙКИ: Полосы очистки краев ИИ ---
-        // 1. Ползунок Мин. порога (Удаление ореолов и грязи)
-        LinearLayout lowThreshLayout = new LinearLayout(this);
-        lowThreshLayout.setOrientation(LinearLayout.HORIZONTAL);
-        lowThreshLayout.setPadding(4, 4, 4, 4);
-        
-        TextView lblLow = new TextView(this);
-        lblLow.setText("Очистка ореолов (Мин): ");
-        lblLow.setTextColor(Color.LTGRAY);
-        lowThreshLayout.addView(lblLow);
+    private LinearLayout createHaloControlLayout() {
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.HORIZONTAL);
+        TextView label = new TextView(this);
+        label.setText("Ореолы (Порог): ");
+        label.setTextColor(Color.WHITE);
+        layout.addView(label);
 
-        tvLowVal = new TextView(this);
-        tvLowVal.setText("18%");
-        tvLowVal.setTextColor(Color.YELLOW);
-        tvLowVal.setPadding(8, 0, 8, 0);
-        lowThreshLayout.addView(tvLowVal);
-
-        seekBarLowThresh = new SeekBar(this);
-        seekBarLowThresh.setMax(50); // от 0 до 50%
-        seekBarLowThresh.setProgress(18); // дефолт 18%
-        seekBarLowThresh.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
-        seekBarLowThresh.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        seekBarHalo = new SeekBar(this);
+        seekBarHalo.setMax(100);
+        seekBarHalo.setProgress(36); // Соотв. ~0.18
+        seekBarHalo.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        seekBarHalo.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                aiLowThreshold = progress / 100.0f;
-                tvLowVal.setText(progress + "%");
+                if (fromUser) {
+                    float lowVal = progress / 200.0f; // от 0.0 до 0.5
+                    float highVal = seekBarEdge.getProgress() / 200.0f + 0.5f;
+                    applyMaskThresholdsAsync(lowVal, highVal);
+                }
             }
             @Override public void onStartTrackingTouch(SeekBar seekBar) {}
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
-        lowThreshLayout.addView(seekBarLowThresh);
-        controlsLayout.addView(lowThreshLayout);
+        layout.addView(seekBarHalo);
+        return layout;
+    }
 
-        // 2. Ползунок Макс. порога (Плотность и четкость краев объекта)
-        LinearLayout highThreshLayout = new LinearLayout(this);
-        highThreshLayout.setOrientation(LinearLayout.HORIZONTAL);
-        highThreshLayout.setPadding(4, 4, 4, 8);
+    private LinearLayout createEdgeControlLayout() {
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.HORIZONTAL);
+        TextView label = new TextView(this);
+        label.setText("Плотность краев: ");
+        label.setTextColor(Color.WHITE);
+        layout.addView(label);
 
-        TextView lblHigh = new TextView(this);
-        lblHigh.setText("Плотность краев (Макс): ");
-        lblHigh.setTextColor(Color.LTGRAY);
-        highThreshLayout.addView(lblHigh);
-
-        tvHighVal = new TextView(this);
-        tvHighVal.setText("82%");
-        tvHighVal.setTextColor(Color.YELLOW);
-        tvHighVal.setPadding(8, 0, 8, 0);
-        highThreshLayout.addView(tvHighVal);
-
-        seekBarHighThresh = new SeekBar(this);
-        seekBarHighThresh.setMax(100); // от 50 до 100%
-        seekBarHighThresh.setProgress(82); // дефолт 82%
-        seekBarHighThresh.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
-        seekBarHighThresh.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        seekBarEdge = new SeekBar(this);
+        seekBarEdge.setMax(100);
+        seekBarEdge.setProgress(64); // Соотв. ~0.82
+        seekBarEdge.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        seekBarEdge.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (progress < 50) progress = 50; // защитный порог чтобы не ломать логику
-                aiHighThreshold = progress / 100.0f;
-                tvHighVal.setText(progress + "%");
+                if (fromUser) {
+                    float lowVal = seekBarHalo.getProgress() / 200.0f;
+                    float highVal = (progress / 200.0f) + 0.5f; // от 0.5 до 1.0
+                    applyMaskThresholdsAsync(lowVal, highVal);
+                }
             }
             @Override public void onStartTrackingTouch(SeekBar seekBar) {}
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
-        highThreshLayout.addView(seekBarHighThresh);
-        controlsLayout.addView(highThreshLayout);
-        // ------------------------------------------------
-
-        // Панель действий: Отмена / Повтор / PNG / JPG
-        LinearLayout actionLayout = new LinearLayout(this);
-        actionLayout.setOrientation(LinearLayout.HORIZONTAL);
-
-        Button btnUndo = new Button(this);
-        btnUndo.setText("↩️ Отмена");
-        btnUndo.setPadding(4, 16, 4, 16);
-        btnUndo.setOnClickListener(v -> undoAction());
-        actionLayout.addView(btnUndo, new LinearLayout.LayoutParams(0, 110, 0.25f));
-
-        Button btnRedo = new Button(this);
-        btnRedo.setText("🔄 Повтор");
-        btnRedo.setPadding(4, 16, 4, 16);
-        btnRedo.setOnClickListener(v -> redoAction());
-        actionLayout.addView(btnRedo, new LinearLayout.LayoutParams(0, 110, 0.25f));
-
-        Button btnSavePng = new Button(this);
-        btnSavePng.setText("💾 PNG");
-        btnSavePng.setPadding(4, 16, 4, 16);
-        btnSavePng.setOnClickListener(v -> saveComposedImage(Bitmap.CompressFormat.PNG));
-        actionLayout.addView(btnSavePng, new LinearLayout.LayoutParams(0, 110, 0.25f));
-
-        Button btnSaveJpg = new Button(this);
-        btnSaveJpg.setText("💾 JPG");
-        btnSaveJpg.setPadding(4, 16, 4, 16);
-        btnSaveJpg.setOnClickListener(v -> saveComposedImage(Bitmap.CompressFormat.JPEG));
-        actionLayout.addView(btnSaveJpg, new LinearLayout.LayoutParams(0, 110, 0.25f));
-
-        controlsLayout.addView(actionLayout);
-        
-        scrollView.addView(controlsLayout);
-        rootLayout.addView(scrollView);
-
-        setContentView(rootLayout);
-
-        checkPermissions();
-        initOnnxEnvironment();
+        layout.addView(seekBarEdge);
+        return layout;
     }
 
     private void syncUIWithActiveLayer() {
@@ -427,6 +427,8 @@ public class MainActivity extends Activity {
                 Bitmap bitmap = BitmapFactory.decodeStream(is);
                 if (requestCode == PICK_FG_IMAGE) {
                     foregroundBitmap = bitmap;
+                    rawForegroundBitmap = bitmap; // Сохраняем оригинал для интерактивных ползунков
+                    lastRawOutput = null; // Сбрасываем старый кэш ИИ
                     fgState.scale = 1.0f;
                     fgState.x = 0; fgState.y = 0; fgState.rotation = 0; fgState.alpha = 1.0f;
                     activeLayer = 1;
@@ -478,12 +480,15 @@ public class MainActivity extends Activity {
             return;
         }
 
-        Toast.makeText(this, "Удаление фона с учетом настроек...", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Удаление фона нейросетью...", Toast.LENGTH_SHORT).show();
+
+        // Сохраняем текущий bitmap как исходный для интерактивных ползунков
+        rawForegroundBitmap = foregroundBitmap;
 
         new Thread(() -> {
             try {
                 int imgSize = 320;
-                Bitmap resized = Bitmap.createScaledBitmap(foregroundBitmap, imgSize, imgSize, true);
+                Bitmap resized = Bitmap.createScaledBitmap(rawForegroundBitmap, imgSize, imgSize, true);
                 
                 float[] inputArray = new float[1 * 3 * imgSize * imgSize];
                 int pixelIndex = 0;
@@ -508,53 +513,65 @@ public class MainActivity extends Activity {
 
                 OrtSession.Result result = ortSession.run(inputs);
                 OnnxTensor outputTensor = (OnnxTensor) result.get(0);
-                float[][][][] rawOutput = (float[][][][]) outputTensor.getValue();
+                lastRawOutput = (float[][][][]) outputTensor.getValue();
 
-                Bitmap maskBitmap = Bitmap.createBitmap(imgSize, imgSize, Bitmap.Config.ARGB_8888);
+                // Применяем маску с текущими значениями ползунков
+                float lowThresh = seekBarHalo.getProgress() / 200.0f;
+                float highThresh = (seekBarEdge.getProgress() / 200.0f) + 0.5f;
                 
-                // Используем значения из ползунков интерфейса
-                float lowThresh = aiLowThreshold;
-                float highThresh = aiHighThreshold;
-                if (highThresh <= lowThresh) highThresh = lowThresh + 0.05f; // Защита от коллизий
-                
-                for (int y = 0; y < imgSize; y++) {
-                    for (int x = 0; x < imgSize; x++) {
-                        float val = rawOutput[0][0][y][x];
-                        
-                        if (val < lowThresh) {
-                            val = 0.0f; // Стирка фоновых шумов
-                        } else if (val > highThresh) {
-                            val = 1.0f; // Уплотнение центра объекта
-                        } else {
-                            val = (val - lowThresh) / (highThresh - lowThresh);
-                            val = (float) Math.pow(val, 0.75f);
-                        }
-                        
-                        int alpha = (int) (val * 255);
-                        maskBitmap.setPixel(x, y, Color.argb(alpha, 255, 255, 255));
-                    }
-                }
+                applyMaskThresholdsInternal(lowThresh, highThresh);
 
-                Bitmap scaledMask = Bitmap.createScaledBitmap(maskBitmap, foregroundBitmap.getWidth(), foregroundBitmap.getHeight(), true);
-                
-                Bitmap finalResult = Bitmap.createBitmap(foregroundBitmap.getWidth(), foregroundBitmap.getHeight(), Bitmap.Config.ARGB_8888);
-                Canvas canvas = new Canvas(finalResult);
-                Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
-                
-                canvas.drawBitmap(foregroundBitmap, 0, 0, paint);
-                paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
-                canvas.drawBitmap(scaledMask, 0, 0, paint);
-
-                runOnUiThread(() -> {
-                    foregroundBitmap = finalResult;
-                    layerView.invalidate();
-                    Toast.makeText(this, "Фон успешно удален и очищен!", Toast.LENGTH_SHORT).show();
-                });
+                runOnUiThread(() -> Toast.makeText(this, "Фон успешно удален!", Toast.LENGTH_SHORT).show());
 
             } catch (Exception e) {
                 runOnUiThread(() -> Toast.makeText(this, "Ошибка ИИ: " + e.getMessage(), Toast.LENGTH_LONG).show());
             }
         }).start();
+    }
+
+    private void applyMaskThresholdsAsync(float lowThresh, float highThresh) {
+        if (lastRawOutput == null || rawForegroundBitmap == null) return;
+        new Thread(() -> applyMaskThresholdsInternal(lowThresh, highThresh)).start();
+    }
+
+    private void applyMaskThresholdsInternal(float lowThreshold, float highThreshold) {
+        try {
+            int imgSize = 320;
+            Bitmap maskBitmap = Bitmap.createBitmap(imgSize, imgSize, Bitmap.Config.ARGB_8888);
+            
+            for (int y = 0; y < imgSize; y++) {
+                for (int x = 0; x < imgSize; x++) {
+                    float val = lastRawOutput[0][0][y][x];
+                    
+                    if (val < lowThreshold) {
+                        val = 0.0f;
+                    } else if (val > highThreshold) {
+                        val = 1.0f;
+                    } else {
+                        val = (val - lowThreshold) / (highThreshold - lowThreshold);
+                        val = (float) Math.pow(val, 0.75f);
+                    }
+                    
+                    int alpha = (int) (val * 255);
+                    maskBitmap.setPixel(x, y, Color.argb(alpha, 255, 255, 255));
+                }
+            }
+
+            Bitmap scaledMask = Bitmap.createScaledBitmap(maskBitmap, rawForegroundBitmap.getWidth(), rawForegroundBitmap.getHeight(), true);
+            Bitmap finalResult = Bitmap.createBitmap(rawForegroundBitmap.getWidth(), rawForegroundBitmap.getHeight(), Bitmap.Config.ARGB_8888);
+            
+            Canvas canvas = new Canvas(finalResult);
+            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+            
+            canvas.drawBitmap(rawForegroundBitmap, 0, 0, paint);
+            paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
+            canvas.drawBitmap(scaledMask, 0, 0, paint);
+
+            runOnUiThread(() -> {
+                foregroundBitmap = finalResult;
+                layerView.invalidate();
+            });
+        } catch (Exception ignored) {}
     }
 
     private void saveComposedImage(Bitmap.CompressFormat format) {
@@ -566,7 +583,8 @@ public class MainActivity extends Activity {
             canvas.drawColor(Color.TRANSPARENT);
         }
         
-        layerView.drawLayers(canvas);
+        // Рисуем слои БЕЗ рамок выделения
+        layerView.drawLayers(canvas, false);
 
         File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
         String ext = (format == Bitmap.CompressFormat.PNG) ? ".png" : ".jpg";
@@ -620,9 +638,14 @@ public class MainActivity extends Activity {
             });
         }
 
-        public void drawLayers(Canvas canvas) {
+        public void drawLayers(Canvas canvas, boolean drawBorder) {
             Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG);
+            Paint borderPaint = new Paint();
+            borderPaint.setColor(Color.YELLOW);
+            borderPaint.setStyle(Paint.Style.STROKE);
+            borderPaint.setStrokeWidth(3f);
 
+            // Отрисовка фона
             if (backgroundBitmap != null) {
                 canvas.save();
                 paint.setAlpha((int)(bgState.alpha * 255));
@@ -630,9 +653,15 @@ public class MainActivity extends Activity {
                 canvas.scale(bgState.scale, bgState.scale);
                 canvas.rotate(bgState.rotation, backgroundBitmap.getWidth() / 2f, backgroundBitmap.getHeight() / 2f);
                 canvas.drawBitmap(backgroundBitmap, 0, 0, paint);
+
+                // Тонкая желтая обводка активного слоя
+                if (drawBorder && activeLayer == 0) {
+                    canvas.drawRect(0, 0, backgroundBitmap.getWidth(), backgroundBitmap.getHeight(), borderPaint);
+                }
                 canvas.restore();
             }
 
+            // Отрисовка переднего плана
             if (foregroundBitmap != null) {
                 canvas.save();
                 paint.setAlpha((int)(fgState.alpha * 255));
@@ -640,6 +669,11 @@ public class MainActivity extends Activity {
                 canvas.scale(fgState.scale, fgState.scale);
                 canvas.rotate(fgState.rotation, foregroundBitmap.getWidth() / 2f, foregroundBitmap.getHeight() / 2f);
                 canvas.drawBitmap(foregroundBitmap, 0, 0, paint);
+
+                // Тонкая желтая обводка активного слоя
+                if (drawBorder && activeLayer == 1) {
+                    canvas.drawRect(0, 0, foregroundBitmap.getWidth(), foregroundBitmap.getHeight(), borderPaint);
+                }
                 canvas.restore();
             }
         }
@@ -647,7 +681,8 @@ public class MainActivity extends Activity {
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            drawLayers(canvas);
+            // На экране рисуем с обводкой активного слоя
+            drawLayers(canvas, true);
         }
 
         @Override
