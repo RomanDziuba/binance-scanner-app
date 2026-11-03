@@ -8,6 +8,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
@@ -59,7 +60,7 @@ public class MainActivity extends Activity {
     private String selectedModel = "grapefruit";
     private List<Button> modelButtons = new ArrayList<Button>();
 
-    // Пул ключей AI Horde
+    // Пул ключей AI Horde (из вашего скрипта)
     private List<String> hordeKeys = new ArrayList<String>();
     
     private OkHttpClient httpClient = new OkHttpClient.Builder()
@@ -274,7 +275,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    // Создание квадрата с черными полями для сохранения пропорций
+    // --- АНАЛОГ ФУНКЦИИ make_image_square (ImageOps.pad) ИЗ ВАШЕГО PYTHON СКРИПТА ---
     private Bitmap makeSquareBitmap(Bitmap source) {
         int width = source.getWidth();
         int height = source.getHeight();
@@ -282,9 +283,20 @@ public class MainActivity extends Activity {
             return source;
         }
         int maxDim = Math.max(width, height);
+        // Ограничение максимальной стороны до 1024 как в вашем питоновском скрипте для стабильности
+        if (maxDim > 1024) {
+            float scale = 1024f / maxDim;
+            int newW = (int)(width * scale);
+            int newH = (int)(height * scale);
+            source = Bitmap.createScaledBitmap(source, newW, newH, true);
+            width = source.getWidth();
+            height = source.getHeight();
+            maxDim = 1024;
+        }
+
         Bitmap squareBitmap = Bitmap.createBitmap(maxDim, maxDim, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(squareBitmap);
-        canvas.drawColor(Color.BLACK);
+        canvas.drawColor(Color.BLACK); // Черные поля по краям (как ImageOps.pad)
         
         int left = (maxDim - width) / 2;
         int top = (maxDim - height) / 2;
@@ -313,7 +325,7 @@ public class MainActivity extends Activity {
         return text;
     }
 
-    // Валидация ключей с обязательным заголовком Client-Agent
+    // Проверка ключей с заголовоком Client-Agent
     private List<String> getPrioritizedWorkingKeys() {
         List<KeyScore> workingKeys = new ArrayList<KeyScore>();
         for (int i = 0; i < hordeKeys.size(); i++) {
@@ -334,7 +346,6 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {}
         }
         
-        // Гарантированный fallback на все ключи, если проверка сети временно недоступна
         if (workingKeys.isEmpty()) {
             for (int i = 0; i < hordeKeys.size(); i++) {
                 workingKeys.add(new KeyScore(hordeKeys.get(i), 100.0));
@@ -401,7 +412,7 @@ public class MainActivity extends Activity {
                         workingKeys = hordeKeys;
                     }
 
-                    // Квадратирование изображения (черные полосы по краям)
+                    // Превращение фото в квадрат с черными полями (как в вашем Питоне)
                     Bitmap originalBmp = BitmapFactory.decodeByteArray(selectedImageBytes, 0, selectedImageBytes.length);
                     Bitmap squareBmp = makeSquareBitmap(originalBmp);
                     int squareSize = squareBmp.getWidth();
@@ -410,18 +421,20 @@ public class MainActivity extends Activity {
                     squareBmp.compress(Bitmap.CompressFormat.JPEG, 100, stream);
                     String base64Image = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP);
 
-                    String hardcoreInject = "nude:1.5, masterpiece, best quality, highly detailed 3d pixar anime:1.2, seductive, flawless skin, perfect lighting, beautiful face, detailed eyes";
+                    // Инъекции из вашего скрипта
+                    String hardcoreInject = "masterpiece, best quality, highly detailed anime, xxx, explicit, uncensored, highly detailed nude, bare skin, extremely detailed anatomy, hyper-detailed reproductive organs, meticulously detailed genitals, intricate physiological features, flawless skin texture, hentai";
                     if (!translatedChanges.isEmpty()) {
                         hardcoreInject += ", " + translatedChanges;
                     }
                     String negativePrompt = "(lowres, bad anatomy, bad hands:1.5, poorly drawn hands:1.5, missing fingers:1.5, extra fingers:1.5, mutated hands:1.5, fused fingers:1.5, disfigured, text, ugly, blurry, twisted neck, backward head, facing away, disconnected head, broken posture)";
                     String fullPrompt = hardcoreInject + " ### " + negativePrompt;
 
+                    // Параметры из вашего словаря IMG2IMG_SETTINGS["grapefruit"]
                     JSONObject paramsObj = new JSONObject();
                     paramsObj.put("sampler_name", "k_dpmpp_2m");
-                    paramsObj.put("cfg_scale", 7.8);
-                    paramsObj.put("steps", 35);
-                    paramsObj.put("denoising_strength", 0.44);
+                    paramsObj.put("cfg_scale", 7.5);
+                    paramsObj.put("steps", 20);
+                    paramsObj.put("denoising_strength", 0.60);
                     paramsObj.put("width", squareSize);
                     paramsObj.put("height", squareSize);
 
@@ -470,7 +483,7 @@ public class MainActivity extends Activity {
                                         .addHeader("apikey", apiKey)
                                         .addHeader("accept", "application/json")
                                         .addHeader("Content-Type", "application/json")
-                                        .addHeader("Client-Agent", "MonsterAI:1.0:android") // Обязательный заголовок AI Horde
+                                        .addHeader("Client-Agent", "MonsterAI:1.0:android")
                                         .post(body)
                                         .build();
 
