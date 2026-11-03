@@ -1,12 +1,15 @@
 package com.roman.version02;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -18,6 +21,7 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
+import android.text.TextUtils;
 import android.util.Base64;
 import android.view.Gravity;
 import android.view.View;
@@ -41,6 +45,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
@@ -51,10 +56,10 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
-// THEME: @android:style/Theme.Material.Light.NoActionBar
 public class MainActivity extends Activity {
 
     private static final int PICK_IMAGE_REQUEST = 101;
+    private static final String PREFS_NAME = "MonsterAI_Prefs";
     
     private ImageView imageView;
     private TextView statusText;
@@ -63,58 +68,34 @@ public class MainActivity extends Activity {
     private ScrollView logScrollView;
     private byte[] selectedImageBytes;
     
-    // ИСПРАВЛЕНО: правильный вызов Looper.getMainLooper()
     private Handler handler = new Handler(Looper.getMainLooper());
     
     private String selectedModel = "grapefruit";
-    private List<Button> modelButtons = new ArrayList<Button>();
+    private List<ModelRowHolder> modelRows = new ArrayList<ModelRowHolder>();
 
-    // Пул ключей AI Horde
+    // Список моделей по умолчанию (будет динамически обновляться из GitHub)
+    private List<String> availableModels = new ArrayList<String>();
+    private JSONObject modelReferenceData = new JSONObject();
+
+    // Ключи AI Horde
     private List<String> hordeKeys = new ArrayList<String>();
-    
-    // Все 33 NSFW модели
-    private final String[] allAvailableModels = {
-        "grapefruit",
-        "Yiffy",
-        "WAI-NSFW-illustrious-SDXL",
-        "Grapefruit Hentai",
-        "Nova Furry Pony",
-        "526Mix-Animated",
-        "Abyss OrangeMix",
-        "AbyssOrangeMix-AfterDark",
-        "BB95 Furry Mix v14",
-        "BB95 Furry Mix",
-        "BlenderMix Pony",
-        "BweshMix",
-        "CamelliaMix 2.5D",
-        "Cetus-Mix",
-        "Cheese Daddys Landscape Mix",
-        "CyriousMix",
-        "Ether Real Mix",
-        "ExpMix Line",
-        "GhostMix",
-        "Hentai Diffusion",
-        "HolyMix ILXL",
-        "Lawlas's yiff mix",
-        "MeinaMix",
-        "MoonMix Fantasy",
-        "NTR MIX IL-Noob XL",
-        "Nova Furry XL",
-        "Pastel Mix",
-        "Rag Illustrious Mix",
-        "Real Dos Mix",
-        "Ri-Mix",
-        "WAI-ANI-NSFW-PONYXL",
-        "iCoMix Inpainting",
-        "iCoMix",
-        "majicMIX realistic"
-    };
     
     private OkHttpClient httpClient = new OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
             .build();
+
+    private static class ModelRowHolder {
+        String modelName;
+        Button btnSelect;
+        Button btnSettings;
+        ModelRowHolder(String name, Button sel, Button set) {
+            this.modelName = name;
+            this.btnSelect = sel;
+            this.btnSettings = set;
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -128,6 +109,13 @@ public class MainActivity extends Activity {
         hordeKeys.add("7IPa67lmBrwLPeWz5MGWbQ");
         hordeKeys.add("j7gxGfUrvncLoJDuVzrVWA");
 
+        // Базовый список на случай отсутствия интернета при старте
+        String[] fallbackModels = {
+            "grapefruit", "Yiffy", "WAI-NSFW-illustrious-SDXL", 
+            "Grapefruit Hentai", "Nova Furry Pony", "AbyssOrangeMix-AfterDark", "MeinaMix", "GhostMix"
+        };
+        for(String m : fallbackModels) availableModels.add(m);
+
         ScrollView mainScroll = new ScrollView(this);
         mainScroll.setBackgroundColor(Color.parseColor("#030712"));
 
@@ -137,7 +125,7 @@ public class MainActivity extends Activity {
         rootLayout.setPadding(25, 25, 25, 25);
 
         TextView title = new TextView(this);
-        title.setText("🔥 Monster AI Horde Pro Studio (33 Models)");
+        title.setText("🔥 Monster AI Horde Pro Studio");
         title.setTextColor(Color.parseColor("#38BDF8"));
         title.setTextSize(17f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
@@ -146,7 +134,7 @@ public class MainActivity extends Activity {
         rootLayout.addView(title);
 
         statusText = new TextView(this);
-        statusText.setText("ℹ️ Выберите фото и укажите пожелания для изменения");
+        statusText.setText("ℹ️ Загрузка моделей с серверов AI Horde...");
         statusText.setTextColor(Color.parseColor("#94A3B8"));
         statusText.setTextSize(12f);
         statusText.setGravity(Gravity.CENTER);
@@ -155,7 +143,7 @@ public class MainActivity extends Activity {
 
         imageView = new ImageView(this);
         LinearLayout.LayoutParams imgParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 420
+                LinearLayout.LayoutParams.MATCH_PARENT, 400
         );
         imgParams.setMargins(0, 0, 0, 15);
         imageView.setLayoutParams(imgParams);
@@ -194,59 +182,27 @@ public class MainActivity extends Activity {
         rootLayout.addView(inputChanges);
 
         TextView labelModel = new TextView(this);
-        labelModel.setText("🤖 Выберите модель ИИ (прокрутите для всех 33):");
+        labelModel.setText("🤖 Выберите модель (⚙️ - Настройки и описание):");
         labelModel.setTextColor(Color.parseColor("#F8FAFC"));
         labelModel.setTextSize(12f);
         labelModel.setPadding(0, 10, 0, 8);
         rootLayout.addView(labelModel);
 
-        LinearLayout modelsContainer = new LinearLayout(this);
+        final LinearLayout modelsContainer = new LinearLayout(this);
         modelsContainer.setOrientation(LinearLayout.VERTICAL);
 
-        ScrollView modelsScroll = new ScrollView(this);
+        final ScrollView modelsScroll = new ScrollView(this);
         LinearLayout.LayoutParams mScrollParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 350
+                LinearLayout.LayoutParams.MATCH_PARENT, 320
         );
         mScrollParams.setMargins(0, 0, 0, 15);
         modelsScroll.setLayoutParams(mScrollParams);
         modelsScroll.setBackgroundColor(Color.parseColor("#0F172A"));
-
-        for (int i = 0; i < allAvailableModels.length; i++) {
-            final String mName = allAvailableModels[i];
-            Button mBtn = new Button(this);
-            mBtn.setText(mName);
-            mBtn.setTextSize(12f);
-            mBtn.setTypeface(Typeface.DEFAULT_BOLD);
-            mBtn.setPadding(15, 12, 15, 12);
-            
-            LinearLayout.LayoutParams mParams = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            );
-            mParams.setMargins(4, 4, 4, 4);
-            mBtn.setLayoutParams(mParams);
-
-            if (mName.equals(selectedModel)) {
-                mBtn.setBackgroundColor(Color.parseColor("#059669"));
-                mBtn.setTextColor(Color.WHITE);
-            } else {
-                mBtn.setBackgroundColor(Color.parseColor("#1E293B"));
-                mBtn.setTextColor(Color.parseColor("#CBD5E1"));
-            }
-
-            mBtn.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    selectedModel = mName;
-                    updateModelButtonsState();
-                    appendLog("Выбрана модель: " + selectedModel);
-                }
-            });
-
-            modelButtons.add(mBtn);
-            modelsContainer.addView(mBtn);
-        }
         modelsScroll.addView(modelsContainer);
         rootLayout.addView(modelsScroll);
+
+        // Построение списка моделей в UI
+        rebuildModelsUI(modelsContainer);
 
         Button btnProcess = createStyledButton("🚀 Запустить генерацию", "#059669");
         btnProcess.setOnClickListener(new View.OnClickListener() {
@@ -258,7 +214,7 @@ public class MainActivity extends Activity {
         rootLayout.addView(btnProcess);
 
         TextView labelLogs = new TextView(this);
-        labelLogs.setText("📋 Отладочные логи в реальном времени:");
+        labelLogs.setText("📋 Отладочные логи (можно выделять текст):");
         labelLogs.setTextColor(Color.parseColor("#38BDF8"));
         labelLogs.setTextSize(12f);
         labelLogs.setTypeface(Typeface.DEFAULT_BOLD);
@@ -267,37 +223,59 @@ public class MainActivity extends Activity {
 
         logScrollView = new ScrollView(this);
         LinearLayout.LayoutParams logScrollParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 300
+                LinearLayout.LayoutParams.MATCH_PARENT, 260
         );
         logScrollParams.setMargins(0, 0, 0, 10);
         logScrollView.setLayoutParams(logScrollParams);
         logScrollView.setBackgroundColor(Color.parseColor("#0B0F19"));
 
         logConsole = new TextView(this);
-        logConsole.setText("⏳ Приложение готово к работе...\n");
+        logConsole.setText("⏳ Инициализация фоновых задач...\n");
         logConsole.setTextColor(Color.parseColor("#34D399"));
         logConsole.setTextSize(11f);
         logConsole.setTypeface(Typeface.MONOSPACE);
         logConsole.setPadding(15, 15, 15, 15);
+        logConsole.setTextIsSelectable(true); // Разрешает выделение и копирование пальцем из консоли!
         logScrollView.addView(logConsole);
         rootLayout.addView(logScrollView);
 
-        Button btnCopyLogs = createStyledButton("📋 Скопировать логи в буфер", "#475569");
+        LinearLayout logButtonsLayout = new LinearLayout(this);
+        logButtonsLayout.setOrientation(LinearLayout.HORIZONTAL);
+        
+        Button btnCopyLogs = createStyledButton("📋 Копировать логи", "#475569");
+        LinearLayout.LayoutParams btnCpParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+        btnCpParams.setMargins(0, 0, 5, 10);
+        btnCopyLogs.setLayoutParams(btnCpParams);
         btnCopyLogs.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
                 ClipData clip = ClipData.newPlainText("MonsterAI Logs", logConsole.getText().toString());
                 clipboard.setPrimaryClip(clip);
-                Toast.makeText(MainActivity.this, "✅ Логи скопированы в буфер обмена!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "✅ Логи скопированы!", Toast.LENGTH_SHORT).show();
             }
         });
-        rootLayout.addView(btnCopyLogs);
+        logButtonsLayout.addView(btnCopyLogs);
 
+        Button btnClearLogs = createStyledButton("🧹 Очистить консоль", "#991B1B");
+        LinearLayout.LayoutParams btnClParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+        btnClParams.setMargins(5, 0, 0, 10);
+        btnClearLogs.setLayoutParams(btnClParams);
+        btnClearLogs.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                logConsole.setText("");
+                appendLog("Консоль очищена.");
+            }
+        });
+        logButtonsLayout.addView(btnClearLogs);
+
+        rootLayout.addView(logButtonsLayout);
         mainScroll.addView(rootLayout);
         setContentView(mainScroll);
-        
-        appendLog("MainActivity создана успешно. Загружено моделей: " + allAvailableModels.length);
+
+        // Запуск загрузки актуальных NSFW моделей с серверов AI Horde в фоне
+        fetchHordeNsfwModelsAsync(modelsContainer);
     }
 
     private void appendLog(final String text) {
@@ -311,20 +289,6 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void updateModelButtonsState() {
-        for (int i = 0; i < modelButtons.size(); i++) {
-            Button btn = modelButtons.get(i);
-            String mName = allAvailableModels[i];
-            if (mName.equals(selectedModel)) {
-                btn.setBackgroundColor(Color.parseColor("#059669"));
-                btn.setTextColor(Color.WHITE);
-            } else {
-                btn.setBackgroundColor(Color.parseColor("#1E293B"));
-                btn.setTextColor(Color.parseColor("#CBD5E1"));
-            }
-        }
-    }
-
     private Button createStyledButton(String text, String colorHex) {
         Button btn = new Button(this);
         btn.setText(text);
@@ -332,13 +296,369 @@ public class MainActivity extends Activity {
         btn.setTextSize(13f);
         btn.setTypeface(Typeface.DEFAULT_BOLD);
         btn.setBackgroundColor(Color.parseColor(colorHex));
-        btn.setPadding(20, 16, 20, 16);
+        btn.setPadding(15, 14, 15, 14);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        params.setMargins(0, 0, 0, 10);
+        params.setMargins(0, 0, 0, 8);
         btn.setLayoutParams(params);
         return btn;
+    }
+
+    private void rebuildModelsUI(final LinearLayout container) {
+        container.removeAllViews();
+        modelRows.clear();
+
+        for (int i = 0; i < availableModels.size(); i++) {
+            final String mName = availableModels.get(i);
+
+            LinearLayout rowLayout = new LinearLayout(this);
+            rowLayout.setOrientation(LinearLayout.HORIZONTAL);
+            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            );
+            rowParams.setMargins(0, 0, 0, 6);
+            rowLayout.setLayoutParams(rowParams);
+
+            Button mBtn = new Button(this);
+            mBtn.setText(mName);
+            mBtn.setTextSize(12f);
+            mBtn.setTypeface(Typeface.DEFAULT_BOLD);
+            mBtn.setPadding(12, 10, 12, 10);
+            LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.80f);
+            mBtn.setLayoutParams(btnParams);
+
+            Button setBtn = new Button(this);
+            setBtn.setText("⚙️ Меню");
+            setBtn.setTextSize(11f);
+            setBtn.setPadding(8, 10, 8, 10);
+            LinearLayout.LayoutParams setParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.20f);
+            setParams.setMargins(6, 0, 0, 0);
+            setBtn.setLayoutParams(setParams);
+            setBtn.setBackgroundColor(Color.parseColor("#334155"));
+            setBtn.setTextColor(Color.parseColor("#38BDF8"));
+
+            if (mName.equals(selectedModel)) {
+                mBtn.setBackgroundColor(Color.parseColor("#059669"));
+                mBtn.setTextColor(Color.WHITE);
+            } else {
+                mBtn.setBackgroundColor(Color.parseColor("#1E293B"));
+                mBtn.setTextColor(Color.parseColor("#CBD5E1"));
+            }
+
+            final ModelRowHolder holder = new ModelRowHolder(mName, mBtn, setBtn);
+            modelRows.add(holder);
+
+            mBtn.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    selectedModel = mName;
+                    updateModelButtonsState();
+                    appendLog("Выбрана активная модель: " + selectedModel);
+                }
+            });
+
+            setBtn.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showModelSettingsDialog(mName);
+                }
+            });
+
+            rowLayout.addView(mBtn);
+            rowLayout.addView(setBtn);
+            container.addView(rowLayout);
+        }
+    }
+
+    private void updateModelButtonsState() {
+        for (int i = 0; i < modelRows.size(); i++) {
+            ModelRowHolder h = modelRows.get(i);
+            if (h.modelName.equals(selectedModel)) {
+                h.btnSelect.setBackgroundColor(Color.parseColor("#059669"));
+                h.btnSelect.setTextColor(Color.WHITE);
+            } else {
+                h.btnSelect.setBackgroundColor(Color.parseColor("#1E293B"));
+                h.btnSelect.setTextColor(Color.parseColor("#CBD5E1"));
+            }
+        }
+    }
+
+    // --- ДИАЛОГ НАСТРОЕК МОДЕЛИ И ЕГО СОХРАНЕНИЕ ---
+    private void showModelSettingsDialog(final String modelName) {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        
+        // Читаем сохраненные настройки или значения по умолчанию
+        float defCfg = prefs.getFloat(modelName + "_cfg", 7.5f);
+        int defSteps = prefs.getInt(modelName + "_steps", 20);
+        float defDenoise = prefs.getFloat(modelName + "_denoise", 0.60f);
+        String defPrompt = prefs.getString(modelName + "_prompt", "masterpiece, best quality, highly detailed anime, xxx, explicit, uncensored, highly detailed nude, bare skin, extremely detailed anatomy, hyper-detailed reproductive organs, meticulously detailed genitals, intricate physiological features, flawless skin texture, hentai");
+
+        // Ищем описание из базы GitHub
+        String rawDesc = "Описание отсутствует в базе.";
+        try {
+            if (modelReferenceData.has(modelName)) {
+                JSONObject obj = modelReferenceData.getJSONObject(modelName);
+                rawDesc = obj.optString("description", "Описание отсутствует.");
+            }
+        } catch (Exception ignored) {}
+
+        // Перевод базового описания на русский язык через бесплатный API
+        final String englishDesc = stripHtmlTags(rawDesc);
+
+        LinearLayout dialogLayout = new LinearLayout(this);
+        dialogLayout.setOrientation(LinearLayout.VERTICAL);
+        dialogLayout.setPadding(30, 20, 30, 20);
+        dialogLayout.setBackgroundColor(Color.parseColor("#0F172A"));
+
+        TextView tvTitle = new TextView(this);
+        tvTitle.setText("🛠 Настройки модели: " + modelName);
+        tvTitle.setTextColor(Color.parseColor("#38BDF8"));
+        tvTitle.setTextSize(15f);
+        tvTitle.setTypeface(Typeface.DEFAULT_BOLD);
+        tvTitle.setPadding(0, 0, 0, 10);
+        dialogLayout.addView(tvTitle);
+
+        final TextView tvDesc = new TextView(this);
+        tvDesc.setText("📝 Описание (перевод): Загрузка...");
+        tvDesc.setTextColor(Color.parseColor("#94A3B8"));
+        tvDesc.setTextSize(12f);
+        tvDesc.setPadding(0, 0, 0, 15);
+        dialogLayout.addView(tvDesc);
+
+        // Асинхронный перевод описания на русский
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final String translated = translateToEnglishOrRussian(englishDesc, "ru");
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        tvDesc.setText("📝 Описание: " + translated);
+                    }
+                });
+            }
+        }).start();
+
+        // Поля ввода для параметров
+        TextView lblCfg = new TextView(this);
+        lblCfg.setText("⚡ Сила промпта (CFG Scale, от 1 до 20):");
+        lblCfg.setTextColor(Color.parseColor("#F8FAFC"));
+        lblCfg.setTextSize(12f);
+        dialogLayout.addView(lblCfg);
+
+        final EditText inputCfg = new EditText(this);
+        inputCfg.setText(String.valueOf(defCfg));
+        inputCfg.setTextColor(Color.BLACK);
+        inputCfg.setBackgroundColor(Color.WHITE);
+        inputCfg.setTextSize(13f);
+        inputCfg.setPadding(12, 12, 12, 12);
+        dialogLayout.addView(inputCfg);
+
+        TextView lblSteps = new TextView(this);
+        lblSteps.setText("🔄 Шаги генерации (Steps, от 10 до 50):");
+        lblSteps.setTextColor(Color.parseColor("#F8FAFC"));
+        lblSteps.setTextSize(12f);
+        lblSteps.setPadding(0, 10, 0, 0);
+        dialogLayout.addView(lblSteps);
+
+        final EditText inputSteps = new EditText(this);
+        inputSteps.setText(String.valueOf(defSteps));
+        inputSteps.setTextColor(Color.BLACK);
+        inputSteps.setBackgroundColor(Color.WHITE);
+        inputSteps.setTextSize(13f);
+        inputSteps.setPadding(12, 12, 12, 12);
+        dialogLayout.addView(inputSteps);
+
+        TextView lblDenoise = new TextView(this);
+        lblDenoise.setText("🎨 Сила изменения фото (Denoising, от 0.1 до 0.9):");
+        lblDenoise.setTextColor(Color.parseColor("#F8FAFC"));
+        lblDenoise.setTextSize(12f);
+        lblDenoise.setPadding(0, 10, 0, 0);
+        dialogLayout.addView(lblDenoise);
+
+        final EditText inputDenoise = new EditText(this);
+        inputDenoise.setText(String.valueOf(defDenoise));
+        inputDenoise.setTextColor(Color.BLACK);
+        inputDenoise.setBackgroundColor(Color.WHITE);
+        inputDenoise.setTextSize(13f);
+        inputDenoise.setPadding(12, 12, 12, 12);
+        dialogLayout.addView(inputDenoise);
+
+        TextView lblPrompt = new TextView(this);
+        lblPrompt.setText("✍️ Базовый NSFW промпт для этой модели:");
+        lblPrompt.setTextColor(Color.parseColor("#F8FAFC"));
+        lblPrompt.setTextSize(12f);
+        lblPrompt.setPadding(0, 10, 0, 0);
+        dialogLayout.addView(lblPrompt);
+
+        final EditText inputPrompt = new EditText(this);
+        inputPrompt.setText(defPrompt);
+        inputPrompt.setTextColor(Color.BLACK);
+        inputPrompt.setBackgroundColor(Color.WHITE);
+        inputPrompt.setTextSize(12f);
+        inputPrompt.setPadding(12, 12, 12, 12);
+        dialogLayout.addView(inputPrompt);
+
+        ScrollView scrollDlg = new ScrollView(this);
+        scrollDlg.addView(dialogLayout);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setView(scrollDlg);
+        builder.setPositiveButton("💾 Сохранить", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                try {
+                    float newCfg = Float.parseFloat(inputCfg.getText().toString().trim());
+                    int newSteps = Integer.parseInt(inputSteps.getText().toString().trim());
+                    float newDenoise = Float.parseFloat(inputDenoise.getText().toString().trim());
+                    String newPrompt = inputPrompt.getText().toString().trim();
+
+                    SharedPreferences.Editor editor = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit();
+                    editor.putFloat(modelName + "_cfg", newCfg);
+                    editor.putInt(modelName + "_steps", newSteps);
+                    editor.putFloat(modelName + "_denoise", newDenoise);
+                    editor.putString(modelName + "_prompt", newPrompt);
+                    editor.apply();
+
+                    appendLog("⚙️ Настройки для модели [" + modelName + "] успешно сохранены!");
+                    Toast.makeText(MainActivity.this, "✅ Настройки сохранены навсегда!", Toast.LENGTH_SHORT).show();
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "❌ Ошибка в числах: проверьте запятые и точки!", Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+        builder.setNegativeButton("Отмена", null);
+        builder.show();
+    }
+
+    // --- ФЕТЧ И АВТОМАТИЧЕСКАЯ ЗАГРУЗКА NSFW МОДЕЛЕЙ ИЗ GITHUB ---
+    private void fetchHordeNsfwModelsAsync(final LinearLayout modelsContainer) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    appendLog("🌐 Загрузка базы моделей с GitHub (stable_diffusion.json)...");
+                    String refUrl = "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/stable_diffusion.json";
+                    Request reqRef = new Request.Builder().url(refUrl).get().build();
+                    Response respRef = httpClient.newCall(reqRef).build();
+                    if (respRef.isSuccessful() && respRef.body() != null) {
+                        modelReferenceData = new JSONObject(respRef.body().string());
+                        appendLog("✅ База описаний моделей загружена успешно.");
+                    }
+
+                    String validKey = getValidHordeKeyInternal();
+                    appendLog("🌐 Запрос активных воркеров AI Horde (/status/models)...");
+                    
+                    Request reqModels = new Request.Builder()
+                            .url("https://stablehorde.net/api/v2/status/models")
+                            .addHeader("apikey", validKey)
+                            .addHeader("Client-Agent", "MonsterAI:1.0:android")
+                            .get()
+                            .build();
+                    Response respModels = httpClient.newCall(reqModels).build();
+                    
+                    if (respModels.isSuccessful() && respModels.body() != null) {
+                        JSONArray activeModels = new JSONArray(respModels.body().string());
+                        
+                        String[] keywords = {
+                            'nsfw', 'hentai', 'xxx', 'r34', 'rule34', 'erotic', 'adult', 
+                            'porn', 'nude', 'smut', 'uncensored', 'grapefruit', 'abyss', 
+                            'basil', 'blood', 'mix', 'yiffy', 'furry'
+                        };
+
+                        List<String> foundNsfw = new ArrayList<String>();
+
+                        for (int i = 0; i < activeModels.length(); i++) {
+                            JSONObject mObj = activeModels.getJSONObject(i);
+                            String name = mObj.optString("name", "");
+                            int count = mObj.optInt("count", 0);
+                            
+                            if (count > 0 && !name.isEmpty()) {
+                                String lower = name.toLowerCase();
+                                boolean match = false;
+                                for (String kw : keywords) {
+                                    if (lower.contains(kw)) {
+                                        match = true;
+                                        break;
+                                    }
+                                }
+                                if (match && !foundNsfw.contains(name)) {
+                                    foundNsfw.add(name);
+                                }
+                            }
+                        }
+
+                        if (!foundNsfw.isEmpty()) {
+                            Collections.sort(foundNsfw);
+                            availableModels = foundNsfw;
+                            appendLog("🔞 Найдено активных NSFW моделей онлайн: " + availableModels.size());
+                            
+                            handler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    rebuildModelsUI(modelsContainer);
+                                    statusText.setText("✅ Найдено активных NSFW моделей: " + availableModels.size());
+                                }
+                            });
+                        } else {
+                            appendLog("⚠️ Не найдено активных NSFW моделей, используем стандартный пул.");
+                        }
+                    }
+                } catch (Exception e) {
+                    appendLog("⚠️ Не удалось загрузить модели с сервера: " + e.getMessage());
+                }
+            }
+        }).start();
+    }
+
+    private String getValidHordeKeyInternal() {
+        for (String key : hordeKeys) {
+            try {
+                Request request = new Request.Builder()
+                        .url("https://stablehorde.net/api/v2/find_user")
+                        .addHeader("apikey", key)
+                        .addHeader("Client-Agent", "MonsterAI:1.0:android")
+                        .get()
+                        .build();
+                Response response = httpClient.newCall(request).execute();
+                if (response.isSuccessful() && response.body() != null) {
+                    JSONObject json = new JSONObject(response.body().string());
+                    String username = json.optString("username", "Unknown");
+                    double kudos = json.optdouble("kudos", 0);
+                    appendLog("✅ Рабочий ключ AI Horde! Пользователь: " + username + " (Kudos: " + (int)kudos + ")");
+                    return key;
+                }
+            } catch (Exception ignored) {}
+        }
+        appendLog("⚠️ Все ключи недействительны. Используем анонимный токен.");
+        return "0000000000";
+    }
+
+    private String stripHtmlTags(String text) {
+        if (text == null) return "";
+        return text.replaceAll("<.*?>", "");
+    }
+
+    private String translateToEnglishOrRussian(String text, String targetLang) {
+        if (text == null || text.trim().isEmpty()) return "";
+        try {
+            String encoded = URLEncoder.encode(text, "UTF-8");
+            String url = "https://api.mymemory.translated.net/get?q=" + encoded + "&langpair=auto|" + targetLang;
+            Request request = new Request.Builder().url(url).get().build();
+            Response response = httpClient.newCall(request).execute();
+            if (response.isSuccessful() && response.body() != null) {
+                JSONObject json = new JSONObject(response.body().string());
+                JSONObject respData = json.optJSONObject("responseData");
+                if (respData != null) {
+                    String translated = respData.optString("translatedText", "");
+                    if (!translated.isEmpty() && !translated.toUpperCase().contains("INVALID")) {
+                        return translated;
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        return text;
     }
 
     private void openGallery() {
@@ -367,7 +687,7 @@ public class MainActivity extends Activity {
                 Bitmap bmp = BitmapFactory.decodeByteArray(selectedImageBytes, 0, selectedImageBytes.length);
                 imageView.setImageBitmap(bmp);
                 statusText.setText("✅ Фото загружено!");
-                appendLog("Фото успешно выбрано из галереи. Размер байт: " + selectedImageBytes.length);
+                appendLog("Фото выбрано. Байтов: " + selectedImageBytes.length);
             } catch (Exception e) {
                 appendLog("❌ Ошибка загрузки фото: " + e.getMessage());
                 Toast.makeText(this, "Ошибка загрузки: " + e.getMessage(), Toast.LENGTH_LONG).show();
@@ -402,33 +722,8 @@ public class MainActivity extends Activity {
         return squareBitmap;
     }
 
-    private String translateToEnglish(String text) {
-        if (text == null || text.trim().isEmpty()) return "";
-        try {
-            String encoded = URLEncoder.encode(text, "UTF-8");
-            String url = "https://api.mymemory.translated.net/get?q=" + encoded + "&langpair=auto|en";
-            Request request = new Request.Builder().url(url).get().build();
-            Response response = httpClient.newCall(request).execute();
-            if (response.isSuccessful() && response.body() != null) {
-                JSONObject json = new JSONObject(response.body().string());
-                JSONObject respData = json.optJSONObject("responseData");
-                if (respData != null) {
-                    String translated = respData.optString("translatedText", "");
-                    if (!translated.isEmpty() && !translated.toUpperCase().contains("INVALID")) {
-                        appendLog("Перевод: '" + text + "' -> '" + translated + "'");
-                        return translated;
-                    }
-                }
-            }
-        } catch (Exception e) {
-            appendLog("⚠️ Ошибка перевода: " + e.getMessage());
-        }
-        return text;
-    }
-
     private List<String> getPrioritizedWorkingKeys() {
         List<KeyScore> workingKeys = new ArrayList<KeyScore>();
-        appendLog("Проверка пула ключей AI Horde...");
         for (int i = 0; i < hordeKeys.size(); i++) {
             String key = hordeKeys.get(i);
             try {
@@ -441,22 +736,14 @@ public class MainActivity extends Activity {
                 Response response = httpClient.newCall(request).execute();
                 if (response.isSuccessful() && response.body() != null) {
                     JSONObject json = new JSONObject(response.body().string());
-                    double kudos = json.optDouble("kudos", 0);
+                    double kudos = json.optdouble("kudos", 0);
                     workingKeys.add(new KeyScore(key, kudos));
-                    appendLog("✅ Ключ #" + (i+1) + " (" + key.substring(0, 5) + "...) Активен. Kudos: " + (int)kudos);
-                } else {
-                    appendLog("❌ Ключ #" + (i+1) + " отклонен (Code: " + response.code() + ")");
                 }
-            } catch (Exception e) {
-                appendLog("⚠️ Сбой сети при проверке ключа #" + (i+1));
-            }
+            } catch (Exception ignored) {}
         }
         
         if (workingKeys.isEmpty()) {
-            appendLog("⚠️ Валидация вернула пустоту. Используем все ключи принудительно.");
-            for (int i = 0; i < hordeKeys.size(); i++) {
-                workingKeys.add(new KeyScore(hordeKeys.get(i), 100.0));
-            }
+            workingKeys.add(new KeyScore("0000000000", 0.0));
         }
 
         Collections.sort(workingKeys, new Comparator<KeyScore>() {
@@ -500,15 +787,20 @@ public class MainActivity extends Activity {
             @Override
             public void run() {
                 try {
-                    appendLog("--- СТАРТ НОВОЙ ГЕНЕРАЦИИ ---");
+                    appendLog("--- СТАРТ ГЕНЕРАЦИИ (Модель: " + selectedModel + ") ---");
                     
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            progress.setMessage("Перевод пожеланий...");
+                            progress.setMessage("Перевод пожеланий на английский...");
                         }
                     });
-                    String translatedChanges = translateToEnglish(userChangesRaw);
+                    
+                    String translatedChanges = "";
+                    if (!userChangesRaw.isEmpty()) {
+                        translatedChanges = translateToEnglishOrRussian(userChangesRaw, "en");
+                        appendLog("📝 Перевод пожеланий: '" + userChangesRaw + "' -> '" + translatedChanges + "'");
+                    }
 
                     handler.post(new Runnable() {
                         @Override
@@ -525,32 +817,37 @@ public class MainActivity extends Activity {
                     squareBmp.compress(Bitmap.CompressFormat.JPEG, 100, stream);
                     String base64Image = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP);
 
-                    String hardcoreInject = "masterpiece, best quality, highly detailed anime, xxx, explicit, uncensored, highly detailed nude, bare skin, extremely detailed anatomy, hyper-detailed reproductive organs, meticulously detailed genitals, intricate physiological features, flawless skin texture, hentai";
+                    // Читаем сохраненные пользователем настройки для выбранной модели
+                    SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+                    float cfg = prefs.getFloat(selectedModel + "_cfg", 7.5f);
+                    int steps = prefs.getInt(selectedModel + "_steps", 20);
+                    float denoise = prefs.getFloat(selectedModel + "_denoise", 0.60f);
+                    String basePrompt = prefs.getString(selectedModel + "_prompt", "masterpiece, best quality, highly detailed anime, xxx, explicit, uncensored, highly detailed nude, bare skin, extremely detailed anatomy, hyper-detailed reproductive organs, meticulously detailed genitals, intricate physiological features, flawless skin texture, hentai");
+
+                    // Точное слияние пользовательского запроса с базовым промптом модели для лучшего понимания нейросетью
+                    String fullPrompt = basePrompt;
                     if (!translatedChanges.isEmpty()) {
-                        hardcoreInject += ", " + translatedChanges;
+                        fullPrompt = basePrompt + ", " + translatedChanges;
                     }
+                    
                     String negativePrompt = "(lowres, bad anatomy, bad hands:1.5, poorly drawn hands:1.5, missing fingers:1.5, extra fingers:1.5, mutated hands:1.5, fused fingers:1.5, disfigured, text, ugly, blurry, twisted neck, backward head, facing away, disconnected head, broken posture)";
-                    String fullPrompt = hardcoreInject + " ### " + negativePrompt;
+                    String finalPayloadPrompt = fullPrompt + " ### " + negativePrompt;
 
                     JSONObject paramsObj = new JSONObject();
                     paramsObj.put("sampler_name", "k_dpmpp_2m");
-                    paramsObj.put("cfg_scale", 7.5);
-                    paramsObj.put("steps", 20);
-                    paramsObj.put("denoising_strength", 0.60);
+                    paramsObj.put("cfg_scale", (double)cfg);
+                    paramsObj.put("steps", steps);
+                    paramsObj.put("denoising_strength", (double)denoise);
 
                     byte[] resultBytes = null;
                     boolean successGenerated = false;
 
                     List<String> modelsToTry = new ArrayList<String>();
                     modelsToTry.add(selectedModel);
-                    for (int i = 0; i < allAvailableModels.length; i++) {
-                        String m = allAvailableModels[i];
-                        if (!modelsToTry.contains(m)) {
-                            modelsToTry.add(m);
-                        }
+                    for (int i = 0; i < availableModels.size(); i++) {
+                        String m = availableModels.get(i);
+                        if (!modelsToTry.contains(m)) modelsToTry.add(m);
                     }
-
-                    appendLog("Всего моделей для перебора: " + modelsToTry.size());
 
                     for (int mIdx = 0; mIdx < modelsToTry.size(); mIdx++) {
                         if (successGenerated) break;
@@ -561,7 +858,7 @@ public class MainActivity extends Activity {
                             String apiKey = workingKeys.get(kIdx);
 
                             try {
-                                appendLog("👉 Пробую модель: [" + modelName + "], Ключ: " + apiKey.substring(0, 5) + "...");
+                                appendLog("👉 Запрос к модели: [" + modelName + "]");
                                 handler.post(new Runnable() {
                                     @Override
                                     public void run() {
@@ -573,7 +870,7 @@ public class MainActivity extends Activity {
                                 modelsArray.put(modelName);
 
                                 JSONObject payload = new JSONObject();
-                                payload.put("prompt", fullPrompt);
+                                payload.put("prompt", finalPayloadPrompt);
                                 payload.put("params", paramsObj);
                                 payload.put("nsfw", true);
                                 payload.put("censor_nsfw", false);
@@ -594,29 +891,21 @@ public class MainActivity extends Activity {
                                 Response response = httpClient.newCall(request).execute();
                                 int code = response.code();
                                 
-                                if (code == 401 || code == 402 || code == 403 || code == 429) {
-                                    appendLog("⚠️ Ключ отклонен (HTTP " + code + "). Пробуем следующий ключ.");
-                                    continue;
-                                }
                                 if (code == 400) {
-                                    String errBody = response.body() != null ? response.body().string() : "";
-                                    appendLog("⚠️ Модель " + modelName + " отклонила запрос (HTTP 400): " + errBody);
+                                    String err = response.body() != null ? response.body().string() : "";
+                                    appendLog("⚠️ Модель " + modelName + " отклонила запрос (400): " + err);
                                     break;
                                 }
                                 if (!response.isSuccessful() || response.body() == null) {
-                                    appendLog("⚠️ Ошибка ответа: HTTP " + code);
                                     continue;
                                 }
 
                                 String respStr = response.body().string();
                                 JSONObject respJson = new JSONObject(respStr);
                                 String jobId = respJson.optString("id", null);
-                                if (jobId == null) {
-                                    appendLog("⚠️ Не получен job_id от сервера");
-                                    continue;
-                                }
+                                if (jobId == null) continue;
 
-                                appendLog("✅ Запрос принят! Job ID: " + jobId + ". Ожидаем генерацию...");
+                                appendLog("✅ Задача принята! Job ID: " + jobId);
                                 String statusUrl = "https://stablehorde.net/api/v2/generate/status/" + jobId;
                                 boolean jobDone = false;
                                 String imgUrl = null;
@@ -632,7 +921,7 @@ public class MainActivity extends Activity {
                                     if (statRespReal.isSuccessful() && statRespReal.body() != null) {
                                         JSONObject stJson = new JSONObject(statRespReal.body().string());
                                         if (stJson.optBoolean("faulted", false)) {
-                                            appendLog("❌ Воркер модели " + modelName + " сбросил задачу (faulted).");
+                                            appendLog("❌ Воркер сбросил задачу (faulted).");
                                             jobDone = true;
                                             break;
                                         }
@@ -642,12 +931,12 @@ public class MainActivity extends Activity {
                                                 imgUrl = gens.getJSONObject(0).optString("img", null);
                                             }
                                             jobDone = true;
-                                            appendLog("🎉 Задача успешно завершена воркером!");
+                                            appendLog("🎉 Генерация завершена воркером!");
                                             break;
                                         } else {
                                             final int qPos = stJson.optInt("queue_position", 0);
-                                            final int waitTime = stJson.optInt("wait_time", 0);
-                                            appendLog("⏳ Статус [" + modelName + "] Позиция в очереди: " + qPos + ", Ждать сек: " + waitTime);
+                                            final int waitSec = stJson.optInt("wait_time", 0);
+                                            appendLog("⏳ В очереди [" + modelName + "], позиция: " + qPos + ", ожидание: " + waitSec + "с");
                                             handler.post(new Runnable() {
                                                 @Override
                                                 public void run() {
@@ -659,11 +948,11 @@ public class MainActivity extends Activity {
                                 }
 
                                 if (jobDone && imgUrl != null && !imgUrl.isEmpty()) {
-                                    appendLog("📥 Скачивание результата с URL: " + imgUrl);
+                                    appendLog("📥 Скачивание результата...");
                                     handler.post(new Runnable() {
                                         @Override
                                         public void run() {
-                                            progress.setMessage("Скачивание результата...");
+                                            progress.setMessage("Скачивание...");
                                         }
                                     });
                                     Request imgReq = new Request.Builder().url(imgUrl).get().build();
@@ -671,18 +960,18 @@ public class MainActivity extends Activity {
                                     if (imgResp.isSuccessful() && imgResp.body() != null) {
                                         resultBytes = imgResp.body().bytes();
                                         successGenerated = true;
-                                        appendLog("✅ Фото успешно получено и весит " + resultBytes.length + " байт!");
+                                        appendLog("✅ Фото успешно скачано (" + resultBytes.length + " байт).");
                                         break;
                                     }
                                 }
                             } catch (Exception ex) {
-                                appendLog("🔴 Ошибка в процессе отправки: " + ex.getMessage());
+                                appendLog("🔴 Ошибка: " + ex.getMessage());
                             }
                         }
                     }
 
                     if (!successGenerated || resultBytes == null) {
-                        throw new RuntimeException("Все 33 модели и ключи перебраны, но генерация не удалась.");
+                        throw new RuntimeException("Все модели перегружены или отклонили запрос.");
                     }
 
                     final Bitmap finalBmp = BitmapFactory.decodeByteArray(resultBytes, 0, resultBytes.length);
@@ -694,13 +983,13 @@ public class MainActivity extends Activity {
                             progress.dismiss();
                             imageView.setImageBitmap(finalBmp);
                             statusText.setText("✅ Успешно сгенерировано и сохранено!");
-                            Toast.makeText(MainActivity.this, "Фото сохранено в Pictures/MonsterAI", Toast.LENGTH_LONG).show();
-                            appendLog("✨ Готово! Изображение сохранено в галерею.");
+                            Toast.makeText(MainActivity.this, "Сохранено в Pictures/MonsterAI", Toast.LENGTH_LONG).show();
+                            appendLog("✨ Готово! Фото сохранено в галерею устройства.");
                         }
                     });
 
                 } catch (final Exception e) {
-                    appendLog("❌ КРИТИЧЕСКАЯ ОШИБКА ГЕНЕРАЦИИ: " + e.getMessage());
+                    appendLog("❌ КРИТИЧЕСКАЯ ОШИБКА: " + e.getMessage());
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
@@ -725,11 +1014,11 @@ public class MainActivity extends Activity {
             if (uri != null) {
                 try (OutputStream out = getContentResolver().openOutputStream(uri)) {
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 100, out);
-                    appendLog("Файл успешно сохранен в MediaStore: " + fileName);
+                    appendLog("Файл записан в MediaStore: " + fileName);
                 }
             }
         } catch (Exception e) {
-            appendLog("❌ Ошибка записи в галерею: " + e.getMessage());
+            appendLog("❌ Ошибка сохранения в галерею: " + e.getMessage());
         }
     }
 }
