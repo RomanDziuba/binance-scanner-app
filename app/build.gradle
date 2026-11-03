@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.pro5.version7'
+    namespace 'com.pro7.version7'
     compileSdk 34
     defaultConfig {
-        applicationId "com.pro5.version7"
+        applicationId "com.pro7.version7"
         minSdk 21
         targetSdk 34
-        versionCode 3
+        versionCode 4
         versionName "7"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "MonsterClock_v7-" + variant.name + ".apk"
+            outputFileName = "COMPILER_PRO_7_v7-" + variant.name + ".apk"
         }
     }
 }
