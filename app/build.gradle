@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.fon2.version2'
+    namespace 'com.fon3.version3'
     compileSdk 34
     defaultConfig {
-        applicationId "com.fon2.version2"
+        applicationId "com.fon3.version3"
         minSdk 21
         targetSdk 34
-        versionCode 20
-        versionName "2"
+        versionCode 21
+        versionName "3"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "ФОН2_v2-" + variant.name + ".apk"
+            outputFileName = "ФОН3_v3-" + variant.name + ".apk"
         }
     }
 }
