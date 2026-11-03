@@ -6,7 +6,6 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.BlurMaskFilter;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -26,6 +25,7 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -73,7 +73,7 @@ public class MainActivity extends Activity {
     private final LayerState state2 = new LayerState();
     private int activeLayer = 1; // 1 или 2
 
-    private SeekBar seekBarAlpha, seekBarHalo, seekBarDensity, seekBarSmoothing;
+    private SeekBar seekBarAlpha, seekBarHalo, seekBarDensity, seekBarSmooth;
 
     // Кэш для интерактивной обработки ИИ-маски
     private float[][][][] cachedRawOutput1 = null;
@@ -100,47 +100,9 @@ public class MainActivity extends Activity {
         void onProgress(int progress);
     }
 
-    // Класс для сохранения данных при повороте экрана
-    private static class RetainedState {
-        Bitmap bmp1, bmp2, src1, src2;
-        LayerState s1 = new LayerState();
-        LayerState s2 = new LayerState();
-        int activeLayer;
-        float[][][][] raw1, raw2;
-    }
-
-    @Override
-    public Object onRetainNonConfigurationInstance() {
-        RetainedState data = new RetainedState();
-        data.bmp1 = bitmap1;
-        data.bmp2 = bitmap2;
-        data.src1 = sourceForAI1;
-        data.src2 = sourceForAI2;
-        data.s1.set(state1);
-        data.s2.set(state2);
-        data.activeLayer = activeLayer;
-        data.raw1 = cachedRawOutput1;
-        data.raw2 = cachedRawOutput2;
-        return data;
-    }
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        // Восстановление данных при повороте экрана
-        RetainedState retained = (RetainedState) getLastNonConfigurationInstance();
-        if (retained != null) {
-            bitmap1 = retained.bmp1;
-            bitmap2 = retained.bmp2;
-            sourceForAI1 = retained.src1;
-            sourceForAI2 = retained.src2;
-            state1.set(retained.s1);
-            state2.set(retained.s2);
-            activeLayer = retained.activeLayer;
-            cachedRawOutput1 = retained.raw1;
-            cachedRawOutput2 = retained.raw2;
-        }
 
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
@@ -256,7 +218,7 @@ public class MainActivity extends Activity {
         rowLayerLayout.addView(btnDeleteLayer, new LinearLayout.LayoutParams(0, 120, 0.25f));
         controlsLayout.addView(rowLayerLayout);
 
-        // Широкие интерактивные ползунки
+        // Интерактивные широкие ползунки на всю ширину
         controlsLayout.addView(createWideSeekBarLayout("Прозрачность:", seekBarAlpha = createInteractiveSeekBar(100, 100, progress -> {
             float val = progress / 100.0f;
             if (activeLayer == 1) state1.alpha = val;
@@ -264,7 +226,7 @@ public class MainActivity extends Activity {
             layerView.invalidate();
         })));
 
-        controlsLayout.addView(createWideSeekBarLayout("Очистка ореолов:", seekBarHalo = createInteractiveSeekBar(100, 50, progress -> {
+        controlsLayout.addView(createWideSeekBarLayout("Очистка ореолов (Мощная):", seekBarHalo = createInteractiveSeekBar(100, 50, progress -> {
             applyInteractiveMaskSettings();
         })));
 
@@ -272,7 +234,8 @@ public class MainActivity extends Activity {
             applyInteractiveMaskSettings();
         })));
 
-        controlsLayout.addView(createWideSeekBarLayout("Сглаживание краев:", seekBarSmoothing = createInteractiveSeekBar(100, 20, progress -> {
+        // Новый интерактивный ползунок для сглаживания рубленых краев[span_0](start_span)[span_0](end_span)
+        controlsLayout.addView(createWideSeekBarLayout("Сглаживание краев (Антиалиасинг):", seekBarSmooth = createInteractiveSeekBar(100, 20, progress -> {
             applyInteractiveMaskSettings();
         })));
 
@@ -306,7 +269,7 @@ public class MainActivity extends Activity {
 
         controlsLayout.addView(actionLayout);
 
-        // Обязательная подпись внизу экрана
+        // Обязательная надпись внизу экрана
         TextView tvFooter = new TextView(this);
         tvFooter.setText("Created by Dziuba Roman 2026");
         tvFooter.setTextColor(Color.GRAY);
@@ -318,15 +281,111 @@ public class MainActivity extends Activity {
         rootLayout.addView(controlsLayout);
         setContentView(rootLayout);
 
+        // Восстановление состояния при повороте экрана или пересоздании активности
+        if (savedInstanceState != null) {
+            restoreInstanceStateData(savedInstanceState);
+        }
+
         checkPermissions();
         initOnnxEnvironment();
-        syncUIWithActiveLayer();
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putInt("activeLayer", activeLayer);
+        outState.putFloat("s1_x", state1.x);
+        outState.putFloat("s1_y", state1.y);
+        outState.putFloat("s1_scale", state1.scale);
+        outState.putFloat("s1_alpha", state1.alpha);
+        outState.putFloat("s1_rotation", state1.rotation);
+
+        outState.putFloat("s2_x", state2.x);
+        outState.putFloat("s2_y", state2.y);
+        outState.putFloat("s2_scale", state2.scale);
+        outState.putFloat("s2_alpha", state2.alpha);
+        outState.putFloat("s2_rotation", state2.rotation);
+
+        if (seekBarAlpha != null) outState.putInt("sb_alpha", seekBarAlpha.getProgress());
+        if (seekBarHalo != null) outState.putInt("sb_halo", seekBarHalo.getProgress());
+        if (seekBarDensity != null) outState.putInt("sb_density", seekBarDensity.getProgress());
+        if (seekBarSmooth != null) outState.putInt("sb_smooth", seekBarSmooth.getProgress());
+
+        try {
+            if (bitmap1 != null) {
+                File f1 = new File(getCacheDir(), "rot_bmp1.png");
+                FileOutputStream fos1 = new FileOutputStream(f1);
+                bitmap1.compress(Bitmap.CompressFormat.PNG, 100, fos1);
+                fos1.close();
+                outState.putString("path1", f1.getAbsolutePath());
+            }
+            if (bitmap2 != null) {
+                File f2 = new File(getCacheDir(), "rot_bmp2.png");
+                FileOutputStream fos2 = new FileOutputStream(f2);
+                bitmap2.compress(Bitmap.CompressFormat.PNG, 100, fos2);
+                fos2.close();
+                outState.putString("path2", f2.getAbsolutePath());
+            }
+            if (sourceForAI1 != null) {
+                File sf1 = new File(getCacheDir(), "src_bmp1.png");
+                FileOutputStream sfos1 = new FileOutputStream(sf1);
+                sourceForAI1.compress(Bitmap.CompressFormat.PNG, 100, sfos1);
+                sfos1.close();
+                outState.putString("src_path1", sf1.getAbsolutePath());
+            }
+            if (sourceForAI2 != null) {
+                File sf2 = new File(getCacheDir(), "src_bmp2.png");
+                FileOutputStream sfos2 = new FileOutputStream(sf2);
+                sourceForAI2.compress(Bitmap.CompressFormat.PNG, 100, sfos2);
+                sfos2.close();
+                outState.putString("src_path2", sf2.getAbsolutePath());
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void restoreInstanceStateData(Bundle savedInstanceState) {
+        activeLayer = savedInstanceState.getInt("activeLayer", 1);
+        state1.x = savedInstanceState.getFloat("s1_x", 0);
+        state1.y = savedInstanceState.getFloat("s1_y", 0);
+        state1.scale = savedInstanceState.getFloat("s1_scale", 1f);
+        state1.alpha = savedInstanceState.getFloat("s1_alpha", 1f);
+        state1.rotation = savedInstanceState.getFloat("s1_rotation", 0f);
+
+        state2.x = savedInstanceState.getFloat("s2_x", 0);
+        state2.y = savedInstanceState.getFloat("s2_y", 0);
+        state2.scale = savedInstanceState.getFloat("s2_scale", 1f);
+        state2.alpha = savedInstanceState.getFloat("s2_alpha", 1f);
+        state2.rotation = savedInstanceState.getFloat("s2_rotation", 0f);
+
+        if (seekBarAlpha != null) seekBarAlpha.setProgress(savedInstanceState.getInt("sb_alpha", 100));
+        if (seekBarHalo != null) seekBarHalo.setProgress(savedInstanceState.getInt("sb_halo", 50));
+        if (seekBarDensity != null) seekBarDensity.setProgress(savedInstanceState.getInt("sb_density", 50));
+        if (seekBarSmooth != null) seekBarSmooth.setProgress(savedInstanceState.getInt("sb_smooth", 20));
+
+        try {
+            String path1 = savedInstanceState.getString("path1");
+            if (path1 != null) {
+                bitmap1 = BitmapFactory.decodeFile(path1);
+            }
+            String path2 = savedInstanceState.getString("path2");
+            if (path2 != null) {
+                bitmap2 = BitmapFactory.decodeFile(path2);
+            }
+            String srcPath1 = savedInstanceState.getString("src_path1");
+            if (srcPath1 != null) {
+                sourceForAI1 = BitmapFactory.decodeFile(srcPath1);
+            }
+            String srcPath2 = savedInstanceState.getString("src_path2");
+            if (srcPath2 != null) {
+                sourceForAI2 = BitmapFactory.decodeFile(srcPath2);
+            }
+        } catch (Exception ignored) {}
     }
 
     private LinearLayout createWideSeekBarLayout(String labelText, SeekBar seekBar) {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(4, 2, 4, 2);
+        layout.setPadding(4, 4, 4, 4);
 
         TextView label = new TextView(this);
         label.setText(labelText);
@@ -577,7 +636,7 @@ public class MainActivity extends Activity {
                     if (activeLayer == 1) bitmap1 = finalResult;
                     else bitmap2 = finalResult;
                     layerView.invalidate();
-                    Toast.makeText(this, "Фон очищен и сглажен!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Фон очищен со сглаживанием краев!", Toast.LENGTH_SHORT).show();
                 });
 
             } catch (Exception e) {
@@ -628,30 +687,54 @@ public class MainActivity extends Activity {
             }
         }
 
-        Bitmap scaledMask = Bitmap.createScaledBitmap(maskBitmap, source.getWidth(), source.getHeight(), true);
-
-        // Интерактивное сглаживание краев через BlurMaskFilter
-        float smoothingVal = seekBarSmoothing != null ? seekBarSmoothing.getProgress() / 100.0f : 0.2f;
-        Bitmap smoothMask = Bitmap.createBitmap(source.getWidth(), source.getHeight(), Bitmap.Config.ARGB_8888);
-        Canvas maskCanvas = new Canvas(smoothMask);
-        Paint maskPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
-        
-        if (smoothingVal > 0.01f) {
-            float radius = smoothingVal * 15.0f; // Радиус сглаживания
-            maskPaint.setMaskFilter(new BlurMaskFilter(radius, BlurMaskFilter.Blur.NORMAL));
+        // Применяем интерактивное сглаживание рубленых краев через алгоритм box blur по альфа-каналу маски
+        int smoothProgress = seekBarSmooth != null ? seekBarSmooth.getProgress() : 20;
+        int blurRadius = (int) (smoothProgress / 10.0f); // радиус от 0 до 10 пикселей на маске 320x320
+        if (blurRadius > 0) {
+            maskBitmap = applyBoxBlurOnAlpha(maskBitmap, blurRadius);
         }
-        maskCanvas.drawBitmap(scaledMask, 0, 0, maskPaint);
 
-        // Применение сглаженной маски к изображению
+        Bitmap scaledMask = Bitmap.createScaledBitmap(maskBitmap, source.getWidth(), source.getHeight(), true);
         Bitmap finalResult = Bitmap.createBitmap(source.getWidth(), source.getHeight(), Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(finalResult);
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
 
         canvas.drawBitmap(source, 0, 0, paint);
         paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
-        canvas.drawBitmap(smoothMask, 0, 0, paint);
+        canvas.drawBitmap(scaledMask, 0, 0, paint);
 
         return finalResult;
+    }
+
+    private Bitmap applyBoxBlurOnAlpha(Bitmap bmp, int radius) {
+        int w = bmp.getWidth();
+        int h = bmp.getHeight();
+        Bitmap blurred = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        int[] pixels = new int[w * h];
+        bmp.getPixels(pixels, 0, w, 0, 0, w, h);
+        int[] outPixels = new int[w * h];
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int aSum = 0, count = 0;
+                for (int dy = -radius; dy <= radius; dy++) {
+                    for (int dx = -radius; dx <= radius; dx++) {
+                        int nx = x + dx;
+                        int ny = y + dy;
+                        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                            int p = pixels[ny * w + nx];
+                            aSum += (p >> 24) & 0xFF;
+                            count++;
+                        }
+                    }
+                }
+                int origPixel = pixels[y * w + x];
+                int alpha = aSum / count;
+                outPixels[y * w + x] = Color.argb(alpha, (origPixel >> 16) & 0xFF, (origPixel >> 8) & 0xFF, origPixel & 0xFF);
+            }
+        }
+        blurred.setPixels(outPixels, 0, w, 0, 0, w, h);
+        return blurred;
     }
 
     private void saveComposedImage(Bitmap.CompressFormat format) {
