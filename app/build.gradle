@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.pro7.version1'
+    namespace 'com.fon.version1'
     compileSdk 34
     defaultConfig {
-        applicationId "com.pro7.version1"
+        applicationId "com.fon.version1"
         minSdk 21
         targetSdk 34
-        versionCode 7
+        versionCode 8
         versionName "1"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "RomaMonsterApp_v1-" + variant.name + ".apk"
+            outputFileName = "ФОН_v1-" + variant.name + ".apk"
         }
     }
 }
