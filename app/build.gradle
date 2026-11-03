@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version02'
+    namespace 'com.hentay2.version02'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version02"
+        applicationId "com.hentay2.version02"
         minSdk 21
         targetSdk 34
-        versionCode 13
+        versionCode 14
         versionName "02"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "Monsterххх_v02-" + variant.name + ".apk"
+            outputFileName = "MonsterHentay_v02-" + variant.name + ".apk"
         }
     }
 }
