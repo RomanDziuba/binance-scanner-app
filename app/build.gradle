@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.fon2.version3'
+    namespace 'com.fon3.version3'
     compileSdk 34
     defaultConfig {
-        applicationId "com.fon2.version3"
+        applicationId "com.fon3.version3"
         minSdk 21
         targetSdk 34
-        versionCode 23
+        versionCode 24
         versionName "3"
     }
     compileOptions {
