@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version002'
+    namespace 'com.fon2.version002'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version002"
+        applicationId "com.fon2.version002"
         minSdk 21
         targetSdk 34
         versionCode 2
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "MonsterClock_v002-" + variant.name + ".apk"
+            outputFileName = "Monster_v002-" + variant.name + ".apk"
         }
     }
 }
