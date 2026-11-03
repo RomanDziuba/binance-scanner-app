@@ -2,13 +2,15 @@ package com.roman.version01;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
@@ -34,10 +36,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URLEncoder;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.MediaType;
@@ -54,13 +59,15 @@ public class MainActivity extends Activity {
     private ImageView imageView;
     private TextView statusText;
     private EditText inputChanges;
+    private TextView logConsole; // Консоль для логов на экране
+    private ScrollView logScrollView;
     private byte[] selectedImageBytes;
     private Handler handler = new Handler(Looper.getMainLooper());
     
     private String selectedModel = "grapefruit";
     private List<Button> modelButtons = new ArrayList<Button>();
 
-    // Пул ключей AI Horde (из вашего скрипта)
+    // Пул ключей AI Horde из вашего Python-скрипта
     private List<String> hordeKeys = new ArrayList<String>();
     
     private OkHttpClient httpClient = new OkHttpClient.Builder()
@@ -88,7 +95,7 @@ public class MainActivity extends Activity {
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
         rootLayout.setGravity(Gravity.CENTER_HORIZONTAL);
-        rootLayout.setPadding(30, 30, 30, 30);
+        rootLayout.setPadding(25, 25, 25, 25);
 
         TextView title = new TextView(this);
         title.setText("🔥 Monster AI Horde Pro Studio");
@@ -109,7 +116,7 @@ public class MainActivity extends Activity {
 
         imageView = new ImageView(this);
         LinearLayout.LayoutParams imgParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 500
+                LinearLayout.LayoutParams.MATCH_PARENT, 450
         );
         imgParams.setMargins(0, 0, 0, 15);
         imageView.setLayoutParams(imgParams);
@@ -136,8 +143,8 @@ public class MainActivity extends Activity {
         inputChanges = new EditText(this);
         inputChanges.setHint("Например: сделать красные волосы, добавить очки...");
         inputChanges.setHintTextColor(Color.parseColor("#666666"));
-        inputChanges.setTextColor(Color.parseColor("#000000")); // Черный текст
-        inputChanges.setBackgroundColor(Color.parseColor("#FFFFFF")); // Белый фон
+        inputChanges.setTextColor(Color.parseColor("#000000"));
+        inputChanges.setBackgroundColor(Color.parseColor("#FFFFFF"));
         inputChanges.setTextSize(13f);
         inputChanges.setPadding(16, 16, 16, 16);
         LinearLayout.LayoutParams editParams = new LinearLayout.LayoutParams(
@@ -171,7 +178,7 @@ public class MainActivity extends Activity {
             mBtn.setText(mName);
             mBtn.setTextSize(12f);
             mBtn.setTypeface(Typeface.DEFAULT_BOLD);
-            mBtn.setPadding(15, 12, 15, 12);
+            mBtn.setPadding(15, 10, 15, 10);
             
             LinearLayout.LayoutParams mParams = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
@@ -209,8 +216,59 @@ public class MainActivity extends Activity {
         });
         rootLayout.addView(btnProcess);
 
+        // --- СЕКЦИЯ ЛОГОВ ДЛЯ ОТЛАДКИ ---
+        TextView labelLogs = new TextView(this);
+        labelLogs.setText("📋 Отладочные логи (для проверки):");
+        labelLogs.setTextColor(Color.parseColor("#38BDF8"));
+        labelLogs.setTextSize(12f);
+        labelLogs.setTypeface(Typeface.DEFAULT_BOLD);
+        labelLogs.setPadding(0, 15, 0, 5);
+        rootLayout.addView(labelLogs);
+
+        logScrollView = new ScrollView(this);
+        LinearLayout.LayoutParams logScrollParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 350
+        );
+        logScrollParams.setMargins(0, 0, 0, 10);
+        logScrollView.setLayoutParams(logScrollParams);
+        logScrollView.setBackgroundColor(Color.parseColor("#0B0F19"));
+
+        logConsole = new TextView(this);
+        logConsole.setText("⏳ Ожидание запуска...\n");
+        logConsole.setTextColor(Color.parseColor("#34D399")); // Зеленый текст терминала
+        logConsole.setTextSize(11f);
+        logConsole.setTypeface(Typeface.MONOSPACE);
+        logConsole.setPadding(15, 15, 15, 15);
+        logScrollView.addView(logConsole);
+        rootLayout.addView(logScrollView);
+
+        Button btnCopyLogs = createStyledButton("📋 Скопировать логи в буфер", "#475569");
+        btnCopyLogs.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                ClipData clip = ClipData.newPlainText("MonsterAI Logs", logConsole.getText().toString());
+                clipboard.setPrimaryClip(clip);
+                Toast.makeText(MainActivity.this, "✅ Логи скопированы в буфер обмена!", Toast.LENGTH_SHORT).show();
+            }
+        });
+        rootLayout.addView(btnCopyLogs);
+
         mainScroll.addView(rootLayout);
         setContentView(mainScroll);
+        
+        appendLog("App initialized successfully.");
+    }
+
+    private void appendLog(final String text) {
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                String timeStr = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
+                logConsole.append("[" + timeStr + "] " + text + "\n");
+                logScrollView.fullScroll(View.FOCUS_DOWN);
+            }
+        });
     }
 
     private void updateModelButtonsState(String[] modelsList) {
@@ -231,14 +289,14 @@ public class MainActivity extends Activity {
         Button btn = new Button(this);
         btn.setText(text);
         btn.setTextColor(Color.WHITE);
-        btn.setTextSize(14f);
+        btn.setTextSize(13f);
         btn.setTypeface(Typeface.DEFAULT_BOLD);
         btn.setBackgroundColor(Color.parseColor(colorHex));
-        btn.setPadding(20, 18, 20, 18);
+        btn.setPadding(20, 16, 20, 16);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        params.setMargins(0, 0, 0, 12);
+        params.setMargins(0, 0, 0, 10);
         btn.setLayoutParams(params);
         return btn;
     }
@@ -268,14 +326,16 @@ public class MainActivity extends Activity {
 
                 Bitmap bmp = BitmapFactory.decodeByteArray(selectedImageBytes, 0, selectedImageBytes.length);
                 imageView.setImageBitmap(bmp);
-                statusText.setText("✅ Фото загружено!");
+                statusText.setText("✅ Фото успешно загружено!");
+                appendLog("Фото выбрано из галереи. Размер байт: " + selectedImageBytes.length);
             } catch (Exception e) {
+                appendLog("❌ Ошибка загрузки фото: " + e.getMessage());
                 Toast.makeText(this, "Ошибка загрузки: " + e.getMessage(), Toast.LENGTH_LONG).show();
             }
         }
     }
 
-    // --- АНАЛОГ ФУНКЦИИ make_image_square (ImageOps.pad) ИЗ ВАШЕГО PYTHON СКРИПТА ---
+    // Точный аналог make_image_square (ImageOps.pad) из вашего Python скрипта
     private Bitmap makeSquareBitmap(Bitmap source) {
         int width = source.getWidth();
         int height = source.getHeight();
@@ -283,7 +343,6 @@ public class MainActivity extends Activity {
             return source;
         }
         int maxDim = Math.max(width, height);
-        // Ограничение максимальной стороны до 1024 как в вашем питоновском скрипте для стабильности
         if (maxDim > 1024) {
             float scale = 1024f / maxDim;
             int newW = (int)(width * scale);
@@ -296,7 +355,7 @@ public class MainActivity extends Activity {
 
         Bitmap squareBitmap = Bitmap.createBitmap(maxDim, maxDim, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(squareBitmap);
-        canvas.drawColor(Color.BLACK); // Черные поля по краям (как ImageOps.pad)
+        canvas.drawColor(Color.BLACK); // Черные поля (pad)
         
         int left = (maxDim - width) / 2;
         int top = (maxDim - height) / 2;
@@ -317,17 +376,20 @@ public class MainActivity extends Activity {
                 if (respData != null) {
                     String translated = respData.optString("translatedText", "");
                     if (!translated.isEmpty() && !translated.toUpperCase().contains("INVALID")) {
+                        appendLog("Перевод текста успешен: '" + text + "' -> '" + translated + "'");
                         return translated;
                     }
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            appendLog("⚠️ Ошибка перевода: " + e.getMessage());
+        }
         return text;
     }
 
-    // Проверка ключей с заголовоком Client-Agent
     private List<String> getPrioritizedWorkingKeys() {
         List<KeyScore> workingKeys = new ArrayList<KeyScore>();
+        appendLog("Проверка пула ключей AI Horde...");
         for (int i = 0; i < hordeKeys.size(); i++) {
             String key = hordeKeys.get(i);
             try {
@@ -342,11 +404,17 @@ public class MainActivity extends Activity {
                     JSONObject json = new JSONObject(response.body().string());
                     double kudos = json.optDouble("kudos", 0);
                     workingKeys.add(new KeyScore(key, kudos));
+                    appendLog("✅ Ключ #" + (i+1) + " (" + key.substring(0, 5) + "...) Активен. Kudos: " + (int)kudos);
+                } else {
+                    appendLog("❌ Ключ #" + (i+1) + " отклонен (Code: " + response.code() + ")");
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                appendLog("⚠️ Сбой сети при проверке ключа #" + (i+1));
+            }
         }
         
         if (workingKeys.isEmpty()) {
+            appendLog("⚠️ Валидация вернула пустоту. Используем все ключи принудительно.");
             for (int i = 0; i < hordeKeys.size(); i++) {
                 workingKeys.add(new KeyScore(hordeKeys.get(i), 100.0));
             }
@@ -385,7 +453,7 @@ public class MainActivity extends Activity {
 
         final ProgressDialog progress = new ProgressDialog(this);
         progress.setTitle("⏳ Обработка задачи");
-        progress.setMessage("Подготовка фото и проверка ключей AI Horde...");
+        progress.setMessage("Подготовка и генерация...");
         progress.setCancelable(false);
         progress.show();
 
@@ -393,10 +461,12 @@ public class MainActivity extends Activity {
             @Override
             public void run() {
                 try {
+                    appendLog("--- СТАРТ НОВОЙ ГЕНЕРАЦИИ ---");
+                    
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            progress.setMessage("Перевод пожеланий на английский...");
+                            progress.setMessage("Перевод пожеланий...");
                         }
                     });
                     String translatedChanges = translateToEnglish(userChangesRaw);
@@ -404,24 +474,20 @@ public class MainActivity extends Activity {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            progress.setMessage("Проверка пула API ключей...");
+                            progress.setMessage("Проверка ключей...");
                         }
                     });
                     List<String> workingKeys = getPrioritizedWorkingKeys();
-                    if (workingKeys.isEmpty()) {
-                        workingKeys = hordeKeys;
-                    }
 
-                    // Превращение фото в квадрат с черными полями (как в вашем Питоне)
+                    // Квадратирование фото с черными полями (как в Python)
                     Bitmap originalBmp = BitmapFactory.decodeByteArray(selectedImageBytes, 0, selectedImageBytes.length);
                     Bitmap squareBmp = makeSquareBitmap(originalBmp);
-                    int squareSize = squareBmp.getWidth();
 
                     ByteArrayOutputStream stream = new ByteArrayOutputStream();
                     squareBmp.compress(Bitmap.CompressFormat.JPEG, 100, stream);
-                    String base64Image = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP);
+                    String base64Image = Base64.encodeToString(stream.toByteArray(), Bitmap.CompressFormat.JPEG == Bitmap.CompressFormat.JPEG ? Base64.NO_WRAP : Base64.NO_WRAP);
 
-                    // Инъекции из вашего скрипта
+                    // Инъекции из вашего Python скрипта для img2img
                     String hardcoreInject = "masterpiece, best quality, highly detailed anime, xxx, explicit, uncensored, highly detailed nude, bare skin, extremely detailed anatomy, hyper-detailed reproductive organs, meticulously detailed genitals, intricate physiological features, flawless skin texture, hentai";
                     if (!translatedChanges.isEmpty()) {
                         hardcoreInject += ", " + translatedChanges;
@@ -429,14 +495,12 @@ public class MainActivity extends Activity {
                     String negativePrompt = "(lowres, bad anatomy, bad hands:1.5, poorly drawn hands:1.5, missing fingers:1.5, extra fingers:1.5, mutated hands:1.5, fused fingers:1.5, disfigured, text, ugly, blurry, twisted neck, backward head, facing away, disconnected head, broken posture)";
                     String fullPrompt = hardcoreInject + " ### " + negativePrompt;
 
-                    // Параметры из вашего словаря IMG2IMG_SETTINGS["grapefruit"]
+                    // Параметры из вашего словаря IMG2IMG_SETTINGS["grapefruit"] БЕЗ width/height чтобы избежать черных квадратов
                     JSONObject paramsObj = new JSONObject();
                     paramsObj.put("sampler_name", "k_dpmpp_2m");
                     paramsObj.put("cfg_scale", 7.5);
                     paramsObj.put("steps", 20);
                     paramsObj.put("denoising_strength", 0.60);
-                    paramsObj.put("width", squareSize);
-                    paramsObj.put("height", squareSize);
 
                     byte[] resultBytes = null;
                     boolean successGenerated = false;
@@ -458,10 +522,11 @@ public class MainActivity extends Activity {
                             String apiKey = workingKeys.get(kIdx);
 
                             try {
+                                appendLog("👉 Попытка генерации. Модель: [" + modelName + "], Ключ: " + apiKey.substring(0, 5) + "...");
                                 handler.post(new Runnable() {
                                     @Override
                                     public void run() {
-                                        progress.setMessage("Модель [" + modelName + "]. Запрос...");
+                                        progress.setMessage("Модель: " + modelName);
                                     }
                                 });
 
@@ -489,10 +554,14 @@ public class MainActivity extends Activity {
 
                                 Response response = httpClient.newCall(request).execute();
                                 int code = response.code();
+                                appendLog("Ответ async API: HTTP " + code);
+
                                 if (code == 401 || code == 402 || code == 403 || code == 429) {
+                                    appendLog("⚠️ Ключ отклонен (квоты/ошибка). Пробуем следующий ключ.");
                                     continue;
                                 }
                                 if (code == 400) {
+                                    appendLog("⚠️ Модель " + modelName + " отклонила запрос (400). Переход к следующей модели.");
                                     break;
                                 }
                                 if (!response.isSuccessful() || response.body() == null) {
@@ -502,8 +571,12 @@ public class MainActivity extends Activity {
                                 String respStr = response.body().string();
                                 JSONObject respJson = new JSONObject(respStr);
                                 String jobId = respJson.optString("id", null);
-                                if (jobId == null) continue;
+                                if (jobId == null) {
+                                    appendLog("⚠️ Не получен job_id");
+                                    continue;
+                                }
 
+                                appendLog("✅ Job ID получен: " + jobId + ". Ожидание в очереди...");
                                 String statusUrl = "https://stablehorde.net/api/v2/generate/status/" + jobId;
                                 boolean jobDone = false;
                                 String imgUrl = null;
@@ -519,6 +592,7 @@ public class MainActivity extends Activity {
                                     if (statRespReal.isSuccessful() && statRespReal.body() != null) {
                                         JSONObject stJson = new JSONObject(statRespReal.body().string());
                                         if (stJson.optBoolean("faulted", false)) {
+                                            appendLog("❌ Воркер модели " + modelName + " сбросил задачу (faulted).");
                                             jobDone = true;
                                             break;
                                         }
@@ -528,9 +602,12 @@ public class MainActivity extends Activity {
                                                 imgUrl = gens.getJSONObject(0).optString("img", null);
                                             }
                                             jobDone = true;
+                                            appendLog("🎉 Задача выполнена! Получаем ссылку на фото.");
                                             break;
                                         } else {
                                             final int qPos = stJson.optInt("queue_position", 0);
+                                            final int waitTime = stJson.optInt("wait_time", 0);
+                                            appendLog("⏳ Статус: в очереди [" + modelName + "], позиция: " + qPos + ", ждем сек: " + waitTime);
                                             handler.post(new Runnable() {
                                                 @Override
                                                 public void run() {
@@ -542,6 +619,7 @@ public class MainActivity extends Activity {
                                 }
 
                                 if (jobDone && imgUrl != null && !imgUrl.isEmpty()) {
+                                    appendLog("📥 Скачивание готового изображения...");
                                     handler.post(new Runnable() {
                                         @Override
                                         public void run() {
@@ -553,10 +631,13 @@ public class MainActivity extends Activity {
                                     if (imgResp.isSuccessful() && imgResp.body() != null) {
                                         resultBytes = imgResp.body().bytes();
                                         successGenerated = true;
+                                        appendLog("✅ Изображение успешно скачано (" + resultBytes.length + " байт).");
                                         break;
                                     }
                                 }
-                            } catch (Exception ignored) {}
+                            } catch (Exception ex) {
+                                appendLog("🔴 Исключение в цикле запроса: " + ex.getMessage());
+                            }
                         }
                     }
 
@@ -574,10 +655,12 @@ public class MainActivity extends Activity {
                             imageView.setImageBitmap(finalBmp);
                             statusText.setText("✅ Успешно сгенерировано и сохранено!");
                             Toast.makeText(MainActivity.this, "Фото сохранено в Pictures/MonsterAI", Toast.LENGTH_LONG).show();
+                            appendLog("✨ Успех! Фото сохранено в галерею.");
                         }
                     });
 
                 } catch (final Exception e) {
+                    appendLog("❌ КРИТИЧЕСКАЯ ОШИБКА: " + e.getMessage());
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
@@ -602,8 +685,11 @@ public class MainActivity extends Activity {
             if (uri != null) {
                 try (OutputStream out = getContentResolver().openOutputStream(uri)) {
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 100, out);
+                    appendLog("Файл записан в MediaStore: " + fileName);
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            appendLog("❌ Ошибка сохранения в галерею: " + e.getMessage());
+        }
     }
 }
