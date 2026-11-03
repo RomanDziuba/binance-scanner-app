@@ -91,7 +91,7 @@ public class MainActivity extends Activity {
 
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
-        rootLayout.setPadding(12, 12, 12, 12);
+        rootLayout.setPadding(8, 8, 8, 8);
         rootLayout.setBackgroundColor(Color.parseColor("#121212"));
 
         // Холст с текстом информации об угле поворота поверх
@@ -107,8 +107,8 @@ public class MainActivity extends Activity {
 
         tvAngleInfo = new TextView(this);
         tvAngleInfo.setTextColor(Color.YELLOW);
-        tvAngleInfo.setTextSize(16);
-        tvAngleInfo.setPadding(16, 16, 16, 16);
+        tvAngleInfo.setTextSize(14);
+        tvAngleInfo.setPadding(12, 12, 12, 12);
         FrameLayout.LayoutParams tvParams = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
         tvParams.gravity = android.view.Gravity.TOP | android.view.Gravity.END;
@@ -120,11 +120,11 @@ public class MainActivity extends Activity {
         LinearLayout controlsLayout = new LinearLayout(this);
         controlsLayout.setOrientation(LinearLayout.VERTICAL);
 
-        // Кнопки загрузки и ИИ (компактные высоты ~40dp)
+        // Кнопки загрузки и ИИ (компактная высота 90px)
         Button btnLoadFg = new Button(this);
         btnLoadFg.setText("📂 Загрузить передний план");
         btnLoadFg.setOnClickListener(v -> openGallery(PICK_FG_IMAGE));
-        controlsLayout.addView(btnLoadFg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 110));
+        controlsLayout.addView(btnLoadFg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 90));
 
         Button btnRemoveBg = new Button(this);
         btnRemoveBg.setText("✨ Удалить фон");
@@ -132,14 +132,14 @@ public class MainActivity extends Activity {
             saveStateToHistory();
             removeBackgroundWithAI();
         });
-        controlsLayout.addView(btnRemoveBg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 110));
+        controlsLayout.addView(btnRemoveBg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 90));
 
         Button btnLoadBg = new Button(this);
         btnLoadBg.setText("🖼 Загрузить свой фон");
         btnLoadBg.setOnClickListener(v -> openGallery(PICK_BG_IMAGE));
-        controlsLayout.addView(btnLoadBg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 110));
+        controlsLayout.addView(btnLoadBg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 90));
 
-        // Панель: Поменять местами + Компактная кнопка удаления слоя в 2 раза меньше
+        // Панель: Поменять местами + Маленькая кнопка удаления слоя
         LinearLayout rowLayerLayout = new LinearLayout(this);
         rowLayerLayout.setOrientation(LinearLayout.HORIZONTAL);
 
@@ -156,15 +156,15 @@ public class MainActivity extends Activity {
             fgState.set(bgState);
             bgState.set(tempState);
 
-            activeLayer = 1; // Верхний слой всегда активен по умолчанию
+            activeLayer = 1; // Верхний слой всегда активен
             syncUIWithActiveLayer();
             layerView.invalidate();
             Toast.makeText(this, "Слои поменялись местами. Верхний активен.", Toast.LENGTH_SHORT).show();
         });
-        rowLayerLayout.addView(btnSwapLayers, new LinearLayout.LayoutParams(0, 110, 0.75f));
+        rowLayerLayout.addView(btnSwapLayers, new LinearLayout.LayoutParams(0, 90, 0.8f));
 
         Button btnDeleteLayer = new Button(this);
-        btnDeleteLayer.setText("🗑 Уд.слой");
+        btnDeleteLayer.setText("🗑 Удалить");
         btnDeleteLayer.setTextColor(Color.RED);
         btnDeleteLayer.setOnClickListener(v -> {
             saveStateToHistory();
@@ -177,7 +177,7 @@ public class MainActivity extends Activity {
             }
             layerView.invalidate();
         });
-        rowLayerLayout.addView(btnDeleteLayer, new LinearLayout.LayoutParams(0, 110, 0.25f));
+        rowLayerLayout.addView(btnDeleteLayer, new LinearLayout.LayoutParams(0, 90, 0.2f));
         controlsLayout.addView(rowLayerLayout);
 
         // Ползунок прозрачности
@@ -208,29 +208,29 @@ public class MainActivity extends Activity {
         alphaLayout.addView(seekBarAlpha);
         controlsLayout.addView(alphaLayout);
 
-        // Панель истории и сохранения: Отменить / Повторить / PNG / JPG
+        // Панель действий: Отменить / Повторить / PNG / JPG
         LinearLayout actionLayout = new LinearLayout(this);
         actionLayout.setOrientation(LinearLayout.HORIZONTAL);
 
         Button btnUndo = new Button(this);
-        btnUndo.setText("↩️ Отменить");
+        btnUndo.setText("↩️ Отмена");
         btnUndo.setOnClickListener(v -> undoAction());
-        actionLayout.addView(btnUndo, new LinearLayout.LayoutParams(0, 110, 0.25f));
+        actionLayout.addView(btnUndo, new LinearLayout.LayoutParams(0, 90, 0.25f));
 
         Button btnRedo = new Button(this);
-        btnRedo.setText("🔄 Повторить");
+        btnRedo.setText("🔄 Повтор");
         btnRedo.setOnClickListener(v -> redoAction());
-        actionLayout.addView(btnRedo, new LinearLayout.LayoutParams(0, 110, 0.25f));
+        actionLayout.addView(btnRedo, new LinearLayout.LayoutParams(0, 90, 0.25f));
 
         Button btnSavePng = new Button(this);
         btnSavePng.setText("💾 PNG");
         btnSavePng.setOnClickListener(v -> saveComposedImage(Bitmap.CompressFormat.PNG));
-        actionLayout.addView(btnSavePng, new LinearLayout.LayoutParams(0, 110, 0.25f));
+        actionLayout.addView(btnSavePng, new LinearLayout.LayoutParams(0, 90, 0.25f));
 
         Button btnSaveJpg = new Button(this);
         btnSaveJpg.setText("💾 JPG");
         btnSaveJpg.setOnClickListener(v -> saveComposedImage(Bitmap.CompressFormat.JPEG));
-        actionLayout.addView(btnSaveJpg, new LinearLayout.LayoutParams(0, 110, 0.25f));
+        actionLayout.addView(btnSaveJpg, new LinearLayout.LayoutParams(0, 90, 0.25f));
 
         controlsLayout.addView(actionLayout);
         rootLayout.addView(controlsLayout);
@@ -267,13 +267,13 @@ public class MainActivity extends Activity {
         snap.fgS.set(fgState);
         snap.bgS.set(bgState);
         undoStack.add(snap);
-        redoStack.clear(); // Очищаем redo при новом действии
+        redoStack.clear();
         if (undoStack.size() > 20) undoStack.remove(0);
     }
 
     private void undoAction() {
         if (undoStack.isEmpty()) {
-            Toast.MakedTextShort(this, "Нечего отменять");
+            Toast.makeText(this, "Нечего отменять", Toast.LENGTH_SHORT).show();
             return;
         }
         HistorySnapshot currentSnap = new HistorySnapshot();
@@ -482,7 +482,6 @@ public class MainActivity extends Activity {
         private float lastFocusX, lastFocusY;
         private boolean isScalingOrRotating = false;
 
-        // Переменные для расчета угла поворота двумя пальцами
         private float initialTouchAngle = 0f;
         private float startRotation = 0f;
 
@@ -492,12 +491,22 @@ public class MainActivity extends Activity {
                 @Override
                 public boolean onScale(ScaleGestureDetector detector) {
                     float scaleFactor = detector.getScaleFactor();
+                    float focusX = detector.getFocusX();
+                    float focusY = detector.getFocusY();
+
                     if (activeLayer == 1) {
+                        float oldScale = fgState.scale;
                         fgState.scale *= scaleFactor;
                         fgState.scale = Math.max(0.1f, Math.min(fgState.scale, 10.0f));
+                        // Фикс скачков масштабирования (центр относительно фокуса пальцев)
+                        fgState.x = focusX - (focusX - fgState.x) * (fgState.scale / oldScale);
+                        fgState.y = focusY - (focusY - fgState.y) * (fgState.scale / oldScale);
                     } else {
+                        float oldScale = bgState.scale;
                         bgState.scale *= scaleFactor;
                         bgState.scale = Math.max(0.1f, Math.min(bgState.scale, 10.0f));
+                        bgState.x = focusX - (focusX - bgState.x) * (bgState.scale / oldScale);
+                        bgState.y = focusY - (focusY - bgState.y) * (bgState.scale / oldScale);
                     }
                     invalidate();
                     return true;
@@ -555,7 +564,6 @@ public class MainActivity extends Activity {
                 lastFocusY = scaleDetector.getFocusY();
             } else if (action == MotionEvent.ACTION_MOVE) {
                 if (pointerCount >= 2) {
-                    // Мультитач: масштабирование и вращение двумя пальцами без скачков
                     float currentAngle = getAngle(event);
                     float deltaAngle = currentAngle - initialTouchAngle;
                     float newRotation = startRotation + deltaAngle;
@@ -581,7 +589,6 @@ public class MainActivity extends Activity {
                     lastFocusY = focusY;
                     invalidate();
                 } else if (!isScalingOrRotating && !scaleDetector.isInProgress()) {
-                    // Обычное перемещение одним пальцем
                     float dx = event.getX() - lastTouchX;
                     float dy = event.getY() - lastTouchY;
                     if (activeLayer == 1) {
