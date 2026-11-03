@@ -9,7 +9,7 @@ android {
         applicationId "com.fon2.version2"
         minSdk 21
         targetSdk 34
-        versionCode 13
+        versionCode 14
         versionName "2"
     }
     compileOptions {
