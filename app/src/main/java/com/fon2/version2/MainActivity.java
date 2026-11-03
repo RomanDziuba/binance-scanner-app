@@ -20,6 +20,7 @@ import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -71,7 +72,12 @@ public class MainActivity extends Activity {
     private final LayerState bgState = new LayerState();
     private int activeLayer = 1; // 1 - Передний план, 0 - Фон
 
-    private SeekBar seekBarAlpha;
+    private SeekBar seekBarAlpha, seekBarLowThresh, seekBarHighThresh;
+    private TextView tvLowVal, tvHighVal;
+
+    // Настройки фильтрации ИИ (управляются ползунками)
+    private float aiLowThreshold = 0.18f;
+    private float aiHighThreshold = 0.82f;
 
     // История для Отменить / Повторить
     private static class HistorySnapshot {
@@ -117,15 +123,20 @@ public class MainActivity extends Activity {
 
         rootLayout.addView(container);
 
+        // Обернем панель управления в ScrollView, чтобы все элементы и новые ползунки помещались на экране
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
         LinearLayout controlsLayout = new LinearLayout(this);
         controlsLayout.setOrientation(LinearLayout.VERTICAL);
 
-        // Кнопки загрузки и ИИ (увеличенная высота 125px + отступы для текста)
+        // Кнопки загрузки и ИИ (увеличенная высота 110px + отступы для текста, чтобы не обрезало)
         Button btnLoadFg = new Button(this);
         btnLoadFg.setText("📂 Загрузить передний план");
         btnLoadFg.setPadding(12, 16, 12, 16);
         btnLoadFg.setOnClickListener(v -> openGallery(PICK_FG_IMAGE));
-        controlsLayout.addView(btnLoadFg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 125));
+        controlsLayout.addView(btnLoadFg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 110));
 
         Button btnRemoveBg = new Button(this);
         btnRemoveBg.setText("✨ Удалить фон");
@@ -134,13 +145,13 @@ public class MainActivity extends Activity {
             saveStateToHistory();
             removeBackgroundWithAI();
         });
-        controlsLayout.addView(btnRemoveBg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 125));
+        controlsLayout.addView(btnRemoveBg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 110));
 
         Button btnLoadBg = new Button(this);
         btnLoadBg.setText("🖼 Загрузить свой фон");
         btnLoadBg.setPadding(12, 16, 12, 16);
         btnLoadBg.setOnClickListener(v -> openGallery(PICK_BG_IMAGE));
-        controlsLayout.addView(btnLoadBg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 125));
+        controlsLayout.addView(btnLoadBg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 110));
 
         // Панель: Поменять местами + Кнопка удаления слоя
         LinearLayout rowLayerLayout = new LinearLayout(this);
@@ -165,7 +176,7 @@ public class MainActivity extends Activity {
             layerView.invalidate();
             Toast.makeText(this, "Слои поменялись местами. Верхний активен.", Toast.LENGTH_SHORT).show();
         });
-        rowLayerLayout.addView(btnSwapLayers, new LinearLayout.LayoutParams(0, 125, 0.75f));
+        rowLayerLayout.addView(btnSwapLayers, new LinearLayout.LayoutParams(0, 110, 0.75f));
 
         Button btnDeleteLayer = new Button(this);
         btnDeleteLayer.setText("🗑 Уд.");
@@ -182,12 +193,13 @@ public class MainActivity extends Activity {
             }
             layerView.invalidate();
         });
-        rowLayerLayout.addView(btnDeleteLayer, new LinearLayout.LayoutParams(0, 125, 0.25f));
+        rowLayerLayout.addView(btnDeleteLayer, new LinearLayout.LayoutParams(0, 110, 0.25f));
         controlsLayout.addView(rowLayerLayout);
 
         // Ползунок прозрачности
         LinearLayout alphaLayout = new LinearLayout(this);
         alphaLayout.setOrientation(LinearLayout.HORIZONTAL);
+        alphaLayout.setPadding(4, 8, 4, 4);
         TextView lblAlpha = new TextView(this);
         lblAlpha.setText("Прозрачность: ");
         lblAlpha.setTextColor(Color.WHITE);
@@ -213,6 +225,73 @@ public class MainActivity extends Activity {
         alphaLayout.addView(seekBarAlpha);
         controlsLayout.addView(alphaLayout);
 
+        // --- НОВЫЕ НАСТРОЙКИ: Полосы очистки краев ИИ ---
+        // 1. Ползунок Мин. порога (Удаление ореолов и грязи)
+        LinearLayout lowThreshLayout = new LinearLayout(this);
+        lowThreshLayout.setOrientation(LinearLayout.HORIZONTAL);
+        lowThreshLayout.setPadding(4, 4, 4, 4);
+        
+        TextView lblLow = new TextView(this);
+        lblLow.setText("Очистка ореолов (Мин): ");
+        lblLow.setTextColor(Color.LTGRAY);
+        lowThreshLayout.addView(lblLow);
+
+        tvLowVal = new TextView(this);
+        tvLowVal.setText("18%");
+        tvLowVal.setTextColor(Color.YELLOW);
+        tvLowVal.setPadding(8, 0, 8, 0);
+        lowThreshLayout.addView(tvLowVal);
+
+        seekBarLowThresh = new SeekBar(this);
+        seekBarLowThresh.setMax(50); // от 0 до 50%
+        seekBarLowThresh.setProgress(18); // дефолт 18%
+        seekBarLowThresh.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        seekBarLowThresh.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                aiLowThreshold = progress / 100.0f;
+                tvLowVal.setText(progress + "%");
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+        lowThreshLayout.addView(seekBarLowThresh);
+        controlsLayout.addView(lowThreshLayout);
+
+        // 2. Ползунок Макс. порога (Плотность и четкость краев объекта)
+        LinearLayout highThreshLayout = new LinearLayout(this);
+        highThreshLayout.setOrientation(LinearLayout.HORIZONTAL);
+        highThreshLayout.setPadding(4, 4, 4, 8);
+
+        TextView lblHigh = new TextView(this);
+        lblHigh.setText("Плотность краев (Макс): ");
+        lblHigh.setTextColor(Color.LTGRAY);
+        highThreshLayout.addView(lblHigh);
+
+        tvHighVal = new TextView(this);
+        tvHighVal.setText("82%");
+        tvHighVal.setTextColor(Color.YELLOW);
+        tvHighVal.setPadding(8, 0, 8, 0);
+        highThreshLayout.addView(tvHighVal);
+
+        seekBarHighThresh = new SeekBar(this);
+        seekBarHighThresh.setMax(100); // от 50 до 100%
+        seekBarHighThresh.setProgress(82); // дефолт 82%
+        seekBarHighThresh.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        seekBarHighThresh.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (progress < 50) progress = 50; // защитный порог чтобы не ломать логику
+                aiHighThreshold = progress / 100.0f;
+                tvHighVal.setText(progress + "%");
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+        highThreshLayout.addView(seekBarHighThresh);
+        controlsLayout.addView(highThreshLayout);
+        // ------------------------------------------------
+
         // Панель действий: Отмена / Повтор / PNG / JPG
         LinearLayout actionLayout = new LinearLayout(this);
         actionLayout.setOrientation(LinearLayout.HORIZONTAL);
@@ -221,28 +300,30 @@ public class MainActivity extends Activity {
         btnUndo.setText("↩️ Отмена");
         btnUndo.setPadding(4, 16, 4, 16);
         btnUndo.setOnClickListener(v -> undoAction());
-        actionLayout.addView(btnUndo, new LinearLayout.LayoutParams(0, 125, 0.25f));
+        actionLayout.addView(btnUndo, new LinearLayout.LayoutParams(0, 110, 0.25f));
 
         Button btnRedo = new Button(this);
         btnRedo.setText("🔄 Повтор");
         btnRedo.setPadding(4, 16, 4, 16);
         btnRedo.setOnClickListener(v -> redoAction());
-        actionLayout.addView(btnRedo, new LinearLayout.LayoutParams(0, 125, 0.25f));
+        actionLayout.addView(btnRedo, new LinearLayout.LayoutParams(0, 110, 0.25f));
 
         Button btnSavePng = new Button(this);
         btnSavePng.setText("💾 PNG");
         btnSavePng.setPadding(4, 16, 4, 16);
         btnSavePng.setOnClickListener(v -> saveComposedImage(Bitmap.CompressFormat.PNG));
-        actionLayout.addView(btnSavePng, new LinearLayout.LayoutParams(0, 125, 0.25f));
+        actionLayout.addView(btnSavePng, new LinearLayout.LayoutParams(0, 110, 0.25f));
 
         Button btnSaveJpg = new Button(this);
         btnSaveJpg.setText("💾 JPG");
         btnSaveJpg.setPadding(4, 16, 4, 16);
         btnSaveJpg.setOnClickListener(v -> saveComposedImage(Bitmap.CompressFormat.JPEG));
-        actionLayout.addView(btnSaveJpg, new LinearLayout.LayoutParams(0, 125, 0.25f));
+        actionLayout.addView(btnSaveJpg, new LinearLayout.LayoutParams(0, 110, 0.25f));
 
         controlsLayout.addView(actionLayout);
-        rootLayout.addView(controlsLayout);
+        
+        scrollView.addView(controlsLayout);
+        rootLayout.addView(scrollView);
 
         setContentView(rootLayout);
 
@@ -397,7 +478,7 @@ public class MainActivity extends Activity {
             return;
         }
 
-        Toast.makeText(this, "Удаление фона нейросетью...", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Удаление фона с учетом настроек...", Toast.LENGTH_SHORT).show();
 
         new Thread(() -> {
             try {
@@ -430,19 +511,36 @@ public class MainActivity extends Activity {
                 float[][][][] rawOutput = (float[][][][]) outputTensor.getValue();
 
                 Bitmap maskBitmap = Bitmap.createBitmap(imgSize, imgSize, Bitmap.Config.ARGB_8888);
+                
+                // Используем значения из ползунков интерфейса
+                float lowThresh = aiLowThreshold;
+                float highThresh = aiHighThreshold;
+                if (highThresh <= lowThresh) highThresh = lowThresh + 0.05f; // Защита от коллизий
+                
                 for (int y = 0; y < imgSize; y++) {
                     for (int x = 0; x < imgSize; x++) {
                         float val = rawOutput[0][0][y][x];
-                        int alpha = (int) (Math.min(Math.max(val, 0.0f), 1.0f) * 255);
+                        
+                        if (val < lowThresh) {
+                            val = 0.0f; // Стирка фоновых шумов
+                        } else if (val > highThresh) {
+                            val = 1.0f; // Уплотнение центра объекта
+                        } else {
+                            val = (val - lowThresh) / (highThresh - lowThresh);
+                            val = (float) Math.pow(val, 0.75f);
+                        }
+                        
+                        int alpha = (int) (val * 255);
                         maskBitmap.setPixel(x, y, Color.argb(alpha, 255, 255, 255));
                     }
                 }
 
-                Bitmap finalResult = Bitmap.createBitmap(foregroundBitmap.getWidth(), foregroundBitmap.getHeight(), Bitmap.Config.ARGB_8888);
                 Bitmap scaledMask = Bitmap.createScaledBitmap(maskBitmap, foregroundBitmap.getWidth(), foregroundBitmap.getHeight(), true);
                 
+                Bitmap finalResult = Bitmap.createBitmap(foregroundBitmap.getWidth(), foregroundBitmap.getHeight(), Bitmap.Config.ARGB_8888);
                 Canvas canvas = new Canvas(finalResult);
-                Paint paint = new Paint();
+                Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+                
                 canvas.drawBitmap(foregroundBitmap, 0, 0, paint);
                 paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
                 canvas.drawBitmap(scaledMask, 0, 0, paint);
@@ -450,7 +548,7 @@ public class MainActivity extends Activity {
                 runOnUiThread(() -> {
                     foregroundBitmap = finalResult;
                     layerView.invalidate();
-                    Toast.makeText(this, "Фон успешно удален!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Фон успешно удален и очищен!", Toast.LENGTH_SHORT).show();
                 });
 
             } catch (Exception e) {
