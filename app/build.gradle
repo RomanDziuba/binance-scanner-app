@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.fon2.version2'
+    namespace 'com.pro7.version2'
     compileSdk 34
     defaultConfig {
-        applicationId "com.fon2.version2"
+        applicationId "com.pro7.version2"
         minSdk 21
         targetSdk 34
         versionCode 12
