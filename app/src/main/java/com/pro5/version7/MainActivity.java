@@ -2330,7 +2330,7 @@ public class MainActivity extends Activity {
                "on:\n  workflow_dispatch:\n\n" +
                "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" +
                "      - name: Checkout\n        uses: actions/checkout@v4\n" +
-               "      - name: Set up JDK 17\n        uses: actions/setup-java@v6\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n" +
+               "      - name: Set up JDK 17\n        uses: actions/setup-java@v5\n        with:\n          distribution: 'temurin'\n          java-version: '17'\n" +
                "      - name: Setup Android SDK (Native Bash)\n        run: |\n" +
                "          export ANDROID_HOME=/usr/local/lib/android/sdk\n" +
                "          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools\n" +
