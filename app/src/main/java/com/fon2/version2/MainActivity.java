@@ -120,31 +120,35 @@ public class MainActivity extends Activity {
         LinearLayout controlsLayout = new LinearLayout(this);
         controlsLayout.setOrientation(LinearLayout.VERTICAL);
 
-        // Кнопки загрузки и ИИ (компактная высота 90px)
+        // Кнопки загрузки и ИИ (увеличенная высота 125px + отступы для текста)
         Button btnLoadFg = new Button(this);
         btnLoadFg.setText("📂 Загрузить передний план");
+        btnLoadFg.setPadding(12, 16, 12, 16);
         btnLoadFg.setOnClickListener(v -> openGallery(PICK_FG_IMAGE));
-        controlsLayout.addView(btnLoadFg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 90));
+        controlsLayout.addView(btnLoadFg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 125));
 
         Button btnRemoveBg = new Button(this);
         btnRemoveBg.setText("✨ Удалить фон");
+        btnRemoveBg.setPadding(12, 16, 12, 16);
         btnRemoveBg.setOnClickListener(v -> {
             saveStateToHistory();
             removeBackgroundWithAI();
         });
-        controlsLayout.addView(btnRemoveBg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 90));
+        controlsLayout.addView(btnRemoveBg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 125));
 
         Button btnLoadBg = new Button(this);
         btnLoadBg.setText("🖼 Загрузить свой фон");
+        btnLoadBg.setPadding(12, 16, 12, 16);
         btnLoadBg.setOnClickListener(v -> openGallery(PICK_BG_IMAGE));
-        controlsLayout.addView(btnLoadBg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 90));
+        controlsLayout.addView(btnLoadBg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 125));
 
-        // Панель: Поменять местами + Маленькая кнопка удаления слоя
+        // Панель: Поменять местами + Кнопка удаления слоя
         LinearLayout rowLayerLayout = new LinearLayout(this);
         rowLayerLayout.setOrientation(LinearLayout.HORIZONTAL);
 
         Button btnSwapLayers = new Button(this);
         btnSwapLayers.setText("🔀 Поменять местами (Верхний активен)");
+        btnSwapLayers.setPadding(8, 16, 8, 16);
         btnSwapLayers.setOnClickListener(v -> {
             saveStateToHistory();
             Bitmap tempBmp = foregroundBitmap;
@@ -156,16 +160,17 @@ public class MainActivity extends Activity {
             fgState.set(bgState);
             bgState.set(tempState);
 
-            activeLayer = 1; // Верхний слой всегда активен
+            activeLayer = 1;
             syncUIWithActiveLayer();
             layerView.invalidate();
             Toast.makeText(this, "Слои поменялись местами. Верхний активен.", Toast.LENGTH_SHORT).show();
         });
-        rowLayerLayout.addView(btnSwapLayers, new LinearLayout.LayoutParams(0, 90, 0.8f));
+        rowLayerLayout.addView(btnSwapLayers, new LinearLayout.LayoutParams(0, 125, 0.75f));
 
         Button btnDeleteLayer = new Button(this);
-        btnDeleteLayer.setText("🗑 Удалить");
+        btnDeleteLayer.setText("🗑 Уд.");
         btnDeleteLayer.setTextColor(Color.RED);
+        btnDeleteLayer.setPadding(4, 16, 4, 16);
         btnDeleteLayer.setOnClickListener(v -> {
             saveStateToHistory();
             if (activeLayer == 1) {
@@ -177,7 +182,7 @@ public class MainActivity extends Activity {
             }
             layerView.invalidate();
         });
-        rowLayerLayout.addView(btnDeleteLayer, new LinearLayout.LayoutParams(0, 90, 0.2f));
+        rowLayerLayout.addView(btnDeleteLayer, new LinearLayout.LayoutParams(0, 125, 0.25f));
         controlsLayout.addView(rowLayerLayout);
 
         // Ползунок прозрачности
@@ -208,29 +213,33 @@ public class MainActivity extends Activity {
         alphaLayout.addView(seekBarAlpha);
         controlsLayout.addView(alphaLayout);
 
-        // Панель действий: Отменить / Повторить / PNG / JPG
+        // Панель действий: Отмена / Повтор / PNG / JPG
         LinearLayout actionLayout = new LinearLayout(this);
         actionLayout.setOrientation(LinearLayout.HORIZONTAL);
 
         Button btnUndo = new Button(this);
         btnUndo.setText("↩️ Отмена");
+        btnUndo.setPadding(4, 16, 4, 16);
         btnUndo.setOnClickListener(v -> undoAction());
-        actionLayout.addView(btnUndo, new LinearLayout.LayoutParams(0, 90, 0.25f));
+        actionLayout.addView(btnUndo, new LinearLayout.LayoutParams(0, 125, 0.25f));
 
         Button btnRedo = new Button(this);
         btnRedo.setText("🔄 Повтор");
+        btnRedo.setPadding(4, 16, 4, 16);
         btnRedo.setOnClickListener(v -> redoAction());
-        actionLayout.addView(btnRedo, new LinearLayout.LayoutParams(0, 90, 0.25f));
+        actionLayout.addView(btnRedo, new LinearLayout.LayoutParams(0, 125, 0.25f));
 
         Button btnSavePng = new Button(this);
         btnSavePng.setText("💾 PNG");
+        btnSavePng.setPadding(4, 16, 4, 16);
         btnSavePng.setOnClickListener(v -> saveComposedImage(Bitmap.CompressFormat.PNG));
-        actionLayout.addView(btnSavePng, new LinearLayout.LayoutParams(0, 90, 0.25f));
+        actionLayout.addView(btnSavePng, new LinearLayout.LayoutParams(0, 125, 0.25f));
 
         Button btnSaveJpg = new Button(this);
         btnSaveJpg.setText("💾 JPG");
+        btnSaveJpg.setPadding(4, 16, 4, 16);
         btnSaveJpg.setOnClickListener(v -> saveComposedImage(Bitmap.CompressFormat.JPEG));
-        actionLayout.addView(btnSaveJpg, new LinearLayout.LayoutParams(0, 90, 0.25f));
+        actionLayout.addView(btnSaveJpg, new LinearLayout.LayoutParams(0, 125, 0.25f));
 
         controlsLayout.addView(actionLayout);
         rootLayout.addView(controlsLayout);
@@ -498,7 +507,6 @@ public class MainActivity extends Activity {
                         float oldScale = fgState.scale;
                         fgState.scale *= scaleFactor;
                         fgState.scale = Math.max(0.1f, Math.min(fgState.scale, 10.0f));
-                        // Фикс скачков масштабирования (центр относительно фокуса пальцев)
                         fgState.x = focusX - (focusX - fgState.x) * (fgState.scale / oldScale);
                         fgState.y = focusY - (focusY - fgState.y) * (fgState.scale / oldScale);
                     } else {
