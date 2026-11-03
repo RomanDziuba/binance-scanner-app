@@ -95,7 +95,6 @@ public class MainActivity extends Activity {
     private OrtEnvironment ortEnvironment;
     private OrtSession ortSession;
 
-    // Функциональный интерфейс для ползунков
     private interface OnProgressChangedListener {
         void onProgress(int progress);
     }
@@ -189,7 +188,7 @@ public class MainActivity extends Activity {
             sourceForAI1 = sourceForAI2;
             sourceForAI2 = tempSrc;
 
-            activeLayer = 1; // Верхний слой активен по умолчанию
+            activeLayer = 1;
             syncUIWithActiveLayer();
             layerView.invalidate();
             Toast.makeText(this, "Слои поменялись местами. Верхний активен.", Toast.LENGTH_SHORT).show();
@@ -218,21 +217,19 @@ public class MainActivity extends Activity {
         rowLayerLayout.addView(btnDeleteLayer, new LinearLayout.LayoutParams(0, 120, 0.25f));
         controlsLayout.addView(rowLayerLayout);
 
-        // Интерактивный ползунок: Прозрачность
-        controlsLayout.addView(createSeekBarLayout("Прозрачность: ", seekBarAlpha = createInteractiveSeekBar(100, 100, progress -> {
+        // Интерактивные широкие ползунки (вертикальная структура для полной ширины)
+        controlsLayout.addView(createWideSeekBarLayout("Прозрачность:", seekBarAlpha = createInteractiveSeekBar(100, 100, progress -> {
             float val = progress / 100.0f;
             if (activeLayer == 1) state1.alpha = val;
             else state2.alpha = val;
             layerView.invalidate();
         })));
 
-        // Интерактивный ползунок: Очистка ореолов
-        controlsLayout.addView(createSeekBarLayout("Очистка ореолов: ", seekBarHalo = createInteractiveSeekBar(100, 45, progress -> {
+        controlsLayout.addView(createWideSeekBarLayout("Очистка ореолов (Мощная):", seekBarHalo = createInteractiveSeekBar(100, 50, progress -> {
             applyInteractiveMaskSettings();
         })));
 
-        // Интерактивный ползунок: Плотность краев
-        controlsLayout.addView(createSeekBarLayout("Плотность краев: ", seekBarDensity = createInteractiveSeekBar(100, 50, progress -> {
+        controlsLayout.addView(createWideSeekBarLayout("Плотность краев:", seekBarDensity = createInteractiveSeekBar(100, 50, progress -> {
             applyInteractiveMaskSettings();
         })));
 
@@ -282,10 +279,10 @@ public class MainActivity extends Activity {
         initOnnxEnvironment();
     }
 
-    private LinearLayout createSeekBarLayout(String labelText, SeekBar seekBar) {
+    private LinearLayout createWideSeekBarLayout(String labelText, SeekBar seekBar) {
         LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.HORIZONTAL);
-        layout.setPadding(4, 2, 4, 2);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(4, 4, 4, 4);
 
         TextView label = new TextView(this);
         label.setText(labelText);
@@ -293,7 +290,7 @@ public class MainActivity extends Activity {
         label.setTextSize(13);
         layout.addView(label, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        seekBar.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        seekBar.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         layout.addView(seekBar);
         return layout;
     }
@@ -492,7 +489,7 @@ public class MainActivity extends Activity {
             return;
         }
 
-        Toast.makeText(this, "Анализ и удаление фона...", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Анализ и мощное удаление фона...", Toast.LENGTH_SHORT).show();
 
         if (activeLayer == 1) sourceForAI1 = bitmap1;
         else sourceForAI2 = bitmap2;
@@ -536,7 +533,7 @@ public class MainActivity extends Activity {
                     if (activeLayer == 1) bitmap1 = finalResult;
                     else bitmap2 = finalResult;
                     layerView.invalidate();
-                    Toast.makeText(this, "Фон успешно удален!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Фон очищен с повышенной мощностью!", Toast.LENGTH_SHORT).show();
                 });
 
             } catch (Exception e) {
@@ -561,11 +558,13 @@ public class MainActivity extends Activity {
         int imgSize = 320;
         Bitmap maskBitmap = Bitmap.createBitmap(imgSize, imgSize, Bitmap.Config.ARGB_8888);
 
-        float haloVal = seekBarHalo != null ? seekBarHalo.getProgress() / 100.0f : 0.45f;
-        float densityVal = seekBarDensity != null ? seekBarDensity.getProgress() / 100.0f : 0.50f;
+        float haloVal = seekBarHalo != null ? seekBarHalo.getProgress() / 100.0f : 0.5f;
+        float densityVal = seekBarDensity != null ? seekBarDensity.getProgress() / 100.0f : 0.5f;
 
-        float lowThreshold = haloVal * 0.4f;
-        float gamma = 0.2f + densityVal * 1.8f;
+        // Повышенная мощность очистки ореолов (до 0.85 отсечения)
+        float lowThreshold = haloVal * 0.85f; 
+        // Повышенная мощность плотности краев (верхний порог сужается до 0.3 для жесткой отсечки шумов)
+        float highThreshold = 1.0f - (densityVal * 0.7f);
 
         for (int y = 0; y < imgSize; y++) {
             for (int x = 0; x < imgSize; x++) {
@@ -573,9 +572,13 @@ public class MainActivity extends Activity {
 
                 if (val < lowThreshold) {
                     val = 0.0f;
+                } else if (val > highThreshold) {
+                    val = 1.0f;
                 } else {
-                    val = (val - lowThreshold) / (1.0f - lowThreshold);
-                    val = (float) Math.pow(Math.max(0f, Math.min(1f, val)), gamma);
+                    if (highThreshold > lowThreshold) {
+                        val = (val - lowThreshold) / (highThreshold - lowThreshold);
+                    }
+                    val = (float) Math.pow(Math.max(0f, Math.min(1f, val)), 0.4f); // Сверхконтрастный сглаживающий фильтр
                 }
 
                 int alpha = (int) (val * 255);
@@ -604,7 +607,7 @@ public class MainActivity extends Activity {
             canvas.drawColor(Color.TRANSPARENT);
         }
         
-        layerView.drawLayers(canvas, true); // true = без желтой обводки
+        layerView.drawLayers(canvas, true);
 
         File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
         String ext = (format == Bitmap.CompressFormat.PNG) ? ".png" : ".jpg";
@@ -661,7 +664,6 @@ public class MainActivity extends Activity {
         public void drawLayers(Canvas canvas, boolean isSaving) {
             Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG);
 
-            // Сначала рисуем слой 2 (Фон)
             if (bitmap2 != null) {
                 canvas.save();
                 paint.setAlpha((int)(state2.alpha * 255));
@@ -676,7 +678,6 @@ public class MainActivity extends Activity {
                 }
             }
 
-            // Затем рисуем слой 1 поверх слоя 2
             if (bitmap1 != null) {
                 canvas.save();
                 paint.setAlpha((int)(state1.alpha * 255));
@@ -725,7 +726,6 @@ public class MainActivity extends Activity {
                 lastTouchY = event.getY();
                 isScalingOrRotating = false;
 
-                // Переключение активного слоя по касанию
                 float touchX = event.getX();
                 float touchY = event.getY();
                 if (isTouchInsideBitmap(touchX, touchY, bitmap2, state2) && !isTouchInsideBitmap(touchX, touchY, bitmap1, state1)) {
