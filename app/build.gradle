@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.monsterxxxx.version02'
+    namespace 'com.roman.version02'
     compileSdk 34
     defaultConfig {
-        applicationId "com.monsterxxxx.version02"
+        applicationId "com.roman.version02"
         minSdk 21
         targetSdk 34
         versionCode 12
