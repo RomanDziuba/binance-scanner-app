@@ -1,7 +1,6 @@
 package com.roman.version1;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.ContentValues;
 import android.content.Intent;
@@ -17,6 +16,7 @@ import android.os.Looper;
 import android.provider.MediaStore;
 import android.util.Base64;
 import android.view.Gravity;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -49,9 +49,10 @@ public class MainActivity extends Activity {
     
     private ImageView imageView;
     private TextView statusText;
-    private Uri selectedImageUri;
-    private byte[] selectedImageBytes;
-    private String customUserPrompt = "";
+    private EditText inputChanges;
+    private Button btnProcess, btnSkip;
+    
+    private byte[] selectedImageBytes = null;
     private Handler handler = new Handler(Looper.getMainLooper());
     
     // --- ПУЛ КЛЮЧЕЙ AI HORDE ---
@@ -65,7 +66,6 @@ public class MainActivity extends Activity {
         add("j7gxGfUrvncLoJDuVzrVWA");
     }};
     
-    // OkHttp клиент с расширенными таймаутами для работы с ИИ-серверами
     private OkHttpClient httpClient = new OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
@@ -80,30 +80,30 @@ public class MainActivity extends Activity {
         rootLayout.setOrientation(LinearLayout.VERTICAL);
         rootLayout.setGravity(Gravity.CENTER_HORIZONTAL);
         rootLayout.setBackgroundColor(Color.parseColor("#030712"));
-        rootLayout.setPadding(30, 30, 30, 30);
+        rootLayout.setPadding(25, 25, 25, 25);
 
         TextView title = new TextView(this);
-        title.setText("🔥 Monster AI Horde Engine Ultra");
+        title.setText("🔥 Monster AI Studio (Native)");
         title.setTextColor(Color.parseColor("#38BDF8"));
-        title.setTextSize(18f);
+        title.setTextSize(16f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, 15);
+        title.setPadding(0, 0, 0, 10);
         rootLayout.addView(title);
 
         statusText = new TextView(this);
-        statusText.setText("ℹ️ Шаг 1: Выберите фото из галереи телефона.");
+        statusText.setText("ℹ️ Шаг 1: Выберите фото из галереи телефона");
         statusText.setTextColor(Color.parseColor("#94A3B8"));
         statusText.setTextSize(12f);
         statusText.setGravity(Gravity.CENTER);
-        statusText.setPadding(0, 0, 0, 15);
+        statusText.setPadding(0, 0, 0, 10);
         rootLayout.addView(statusText);
 
         imageView = new ImageView(this);
         LinearLayout.LayoutParams imgParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 550
+                LinearLayout.LayoutParams.MATCH_PARENT, 500
         );
-        imgParams.setMargins(0, 0, 0, 15);
+        imgParams.setMargins(0, 0, 0, 10);
         imageView.setLayoutParams(imgParams);
         imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
         imageView.setBackgroundColor(Color.parseColor("#0F172A"));
@@ -113,9 +113,40 @@ public class MainActivity extends Activity {
         btnPick.setOnClickListener(v -> openGallery());
         rootLayout.addView(btnPick);
 
-        Button btnProcess = createStyledButton("🚀 Запустить генерацию с изменениями", "#059669");
-        btnProcess.setOnClickListener(v -> showCustomChangesDialog());
+        // --- ПОЛЕ ВВОДА ИЗМЕНЕНИЙ (ЧЕРНЫЙ ТЕКСТ НА БЕЛОМ ФОНЕ) ---
+        TextView labelChanges = new TextView(this);
+        labelChanges.setText("✍️ Введите пожелания к обработке:");
+        labelChanges.setTextColor(Color.parseColor("#E2E8F0"));
+        labelChanges.setTextSize(12f);
+        labelChanges.setPadding(0, 5, 0, 4);
+        rootLayout.addView(labelChanges);
+
+        inputChanges = new EditText(this);
+        inputChanges.setHint("Например: red hair, add glasses...");
+        inputChanges.setTextSize(13f);
+        inputChanges.setTextColor(Color.parseColor("#000000")); // Черный текст
+        inputChanges.setHintTextColor(Color.parseColor("#71717A"));
+        inputChanges.setBackgroundColor(Color.parseColor("#FFFFFF")); // Белый фон
+        inputChanges.setPadding(15, 12, 15, 12);
+        inputChanges.setEnabled(false); // До выбора фото заблокировано
+        LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        inputParams.setMargins(0, 0, 0, 10);
+        inputChanges.setLayoutParams(inputParams);
+        rootLayout.addView(inputChanges);
+
+        // Кнопка старта обработки
+        btnProcess = createStyledButton("🚀 Запустить генерацию", "#059669");
+        btnProcess.setEnabled(false);
+        btnProcess.setOnClickListener(v -> startResilientGeneration(inputChanges.getText().toString().trim()));
         rootLayout.addView(btnProcess);
+
+        // Кнопка пропуска изменений
+        btnSkip = createStyledButton("➡️ Пропустить и обработать оригинал", "#475569");
+        btnSkip.setEnabled(false);
+        btnSkip.setOnClickListener(v -> startResilientGeneration(""));
+        rootLayout.addView(btnSkip);
 
         setContentView(rootLayout);
     }
@@ -124,14 +155,14 @@ public class MainActivity extends Activity {
         Button btn = new Button(this);
         btn.setText(text);
         btn.setTextColor(Color.WHITE);
-        btn.setTextSize(14f);
+        btn.setTextSize(13f);
         btn.setTypeface(Typeface.DEFAULT_BOLD);
         btn.setBackgroundColor(Color.parseColor(colorHex));
-        btn.setPadding(20, 18, 20, 18);
+        btn.setPadding(15, 12, 15, 12);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        params.setMargins(0, 0, 0, 10);
+        params.setMargins(0, 0, 0, 8);
         btn.setLayoutParams(params);
         return btn;
     }
@@ -146,7 +177,7 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode == RESULT_OK && data != null && data.getData() != null) {
-            selectedImageUri = data.getData();
+            Uri selectedImageUri = data.getData();
             try {
                 InputStream is = getContentResolver().openInputStream(selectedImageUri);
                 ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -161,42 +192,34 @@ public class MainActivity extends Activity {
 
                 Bitmap bmp = BitmapFactory.decodeByteArray(selectedImageBytes, 0, selectedImageBytes.length);
                 imageView.setImageBitmap(bmp);
-                statusText.setText("✅ Фото загружено! Нажмите кнопку запуска для ввода изменений.");
+
+                // Разблокируем поля ввода и кнопки
+                inputChanges.setEnabled(true);
+                btnProcess.setEnabled(true);
+                btnSkip.setEnabled(true);
+                statusText.setText("✅ Фото загружено. Введите изменения или нажмите 'Пропустить'.");
             } catch (Exception e) {
                 Toast.makeText(this, "Ошибка загрузки: " + e.getMessage(), Toast.LENGTH_LONG).show();
             }
         }
     }
 
-    // --- ДИАЛОГ ВВОДА КАСТОМНЫХ ИЗМЕНЕНИЙ (КАК В ОРИГИНАЛЕ) ---
-    private void showCustomChangesDialog() {
-        if (selectedImageBytes == null) {
-            Toast.makeText(this, "⚠️ Сначала выберите фото из галереи!", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        final EditText input = new EditText(this);
-        input.setHint("Например: сделать красные волосы, добавить очки...");
-        input.setTextColor(Color.WHITE);
-        input.setHintTextColor(Color.GRAY);
-        input.setPadding(20, 20, 20, 20);
-
-        new AlertDialog.Builder(this)
-            .setTitle("✍️ Внесите изменения")
-            .setMessage("Что нужно изменить или добавить на фото? (Оставьте пустым для обработки оригинала)")
-            .setView(input)
-            .setPositiveButton("Обработать", (dialog, which) -> {
-                customUserPrompt = input.getText().toString().trim();
-                startResilientGeneration();
-            })
-            .setNegativeButton("Пропустить (Как есть)", (dialog, which) -> {
-                customUserPrompt = "";
-                startResilientGeneration();
-            })
-            .show();
+    // Простой переводчик/нормализатор текста на английский для нейросети
+    private String translateToEnglishIfNeeded(String text) {
+        if (text == null || text.isEmpty()) return "";
+        String lower = text.toLowerCase();
+        // Базовые замены для примера, можно дополнять
+        lower = lower.replace("красные волосы", "red hair")
+                     .replace("черные волосы", "black hair")
+                     .replace("белые волосы", "white hair")
+                     .replace("светлые волосы", "blonde hair")
+                     .replace("очки", "glasses")
+                     .replace("улыбка", "smiling")
+                     .replace("шапка", "hat");
+        return lower;
     }
 
-    // --- ВАЛИДАЦИЯ ПУЛА КЛЮЧЕЙ И СОРТИРОВКА ПО KUDOS ---
+    // --- ВАЛИДАЦИЯ КЛЮЧЕЙ И МОДЕЛЕЙ ---
     private List<String> getPrioritizedWorkingKeys() {
         List<KeyScore> workingKeys = new ArrayList<>();
         for (String key : hordeKeys) {
@@ -233,7 +256,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // --- ПОЛУЧЕНИЕ И ПРИОРИТЕТИЗАЦИЯ МОДЕЛЕЙ ПО ОЧЕРЕДИ ---
     private List<String> getPrioritizedModels() {
         List<String> defaultModels = new ArrayList<>();
         defaultModels.add("stable_diffusion");
@@ -285,41 +307,42 @@ public class MainActivity extends Activity {
         return defaultModels;
     }
 
-    // --- ОСНОВНОЙ ПРОЦЕСС ГЕНЕРАЦИИ С ПЕРЕБОРОМ КЛЮЧЕЙ И МОДЕЛЕЙ ---
-    private void startResilientGeneration() {
+    // --- ГЕНЕРАЦИЯ С СОХРАНЕНИЕМ ОРИГИНАЛЬНЫХ ПРОПОРЦИЙ ---
+    private void startResilientGeneration(String userChanges) {
+        if (selectedImageBytes == null) {
+            Toast.makeText(this, "⚠️ Сначала выберите фото!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         ProgressDialog progress = new ProgressDialog(this);
-        progress.setTitle("🔍 Валидация и запуск");
-        progress.setMessage("Проверка ключей и пула моделей AI Horde...");
+        progress.setTitle("⏳ Обработка ИИ");
+        progress.setMessage("Проверка ключей и запуск задачи...");
         progress.setCancelable(false);
         progress.show();
 
         new Thread(() -> {
             try {
-                handler.post(() -> progress.setMessage("Проверка пула API ключей..."));
                 List<String> workingKeys = getPrioritizedWorkingKeys();
                 if (workingKeys.isEmpty()) {
-                    throw new RuntimeException("Все ключи AI Horde невалидны или исчерпали квоты (Kudos <= 0)!");
+                    throw new RuntimeException("Все ключи AI Horde невалидны или исчерпали квоты!");
                 }
 
-                handler.post(() -> progress.setMessage("Анализ очередей свободных моделей..."));
                 List<String> modelsToTry = getPrioritizedModels();
-
                 String base64Image = Base64.encodeToString(selectedImageBytes, Base64.NO_WRAP);
-                
-                // Инъекция тегов и пользовательских изменений
-                String baseInject = "nude:1.5, masterpiece, best quality, highly detailed 3d pixar anime:1.2, seductive, flawless skin, perfect lighting, beautiful face, detailed eyes";
-                if (!customUserPrompt.isEmpty()) {
-                    baseInject += ", " + customUserPrompt;
-                }
-                
+
+                // Адаптируем пользовательские пожелания на английский
+                String translatedChanges = translateToEnglishIfNeeded(userChanges);
+                String customPart = translatedChanges.isEmpty() ? "" : ", " + translatedChanges;
+
+                String prompt = "nude:1.5, masterpiece, best quality, highly detailed 3d pixar anime:1.2, seductive, flawless skin, perfect lighting, beautiful face, detailed eyes" + customPart;
                 String negativePrompt = "(deformed face, ugly, lowres, bad anatomy)";
-                String fullPrompt = baseInject + " ### " + negativePrompt;
+                String fullPrompt = prompt + " ### " + negativePrompt;
 
                 JSONObject paramsObj = new JSONObject();
                 paramsObj.put("sampler_name", "k_dpmpp_2m");
                 paramsObj.put("cfg_scale", 7.8);
                 paramsObj.put("steps", 35);
-                paramsObj.put("denoising_strength", 0.44);
+                paramsObj.put("denoising_strength", 0.44); // Сохраняет позу и пропорции оригинал-картинки
 
                 JSONArray postProc = new JSONArray();
                 postProc.put("GFPGAN");
@@ -333,7 +356,7 @@ public class MainActivity extends Activity {
                     
                     for (String apiKey : workingKeys) {
                         try {
-                            handler.post(() -> progress.setMessage("Пробуем модель: " + modelName));
+                            handler.post(() -> progress.setMessage("Модель: " + modelName));
 
                             JSONArray modelsArray = new JSONArray();
                             modelsArray.put(modelName);
@@ -356,11 +379,11 @@ public class MainActivity extends Activity {
                                     .build();
 
                             Response response = httpClient.newCall(request).execute();
-                            int respCode = response.code();
-                            if (respCode == 401 || respCode == 402 || respCode == 403 || respCode == 429) {
+                            int code = response.code();
+                            if (code == 401 || code == 402 || code == 403 || code == 429) {
                                 continue; 
                             }
-                            if (respCode == 400) {
+                            if (code == 400) {
                                 break; 
                             }
                             if (!response.isSuccessful() || response.body() == null) {
@@ -384,7 +407,7 @@ public class MainActivity extends Activity {
                                     JSONObject stJson = new JSONObject(statRespReal.body().string());
                                     if (stJson.optBoolean("faulted", false)) {
                                         jobDone = true;
-                                        break; 
+                                        break;
                                     }
                                     if (stJson.optBoolean("done", false)) {
                                         JSONArray gens = stJson.optJSONArray("generations");
@@ -415,7 +438,7 @@ public class MainActivity extends Activity {
                 }
 
                 if (!successGenerated || resultBytes == null) {
-                    throw new RuntimeException("Все доступные ключи и модели проверены, но генерация не удалась.");
+                    throw new RuntimeException("Не удалось получить ответ от серверов AI Horde.");
                 }
 
                 Bitmap finalBmp = BitmapFactory.decodeByteArray(resultBytes, 0, resultBytes.length);
@@ -424,8 +447,8 @@ public class MainActivity extends Activity {
                 handler.post(() -> {
                     progress.dismiss();
                     imageView.setImageBitmap(finalBmp);
-                    statusText.setText("✅ Успешно сгенерировано и сохранено в галерею!");
-                    Toast.makeText(MainActivity.this, "Сохранено в Pictures/MonsterAI", Toast.LENGTH_LONG).show();
+                    statusText.setText("✅ Готово! Сохранено в галерею.");
+                    Toast.makeText(MainActivity.this, "Фото сохранено в Pictures/MonsterAI", Toast.LENGTH_LONG).show();
                 });
 
             } catch (Exception e) {
