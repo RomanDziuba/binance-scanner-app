@@ -453,7 +453,7 @@ public class MainActivity extends Activity {
                     String base64Image = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP);
 
                     // Промпт фокусируется на сохранении лица и замене одежды
-                    String clothingCore = "photorealistic portrait, keep original face and identity, detailed high-end outfit, realistic fabric texture, professional fashion rendering, high detail, sharp focus, 8k";
+                    String clothingCore = "photorealistic portrait, keep original face and identity, detailed high-end outfit, realistic fabric texture, professional fashion rendering, high detail, sharp focus, nude, 8k";
                     if (!translatedClothing.isEmpty()) {
                         clothingCore += ", " + translatedClothing;
                     }
