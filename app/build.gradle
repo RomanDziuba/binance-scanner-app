@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version01'
+    namespace 'com.version02.version02'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version01"
+        applicationId "com.version02.version02"
         minSdk 21
         targetSdk 34
-        versionCode 21
-        versionName "01"
+        versionCode 22
+        versionName "02"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "Одежда_v01-" + variant.name + ".apk"
+            outputFileName = "Одежда_v02-" + variant.name + ".apk"
         }
     }
 }
