@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version01'
+    namespace 'com.odegda.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version01"
+        applicationId "com.odegda.version01"
         minSdk 21
         targetSdk 34
-        versionCode 18
+        versionCode 19
         versionName "01"
     }
     compileOptions {
