@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.newhentay1.version02'
+    namespace 'com.newhentay2.version02'
     compileSdk 34
     defaultConfig {
-        applicationId "com.newhentay1.version02"
+        applicationId "com.newhentay2.version02"
         minSdk 21
         targetSdk 34
-        versionCode 47
+        versionCode 49
         versionName "02"
     }
     compileOptions {
