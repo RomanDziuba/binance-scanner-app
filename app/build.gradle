@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.newhentay1.version01'
+    namespace 'com.newhentay1.version02'
     compileSdk 34
     defaultConfig {
-        applicationId "com.newhentay1.version01"
+        applicationId "com.newhentay1.version02"
         minSdk 21
         targetSdk 34
-        versionCode 46
-        versionName "01"
+        versionCode 47
+        versionName "02"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "НовыйХентай1_v01-" + variant.name + ".apk"
+            outputFileName = "НовыйХентай1_v02-" + variant.name + ".apk"
         }
     }
 }
