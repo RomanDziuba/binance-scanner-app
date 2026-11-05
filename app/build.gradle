@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.newhentay2.version02'
+    namespace 'com.aifoto.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.newhentay2.version02"
+        applicationId "com.aifoto.version01"
         minSdk 21
         targetSdk 34
-        versionCode 49
-        versionName "02"
+        versionCode 50
+        versionName "01"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "НовыйХентай1_v02-" + variant.name + ".apk"
+            outputFileName = "AI_фото🛀_v01-" + variant.name + ".apk"
         }
     }
 }
