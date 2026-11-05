@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version01'
+    namespace 'com.newhentay1.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version01"
+        applicationId "com.newhentay1.version01"
         minSdk 21
         targetSdk 34
-        versionCode 24
+        versionCode 25
         versionName "01"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "Улучшение фото_v01-" + variant.name + ".apk"
+            outputFileName = "НовыйХентай1_v01-" + variant.name + ".apk"
         }
     }
 }
