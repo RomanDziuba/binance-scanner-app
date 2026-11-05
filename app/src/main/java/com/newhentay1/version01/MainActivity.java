@@ -73,7 +73,6 @@ public class MainActivity extends Activity {
 
     private List<String> hordeKeys = new ArrayList<String>();
     
-    // Динамический список моделей (заполняется из сети или дефолтного набора)
     private List<String> allAvailableModels = new ArrayList<String>();
     
     private OkHttpClient httpClient = new OkHttpClient.Builder()
@@ -111,7 +110,6 @@ public class MainActivity extends Activity {
         title.setPadding(0, 0, 0, 15);
         rootLayout.addView(title);
 
-        // Панель управления моделями сверху
         LinearLayout topButtonsLayout = new LinearLayout(this);
         topButtonsLayout.setOrientation(LinearLayout.HORIZONTAL);
         topButtonsLayout.setLayoutParams(new LinearLayout.LayoutParams(
@@ -201,11 +199,9 @@ public class MainActivity extends Activity {
         modelsScroll.addView(modelsContainer);
         rootLayout.addView(modelsScroll);
 
-        // Инициализация дефолтного списка моделей
         initDefaultModelsList();
         rebuildModelListUI();
 
-        // Автоматическое обновление списка при первом запуске
         SharedPreferences prefsInit = getSharedPreferences("ModelPrefs", MODE_PRIVATE);
         boolean isFirstRun = prefsInit.getBoolean("is_first_run", true);
         if (isFirstRun) {
@@ -428,7 +424,6 @@ public class MainActivity extends Activity {
             rowParams.setMargins(4, 4, 4, 4);
             rowLayout.setLayoutParams(rowParams);
 
-            // NSFW модели выделяются полупрозрачным красным фоном (ARGB: 44EF4444)
             if (isNsfw) {
                 rowLayout.setBackgroundColor(Color.parseColor("#44EF4444"));
             } else {
@@ -569,7 +564,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // --- МЕНЮ МОДЕЛИ И ПОНЯТНЫЕ НАСТРОЙКИ ---
     private void showModelMenuDialog(String modelName) {
         SharedPreferences prefs = getSharedPreferences("ModelPrefs", MODE_PRIVATE);
         boolean isNsfwModel = isModelNsfw(modelName);
@@ -676,34 +670,28 @@ public class MainActivity extends Activity {
         builder.show();
     }
 
+    // Исправлено: принудительное масштабирование до 1024x1024 для предотвращения черных квадратов на SDXL моделях
     private Bitmap makeSquareBitmap(Bitmap source) {
         int width = source.getWidth();
         int height = source.getHeight();
-        if (width == height) {
-            return source;
-        }
         int maxDim = Math.max(width, height);
-        if (maxDim > 1024) {
-            float scale = 1024f / maxDim;
-            int newW = (int)(width * scale);
-            int newH = (int)(height * scale);
-            source = Bitmap.createScaledBitmap(source, newW, newH, true);
-            width = source.getWidth();
-            height = source.getHeight();
-            maxDim = 1024;
-        }
+        int targetSize = 1024; // Фиксированный размер 1024x1024 для стабильной работы со всеми моделями (SD 1.5, SDXL, Pony)
 
-        Bitmap squareBitmap = Bitmap.createBitmap(maxDim, maxDim, Bitmap.Config.ARGB_8888);
+        Bitmap squareBitmap = Bitmap.createBitmap(targetSize, targetSize, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(squareBitmap);
         canvas.drawColor(Color.BLACK);
         
-        int left = (maxDim - width) / 2;
-        int top = (maxDim - height) / 2;
-        canvas.drawBitmap(source, left, top, null);
+        float scale = (float) targetSize / maxDim;
+        int scaledW = (int)(width * scale);
+        int scaledH = (int)(height * scale);
+        Bitmap resizedSource = Bitmap.createScaledBitmap(source, scaledW, scaledH, true);
+        
+        int left = (targetSize - scaledW) / 2;
+        int top = (targetSize - scaledH) / 2;
+        canvas.drawBitmap(resizedSource, left, top, null);
         return squareBitmap;
     }
 
-    // Интеллектуальный перевод: ру/укр переводит на английский, английский оставляет как есть
     private String translateToEnglish(String text) {
         if (text == null || text.trim().isEmpty()) return "";
         String trimmed = text.trim();
@@ -844,7 +832,6 @@ public class MainActivity extends Activity {
                     squareBmp.compress(Bitmap.CompressFormat.JPEG, 100, stream);
                     String base64Image = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP);
 
-                    // Сборка базовых промптов (через запятую и пробел)
                     String fullPrompt = "";
                     String negativePrompt = "";
 
@@ -876,6 +863,9 @@ public class MainActivity extends Activity {
                     paramsObj.put("cfg_scale", (double) cfg);
                     paramsObj.put("steps", steps);
                     paramsObj.put("denoising_strength", (double) denoising);
+                    // Передаем точные размеры 1024x1024 для предотвращения черных квадратов на тяжелых моделях
+                    paramsObj.put("width", 1024);
+                    paramsObj.put("height", 1024);
 
                     byte[] resultBytes = null;
                     boolean successGenerated = false;
