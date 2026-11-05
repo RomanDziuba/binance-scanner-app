@@ -79,7 +79,7 @@ public class MainActivity extends Activity {
     private Button btnStopGen;
     private Button btnStartGen;
 
-    // Управление отменой генерации
+    // Элементы управления отменой генерации
     private volatile boolean isGenerationCancelled = false;
     private String activeJobId = null;
     private String activeApiKey = null;
@@ -94,7 +94,11 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // Пул ключей AI Horde
+        // Загрузка сохраненной ранее активной модели
+        SharedPreferences prefs = getSharedPreferences("ModelPrefs", MODE_PRIVATE);
+        selectedModel = prefs.getString("active_selected_model", "grapefruit");
+
+        // Ключи доступа AI Horde
         hordeKeys.add("lJSv4pVAjwtzOYfVldIVxg");
         hordeKeys.add("OjbJD9mxPNcXGU7DfGQAXQ");
         hordeKeys.add("V0lhf56Xg982yORgPuZl6A");
@@ -169,23 +173,25 @@ public class MainActivity extends Activity {
         rootLayout.addView(inputChanges);
 
         TextView labelModel = new TextView(this);
-        labelModel.setText("🤖 Активная модель ИИ и её настройки:");
+        labelModel.setText("🤖 Активная модель ИИ (нажмите для выбора и настроек):");
         labelModel.setTextColor(Color.parseColor("#F8FAFC"));
         labelModel.setTextSize(12f);
         labelModel.setPadding(0, 10, 0, 5);
         rootLayout.addView(labelModel);
 
-        // Кнопка каталога моделей
+        // Кнопка-селектор моделей
         btnModelSelector = createStyledButton("🤖 Загрузка моделей...", "#1E293B");
         btnModelSelector.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                showAdvancedModelSelectionDialog();
+                if (!isFinishing()) {
+                    showAdvancedModelSelectionDialog();
+                }
             }
         });
         rootLayout.addView(btnModelSelector);
 
-        // Панель прогресса во время генерации
+        // Панель прогресса и статуса (не блокирует интерфейс, кнопка стоп всегда доступна)
         progressStatusLayout = new LinearLayout(this);
         progressStatusLayout.setOrientation(LinearLayout.VERTICAL);
         progressStatusLayout.setBackgroundColor(Color.parseColor("#1E293B"));
@@ -301,9 +307,12 @@ public class MainActivity extends Activity {
         mainScroll.addView(rootLayout);
         setContentView(mainScroll);
 
-        // Восстановление состояния при повороте экрана или запуск
+        // Восстановление данных при повороте или первичный запуск
         if (savedInstanceState != null) {
-            selectedModel = savedInstanceState.getString("selectedModel", "grapefruit");
+            String restoredModel = savedInstanceState.getString("selectedModel", null);
+            if (restoredModel != null) {
+                selectedModel = restoredModel;
+            }
             inputChanges.setText(savedInstanceState.getString("inputText", ""));
             logConsole.setText(savedInstanceState.getString("logText", ""));
             selectedImageBytes = savedInstanceState.getByteArray("imageBytes");
@@ -319,6 +328,7 @@ public class MainActivity extends Activity {
                 fetchOnlineModelsAsync(false);
             }
         } else {
+            updateModelButtonLabel();
             fetchOnlineModelsAsync(false);
         }
     }
@@ -348,17 +358,35 @@ public class MainActivity extends Activity {
                lower.contains("sex");
     }
 
+    private String getModelDescription(String modelName) {
+        String lower = modelName.toLowerCase();
+        if (lower.contains("nsfw") || lower.contains("hentai") || lower.contains("yiffy") || lower.contains("lawlas")) {
+            return "🔞 Специализированная модель для создания эротического контента, аниме-иллюстраций и проработки сложной анатомии с высокой детализацией кожи и тел.";
+        } else if (lower.contains("furry") || lower.contains("pony")) {
+            return "🦊🐾 Модель, оптимизированная под стилизованную графику, фурри-арты и персонажей в стиле Pony/Animation с яркими палитрами.";
+        } else if (lower.contains("realistic") || lower.contains("real") || lower.contains("dos")) {
+            return "📸 Фотореалистичная модель. Отлично подходит для создания реалистичных портретов, природных пейзажей, правильного освещения и студийной фотографии.";
+        } else if (lower.contains("anime") || lower.contains("mix") || lower.contains("grapefruit") || lower.contains("meinamix") || lower.contains("ghostmix")) {
+            return "🎨 Художественная 2.5D / аниме модель общего назначения. Универсальна для создания качественных персонажей, концепт-артов и стилизованных портретов.";
+        } else {
+            return "🤖 Сбалансированная нейросетевая модель общей категории для генерации качественных изображений по вашему текстовому запросу и исходному фото.";
+        }
+    }
+
     private void updateModelButtonLabel() {
-        if (isFinishing() || isDestroyed()) return;
         if (btnModelSelector != null) {
             boolean isNsfw = isModelNsfw(selectedModel);
-            btnModelSelector.setText("🤖 Активная: " + selectedModel + (isNsfw ? " 🔞" : "") + " [В базе: " + allAvailableModels.size() + "]");
+            btnModelSelector.setText("🤖 Активная: " + selectedModel + (isNsfw ? " 🔞" : "") + " [Моделей в базе: " + allAvailableModels.size() + "]");
+            // Сохраняем выбор модели в SharedPreferences
+            SharedPreferences.Editor editor = getSharedPreferences("ModelPrefs", MODE_PRIVATE).edit();
+            editor.putString("active_selected_model", selectedModel);
+            editor.apply();
         }
     }
 
     private void fetchOnlineModelsAsync(final boolean showToast) {
         appendLog("🌐 Запрос актуального списка моделей с сервера Stable Horde...");
-        if (showToast) {
+        if (showToast && !isFinishing()) {
             Toast.makeText(this, "🔄 Обновление списка моделей...", Toast.LENGTH_SHORT).show();
         }
 
@@ -374,6 +402,8 @@ public class MainActivity extends Activity {
                             .build();
 
                     Response response = httpClient.newCall(request).execute();
+                    if (isFinishing()) return;
+
                     if (response.isSuccessful() && response.body() != null) {
                         String jsonStr = response.body().string();
                         JSONArray jsonArray = new JSONArray(jsonStr);
@@ -394,7 +424,7 @@ public class MainActivity extends Activity {
                             handler.post(new Runnable() {
                                 @Override
                                 public void run() {
-                                    if (isFinishing() || isDestroyed()) return;
+                                    if (isFinishing()) return;
                                     allAvailableModels = fetchedModels;
                                     if (!allAvailableModels.contains(selectedModel) && !allAvailableModels.isEmpty()) {
                                         selectedModel = allAvailableModels.get(0);
@@ -411,12 +441,13 @@ public class MainActivity extends Activity {
                     }
                     throw new Exception("Пустой ответ сервера моделей.");
                 } catch (Exception e) {
+                    if (isFinishing()) return;
                     appendLog("⚠️ Не удалось загрузить модели из сети: " + e.getMessage());
                     if (showToast) {
                         handler.post(new Runnable() {
                             @Override
                             public void run() {
-                                if (isFinishing() || isDestroyed()) return;
+                                if (isFinishing()) return;
                                 Toast.makeText(MainActivity.this, "⚠️ Ошибка сети при обновлении моделей.", Toast.LENGTH_LONG).show();
                             }
                         });
@@ -426,211 +457,11 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    // Каталог моделей: раздельные скроллируемые блоки (Обычные / NSFW) + кнопка обновления + настройки для каждой модели
-    private void showAdvancedModelSelectionDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        
-        ScrollView dialogScroll = new ScrollView(this);
-        LinearLayout mainDialogLayout = new LinearLayout(this);
-        mainDialogLayout.setOrientation(LinearLayout.VERTICAL);
-        mainDialogLayout.setPadding(25, 25, 25, 25);
-        mainDialogLayout.setBackgroundColor(Color.parseColor("#0F172A"));
-        dialogScroll.addView(mainDialogLayout);
-
-        TextView dialogTitle = new TextView(this);
-        dialogTitle.setText("🤖 Каталог моделей (Всего: " + allAvailableModels.size() + ")");
-        dialogTitle.setTextColor(Color.parseColor("#38BDF8"));
-        dialogTitle.setTextSize(16f);
-        dialogTitle.setTypeface(Typeface.DEFAULT_BOLD);
-        dialogTitle.setPadding(0, 0, 0, 15);
-        mainDialogLayout.addView(dialogTitle);
-
-        Button btnRefreshInDialog = createStyledButton("🔄 Обновить список с сервера", "#0284C7");
-        btnRefreshInDialog.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                fetchOnlineModelsAsync(true);
-            }
-        });
-        mainDialogLayout.addView(btnRefreshInDialog);
-
-        List<String> normalModels = new ArrayList<String>();
-        List<String> nsfwModels = new ArrayList<String>();
-
-        for (int i = 0; i < allAvailableModels.size(); i++) {
-            String m = allAvailableModels.get(i);
-            if (isModelNsfw(m)) {
-                nsfwModels.add(m);
-            } else {
-                normalModels.add(m);
-            }
-        }
-
-        final AlertDialog[] mainDialogHolder = new AlertDialog[1];
-
-        // Блок 1: Стандартные модели
-        TextView headerNormal = new TextView(this);
-        headerNormal.setText("\n🟢 Стандартные модели (" + normalModels.size() + "):");
-        headerNormal.setTextColor(Color.parseColor("#34D399"));
-        headerNormal.setTextSize(13f);
-        headerNormal.setTypeface(Typeface.DEFAULT_BOLD);
-        mainDialogLayout.addView(headerNormal);
-
-        LinearLayout normalContainer = new LinearLayout(this);
-        normalContainer.setOrientation(LinearLayout.VERTICAL);
-        for (int i = 0; i < normalModels.size(); i++) {
-            final String modelName = normalModels.get(i);
-            final int indexNum = i + 1;
-            boolean isSelected = modelName.equals(selectedModel);
-
-            LinearLayout row = new LinearLayout(this);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setGravity(Gravity.CENTER_VERTICAL);
-            LinearLayout.LayoutParams rParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            rParams.setMargins(0, 3, 0, 3);
-            row.setLayoutParams(rParams);
-
-            Button mBtn = new Button(this);
-            String displayName = indexNum + ". " + modelName + (isSelected ? " ✔️ [АКТИВНА]" : "");
-            mBtn.setText(displayName);
-            mBtn.setTextSize(12f);
-            mBtn.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-            mBtn.setPadding(15, 12, 15, 12);
-            
-            if (isSelected) {
-                mBtn.setBackgroundColor(Color.parseColor("#059669"));
-                mBtn.setTextColor(Color.WHITE);
-            } else {
-                mBtn.setBackgroundColor(Color.parseColor("#1E293B"));
-                mBtn.setTextColor(Color.parseColor("#CBD5E1"));
-            }
-            
-            LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-            mBtn.setLayoutParams(bp);
-            
-            mBtn.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    selectedModel = modelName;
-                    updateModelButtonLabel();
-                    appendLog("Выбрана модель: " + selectedModel);
-                    if (mainDialogHolder[0] != null) mainDialogHolder[0].dismiss();
-                }
-            });
-
-            Button settingsBtn = new Button(this);
-            settingsBtn.setText("⚙️ Меню");
-            settingsBtn.setTextSize(11f);
-            settingsBtn.setBackgroundColor(Color.parseColor("#334155"));
-            settingsBtn.setTextColor(Color.parseColor("#F8FAFC"));
-            settingsBtn.setPadding(12, 12, 12, 12);
-            LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            sp.setMargins(6, 0, 0, 0);
-            settingsBtn.setLayoutParams(sp);
-
-            settingsBtn.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    showModelMenuDialog(modelName);
-                }
-            });
-
-            row.addView(mBtn);
-            row.addView(settingsBtn);
-            normalContainer.addView(row);
-        }
-        mainDialogLayout.addView(normalContainer);
-
-        // Блок 2: NSFW модели
-        TextView headerNsfw = new TextView(this);
-        headerNsfw.setText("\n🔞 NSFW модели (" + nsfwModels.size() + "):");
-        headerNsfw.setTextColor(Color.parseColor("#FCA5A5"));
-        headerNsfw.setTextSize(13f);
-        headerNsfw.setTypeface(Typeface.DEFAULT_BOLD);
-        mainDialogLayout.addView(headerNsfw);
-
-        LinearLayout nsfwContainer = new LinearLayout(this);
-        nsfwContainer.setOrientation(LinearLayout.VERTICAL);
-        for (int i = 0; i < nsfwModels.size(); i++) {
-            final String modelName = nsfwModels.get(i);
-            final int indexNum = i + 1;
-            boolean isSelected = modelName.equals(selectedModel);
-
-            LinearLayout row = new LinearLayout(this);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setGravity(Gravity.CENTER_VERTICAL);
-            LinearLayout.LayoutParams rParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            rParams.setMargins(0, 3, 0, 3);
-            row.setLayoutParams(rParams);
-
-            Button mBtn = new Button(this);
-            String displayName = indexNum + ". " + modelName + " 🔞" + (isSelected ? " ✔️ [АКТИВНА]" : "");
-            mBtn.setText(displayName);
-            mBtn.setTextSize(12f);
-            mBtn.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-            mBtn.setPadding(15, 12, 15, 12);
-            
-            if (isSelected) {
-                mBtn.setBackgroundColor(Color.parseColor("#059669"));
-                mBtn.setTextColor(Color.WHITE);
-            } else {
-                mBtn.setBackgroundColor(Color.parseColor("#44EF4444"));
-                mBtn.setTextColor(Color.parseColor("#FCA5A5"));
-            }
-            
-            LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-            mBtn.setLayoutParams(bp);
-            
-            mBtn.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    selectedModel = modelName;
-                    updateModelButtonLabel();
-                    appendLog("Выбрана NSFW модель: " + selectedModel);
-                    if (mainDialogHolder[0] != null) mainDialogHolder[0].dismiss();
-                }
-            });
-
-            Button settingsBtn = new Button(this);
-            settingsBtn.setText("⚙️ Меню");
-            settingsBtn.setTextSize(11f);
-            settingsBtn.setBackgroundColor(Color.parseColor("#334155"));
-            settingsBtn.setTextColor(Color.parseColor("#F8FAFC"));
-            settingsBtn.setPadding(12, 12, 12, 12);
-            LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            sp.setMargins(6, 0, 0, 0);
-            settingsBtn.setLayoutParams(sp);
-
-            settingsBtn.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    showModelMenuDialog(modelName);
-                }
-            });
-
-            row.addView(mBtn);
-            row.addView(settingsBtn);
-            nsfwContainer.addView(row);
-        }
-        mainDialogLayout.addView(nsfwContainer);
-
-        builder.setView(dialogScroll);
-        builder.setPositiveButton("Закрыть", null);
-        mainDialogHolder[0] = builder.create();
-        mainDialogHolder[0].show();
-    }
-
-    // Детальное меню настроек и описания для конкретной модели на русском языке
+    // Меню настроек для конкретной модели
     private void showModelMenuDialog(final String modelName) {
+        if (isFinishing()) return;
         SharedPreferences prefs = getSharedPreferences("ModelPrefs", MODE_PRIVATE);
         boolean isNsfwModel = isModelNsfw(modelName);
-        
-        String modelDesc = "🤖 Системный идентификатор: " + modelName + "\n\n";
-        if (isNsfwModel) {
-            modelDesc += "⚠️ Данная модель относится к категории NSFW (18+). Специализируется на создании эротического контента, аниме и арт-иллюстраций с высокой детализацией кожи, тел и анатомических особенностей.";
-        } else {
-            modelDesc += "✨ Стандартная модель общего назначения. Идеально оптимизирована для создания реалистичных фотографий высокого качества, портретов, пейзажей и художественной графики.";
-        }
 
         float savedCfg = prefs.getFloat(modelName + "_cfg", 7.5f);
         int savedSteps = prefs.getInt(modelName + "_steps", 25);
@@ -644,22 +475,22 @@ public class MainActivity extends Activity {
         dialogScroll.addView(dialogLayout);
 
         TextView titleView = new TextView(this);
-        titleView.setText("⚙️ Меню и описание модели:\n" + modelName);
+        titleView.setText("⚙️ Меню модели: " + modelName);
         titleView.setTextColor(Color.parseColor("#38BDF8"));
-        titleView.setTextSize(15f);
+        titleView.setTextSize(16f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
         titleView.setPadding(0, 0, 0, 10);
         dialogLayout.addView(titleView);
 
         TextView descView = new TextView(this);
-        descView.setText(modelDesc);
+        descView.setText("📖 Описание модели:\n" + getModelDescription(modelName) + "\n");
         descView.setTextColor(Color.parseColor("#CBD5E1"));
         descView.setTextSize(12f);
         descView.setPadding(0, 0, 0, 15);
         dialogLayout.addView(descView);
 
         TextView labelCfg = new TextView(this);
-        labelCfg.setText("🎯 CFG Scale (Сила следования вашему тексту):\nРекомендуется 7.0–8.5. Чем выше значение, тем точнее нейросеть воплощает введенные пожелания.");
+        labelCfg.setText("🎯 Сила совпадения с промптом (CFG Scale):\nВыше значение — строже следование вашему запросу (рекомендуется 7-8.5).");
         labelCfg.setTextColor(Color.parseColor("#F8FAFC"));
         labelCfg.setTextSize(11f);
         dialogLayout.addView(labelCfg);
@@ -672,7 +503,7 @@ public class MainActivity extends Activity {
         dialogLayout.addView(inputCfg);
 
         TextView labelSteps = new TextView(this);
-        labelSteps.setText("\n🔄 Steps (Количество шагов генерации):\nРекомендуется 20–30. Больше шагов — выше качество и проработка мелких деталей.");
+        labelSteps.setText("\n🔄 Шаги генерации (Steps):\nКоличество итераций прорисовки (рекомендуется 20-30).");
         labelSteps.setTextColor(Color.parseColor("#F8FAFC"));
         labelSteps.setTextSize(11f);
         dialogLayout.addView(labelSteps);
@@ -685,7 +516,7 @@ public class MainActivity extends Activity {
         dialogLayout.addView(inputSteps);
 
         TextView labelDenoising = new TextView(this);
-        labelDenoising.setText("\n⚡ Denoising Strength (Сила изменения исходного фото, от 0.1 до 1.0):\nБлиже к 1.0 — полная переработка изображения под новый стиль, ближе к 0.1 — сохранение оригинальных черт лица и формы исходного фото.");
+        labelDenoising.setText("\n⚡ Сила изменения исходного фото (Denoising, 0.1 - 1.0):\nБлиже к 1.0 — полная переработка под запрос, ближе к 0.1 — сохранение оригинала.");
         labelDenoising.setTextColor(Color.parseColor("#F8FAFC"));
         labelDenoising.setTextSize(11f);
         dialogLayout.addView(labelDenoising);
@@ -698,7 +529,11 @@ public class MainActivity extends Activity {
         dialogLayout.addView(inputDenoising);
 
         Button saveBtn = createStyledButton("💾 Сохранить настройки модели", "#059669");
-        final AlertDialog[] menuDialogHolder = new AlertDialog[1];
+        final AlertDialog.Builder cfgBuilder = new AlertDialog.Builder(this);
+        cfgBuilder.setView(dialogScroll);
+        cfgBuilder.setPositiveButton("Закрыть", null);
+        final AlertDialog cfgDialog = cfgBuilder.create();
+
         saveBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -715,26 +550,212 @@ public class MainActivity extends Activity {
 
                     Toast.makeText(MainActivity.this, "✅ Настройки для " + modelName + " сохранены!", Toast.LENGTH_SHORT).show();
                     appendLog("Обновлены настройки модели " + modelName + " [CFG: " + cfg + ", Steps: " + steps + ", Denoising: " + denoising + "]");
-                    if (menuDialogHolder[0] != null) menuDialogHolder[0].dismiss();
+                    cfgDialog.dismiss();
                 } catch (Exception e) {
-                    Toast.makeText(MainActivity.this, "❌ Ошибка в числах! Проверьте правильность ввода.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(MainActivity.this, "❌ Ошибка в числах! Проверьте ввод.", Toast.LENGTH_LONG).show();
                 }
             }
         });
         dialogLayout.addView(saveBtn);
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        cfgDialog.show();
+    }
+
+    // Продвинутое меню выбора моделей: два отдельных скроллируемых блока + настройки + кнопка обновления
+    private void showAdvancedModelSelectionDialog() {
+        if (isFinishing()) return;
+        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        
+        ScrollView dialogScroll = new ScrollView(this);
+        LinearLayout mainDialogLayout = new LinearLayout(this);
+        mainDialogLayout.setOrientation(LinearLayout.VERTICAL);
+        mainDialogLayout.setPadding(25, 25, 25, 25);
+        mainDialogLayout.setBackgroundColor(Color.parseColor("#0F172A"));
+        dialogScroll.addView(mainDialogLayout);
+
+        TextView dialogTitle = new TextView(this);
+        dialogTitle.setText("🤖 Каталог моделей (Всего активных: " + allAvailableModels.size() + ")");
+        dialogTitle.setTextColor(Color.parseColor("#38BDF8"));
+        dialogTitle.setTextSize(16f);
+        dialogTitle.setTypeface(Typeface.DEFAULT_BOLD);
+        dialogTitle.setPadding(0, 0, 0, 15);
+        mainDialogLayout.addView(dialogTitle);
+
+        // Кнопка обновления моделей прямо в меню
+        Button btnRefreshInDialog = createStyledButton("🔄 Обновить список с сервера", "#0284C7");
+        btnRefreshInDialog.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                fetchOnlineModelsAsync(true);
+            }
+        });
+        mainDialogLayout.addView(btnRefreshInDialog);
+
+        // Разделение моделей на Обычные и NSFW
+        List<String> normalModels = new ArrayList<String>();
+        List<String> nsfwModels = new ArrayList<String>();
+
+        for (int i = 0; i < allAvailableModels.size(); i++) {
+            String m = allAvailableModels.get(i);
+            if (isModelNsfw(m)) {
+                nsfwModels.add(m);
+            } else {
+                normalModels.add(m);
+            }
+        }
+
+        final AlertDialog[] dialogHolder = new AlertDialog[1];
+
+        // Блок 1: Обычные модели
+        TextView headerNormal = new TextView(this);
+        headerNormal.setText("\n🟢 Стандартные модели (" + normalModels.size() + "):");
+        headerNormal.setTextColor(Color.parseColor("#34D399"));
+        headerNormal.setTextSize(13f);
+        headerNormal.setTypeface(Typeface.DEFAULT_BOLD);
+        mainDialogLayout.addView(headerNormal);
+
+        LinearLayout normalContainer = new LinearLayout(this);
+        normalContainer.setOrientation(LinearLayout.VERTICAL);
+        for (int i = 0; i < normalModels.size(); i++) {
+            final String modelName = normalModels.get(i);
+            final int indexNum = i + 1;
+
+            LinearLayout rowLayout = new LinearLayout(this);
+            rowLayout.setOrientation(LinearLayout.HORIZONTAL);
+            rowLayout.setGravity(Gravity.CENTER_VERTICAL);
+            LinearLayout.LayoutParams rParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            rParams.setMargins(0, 3, 0, 3);
+            rowLayout.setLayoutParams(rParams);
+
+            Button mBtn = new Button(this);
+            boolean isSelected = modelName.equals(selectedModel);
+            mBtn.setText(indexNum + ". " + modelName + (isSelected ? " ✅ [АКТИВНА]" : ""));
+            mBtn.setTextSize(12f);
+            mBtn.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+            mBtn.setPadding(15, 12, 15, 12);
+            
+            if (isSelected) {
+                mBtn.setBackgroundColor(Color.parseColor("#059669"));
+                mBtn.setTextColor(Color.WHITE);
+            } else {
+                mBtn.setBackgroundColor(Color.parseColor("#1E293B"));
+                mBtn.setTextColor(Color.parseColor("#CBD5E1"));
+            }
+            
+            LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+            mBtn.setLayoutParams(bp);
+            mBtn.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    selectedModel = modelName;
+                    updateModelButtonLabel();
+                    appendLog("Выбрана модель: " + selectedModel);
+                    if (dialogHolder[0] != null) dialogHolder[0].dismiss();
+                }
+            });
+
+            Button settingsBtn = new Button(this);
+            settingsBtn.setText("⚙️ Меню");
+            settingsBtn.setTextSize(11f);
+            settingsBtn.setBackgroundColor(Color.parseColor("#334155"));
+            settingsBtn.setTextColor(Color.parseColor("#F8FAFC"));
+            LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            sp.setMargins(5, 0, 0, 0);
+            settingsBtn.setLayoutParams(sp);
+            settingsBtn.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showModelMenuDialog(modelName);
+                }
+            });
+
+            rowLayout.addView(mBtn);
+            rowLayout.addView(settingsBtn);
+            normalContainer.addView(rowLayout);
+        }
+        mainDialogLayout.addView(normalContainer);
+
+        // Блок 2: NSFW модели
+        TextView headerNsfw = new TextView(this);
+        headerNsfw.setText("\n🔞 NSFW модели (" + nsfwModels.size() + "):");
+        headerNsfw.setTextColor(Color.parseColor("#FCA5A5"));
+        headerNsfw.setTextSize(13f);
+        headerNsfw.setTypeface(Typeface.DEFAULT_BOLD);
+        mainDialogLayout.addView(headerNsfw);
+
+        LinearLayout nsfwContainer = new LinearLayout(this);
+        nsfwContainer.setOrientation(LinearLayout.VERTICAL);
+        for (int i = 0; i < nsfwModels.size(); i++) {
+            final String modelName = nsfwModels.get(i);
+            final int indexNum = i + 1;
+
+            LinearLayout rowLayout = new LinearLayout(this);
+            rowLayout.setOrientation(LinearLayout.HORIZONTAL);
+            rowLayout.setGravity(Gravity.CENTER_VERTICAL);
+            LinearLayout.LayoutParams rParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            rParams.setMargins(0, 3, 0, 3);
+            rowLayout.setLayoutParams(rParams);
+
+            Button mBtn = new Button(this);
+            boolean isSelected = modelName.equals(selectedModel);
+            mBtn.setText(indexNum + ". " + modelName + " 🔞" + (isSelected ? " ✅ [АКТИВНА]" : ""));
+            mBtn.setTextSize(12f);
+            mBtn.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+            mBtn.setPadding(15, 12, 15, 12);
+            
+            if (isSelected) {
+                mBtn.setBackgroundColor(Color.parseColor("#059669"));
+                mBtn.setTextColor(Color.WHITE);
+            } else {
+                mBtn.setBackgroundColor(Color.parseColor("#44EF4444"));
+                mBtn.setTextColor(Color.parseColor("#FCA5A5"));
+            }
+            
+            LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+            mBtn.setLayoutParams(bp);
+            mBtn.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    selectedModel = modelName;
+                    updateModelButtonLabel();
+                    appendLog("Выбрана NSFW модель: " + selectedModel);
+                    if (dialogHolder[0] != null) dialogHolder[0].dismiss();
+                }
+            });
+
+            Button settingsBtn = new Button(this);
+            settingsBtn.setText("⚙️ Меню");
+            settingsBtn.setTextSize(11f);
+            settingsBtn.setBackgroundColor(Color.parseColor("#334155"));
+            settingsBtn.setTextColor(Color.parseColor("#F8FAFC"));
+            LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            sp.setMargins(5, 0, 0, 0);
+            settingsBtn.setLayoutParams(sp);
+            settingsBtn.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showModelMenuDialog(modelName);
+                }
+            });
+
+            rowLayout.addView(mBtn);
+            rowLayout.addView(settingsBtn);
+            nsfwContainer.addView(rowLayout);
+        }
+        mainDialogLayout.addView(nsfwContainer);
+
         builder.setView(dialogScroll);
         builder.setPositiveButton("Закрыть", null);
-        menuDialogHolder[0] = builder.create();
-        menuDialogHolder[0].show();
+        dialogHolder[0] = builder.create();
+        dialogHolder[0].show();
     }
 
     private void appendLog(final String text) {
+        if (isFinishing()) return;
         handler.post(new Runnable() {
             @Override
             public void run() {
-                if (isFinishing() || isDestroyed()) return;
+                if (isFinishing()) return;
                 String timeStr = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
                 logConsole.append("[" + timeStr + "] " + text + "\n");
                 logScrollView.fullScroll(View.FOCUS_DOWN);
@@ -851,6 +872,7 @@ public class MainActivity extends Activity {
         List<KeyScore> workingKeys = new ArrayList<KeyScore>();
         appendLog("Проверка пула ключей AI Horde...");
         for (int i = 0; i < hordeKeys.size(); i++) {
+            if (isFinishing()) break;
             String key = hordeKeys.get(i);
             try {
                 Request request = new Request.Builder()
@@ -926,7 +948,7 @@ public class MainActivity extends Activity {
         handler.post(new Runnable() {
             @Override
             public void run() {
-                if (isFinishing() || isDestroyed()) return;
+                if (isFinishing()) return;
                 progressStatusLayout.setVisibility(View.GONE);
                 btnStartGen.setVisibility(View.VISIBLE);
                 statusText.setText("⏹ Генерация остановлена пользователем.");
@@ -969,6 +991,7 @@ public class MainActivity extends Activity {
         final String userChangesRaw = inputChanges.getText().toString().trim();
         final boolean isNsfwActive = isModelNsfw(selectedModel);
 
+        // Перевод интерфейса в режим обработки (кнопка Стоп активна и видна)
         btnStartGen.setVisibility(View.GONE);
         progressStatusLayout.setVisibility(View.VISIBLE);
         progressStatusText.setText("Подготовка задачи...");
@@ -982,23 +1005,23 @@ public class MainActivity extends Activity {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            if (isFinishing() || isDestroyed()) return;
+                            if (isFinishing()) return;
                             progressStatusText.setText("Перевод пожеланий...");
                         }
                     });
                     
                     String translatedChanges = translateToEnglish(userChangesRaw);
-                    if (isGenerationCancelled) return;
+                    if (isGenerationCancelled || isFinishing()) return;
 
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            if (isFinishing() || isDestroyed()) return;
+                            if (isFinishing()) return;
                             progressStatusText.setText("Проверка ключей доступа...");
                         }
                     });
                     List<String> workingKeys = getPrioritizedWorkingKeys();
-                    if (isGenerationCancelled) return;
+                    if (isGenerationCancelled || isFinishing()) return;
 
                     Bitmap originalBmp = BitmapFactory.decodeByteArray(selectedImageBytes, 0, selectedImageBytes.length);
                     Bitmap squareBmp = makeSquareBitmap(originalBmp);
@@ -1009,11 +1032,6 @@ public class MainActivity extends Activity {
 
                     String fullPrompt = "";
                     String negativePrompt = "";
-
-                    SharedPreferences prefs = getSharedPreferences("ModelPrefs", MODE_PRIVATE);
-                    float cfg = prefs.getFloat(selectedModel + "_cfg", 7.5f);
-                    int steps = prefs.getInt(selectedModel + "_steps", 25);
-                    float denoising = prefs.getFloat(selectedModel + "_denoising", 0.60f);
 
                     if (isNsfwActive) {
                         String nsfwCore = "masterpiece, best quality, highly detailed 2.5d anime illustration, beautiful detailed face, intricate clothing textures, perfect anatomy, accurate lighting, vibrant colors, expressive body, gorgeous physique, sensual curves, fully detailed skin texture, artistic nudity, uncovered body, aesthetic explicit anatomy";
@@ -1028,6 +1046,12 @@ public class MainActivity extends Activity {
                         fullPrompt = standardCore + " ### " + negativePrompt;
                         appendLog("✨ Активен стандартный фото-промпт.");
                     }
+
+                    // Чтение индивидуальных настроек модели из SharedPreferences
+                    SharedPreferences prefs = getSharedPreferences("ModelPrefs", MODE_PRIVATE);
+                    float cfg = prefs.getFloat(selectedModel + "_cfg", 7.5f);
+                    int steps = prefs.getInt(selectedModel + "_steps", 25);
+                    float denoising = prefs.getFloat(selectedModel + "_denoising", 0.60f);
 
                     JSONObject paramsObj = new JSONObject();
                     paramsObj.put("sampler_name", "k_dpmpp_2m");
@@ -1046,11 +1070,11 @@ public class MainActivity extends Activity {
                     }
 
                     for (int mIdx = 0; mIdx < modelsToTry.size(); mIdx++) {
-                        if (successGenerated || isGenerationCancelled) break;
+                        if (successGenerated || isGenerationCancelled || isFinishing()) break;
                         final String modelName = modelsToTry.get(mIdx);
 
                         for (int kIdx = 0; kIdx < workingKeys.size(); kIdx++) {
-                            if (successGenerated || isGenerationCancelled) break;
+                            if (successGenerated || isGenerationCancelled || isFinishing()) break;
                             String apiKey = workingKeys.get(kIdx);
                             activeApiKey = apiKey;
 
@@ -1059,7 +1083,7 @@ public class MainActivity extends Activity {
                                 handler.post(new Runnable() {
                                     @Override
                                     public void run() {
-                                        if (isFinishing() || isDestroyed()) return;
+                                        if (isFinishing()) return;
                                         progressStatusText.setText("Модель: " + modelName);
                                     }
                                 });
@@ -1104,7 +1128,7 @@ public class MainActivity extends Activity {
                                 String imgUrl = null;
 
                                 for (int attempt = 0; attempt < 120; attempt++) {
-                                    if (isGenerationCancelled) break;
+                                    if (isGenerationCancelled || isFinishing()) break;
                                     Thread.sleep(5000);
 
                                     Request statusReq = new Request.Builder()
@@ -1130,7 +1154,7 @@ public class MainActivity extends Activity {
                                             handler.post(new Runnable() {
                                                 @Override
                                                 public void run() {
-                                                    if (isFinishing() || isDestroyed()) return;
+                                                    if (isFinishing()) return;
                                                     progressStatusText.setText("Очередь: " + qPos + " | Ждать: " + waitTime + "с");
                                                 }
                                             });
@@ -1138,7 +1162,7 @@ public class MainActivity extends Activity {
                                     }
                                 }
 
-                                if (isGenerationCancelled) break;
+                                if (isGenerationCancelled || isFinishing()) break;
 
                                 if (jobDone && imgUrl != null && !imgUrl.isEmpty()) {
                                     appendLog("📥 Скачивание готового изображения...");
@@ -1164,7 +1188,7 @@ public class MainActivity extends Activity {
                         }
                     }
 
-                    if (isGenerationCancelled) return;
+                    if (isGenerationCancelled || isFinishing()) return;
 
                     if (!successGenerated || resultBytes == null) {
                         throw new RuntimeException("Все модели перегружены или вернули пустой результат.");
@@ -1176,7 +1200,7 @@ public class MainActivity extends Activity {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            if (isFinishing() || isDestroyed()) return;
+                            if (isFinishing()) return;
                             progressStatusLayout.setVisibility(View.GONE);
                             btnStartGen.setVisibility(View.VISIBLE);
                             imageView.setImageBitmap(finalBmp);
@@ -1187,12 +1211,12 @@ public class MainActivity extends Activity {
                     });
 
                 } catch (final Exception e) {
-                    if (!isGenerationCancelled) {
+                    if (!isGenerationCancelled && !isFinishing()) {
                         appendLog("❌ ОШИБКА: " + e.getMessage());
                         handler.post(new Runnable() {
                             @Override
                             public void run() {
-                                if (isFinishing() || isDestroyed()) return;
+                                if (isFinishing()) return;
                                 progressStatusLayout.setVisibility(View.GONE);
                                 btnStartGen.setVisibility(View.VISIBLE);
                                 statusText.setText("❌ Ошибка: " + e.getMessage());
