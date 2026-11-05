@@ -64,6 +64,7 @@ public class MainActivity extends Activity {
     private EditText inputChanges;
     private TextView logConsole;
     private ScrollView logScrollView;
+    private ScrollView modelsScrollView;
     private byte[] selectedImageBytes;
     
     private Handler handler = new Handler(Looper.getMainLooper());
@@ -75,6 +76,7 @@ public class MainActivity extends Activity {
     private List<String> hordeKeys = new ArrayList<String>();
     private List<String> allAvailableModels = new ArrayList<String>();
 
+    // Элементы для управления отменой генерации
     private volatile boolean isGenerationCancelled = false;
     private String activeJobId = null;
     private String activeApiKey = null;
@@ -98,10 +100,6 @@ public class MainActivity extends Activity {
         hordeKeys.add("7IPa67lmBrwLPeWz5MGWbQ");
         hordeKeys.add("j7gxGfUrvncLoJDuVzrVWA");
 
-        float density = getResources().getDisplayMetrics().density;
-        int modelsHeightPx = (int) (220 * density);
-        int logsHeightPx = (int) (180 * density);
-
         ScrollView mainScroll = new ScrollView(this);
         mainScroll.setBackgroundColor(Color.parseColor("#030712"));
 
@@ -119,6 +117,7 @@ public class MainActivity extends Activity {
         title.setPadding(0, 0, 0, 15);
         rootLayout.addView(title);
 
+        // Панель управления моделями сверху
         LinearLayout topButtonsLayout = new LinearLayout(this);
         topButtonsLayout.setOrientation(LinearLayout.HORIZONTAL);
         topButtonsLayout.setLayoutParams(new LinearLayout.LayoutParams(
@@ -198,23 +197,26 @@ public class MainActivity extends Activity {
         modelsContainer = new LinearLayout(this);
         modelsContainer.setOrientation(LinearLayout.VERTICAL);
 
-        // Скролл моделей с поддержкой прокрутки пальцем
-        final ScrollView modelsScroll = new ScrollView(this);
+        // Скроллинг списка моделей с защитой от перехвата касаний родителем
+        modelsScrollView = new ScrollView(this);
         LinearLayout.LayoutParams mScrollParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, modelsHeightPx
+                LinearLayout.LayoutParams.MATCH_PARENT, 350
         );
         mScrollParams.setMargins(0, 0, 0, 15);
-        modelsScroll.setLayoutParams(mScrollParams);
-        modelsScroll.setBackgroundColor(Color.parseColor("#0F172A"));
-        modelsScroll.setOnTouchListener(new View.OnTouchListener() {
+        modelsScrollView.setLayoutParams(mScrollParams);
+        modelsScrollView.setBackgroundColor(Color.parseColor("#0F172A"));
+        modelsScrollView.addView(modelsContainer);
+        
+        // Исправление скроллинга пальцем
+        modelsScrollView.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 v.getParent().requestDisallowInterceptTouchEvent(true);
                 return false;
             }
         });
-        modelsScroll.addView(modelsContainer);
-        rootLayout.addView(modelsScroll);
+        
+        rootLayout.addView(modelsScrollView);
 
         initDefaultModelsList();
         rebuildModelListUI();
@@ -226,6 +228,7 @@ public class MainActivity extends Activity {
             fetchOnlineModelsAsync(false);
         }
 
+        // Кнопка запуска генерации
         Button btnProcess = createStyledButton("🚀 Запустить генерацию", "#059669");
         btnProcess.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -235,6 +238,7 @@ public class MainActivity extends Activity {
         });
         rootLayout.addView(btnProcess);
 
+        // Кнопка экстренной остановки задачи (сохраняет текущее фото)
         Button btnStop = createStyledButton("⏹ Остановить генерацию", "#DC2626");
         btnStop.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -245,7 +249,7 @@ public class MainActivity extends Activity {
         rootLayout.addView(btnStop);
 
         TextView labelLogs = new TextView(this);
-        labelLogs.setText("📋 Отладочные логи (прокрутка пальцем):");
+        labelLogs.setText("📋 Отладочные логи (можно выбирать и прокручивать):");
         labelLogs.setTextColor(Color.parseColor("#38BDF8"));
         labelLogs.setTextSize(12f);
         labelLogs.setTypeface(Typeface.DEFAULT_BOLD);
@@ -254,11 +258,22 @@ public class MainActivity extends Activity {
 
         logScrollView = new ScrollView(this);
         LinearLayout.LayoutParams logScrollParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, logsHeightPx
+                LinearLayout.LayoutParams.MATCH_PARENT, 280
         );
         logScrollParams.setMargins(0, 0, 0, 10);
         logScrollView.setLayoutParams(logScrollParams);
         logScrollView.setBackgroundColor(Color.parseColor("#0B0F19"));
+
+        logConsole = new TextView(this);
+        logConsole.setText("⏳ Приложение готово к работе...\n");
+        logConsole.setTextColor(Color.parseColor("#34D399"));
+        logConsole.setTextSize(11f);
+        logConsole.setTypeface(Typeface.MONOSPACE);
+        logConsole.setPadding(15, 15, 15, 15);
+        logConsole.setTextIsSelectable(true); // Разрешает выделение текста пальцем
+        logScrollView.addView(logConsole);
+
+        // Исправление скроллинга консоли логов
         logScrollView.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -267,13 +282,6 @@ public class MainActivity extends Activity {
             }
         });
 
-        logConsole = new TextView(this);
-        logConsole.setText("⏳ Приложение готово к работе...\n");
-        logConsole.setTextColor(Color.parseColor("#34D399"));
-        logConsole.setTextSize(11f);
-        logConsole.setTypeface(Typeface.MONOSPACE);
-        logConsole.setPadding(15, 15, 15, 15);
-        logScrollView.addView(logConsole);
         rootLayout.addView(logScrollView);
 
         LinearLayout logButtonsLayout = new LinearLayout(this);
@@ -457,7 +465,7 @@ public class MainActivity extends Activity {
             rowParams.setMargins(4, 4, 4, 4);
             rowLayout.setLayoutParams(rowParams);
 
-            // NSFW модели выделяются полупрозрачным красным фоном (ARGB: 44EF4444)
+            // NSFW модели подсвечиваются полупрозрачным красным фоном (ARGB: 44EF4444)
             if (isNsfw) {
                 rowLayout.setBackgroundColor(Color.parseColor("#44EF4444"));
             } else {
