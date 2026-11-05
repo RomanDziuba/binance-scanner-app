@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.newhentay1.version02'
+    namespace 'com.aiphoto2.version02'
     compileSdk 34
     defaultConfig {
-        applicationId "com.newhentay1.version02"
+        applicationId "com.aiphoto2.version02"
         minSdk 21
         targetSdk 34
-        versionCode 51
+        versionCode 52
         versionName "02"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "AI_фото🛀_v02-" + variant.name + ".apk"
+            outputFileName = "AI_фото2_v02-" + variant.name + ".apk"
         }
     }
 }
