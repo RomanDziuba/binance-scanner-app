@@ -79,7 +79,7 @@ public class MainActivity extends Activity {
     private Button btnStopGen;
     private Button btnStartGen;
 
-    // Элементы управления отменой генерации
+    // Управление отменой генерации
     private volatile boolean isGenerationCancelled = false;
     private String activeJobId = null;
     private String activeApiKey = null;
@@ -94,7 +94,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // Ключи доступа AI Horde
+        // Пул ключей AI Horde
         hordeKeys.add("lJSv4pVAjwtzOYfVldIVxg");
         hordeKeys.add("OjbJD9mxPNcXGU7DfGQAXQ");
         hordeKeys.add("V0lhf56Xg982yORgPuZl6A");
@@ -169,13 +169,13 @@ public class MainActivity extends Activity {
         rootLayout.addView(inputChanges);
 
         TextView labelModel = new TextView(this);
-        labelModel.setText("🤖 Активная модель ИИ:");
+        labelModel.setText("🤖 Активная модель ИИ и её настройки:");
         labelModel.setTextColor(Color.parseColor("#F8FAFC"));
         labelModel.setTextSize(12f);
         labelModel.setPadding(0, 10, 0, 5);
         rootLayout.addView(labelModel);
 
-        // Кнопка-селектор моделей с отображением текущей модели и количества
+        // Кнопка каталога моделей
         btnModelSelector = createStyledButton("🤖 Загрузка моделей...", "#1E293B");
         btnModelSelector.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -185,7 +185,7 @@ public class MainActivity extends Activity {
         });
         rootLayout.addView(btnModelSelector);
 
-        // Панель прогресса и статуса (не блокирует интерфейс, кнопка стоп всегда доступна)
+        // Панель прогресса во время генерации
         progressStatusLayout = new LinearLayout(this);
         progressStatusLayout.setOrientation(LinearLayout.VERTICAL);
         progressStatusLayout.setBackgroundColor(Color.parseColor("#1E293B"));
@@ -301,7 +301,7 @@ public class MainActivity extends Activity {
         mainScroll.addView(rootLayout);
         setContentView(mainScroll);
 
-        // Восстановление данных при повороте или первичный запуск
+        // Восстановление состояния при повороте экрана или запуск
         if (savedInstanceState != null) {
             selectedModel = savedInstanceState.getString("selectedModel", "grapefruit");
             inputChanges.setText(savedInstanceState.getString("inputText", ""));
@@ -349,9 +349,10 @@ public class MainActivity extends Activity {
     }
 
     private void updateModelButtonLabel() {
+        if (isFinishing() || isDestroyed()) return;
         if (btnModelSelector != null) {
             boolean isNsfw = isModelNsfw(selectedModel);
-            btnModelSelector.setText("🤖 Активная: " + selectedModel + (isNsfw ? " 🔞" : "") + " [Всего в базе: " + allAvailableModels.size() + "]");
+            btnModelSelector.setText("🤖 Активная: " + selectedModel + (isNsfw ? " 🔞" : "") + " [В базе: " + allAvailableModels.size() + "]");
         }
     }
 
@@ -393,6 +394,7 @@ public class MainActivity extends Activity {
                             handler.post(new Runnable() {
                                 @Override
                                 public void run() {
+                                    if (isFinishing() || isDestroyed()) return;
                                     allAvailableModels = fetchedModels;
                                     if (!allAvailableModels.contains(selectedModel) && !allAvailableModels.isEmpty()) {
                                         selectedModel = allAvailableModels.get(0);
@@ -414,6 +416,7 @@ public class MainActivity extends Activity {
                         handler.post(new Runnable() {
                             @Override
                             public void run() {
+                                if (isFinishing() || isDestroyed()) return;
                                 Toast.makeText(MainActivity.this, "⚠️ Ошибка сети при обновлении моделей.", Toast.LENGTH_LONG).show();
                             }
                         });
@@ -423,7 +426,7 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    // Продвинутое меню выбора моделей: два отдельных скроллируемых блока + кнопка обновления
+    // Каталог моделей: раздельные скроллируемые блоки (Обычные / NSFW) + кнопка обновления + настройки для каждой модели
     private void showAdvancedModelSelectionDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         
@@ -442,8 +445,7 @@ public class MainActivity extends Activity {
         dialogTitle.setPadding(0, 0, 0, 15);
         mainDialogLayout.addView(dialogTitle);
 
-        // Кнопка обновления моделей прямо в меню
-        Button btnRefreshInDialog = createStyledButton("🔄 Обновить список моделей с сервера", "#0284C7");
+        Button btnRefreshInDialog = createStyledButton("🔄 Обновить список с сервера", "#0284C7");
         btnRefreshInDialog.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -452,7 +454,6 @@ public class MainActivity extends Activity {
         });
         mainDialogLayout.addView(btnRefreshInDialog);
 
-        // Разделение моделей на Обычные и NSFW
         List<String> normalModels = new ArrayList<String>();
         List<String> nsfwModels = new ArrayList<String>();
 
@@ -465,7 +466,9 @@ public class MainActivity extends Activity {
             }
         }
 
-        // Блок 1: Обычные модели
+        final AlertDialog[] mainDialogHolder = new AlertDialog[1];
+
+        // Блок 1: Стандартные модели
         TextView headerNormal = new TextView(this);
         headerNormal.setText("\n🟢 Стандартные модели (" + normalModels.size() + "):");
         headerNormal.setTextColor(Color.parseColor("#34D399"));
@@ -478,13 +481,23 @@ public class MainActivity extends Activity {
         for (int i = 0; i < normalModels.size(); i++) {
             final String modelName = normalModels.get(i);
             final int indexNum = i + 1;
+            boolean isSelected = modelName.equals(selectedModel);
+
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            LinearLayout.LayoutParams rParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            rParams.setMargins(0, 3, 0, 3);
+            row.setLayoutParams(rParams);
+
             Button mBtn = new Button(this);
-            mBtn.setText(indexNum + ". " + modelName);
+            String displayName = indexNum + ". " + modelName + (isSelected ? " ✔️ [АКТИВНА]" : "");
+            mBtn.setText(displayName);
             mBtn.setTextSize(12f);
             mBtn.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
             mBtn.setPadding(15, 12, 15, 12);
             
-            if (modelName.equals(selectedModel)) {
+            if (isSelected) {
                 mBtn.setBackgroundColor(Color.parseColor("#059669"));
                 mBtn.setTextColor(Color.WHITE);
             } else {
@@ -492,32 +505,39 @@ public class MainActivity extends Activity {
                 mBtn.setTextColor(Color.parseColor("#CBD5E1"));
             }
             
-            LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            bp.setMargins(0, 3, 0, 3);
+            LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
             mBtn.setLayoutParams(bp);
             
-            final AlertDialog dialog = builder.create(); // объявление для закрытия
             mBtn.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     selectedModel = modelName;
                     updateModelButtonLabel();
                     appendLog("Выбрана модель: " + selectedModel);
-                    // Закрыть диалог
+                    if (mainDialogHolder[0] != null) mainDialogHolder[0].dismiss();
                 }
             });
-            // Исправленный лисенер с закрытием
-            final AlertDialog[] holder = new AlertDialog[1];
-            mBtn.setOnClickListener(new View.OnClickListener() {
+
+            Button settingsBtn = new Button(this);
+            settingsBtn.setText("⚙️ Меню");
+            settingsBtn.setTextSize(11f);
+            settingsBtn.setBackgroundColor(Color.parseColor("#334155"));
+            settingsBtn.setTextColor(Color.parseColor("#F8FAFC"));
+            settingsBtn.setPadding(12, 12, 12, 12);
+            LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            sp.setMargins(6, 0, 0, 0);
+            settingsBtn.setLayoutParams(sp);
+
+            settingsBtn.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    selectedModel = modelName;
-                    updateModelButtonLabel();
-                    appendLog("Выбрана модель: " + selectedModel);
-                    if (holder[0] != null) holder[0].dismiss();
+                    showModelMenuDialog(modelName);
                 }
             });
-            normalContainer.addView(mBtn);
+
+            row.addView(mBtn);
+            row.addView(settingsBtn);
+            normalContainer.addView(row);
         }
         mainDialogLayout.addView(normalContainer);
 
@@ -534,13 +554,23 @@ public class MainActivity extends Activity {
         for (int i = 0; i < nsfwModels.size(); i++) {
             final String modelName = nsfwModels.get(i);
             final int indexNum = i + 1;
+            boolean isSelected = modelName.equals(selectedModel);
+
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            LinearLayout.LayoutParams rParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            rParams.setMargins(0, 3, 0, 3);
+            row.setLayoutParams(rParams);
+
             Button mBtn = new Button(this);
-            mBtn.setText(indexNum + ". " + modelName + " 🔞");
+            String displayName = indexNum + ". " + modelName + " 🔞" + (isSelected ? " ✔️ [АКТИВНА]" : "");
+            mBtn.setText(displayName);
             mBtn.setTextSize(12f);
             mBtn.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
             mBtn.setPadding(15, 12, 15, 12);
             
-            if (modelName.equals(selectedModel)) {
+            if (isSelected) {
                 mBtn.setBackgroundColor(Color.parseColor("#059669"));
                 mBtn.setTextColor(Color.WHITE);
             } else {
@@ -548,36 +578,163 @@ public class MainActivity extends Activity {
                 mBtn.setTextColor(Color.parseColor("#FCA5A5"));
             }
             
-            LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            bp.setMargins(0, 3, 0, 3);
+            LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
             mBtn.setLayoutParams(bp);
             
-            final AlertDialog[] holder = new AlertDialog[1];
             mBtn.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     selectedModel = modelName;
                     updateModelButtonLabel();
                     appendLog("Выбрана NSFW модель: " + selectedModel);
-                    if (holder[0] != null) holder[0].dismiss();
+                    if (mainDialogHolder[0] != null) mainDialogHolder[0].dismiss();
                 }
             });
-            nsfwContainer.addView(mBtn);
+
+            Button settingsBtn = new Button(this);
+            settingsBtn.setText("⚙️ Меню");
+            settingsBtn.setTextSize(11f);
+            settingsBtn.setBackgroundColor(Color.parseColor("#334155"));
+            settingsBtn.setTextColor(Color.parseColor("#F8FAFC"));
+            settingsBtn.setPadding(12, 12, 12, 12);
+            LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            sp.setMargins(6, 0, 0, 0);
+            settingsBtn.setLayoutParams(sp);
+
+            settingsBtn.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showModelMenuDialog(modelName);
+                }
+            });
+
+            row.addView(mBtn);
+            row.addView(settingsBtn);
+            nsfwContainer.addView(row);
         }
         mainDialogLayout.addView(nsfwContainer);
 
         builder.setView(dialogScroll);
         builder.setPositiveButton("Закрыть", null);
-        AlertDialog dialogInstance = builder.create();
-        // Запись ссылки для закрытия из кнопок моделей
-        // (внутренние лисенеры уже используют dismiss через холдер или контекст)
-        dialogInstance.show();
+        mainDialogHolder[0] = builder.create();
+        mainDialogHolder[0].show();
+    }
+
+    // Детальное меню настроек и описания для конкретной модели на русском языке
+    private void showModelMenuDialog(final String modelName) {
+        SharedPreferences prefs = getSharedPreferences("ModelPrefs", MODE_PRIVATE);
+        boolean isNsfwModel = isModelNsfw(modelName);
+        
+        String modelDesc = "🤖 Системный идентификатор: " + modelName + "\n\n";
+        if (isNsfwModel) {
+            modelDesc += "⚠️ Данная модель относится к категории NSFW (18+). Специализируется на создании эротического контента, аниме и арт-иллюстраций с высокой детализацией кожи, тел и анатомических особенностей.";
+        } else {
+            modelDesc += "✨ Стандартная модель общего назначения. Идеально оптимизирована для создания реалистичных фотографий высокого качества, портретов, пейзажей и художественной графики.";
+        }
+
+        float savedCfg = prefs.getFloat(modelName + "_cfg", 7.5f);
+        int savedSteps = prefs.getInt(modelName + "_steps", 25);
+        float savedDenoising = prefs.getFloat(modelName + "_denoising", 0.60f);
+
+        ScrollView dialogScroll = new ScrollView(this);
+        LinearLayout dialogLayout = new LinearLayout(this);
+        dialogLayout.setOrientation(LinearLayout.VERTICAL);
+        dialogLayout.setPadding(30, 30, 30, 30);
+        dialogLayout.setBackgroundColor(Color.parseColor("#0F172A"));
+        dialogScroll.addView(dialogLayout);
+
+        TextView titleView = new TextView(this);
+        titleView.setText("⚙️ Меню и описание модели:\n" + modelName);
+        titleView.setTextColor(Color.parseColor("#38BDF8"));
+        titleView.setTextSize(15f);
+        titleView.setTypeface(Typeface.DEFAULT_BOLD);
+        titleView.setPadding(0, 0, 0, 10);
+        dialogLayout.addView(titleView);
+
+        TextView descView = new TextView(this);
+        descView.setText(modelDesc);
+        descView.setTextColor(Color.parseColor("#CBD5E1"));
+        descView.setTextSize(12f);
+        descView.setPadding(0, 0, 0, 15);
+        dialogLayout.addView(descView);
+
+        TextView labelCfg = new TextView(this);
+        labelCfg.setText("🎯 CFG Scale (Сила следования вашему тексту):\nРекомендуется 7.0–8.5. Чем выше значение, тем точнее нейросеть воплощает введенные пожелания.");
+        labelCfg.setTextColor(Color.parseColor("#F8FAFC"));
+        labelCfg.setTextSize(11f);
+        dialogLayout.addView(labelCfg);
+
+        final EditText inputCfg = new EditText(this);
+        inputCfg.setText(String.valueOf(savedCfg));
+        inputCfg.setTextColor(Color.BLACK);
+        inputCfg.setBackgroundColor(Color.WHITE);
+        inputCfg.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        dialogLayout.addView(inputCfg);
+
+        TextView labelSteps = new TextView(this);
+        labelSteps.setText("\n🔄 Steps (Количество шагов генерации):\nРекомендуется 20–30. Больше шагов — выше качество и проработка мелких деталей.");
+        labelSteps.setTextColor(Color.parseColor("#F8FAFC"));
+        labelSteps.setTextSize(11f);
+        dialogLayout.addView(labelSteps);
+
+        final EditText inputSteps = new EditText(this);
+        inputSteps.setText(String.valueOf(savedSteps));
+        inputSteps.setTextColor(Color.BLACK);
+        inputSteps.setBackgroundColor(Color.WHITE);
+        inputSteps.setInputType(InputType.TYPE_CLASS_NUMBER);
+        dialogLayout.addView(inputSteps);
+
+        TextView labelDenoising = new TextView(this);
+        labelDenoising.setText("\n⚡ Denoising Strength (Сила изменения исходного фото, от 0.1 до 1.0):\nБлиже к 1.0 — полная переработка изображения под новый стиль, ближе к 0.1 — сохранение оригинальных черт лица и формы исходного фото.");
+        labelDenoising.setTextColor(Color.parseColor("#F8FAFC"));
+        labelDenoising.setTextSize(11f);
+        dialogLayout.addView(labelDenoising);
+
+        final EditText inputDenoising = new EditText(this);
+        inputDenoising.setText(String.valueOf(savedDenoising));
+        inputDenoising.setTextColor(Color.BLACK);
+        inputDenoising.setBackgroundColor(Color.WHITE);
+        inputDenoising.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        dialogLayout.addView(inputDenoising);
+
+        Button saveBtn = createStyledButton("💾 Сохранить настройки модели", "#059669");
+        final AlertDialog[] menuDialogHolder = new AlertDialog[1];
+        saveBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                try {
+                    float cfg = Float.parseFloat(inputCfg.getText().toString().trim());
+                    int steps = Integer.parseInt(inputSteps.getText().toString().trim());
+                    float denoising = Float.parseFloat(inputDenoising.getText().toString().trim());
+
+                    SharedPreferences.Editor editor = prefs.edit();
+                    editor.putFloat(modelName + "_cfg", cfg);
+                    editor.putInt(modelName + "_steps", steps);
+                    editor.putFloat(modelName + "_denoising", denoising);
+                    editor.apply();
+
+                    Toast.makeText(MainActivity.this, "✅ Настройки для " + modelName + " сохранены!", Toast.LENGTH_SHORT).show();
+                    appendLog("Обновлены настройки модели " + modelName + " [CFG: " + cfg + ", Steps: " + steps + ", Denoising: " + denoising + "]");
+                    if (menuDialogHolder[0] != null) menuDialogHolder[0].dismiss();
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "❌ Ошибка в числах! Проверьте правильность ввода.", Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+        dialogLayout.addView(saveBtn);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setView(dialogScroll);
+        builder.setPositiveButton("Закрыть", null);
+        menuDialogHolder[0] = builder.create();
+        menuDialogHolder[0].show();
     }
 
     private void appendLog(final String text) {
         handler.post(new Runnable() {
             @Override
             public void run() {
+                if (isFinishing() || isDestroyed()) return;
                 String timeStr = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
                 logConsole.append("[" + timeStr + "] " + text + "\n");
                 logScrollView.fullScroll(View.FOCUS_DOWN);
@@ -769,6 +926,7 @@ public class MainActivity extends Activity {
         handler.post(new Runnable() {
             @Override
             public void run() {
+                if (isFinishing() || isDestroyed()) return;
                 progressStatusLayout.setVisibility(View.GONE);
                 btnStartGen.setVisibility(View.VISIBLE);
                 statusText.setText("⏹ Генерация остановлена пользователем.");
@@ -811,7 +969,6 @@ public class MainActivity extends Activity {
         final String userChangesRaw = inputChanges.getText().toString().trim();
         final boolean isNsfwActive = isModelNsfw(selectedModel);
 
-        // Перевод интерфейса в режим обработки (кнопка Стоп активна и видна)
         btnStartGen.setVisibility(View.GONE);
         progressStatusLayout.setVisibility(View.VISIBLE);
         progressStatusText.setText("Подготовка задачи...");
@@ -825,6 +982,7 @@ public class MainActivity extends Activity {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
+                            if (isFinishing() || isDestroyed()) return;
                             progressStatusText.setText("Перевод пожеланий...");
                         }
                     });
@@ -835,6 +993,7 @@ public class MainActivity extends Activity {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
+                            if (isFinishing() || isDestroyed()) return;
                             progressStatusText.setText("Проверка ключей доступа...");
                         }
                     });
@@ -850,6 +1009,11 @@ public class MainActivity extends Activity {
 
                     String fullPrompt = "";
                     String negativePrompt = "";
+
+                    SharedPreferences prefs = getSharedPreferences("ModelPrefs", MODE_PRIVATE);
+                    float cfg = prefs.getFloat(selectedModel + "_cfg", 7.5f);
+                    int steps = prefs.getInt(selectedModel + "_steps", 25);
+                    float denoising = prefs.getFloat(selectedModel + "_denoising", 0.60f);
 
                     if (isNsfwActive) {
                         String nsfwCore = "masterpiece, best quality, highly detailed 2.5d anime illustration, beautiful detailed face, intricate clothing textures, perfect anatomy, accurate lighting, vibrant colors, expressive body, gorgeous physique, sensual curves, fully detailed skin texture, artistic nudity, uncovered body, aesthetic explicit anatomy";
@@ -867,9 +1031,9 @@ public class MainActivity extends Activity {
 
                     JSONObject paramsObj = new JSONObject();
                     paramsObj.put("sampler_name", "k_dpmpp_2m");
-                    paramsObj.put("cfg_scale", 7.5);
-                    paramsObj.put("steps", 25);
-                    paramsObj.put("denoising_strength", 0.60);
+                    paramsObj.put("cfg_scale", (double) cfg);
+                    paramsObj.put("steps", steps);
+                    paramsObj.put("denoising_strength", (double) denoising);
 
                     byte[] resultBytes = null;
                     boolean successGenerated = false;
@@ -895,6 +1059,7 @@ public class MainActivity extends Activity {
                                 handler.post(new Runnable() {
                                     @Override
                                     public void run() {
+                                        if (isFinishing() || isDestroyed()) return;
                                         progressStatusText.setText("Модель: " + modelName);
                                     }
                                 });
@@ -965,6 +1130,7 @@ public class MainActivity extends Activity {
                                             handler.post(new Runnable() {
                                                 @Override
                                                 public void run() {
+                                                    if (isFinishing() || isDestroyed()) return;
                                                     progressStatusText.setText("Очередь: " + qPos + " | Ждать: " + waitTime + "с");
                                                 }
                                             });
@@ -1010,6 +1176,7 @@ public class MainActivity extends Activity {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
+                            if (isFinishing() || isDestroyed()) return;
                             progressStatusLayout.setVisibility(View.GONE);
                             btnStartGen.setVisibility(View.VISIBLE);
                             imageView.setImageBitmap(finalBmp);
@@ -1025,6 +1192,7 @@ public class MainActivity extends Activity {
                         handler.post(new Runnable() {
                             @Override
                             public void run() {
+                                if (isFinishing() || isDestroyed()) return;
                                 progressStatusLayout.setVisibility(View.GONE);
                                 btnStartGen.setVisibility(View.VISIBLE);
                                 statusText.setText("❌ Ошибка: " + e.getMessage());
