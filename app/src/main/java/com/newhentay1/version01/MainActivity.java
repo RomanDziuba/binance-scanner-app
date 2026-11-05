@@ -65,26 +65,21 @@ public class MainActivity extends Activity {
     private ScrollView logScrollView;
     private ScrollView modelsScrollView;
     private byte[] selectedImageBytes;
+    private Uri selectedImageUri = null;
     
     private Handler handler = new Handler(Looper.getMainLooper());
     
     private String selectedModel = "grapefruit";
     private LinearLayout modelsContainer;
-    private List<LinearLayout> modelRows = new ArrayList<LinearLayout>();
+    
+    // Вкладки моделей: 0 - Обычные, 1 - NSFW
+    private int currentModelTab = 0; 
+    private Button tabStandardBtn;
+    private Button tabNsfwBtn;
 
     private List<String> hordeKeys = new ArrayList<String>();
     private List<String> allAvailableModels = new ArrayList<String>();
 
-    // Управление вкладками моделей (false = Стандартные, true = NSFW)
-    private boolean isNsfwTabSelected = false;
-    private Button btnTabStandard, btnTabNsfw;
-
-    // Панель живого статуса и отмены генерации (неблокирующая)
-    private LinearLayout generationPanel;
-    private TextView generationStatusInfo;
-    private Button btnStopTask;
-
-    // Флаги отмены
     private volatile boolean isGenerationCancelled = false;
     private String activeJobId = null;
     private String activeApiKey = null;
@@ -124,14 +119,13 @@ public class MainActivity extends Activity {
         title.setPadding(0, 0, 0, 15);
         rootLayout.addView(title);
 
-        // Панель управления моделями сверху
         LinearLayout topButtonsLayout = new LinearLayout(this);
         topButtonsLayout.setOrientation(LinearLayout.HORIZONTAL);
         topButtonsLayout.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         ));
 
-        Button btnRefreshModels = createStyledButton("🔄 Обновить список", "#0284C7");
+        Button btnRefreshModels = createStyledButton("🔄 Обновить модели", "#0284C7");
         LinearLayout.LayoutParams refParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f
         );
@@ -198,65 +192,63 @@ public class MainActivity extends Activity {
         labelModel.setText("🤖 Выберите категорию и модель ИИ:");
         labelModel.setTextColor(Color.parseColor("#F8FAFC"));
         labelModel.setTextSize(12f);
-        labelModel.setPadding(0, 10, 0, 5);
+        labelModel.setPadding(0, 10, 0, 8);
         rootLayout.addView(labelModel);
 
-        // Переключатели вкладок (Обычные / NSFW) для снижения нагрузки на UI
+        // Панель переключения вкладок моделей (Обычные / NSFW)
         LinearLayout tabsLayout = new LinearLayout(this);
         tabsLayout.setOrientation(LinearLayout.HORIZONTAL);
         tabsLayout.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         ));
-        tabsLayout.setPadding(0, 0, 0, 6);
 
-        btnTabStandard = new Button(this);
-        btnTabStandard.setText("✨ Стандартные");
-        btnTabStandard.setTextSize(12f);
-        btnTabStandard.setTypeface(Typeface.DEFAULT_BOLD);
-        LinearLayout.LayoutParams tabStdParams = new LinearLayout.LayoutParams(
+        tabStandardBtn = new Button(this);
+        tabStandardBtn.setText("✨ Обычные модели");
+        tabStandardBtn.setTextSize(12f);
+        tabStandardBtn.setTypeface(Typeface.DEFAULT_BOLD);
+        LinearLayout.LayoutParams tabParam1 = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f
         );
-        tabStdParams.setMargins(0, 0, 4, 0);
-        btnTabStandard.setLayoutParams(tabStdParams);
-        btnTabStandard.setOnClickListener(new View.OnClickListener() {
+        tabParam1.setMargins(0, 0, 4, 8);
+        tabStandardBtn.setLayoutParams(tabParam1);
+        tabStandardBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                isNsfwTabSelected = false;
-                updateTabsUI();
+                currentModelTab = 0;
+                updateTabStyles();
                 rebuildModelListUI();
             }
         });
 
-        btnTabNsfw = new Button(this);
-        btnTabNsfw.setText("🔞 NSFW 18+");
-        btnTabNsfw.setTextSize(12f);
-        btnTabNsfw.setTypeface(Typeface.DEFAULT_BOLD);
-        LinearLayout.LayoutParams tabNsfwParams = new LinearLayout.LayoutParams(
+        tabNsfwBtn = new Button(this);
+        tabNsfwBtn.setText("🔞 NSFW модели");
+        tabNsfwBtn.setTextSize(12f);
+        tabNsfwBtn.setTypeface(Typeface.DEFAULT_BOLD);
+        LinearLayout.LayoutParams tabParam2 = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f
         );
-        tabNsfwParams.setMargins(4, 0, 0, 0);
-        btnTabNsfw.setLayoutParams(tabNsfwParams);
-        btnTabNsfw.setOnClickListener(new View.OnClickListener() {
+        tabParam2.setMargins(4, 0, 0, 8);
+        tabNsfwBtn.setLayoutParams(tabParam2);
+        tabNsfwBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                isNsfwTabSelected = true;
-                updateTabsUI();
+                currentModelTab = 1;
+                updateTabStyles();
                 rebuildModelListUI();
             }
         });
 
-        tabsLayout.addView(btnTabStandard);
-        tabsLayout.addView(btnTabNsfw);
+        tabsLayout.addView(tabStandardBtn);
+        tabsLayout.addView(tabNsfwBtn);
         rootLayout.addView(tabsLayout);
-        updateTabsUI();
+        updateTabStyles();
 
         modelsContainer = new LinearLayout(this);
         modelsContainer.setOrientation(LinearLayout.VERTICAL);
 
-        // Скроллинг списка моделей с защитой от перехвата касаний родителем
         modelsScrollView = new ScrollView(this);
         LinearLayout.LayoutParams mScrollParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 320
+                LinearLayout.LayoutParams.MATCH_PARENT, 350
         );
         mScrollParams.setMargins(0, 0, 0, 15);
         modelsScrollView.setLayoutParams(mScrollParams);
@@ -283,7 +275,6 @@ public class MainActivity extends Activity {
             fetchOnlineModelsAsync(false);
         }
 
-        // Кнопка запуска генерации
         Button btnProcess = createStyledButton("🚀 Запустить генерацию", "#059669");
         btnProcess.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -293,44 +284,18 @@ public class MainActivity extends Activity {
         });
         rootLayout.addView(btnProcess);
 
-        // Неблокирующая панель статуса и экстренной остановки задачи (активна всегда!)
-        generationPanel = new LinearLayout(this);
-        generationPanel.setOrientation(LinearLayout.VERTICAL);
-        generationPanel.setBackgroundColor(Color.parseColor("#1E293B"));
-        generationPanel.setPadding(20, 15, 20, 15);
-        LinearLayout.LayoutParams genPanelParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        genPanelParams.setMargins(0, 0, 0, 15);
-        generationPanel.setLayoutParams(genPanelParams);
-        generationPanel.setVisibility(View.GONE); // Скрыта до запуска задачи
-
-        generationStatusInfo = new TextView(this);
-        generationStatusInfo.setText("⏳ Выполняется задача...");
-        generationStatusInfo.setTextColor(Color.parseColor("#38BDF8"));
-        generationStatusInfo.setTextSize(12f);
-        generationStatusInfo.setTypeface(Typeface.DEFAULT_BOLD);
-        generationStatusInfo.setPadding(0, 0, 0, 10);
-        generationPanel.addView(generationStatusInfo);
-
-        btnStopTask = new Button(this);
-        btnStopTask.setText("⏹ Остановить генерацию (Сохранить текущее)");
-        btnStopTask.setTextColor(Color.WHITE);
-        btnStopTask.setTextSize(12f);
-        btnStopTask.setTypeface(Typeface.DEFAULT_BOLD);
-        btnStopTask.setBackgroundColor(Color.parseColor("#DC2626"));
-        btnStopTask.setPadding(15, 12, 15, 12);
-        btnStopTask.setOnClickListener(new View.OnClickListener() {
+        // Кнопка экстренной остановки всегда активна
+        Button btnStop = createStyledButton("⏹ Остановить генерацию", "#DC2626");
+        btnStop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 stopCurrentGeneration();
             }
         });
-        generationPanel.addView(btnStopTask);
-        rootLayout.addView(generationPanel);
+        rootLayout.addView(btnStop);
 
         TextView labelLogs = new TextView(this);
-        labelLogs.setText("📋 Отладочные логи (свободный скролл и выделение текста):");
+        labelLogs.setText("📋 Отладочные логи (можно выбирать и прокручивать):");
         labelLogs.setTextColor(Color.parseColor("#38BDF8"));
         labelLogs.setTextSize(12f);
         labelLogs.setTypeface(Typeface.DEFAULT_BOLD);
@@ -339,7 +304,7 @@ public class MainActivity extends Activity {
 
         logScrollView = new ScrollView(this);
         LinearLayout.LayoutParams logScrollParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 260
+                LinearLayout.LayoutParams.MATCH_PARENT, 280
         );
         logScrollParams.setMargins(0, 0, 0, 10);
         logScrollView.setLayoutParams(logScrollParams);
@@ -351,7 +316,7 @@ public class MainActivity extends Activity {
         logConsole.setTextSize(11f);
         logConsole.setTypeface(Typeface.MONOSPACE);
         logConsole.setPadding(15, 15, 15, 15);
-        logConsole.setTextIsSelectable(true); // Разрешает выделение текста пальцем
+        logConsole.setTextIsSelectable(true);
         logScrollView.addView(logConsole);
 
         logScrollView.setOnTouchListener(new View.OnTouchListener() {
@@ -406,21 +371,62 @@ public class MainActivity extends Activity {
 
         mainScroll.addView(rootLayout);
         setContentView(mainScroll);
+
+        // Восстановление состояния при повороте
+        if (savedInstanceState != null) {
+            selectedModel = savedInstanceState.getString("selected_model", "grapefruit");
+            String savedLog = savedInstanceState.getString("log_text", "");
+            if (!savedLog.isEmpty()) {
+                logConsole.setText(savedLog);
+            }
+            String savedInput = savedInstanceState.getString("input_text", "");
+            inputChanges.setText(savedInput);
+            
+            String uriStr = savedInstanceState.getString("image_uri", null);
+            if (uriStr != null) {
+                selectedImageUri = Uri.parse(uriStr);
+                try {
+                    InputStream is = getContentResolver().openInputStream(selectedImageUri);
+                    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                    byte[] temp = new byte[4096];
+                    int nRead;
+                    while ((nRead = is.read(temp, 0, temp.length)) != -1) {
+                        buffer.write(temp, 0, nRead);
+                    }
+                    selectedImageBytes = buffer.toByteArray();
+                    if (is != null) is.close();
+                    Bitmap bmp = BitmapFactory.decodeByteArray(selectedImageBytes, 0, selectedImageBytes.length);
+                    imageView.setImageBitmap(bmp);
+                    statusText.setText("✅ Фото восстановлено!");
+                } catch (Exception ignored) {}
+            }
+        }
         
-        appendLog("MainActivity инициализирована. Моделей в базе: " + allAvailableModels.size());
+        appendLog("MainActivity запущена. Активных моделей загружено: " + allAvailableModels.size());
     }
 
-    private void updateTabsUI() {
-        if (!isNsfwTabSelected) {
-            btnTabStandard.setBackgroundColor(Color.parseColor("#059669"));
-            btnTabStandard.setTextColor(Color.WHITE);
-            btnTabNsfw.setBackgroundColor(Color.parseColor("#1E293B"));
-            btnTabNsfw.setTextColor(Color.parseColor("#94A3B8"));
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString("selected_model", selectedModel);
+        outState.putString("log_text", logConsole.getText().toString());
+        outState.putString("input_text", inputChanges.getText().toString());
+        if (selectedImageUri != null) {
+            outState.putString("image_uri", selectedImageUri.toString());
+        }
+    }
+
+    private void updateTabStyles() {
+        if (currentModelTab == 0) {
+            tabStandardBtn.setBackgroundColor(Color.parseColor("#0284C7"));
+            tabStandardBtn.setTextColor(Color.WHITE);
+            tabNsfwBtn.setBackgroundColor(Color.parseColor("#1E293B"));
+            tabNsfwBtn.setTextColor(Color.parseColor("#94A3B8"));
         } else {
-            btnTabStandard.setBackgroundColor(Color.parseColor("#1E293B"));
-            btnTabStandard.setTextColor(Color.parseColor("#94A3B8"));
-            btnTabNsfw.setBackgroundColor(Color.parseColor("#DC2626"));
-            btnTabNsfw.setTextColor(Color.WHITE);
+            tabNsfwBtn.setBackgroundColor(Color.parseColor("#DC2626"));
+            tabNsfwBtn.setTextColor(Color.WHITE);
+            tabStandardBtn.setBackgroundColor(Color.parseColor("#1E293B"));
+            tabStandardBtn.setTextColor(Color.parseColor("#94A3B8"));
         }
     }
 
@@ -516,18 +522,18 @@ public class MainActivity extends Activity {
                                         selectedModel = allAvailableModels.get(0);
                                     }
                                     rebuildModelListUI();
-                                    appendLog("✅ Загружено моделей с сервера: " + allAvailableModels.size());
+                                    appendLog("✅ Успешно загружено активных моделей с сервера: " + allAvailableModels.size());
                                     if (showToast) {
-                                        Toast.makeText(MainActivity.this, "✅ Список моделей обновлен (" + allAvailableModels.size() + ")", Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(MainActivity.this, "✅ Список обновлен (" + allAvailableModels.size() + " моделей)", Toast.LENGTH_SHORT).show();
                                     }
                                 }
                             });
                             return;
                         }
                     }
-                    throw new Exception("Пустой ответ сервера моделей.");
+                    throw new Exception("Пустой ответ сервера.");
                 } catch (Exception e) {
-                    appendLog("⚠️ Не удалось загрузить модели из сети: " + e.getMessage() + ". Используем локальный каталог.");
+                    appendLog("⚠️ Не удалось загрузить из сети: " + e.getMessage() + ". Используем локальные модели.");
                     if (showToast) {
                         handler.post(new Runnable() {
                             @Override
@@ -544,18 +550,18 @@ public class MainActivity extends Activity {
     private void rebuildModelListUI() {
         if (modelsContainer == null) return;
         modelsContainer.removeAllViews();
-        modelRows.clear();
 
         int displayIndex = 1;
         for (int i = 0; i < allAvailableModels.size(); i++) {
             final String mName = allAvailableModels.get(i);
             boolean isNsfw = isModelNsfw(mName);
-
-            // Фильтрация по текущей вкладке для снижения нагрузки
-            if (isNsfw != isNsfwTabSelected) {
-                continue;
-            }
             
+            // Фильтрация по текущей вкладке (0 - Обычные, 1 - NSFW)
+            if (currentModelTab == 0 && isNsfw) continue;
+            if (currentModelTab == 1 && !isNsfw) continue;
+
+            final int serialNum = displayIndex++;
+
             LinearLayout rowLayout = new LinearLayout(this);
             rowLayout.setOrientation(LinearLayout.HORIZONTAL);
             rowLayout.setGravity(Gravity.CENTER_VERTICAL);
@@ -572,7 +578,7 @@ public class MainActivity extends Activity {
             }
 
             Button mBtn = new Button(this);
-            String labelDisplay = displayIndex + ". " + mName + (isNsfw ? " 🔞" : "");
+            String labelDisplay = serialNum + ". " + mName + (isNsfw ? " 🔞" : "");
             mBtn.setText(labelDisplay);
             mBtn.setTextSize(12f);
             mBtn.setTypeface(Typeface.DEFAULT_BOLD);
@@ -607,8 +613,8 @@ public class MainActivity extends Activity {
                 @Override
                 public void onClick(View v) {
                     selectedModel = mName;
-                    updateModelButtonsState();
-                    appendLog("Выбрана модель: " + selectedModel + (isModelNsfw(selectedModel) ? " [NSFW режим]" : ""));
+                    rebuildModelListUI();
+                    appendLog("Выбрана модель #" + serialNum + ": " + selectedModel);
                 }
             });
 
@@ -621,10 +627,7 @@ public class MainActivity extends Activity {
 
             rowLayout.addView(mBtn);
             rowLayout.addView(menuBtn);
-
-            modelRows.add(rowLayout);
             modelsContainer.addView(rowLayout);
-            displayIndex++;
         }
     }
 
@@ -637,20 +640,6 @@ public class MainActivity extends Activity {
                 logScrollView.fullScroll(View.FOCUS_DOWN);
             }
         });
-    }
-
-    private void updateModelButtonsState() {
-        int displayIndex = 1;
-        for (int i = 0; i < allAvailableModels.size(); i++) {
-            String mName = allAvailableModels.get(i);
-            boolean isNsfw = isModelNsfw(mName);
-            if (isNsfw != isNsfwTabSelected) continue;
-
-            // Находим соответствующую строку в UI
-            // Т.к. modelRows содержит только видимые на текущей вкладке элементы:
-            // Проще пересобрать или обновить по тегу/позиции. Вызовем rebuildModelListUI() для мгновенного обновления подсветки.
-        }
-        rebuildModelListUI();
     }
 
     private Button createStyledButton(String text, String colorHex) {
@@ -679,9 +668,9 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode == RESULT_OK && data != null && data.getData() != null) {
-            Uri uri = data.getData();
+            selectedImageUri = data.getData();
             try {
-                InputStream is = getContentResolver().openInputStream(uri);
+                InputStream is = getContentResolver().openInputStream(selectedImageUri);
                 ByteArrayOutputStream buffer = new ByteArrayOutputStream();
                 byte[] temp = new byte[4096];
                 int nRead;
@@ -695,7 +684,7 @@ public class MainActivity extends Activity {
                 Bitmap bmp = BitmapFactory.decodeByteArray(selectedImageBytes, 0, selectedImageBytes.length);
                 imageView.setImageBitmap(bmp);
                 statusText.setText("✅ Фото загружено!");
-                appendLog("Фото загружено. Байтов: " + selectedImageBytes.length);
+                appendLog("Фото успешно загружено. Байтов: " + selectedImageBytes.length);
             } catch (Exception e) {
                 appendLog("❌ Ошибка загрузки фото: " + e.getMessage());
                 Toast.makeText(this, "Ошибка загрузки: " + e.getMessage(), Toast.LENGTH_LONG).show();
@@ -709,9 +698,9 @@ public class MainActivity extends Activity {
         
         String modelDesc = "🤖 Системный идентификатор: " + modelName + "\n\n";
         if (isNsfwModel) {
-            modelDesc += "⚠️ NSFW модель (18+). Оптимизирована для эротического контента, анатомии и наготы.";
+            modelDesc += "⚠️ NSFW модель (18+). Оптимизирована для высокой детализации и проработки анатомии.";
         } else {
-            modelDesc += "✨ Стандартная модель общего назначения. Идеальна для портретов, артов и пейзажей.";
+            modelDesc += "✨ Стандартная модель общего назначения для качественных артов и фото.";
         }
 
         float savedCfg = prefs.getFloat(modelName + "_cfg", 7.5f);
@@ -741,7 +730,7 @@ public class MainActivity extends Activity {
         dialogLayout.addView(descView);
 
         TextView labelCfg = new TextView(this);
-        labelCfg.setText("🎯 CFG Scale (сила совпадения с промптом):");
+        labelCfg.setText("🎯 CFG Scale (сила следования промпту):");
         labelCfg.setTextColor(Color.parseColor("#F8FAFC"));
         labelCfg.setTextSize(11f);
         dialogLayout.addView(labelCfg);
@@ -754,7 +743,7 @@ public class MainActivity extends Activity {
         dialogLayout.addView(inputCfg);
 
         TextView labelSteps = new TextView(this);
-        labelSteps.setText("\n🔄 Шаги генерации (Steps):");
+        labelSteps.setText("\n🔄 Шаги генерации (Steps, рек. 20-30):");
         labelSteps.setTextColor(Color.parseColor("#F8FAFC"));
         labelSteps.setTextSize(11f);
         dialogLayout.addView(labelSteps);
@@ -795,7 +784,7 @@ public class MainActivity extends Activity {
                     editor.apply();
 
                     Toast.makeText(MainActivity.this, "✅ Настройки сохранены!", Toast.LENGTH_SHORT).show();
-                    appendLog("Обновлены настройки модели " + modelName + " [CFG: " + cfg + ", Steps: " + steps + ", Denoising: " + denoising + "]");
+                    appendLog("Обновлены настройки модели " + modelName + " [CFG:" + cfg + ", Steps:" + steps + ", Denoise:" + denoising + "]");
                 } catch (Exception e) {
                     Toast.makeText(MainActivity.this, "❌ Ошибка в числах!", Toast.LENGTH_LONG).show();
                 }
@@ -812,15 +801,11 @@ public class MainActivity extends Activity {
     private Bitmap makeSquareBitmap(Bitmap source) {
         int width = source.getWidth();
         int height = source.getHeight();
-        if (width == height) {
-            return source;
-        }
+        if (width == height) return source;
         int maxDim = Math.max(width, height);
         if (maxDim > 1024) {
             float scale = 1024f / maxDim;
-            int newW = (int)(width * scale);
-            int newH = (int)(height * scale);
-            source = Bitmap.createScaledBitmap(source, newW, newH, true);
+            source = Bitmap.createScaledBitmap(source, (int)(width * scale), (int)(height * scale), true);
             width = source.getWidth();
             height = source.getHeight();
             maxDim = 1024;
@@ -829,17 +814,13 @@ public class MainActivity extends Activity {
         Bitmap squareBitmap = Bitmap.createBitmap(maxDim, maxDim, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(squareBitmap);
         canvas.drawColor(Color.BLACK);
-        
-        int left = (maxDim - width) / 2;
-        int top = (maxDim - height) / 2;
-        canvas.drawBitmap(source, left, top, null);
+        canvas.drawBitmap(source, (maxDim - width) / 2, (maxDim - height) / 2, null);
         return squareBitmap;
     }
 
     private String translateToEnglish(String text) {
         if (text == null || text.trim().isEmpty()) return "";
         String trimmed = text.trim();
-        
         boolean hasCyrillic = false;
         for (int i = 0; i < trimmed.length(); i++) {
             char c = trimmed.charAt(i);
@@ -848,10 +829,7 @@ public class MainActivity extends Activity {
                 break;
             }
         }
-
-        if (!hasCyrillic) {
-            return trimmed;
-        }
+        if (!hasCyrillic) return trimmed;
 
         try {
             String encoded = URLEncoder.encode(trimmed, "UTF-8");
@@ -864,7 +842,7 @@ public class MainActivity extends Activity {
                 if (respData != null) {
                     String translated = respData.optString("translatedText", "").trim();
                     if (!translated.isEmpty() && !translated.toUpperCase().contains("INVALID")) {
-                        appendLog("Перевод пожеланий: '" + trimmed + "' -> '" + translated + "'");
+                        appendLog("Перевод: '" + trimmed + "' -> '" + translated + "'");
                         return translated;
                     }
                 }
@@ -892,17 +870,12 @@ public class MainActivity extends Activity {
                     JSONObject json = new JSONObject(response.body().string());
                     double kudos = json.optDouble("kudos", 0);
                     workingKeys.add(new KeyScore(key, kudos));
-                    appendLog("✅ Ключ #" + (i+1) + " Активен. Kudos: " + (int)kudos);
-                } else {
-                    appendLog("❌ Ключ #" + (i+1) + " отклонен (Code: " + response.code() + ")");
+                    appendLog("✅ Ключ #" + (i+1) + " активен. Kudos: " + (int)kudos);
                 }
-            } catch (Exception e) {
-                appendLog("⚠️ Сбой сети при проверке ключа #" + (i+1));
-            }
+            } catch (Exception ignored) {}
         }
         
         if (workingKeys.isEmpty()) {
-            appendLog("⚠️ Валидация вернула пустоту. Используем дефолтные ключи.");
             for (int i = 0; i < hordeKeys.size(); i++) {
                 workingKeys.add(new KeyScore(hordeKeys.get(i), 100.0));
             }
@@ -933,7 +906,7 @@ public class MainActivity extends Activity {
 
     private void stopCurrentGeneration() {
         isGenerationCancelled = true;
-        appendLog("⏹ Запрос на остановку генерации от пользователя...");
+        appendLog("⏹ Запрос на экстренную остановку генерации...");
 
         if (activeJobId != null && activeApiKey != null) {
             final String jobIdToCancel = activeJobId;
@@ -949,10 +922,8 @@ public class MainActivity extends Activity {
                                 .delete()
                                 .build();
                         httpClient.newCall(cancelReq).execute();
-                        appendLog("⏹ Задача успешно отменена на сервере.");
-                    } catch (Exception e) {
-                        appendLog("⚠️ Не удалось отправить запрос отмены: " + e.getMessage());
-                    }
+                        appendLog("⏹ Задача отменена на сервере.");
+                    } catch (Exception ignored) {}
                 }
             }).start();
         }
@@ -960,7 +931,6 @@ public class MainActivity extends Activity {
         handler.post(new Runnable() {
             @Override
             public void run() {
-                generationPanel.setVisibility(View.GONE);
                 statusText.setText("⏹ Генерация остановлена пользователем.");
                 Toast.makeText(MainActivity.this, "⏹ Генерация остановлена.", Toast.LENGTH_SHORT).show();
             }
@@ -982,15 +952,11 @@ public class MainActivity extends Activity {
             for (int y = 0; y < h; y += stepY) {
                 totalChecked++;
                 int pixel = bitmap.getPixel(x, y);
-                int r = Color.red(pixel);
-                int g = Color.green(pixel);
-                int b = Color.blue(pixel);
-                if (r < 10 && g < 10 && b < 10) {
+                if (Color.red(pixel) < 10 && Color.green(pixel) < 10 && Color.blue(pixel) < 10) {
                     blackPixelsCount++;
                 }
             }
         }
-
         return ((double) blackPixelsCount / totalChecked) > 0.95;
     }
 
@@ -1004,28 +970,18 @@ public class MainActivity extends Activity {
         activeJobId = null;
         activeApiKey = null;
 
-        // Показываем неблокирующую панель статуса и кнопки «Стоп»
-        generationPanel.setVisibility(View.VISIBLE);
-        generationStatusInfo.setText("⏳ Подготовка и анализ пожеланий...");
-
         final String userChangesRaw = inputChanges.getText().toString().trim();
         final boolean isNsfwActive = isModelNsfw(selectedModel);
+
+        statusText.setText("⏳ Идет генерация (кнопка Стоп активна)...");
 
         new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
-                    appendLog("--- СТАРТ НОВОЙ ГЕНЕРАЦИИ ---");
-                    
+                    appendLog("--- СТАРТ ГЕНЕРАЦИИ ---");
                     String translatedChanges = translateToEnglish(userChangesRaw);
                     if (isGenerationCancelled) return;
-
-                    handler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            generationStatusInfo.setText("⏳ Проверка ключей доступа...");
-                        }
-                    });
 
                     List<String> workingKeys = getPrioritizedWorkingKeys();
                     if (isGenerationCancelled) return;
@@ -1042,20 +998,16 @@ public class MainActivity extends Activity {
 
                     if (isNsfwActive) {
                         String nsfwCore = "masterpiece, best quality, highly detailed 2.5d anime illustration, beautiful detailed face, intricate clothing textures, perfect anatomy, accurate lighting, vibrant colors, expressive body, gorgeous physique, sensual curves, fully detailed skin texture, artistic nudity, uncovered body, aesthetic explicit anatomy";
-                        if (!translatedChanges.isEmpty()) {
-                            nsfwCore += ", " + translatedChanges;
-                        }
-                        negativePrompt = "(lowres, bad anatomy, bad hands:1.5, poorly drawn hands:1.5, missing fingers:1.5, extra fingers:1.5, mutated hands:1.5, fused fingers:1.5, disfigured, text, ugly, blurry, deformed, censored, mosaic, bar censor)";
+                        if (!translatedChanges.isEmpty()) nsfwCore += ", " + translatedChanges;
+                        negativePrompt = "(lowres, bad anatomy, bad hands:1.5, poorly drawn hands:1.5, missing fingers:1.5, extra fingers:1.5, mutated hands:1.5, fused fingers:1.5, disfigured, text, ugly, blurry, deformed, censored, mosaic)";
                         fullPrompt = nsfwCore + " ### " + negativePrompt;
-                        appendLog("🔥 Активен специализированный NSFW-промпт.");
+                        appendLog("🔥 NSFW промпт активирован.");
                     } else {
-                        String standardCore = "masterpiece, best quality, ultra-detailed photo, sharp focus, professional studio lighting, 8k resolution, photorealistic, flawless composition";
-                        if (!translatedChanges.isEmpty()) {
-                            standardCore += ", " + translatedChanges;
-                        }
-                        negativePrompt = "(lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry)";
+                        String standardCore = "masterpiece, best quality, ultra-detailed photo, sharp focus, professional studio lighting, 8k resolution, photorealistic";
+                        if (!translatedChanges.isEmpty()) standardCore += ", " + translatedChanges;
+                        negativePrompt = "(lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, cropped, worst quality, low quality)";
                         fullPrompt = standardCore + " ### " + negativePrompt;
-                        appendLog("✨ Активен фото-промпт для обычной модели.");
+                        appendLog("✨ Фото-промпт активирован.");
                     }
 
                     SharedPreferences prefs = getSharedPreferences("ModelPrefs", MODE_PRIVATE);
@@ -1076,9 +1028,7 @@ public class MainActivity extends Activity {
                     modelsToTry.add(selectedModel);
                     for (int i = 0; i < allAvailableModels.size(); i++) {
                         String m = allAvailableModels.get(i);
-                        if (!modelsToTry.contains(m)) {
-                            modelsToTry.add(m);
-                        }
+                        if (!modelsToTry.contains(m)) modelsToTry.add(m);
                     }
 
                     for (int mIdx = 0; mIdx < modelsToTry.size(); mIdx++) {
@@ -1091,13 +1041,7 @@ public class MainActivity extends Activity {
                             activeApiKey = apiKey;
 
                             try {
-                                appendLog("👉 Модель: [" + modelName + "], Ключ: " + apiKey.substring(0, 5) + "...");
-                                handler.post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        generationStatusInfo.setText("⏳ Модель: " + modelName);
-                                    }
-                                });
+                                appendLog("👉 Пробуем модель: [" + modelName + "]");
 
                                 JSONArray modelsArray = new JSONArray();
                                 modelsArray.put(modelName);
@@ -1124,25 +1068,15 @@ public class MainActivity extends Activity {
                                 Response response = httpClient.newCall(request).execute();
                                 int code = response.code();
                                 
-                                if (code == 401 || code == 402 || code == 403 || code == 429) {
-                                    appendLog("⚠️ Ключ отклонен (HTTP " + code + "). Смена ключа.");
-                                    continue;
-                                }
-                                if (code == 400) {
-                                    break;
-                                }
-                                if (!response.isSuccessful() || response.body() == null) {
-                                    continue;
-                                }
+                                if (code == 401 || code == 402 || code == 403 || code == 429) continue;
+                                if (code == 400 || !response.isSuccessful() || response.body() == null) continue;
 
-                                String respStr = response.body().string();
-                                JSONObject respJson = new JSONObject(respStr);
+                                JSONObject respJson = new JSONObject(response.body().string());
                                 String jobId = respJson.optString("id", null);
                                 activeJobId = jobId;
-
                                 if (jobId == null) continue;
 
-                                appendLog("✅ Задача принята. Job ID: " + jobId + ". Ожидаем воркер...");
+                                appendLog("✅ Задание принято. ID: " + jobId.substring(0, 6) + "...");
                                 String statusUrl = "https://stablehorde.net/api/v2/generate/status/" + jobId;
                                 boolean jobDone = false;
                                 String imgUrl = null;
@@ -1151,37 +1085,22 @@ public class MainActivity extends Activity {
                                     if (isGenerationCancelled) break;
                                     Thread.sleep(5000);
 
-                                    Request statusReq = new Request.Builder()
-                                            .url(statusUrl)
-                                            .addHeader("Client-Agent", "MonsterAI:1.0:android")
-                                            .get()
-                                            .build();
-                                    Response statRespReal = httpClient.newCall(statusReq).execute();
-                                    if (statRespReal.isSuccessful() && statRespReal.body() != null) {
-                                        JSONObject stJson = new JSONObject(statRespReal.body().string());
-                                        if (stJson.optBoolean("faulted", false)) {
-                                            appendLog("❌ Воркер сбросил задачу.");
-                                            jobDone = true;
-                                            break;
-                                        }
+                                    Request statusReq = new Request.Builder().url(statusUrl).get().build();
+                                    Response statResp = httpClient.newCall(statusReq).execute();
+                                    if (statResp.isSuccessful() && statResp.body() != null) {
+                                        JSONObject stJson = new JSONObject(statResp.body().string());
+                                        if (stJson.optBoolean("faulted", false)) break;
                                         if (stJson.optBoolean("done", false)) {
                                             JSONArray gens = stJson.optJSONArray("generations");
                                             if (gens != null && gens.length() > 0) {
                                                 imgUrl = gens.getJSONObject(0).optString("img", null);
                                             }
                                             jobDone = true;
-                                            appendLog("🎉 Генерация завершена!");
                                             break;
                                         } else {
-                                            final int qPos = stJson.optInt("queue_position", 0);
-                                            final int waitTime = stJson.optInt("wait_time", 0);
+                                            int qPos = stJson.optInt("queue_position", 0);
+                                            int waitTime = stJson.optInt("wait_time", 0);
                                             appendLog("⏳ Очередь: " + qPos + ", Ждать: " + waitTime + "с");
-                                            handler.post(new Runnable() {
-                                                @Override
-                                                public void run() {
-                                                    generationStatusInfo.setText("⏳ Очередь [" + modelName + "], позиция: " + qPos);
-                                                }
-                                            });
                                         }
                                     }
                                 }
@@ -1189,14 +1108,6 @@ public class MainActivity extends Activity {
                                 if (isGenerationCancelled) break;
 
                                 if (jobDone && imgUrl != null && !imgUrl.isEmpty()) {
-                                    appendLog("📥 Скачивание готового изображения...");
-                                    handler.post(new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            generationStatusInfo.setText("📥 Скачивание результата...");
-                                        }
-                                    });
-
                                     Request imgReq = new Request.Builder().url(imgUrl).get().build();
                                     Response imgResp = httpClient.newCall(imgReq).execute();
                                     if (imgResp.isSuccessful() && imgResp.body() != null) {
@@ -1204,7 +1115,7 @@ public class MainActivity extends Activity {
                                         Bitmap decodedBitmap = BitmapFactory.decodeByteArray(tempBytes, 0, tempBytes.length);
 
                                         if (isBitmapInvalidOrBlack(decodedBitmap)) {
-                                            appendLog("⚠️ Черный квадрат. Пробуем следующую модель...");
+                                            appendLog("⚠️ Модель вернула черный квадрат. Пробуем следующую...");
                                             continue;
                                         }
 
@@ -1220,9 +1131,8 @@ public class MainActivity extends Activity {
                     }
 
                     if (isGenerationCancelled) return;
-
                     if (!successGenerated || resultBytes == null) {
-                        throw new RuntimeException("Все модели перегружены или вернули пустой результат.");
+                        throw new RuntimeException("Не удалось получить результат ни от одной модели.");
                     }
 
                     final Bitmap finalBmp = BitmapFactory.decodeByteArray(resultBytes, 0, resultBytes.length);
@@ -1231,22 +1141,20 @@ public class MainActivity extends Activity {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            generationPanel.setVisibility(View.GONE);
                             imageView.setImageBitmap(finalBmp);
                             statusText.setText("✅ Успешно сгенерировано и сохранено!");
-                            Toast.makeText(MainActivity.this, "Фото сохранено в Pictures/MonsterAI", Toast.LENGTH_LONG).show();
-                            appendLog("✨ Готово! Фото сохранено в галерею.");
+                            Toast.makeText(MainActivity.this, "Фото сохранено в галерею!", Toast.LENGTH_LONG).show();
+                            appendLog("✨ Готово! Фото сохранено.");
                         }
                     });
 
                 } catch (final Exception e) {
                     if (!isGenerationCancelled) {
-                        appendLog("❌ КРИТИЧЕСКАЯ ОШИБКА: " + e.getMessage());
+                        appendLog("❌ ОШИБКА: " + e.getMessage());
                         handler.post(new Runnable() {
                             @Override
                             public void run() {
-                                generationPanel.setVisibility(View.GONE);
-                                statusText.setText("❌ Ошибка: " + e.getMessage());
+                                statusText.setText("❌ Ошибка выполнения");
                                 Toast.makeText(MainActivity.this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
                             }
                         });
@@ -1267,11 +1175,10 @@ public class MainActivity extends Activity {
             if (uri != null) {
                 try (OutputStream out = getContentResolver().openOutputStream(uri)) {
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 100, out);
-                    appendLog("Сохранено в MediaStore: " + fileName);
                 }
             }
         } catch (Exception e) {
-            appendLog("❌ Ошибка сохранения в галерею: " + e.getMessage());
+            appendLog("❌ Ошибка сохранения: " + e.getMessage());
         }
     }
 }
