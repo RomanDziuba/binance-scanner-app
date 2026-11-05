@@ -74,12 +74,11 @@ public class MainActivity extends Activity {
     private List<String> hordeKeys = new ArrayList<String>();
     private List<String> allAvailableModels = new ArrayList<String>();
 
-    // Элементы управления процессом и кнопка Стоп
-    private Button btnProcess;
-    private Button btnStop;
-    private volatile boolean cancelRequested = false;
-    private String currentActiveJobId = null;
-    private String currentActiveApiKey = null;
+    // Элементы для управления отменой генерации
+    private volatile boolean isGenerationCancelled = false;
+    private String activeJobId = null;
+    private String activeApiKey = null;
+    private ProgressDialog progressDialog = null;
     
     private OkHttpClient httpClient = new OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
@@ -196,6 +195,7 @@ public class MainActivity extends Activity {
         modelsContainer = new LinearLayout(this);
         modelsContainer.setOrientation(LinearLayout.VERTICAL);
 
+        // Контейнер с прокруткой (ScrollView) для пальца
         ScrollView modelsScroll = new ScrollView(this);
         LinearLayout.LayoutParams mScrollParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 350
@@ -217,7 +217,7 @@ public class MainActivity extends Activity {
         }
 
         // Кнопка запуска генерации
-        btnProcess = createStyledButton("🚀 Запустить генерацию", "#059669");
+        Button btnProcess = createStyledButton("🚀 Запустить генерацию", "#059669");
         btnProcess.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -226,10 +226,8 @@ public class MainActivity extends Activity {
         });
         rootLayout.addView(btnProcess);
 
-        // Кнопка СТОП для немедленной остановки задачи на сервере и сохранения фото
-        btnStop = createStyledButton("🛑 Остановить генерацию (СТОП)", "#DC2626");
-        btnStop.setEnabled(false);
-        btnStop.setAlpha(0.5f);
+        // Кнопка экстренной остановки задачи (сохраняет текущее фото)
+        Button btnStop = createStyledButton("⏹ Остановить генерацию", "#DC2626");
         btnStop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -355,7 +353,8 @@ public class MainActivity extends Activity {
                lower.contains("yiffy") || 
                lower.contains("furry") || 
                lower.contains("afterdark") || 
-               lower.contains("lawlas");
+               lower.contains("lawlas") ||
+               lower.contains("babes");
     }
 
     private void fetchOnlineModelsAsync(final boolean showToast) {
@@ -444,6 +443,7 @@ public class MainActivity extends Activity {
             rowParams.setMargins(4, 4, 4, 4);
             rowLayout.setLayoutParams(rowParams);
 
+            // NSFW модели выделяются полупрозрачным красным фоном (ARGB: 44EF4444)
             if (isNsfw) {
                 rowLayout.setBackgroundColor(Color.parseColor("#44EF4444"));
             } else {
@@ -717,31 +717,6 @@ public class MainActivity extends Activity {
         return squareBitmap;
     }
 
-    // Проверка на «черный квадрат» / брак генерации (более 90% пикселей черные)
-    private boolean isImageMostlyBlack(Bitmap bitmap) {
-        if (bitmap == null) return true;
-        int width = bitmap.getWidth();
-        int height = bitmap.getHeight();
-        int blackPixelCount = 0;
-        int totalSamples = 0;
-        
-        int stepX = Math.max(1, width / 12);
-        int stepY = Math.max(1, height / 12);
-        for (int x = 0; x < width; x += stepX) {
-            for (int y = 0; y < height; y += stepY) {
-                int pixel = bitmap.getPixel(x, y);
-                int r = Color.red(pixel);
-                int g = Color.green(pixel);
-                int b = Color.blue(pixel);
-                totalSamples++;
-                if (r < 15 && g < 15 && b < 15) {
-                    blackPixelCount++;
-                }
-            }
-        }
-        return totalSamples > 0 && ((double) blackPixelCount / totalSamples) > 0.90;
-    }
-
     private String translateToEnglish(String text) {
         if (text == null || text.trim().isEmpty()) return "";
         String trimmed = text.trim();
@@ -837,28 +812,28 @@ public class MainActivity extends Activity {
         }
     }
 
-    // Метод немедленной остановки генерации на сервере и сохранения текущего фото
+    // Метод экстренной остановки текущей генерации
     private void stopCurrentGeneration() {
-        cancelRequested = true;
-        appendLog("🛑 Запрос на остановку генерации пользователем...");
-        
-        if (currentActiveJobId != null && currentActiveApiKey != null) {
-            final String jId = currentActiveJobId;
-            final String aKey = currentActiveApiKey;
+        isGenerationCancelled = true;
+        appendLog("⏹ Запрос на остановку генерации от пользователя...");
+
+        if (activeJobId != null && activeApiKey != null) {
+            final String jobIdToCancel = activeJobId;
+            final String apiKeyToCancel = activeApiKey;
             new Thread(new Runnable() {
                 @Override
                 public void run() {
                     try {
                         Request cancelReq = new Request.Builder()
-                                .url("https://stablehorde.net/api/v2/generate/status/" + jId)
-                                .addHeader("apikey", aKey)
+                                .url("https://stablehorde.net/api/v2/generate/status/" + jobIdToCancel)
+                                .addHeader("apikey", apiKeyToCancel)
                                 .addHeader("Client-Agent", "MonsterAI:1.0:android")
                                 .delete()
                                 .build();
                         httpClient.newCall(cancelReq).execute();
-                        appendLog("🛑 Задача " + jId + " успешно отменена на сервере Stable Horde.");
+                        appendLog("⏹ Задача " + jobIdJobSafe(jobIdToCancel) + " успешно отменена на сервере.");
                     } catch (Exception e) {
-                        appendLog("⚠️ Не удалось отправить сигнал отмены на сервер: " + e.getMessage());
+                        appendLog("⚠️ Не удалось отправить запрос отмены на сервер: " + e.getMessage());
                     }
                 }
             }).start();
@@ -867,15 +842,49 @@ public class MainActivity extends Activity {
         handler.post(new Runnable() {
             @Override
             public void run() {
-                btnStop.setEnabled(false);
-                btnStop.setAlpha(0.5f);
-                btnProcess.setEnabled(true);
-                btnProcess.setAlpha(1.0f);
-                statusText.setText("ℹ️ Генерация остановлена. Текущее фото сохранено.");
-                Toast.MainActivity = null; // safe check
-                Toast.makeText(MainActivity.this, "🛑 Генерация остановлена! Фото сохранено.", Toast.LENGTH_LONG).show();
+                if (progressDialog != null && progressDialog.isShowing()) {
+                    progressDialog.dismiss();
+                }
+                statusText.setText("⏹ Генерация остановлена. Текущее фото сохранено.");
+                Toast.MainActivity_Toast = null;
+                Toast.makeText(MainActivity.this, "⏹ Генерация остановлена. Текущее фото сохранено.", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private String jobIdJobSafe(String id) {
+        if (id == null || id.length() <= 6) return id;
+        return id.substring(0, 6) + "...";
+    }
+
+    // Проверка растрового изображения на то, является ли оно полностью черным или поврежденным
+    private boolean isBitmapInvalidOrBlack(Bitmap bitmap) {
+        if (bitmap == null) return true;
+        int w = bitmap.getWidth();
+        int h = bitmap.getHeight();
+        if (w <= 0 || h <= 0) return true;
+
+        // Выборочная проверка пикселей (чтобы не тормозить процессор)
+        int blackPixelsCount = 0;
+        int totalChecked = 0;
+        int stepX = Math.max(1, w / 20);
+        int stepY = Math.max(1, h / 20);
+
+        for (int x = 0; x < w; x += stepX) {
+            for (int y = 0; y < h; y += stepY) {
+                totalChecked++;
+                int pixel = bitmap.getPixel(x, y);
+                int r = Color.red(pixel);
+                int g = Color.green(pixel);
+                int b = Color.blue(pixel);
+                if (r < 10 && g < 10 && b < 10) {
+                    blackPixelsCount++;
+                }
+            }
+        }
+
+        // Если более 95% проверенных точек черные — считаем результат черным квадратом
+        return ((double) blackPixelsCount / totalChecked) > 0.95;
     }
 
     private void startGeneration() {
@@ -884,20 +893,18 @@ public class MainActivity extends Activity {
             return;
         }
 
+        isGenerationCancelled = false;
+        activeJobId = null;
+        activeApiKey = null;
+
         final String userChangesRaw = inputChanges.getText().toString().trim();
         final boolean isNsfwActive = isModelNsfw(selectedModel);
 
-        cancelRequested = false;
-        btnProcess.setEnabled(false);
-        btnProcess.setAlpha(0.5f);
-        btnStop.setEnabled(true);
-        btnStop.setAlpha(1.0f);
-
-        final ProgressDialog progress = new ProgressDialog(this);
-        progress.setTitle("⏳ Обработка задачи");
-        progress.setMessage("Подготовка и генерация...");
-        progress.setCancelable(false);
-        progress.show();
+        progressDialog = new ProgressDialog(this);
+        progressDialog.setTitle("⏳ Обработка задачи");
+        progressDialog.setMessage("Подготовка и генерация...");
+        progressDialog.setCancelable(false);
+        progressDialog.show();
 
         new Thread(new Runnable() {
             @Override
@@ -908,21 +915,21 @@ public class MainActivity extends Activity {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            progress.setMessage("Анализ и перевод пожеланий...");
+                            if (progressDialog != null) progressDialog.setMessage("Анализ и перевод пожеланий...");
                         }
                     });
                     
                     String translatedChanges = translateToEnglish(userChangesRaw);
-                    if (cancelRequested) return;
+                    if (isGenerationCancelled) return;
 
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            progress.setMessage("Проверка ключей доступа...");
+                            if (progressDialog != null) progressDialog.setMessage("Проверка ключей доступа...");
                         }
                     });
                     List<String> workingKeys = getPrioritizedWorkingKeys();
-                    if (cancelRequested) return;
+                    if (isGenerationCancelled) return;
 
                     Bitmap originalBmp = BitmapFactory.decodeByteArray(selectedImageBytes, 0, selectedImageBytes.length);
                     Bitmap squareBmp = makeSquareBitmap(originalBmp);
@@ -978,20 +985,20 @@ public class MainActivity extends Activity {
                     appendLog("Моделей в очереди перебора: " + modelsToTry.size());
 
                     for (int mIdx = 0; mIdx < modelsToTry.size(); mIdx++) {
-                        if (successGenerated || cancelRequested) break;
+                        if (successGenerated || isGenerationCancelled) break;
                         final String modelName = modelsToTry.get(mIdx);
 
                         for (int kIdx = 0; kIdx < workingKeys.size(); kIdx++) {
-                            if (successGenerated || cancelRequested) break;
+                            if (successGenerated || isGenerationCancelled) break;
                             String apiKey = workingKeys.get(kIdx);
-                            currentActiveApiKey = apiKey;
+                            activeApiKey = apiKey;
 
                             try {
                                 appendLog("👉 Модель: [" + modelName + "], Ключ: " + apiKey.substring(0, 5) + "...");
                                 handler.post(new Runnable() {
                                     @Override
                                     public void run() {
-                                        progress.setMessage("Модель: " + modelName);
+                                        if (progressDialog != null) progressDialog.setMessage("Модель: " + modelName);
                                     }
                                 });
 
@@ -1037,11 +1044,12 @@ public class MainActivity extends Activity {
                                 String respStr = response.body().string();
                                 JSONObject respJson = new JSONObject(respStr);
                                 String jobId = respJson.optString("id", null);
+                                activeJobId = jobId;
+
                                 if (jobId == null) {
                                     appendLog("⚠️ ID задачи не получен");
                                     continue;
                                 }
-                                currentActiveJobId = jobId;
 
                                 appendLog("✅ Задача принята. Job ID: " + jobId + ". Ожидаем воркер...");
                                 String statusUrl = "https://stablehorde.net/api/v2/generate/status/" + jobId;
@@ -1049,8 +1057,9 @@ public class MainActivity extends Activity {
                                 String imgUrl = null;
 
                                 for (int attempt = 0; attempt < 120; attempt++) {
-                                    if (cancelRequested) break;
+                                    if (isGenerationCancelled) break;
                                     Thread.sleep(5000);
+
                                     Request statusReq = new Request.Builder()
                                             .url(statusUrl)
                                             .addHeader("Client-Agent", "MonsterAI:1.0:android")
@@ -1079,36 +1088,39 @@ public class MainActivity extends Activity {
                                             handler.post(new Runnable() {
                                                 @Override
                                                 public void run() {
-                                                    progress.setMessage("Очередь [" + modelName + "], позиция: " + qPos);
+                                                    if (progressDialog != null) {
+                                                        progressDialog.setMessage("Очередь [" + modelName + "], позиция: " + qPos);
+                                                    }
                                                 }
                                             });
                                         }
                                     }
                                 }
 
-                                if (cancelRequested) break;
+                                if (isGenerationCancelled) break;
 
                                 if (jobDone && imgUrl != null && !imgUrl.isEmpty()) {
                                     appendLog("📥 Скачивание готового изображения...");
                                     handler.post(new Runnable() {
                                         @Override
                                         public void run() {
-                                            progress.setMessage("Скачивание результата...");
+                                            if (progressDialog != null) progressDialog.setMessage("Скачивание результата...");
                                         }
                                     });
+
                                     Request imgReq = new Request.Builder().url(imgUrl).get().build();
                                     Response imgResp = httpClient.newCall(imgReq).execute();
                                     if (imgResp.isSuccessful() && imgResp.body() != null) {
-                                        byte[] downloadedBytes = imgResp.body().bytes();
-                                        Bitmap checkBmp = BitmapFactory.decodeByteArray(downloadedBytes, 0, downloadedBytes.length);
+                                        byte[] tempBytes = imgResp.body().bytes();
+                                        Bitmap decodedBitmap = BitmapFactory.decodeByteArray(tempBytes, 0, tempBytes.length);
 
-                                        // Проверяем, не вернула ли модель черный квадрат (брак)
-                                        if (isImageMostlyBlack(checkBmp)) {
-                                            appendLog("⚠️ Модель " + modelName + " вернула черный квадрат! Пропускаем и ищем другую модель...");
-                                            continue; // Пропускаем бракованную модель
+                                        // Защита от черных квадратов/поврежденных изображений
+                                        if (isBitmapInvalidOrBlack(decodedBitmap)) {
+                                            appendLog("⚠️ Модель " + modelName + " вернула пустой/черный квадрат. Пробуем следующую модель...");
+                                            continue; // Пропускаем эту модель и пробуем другую
                                         }
 
-                                        resultBytes = downloadedBytes;
+                                        resultBytes = tempBytes;
                                         successGenerated = true;
                                         appendLog("✅ Фото успешно получено и проверено (" + resultBytes.length + " байт)!");
                                         break;
@@ -1120,18 +1132,12 @@ public class MainActivity extends Activity {
                         }
                     }
 
-                    if (cancelRequested) {
-                        handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                progress.dismiss();
-                            }
-                        });
-                        return;
+                    if (isGenerationCancelled) {
+                        return; // Прерываем без ошибок, так как отменил пользователь
                     }
 
                     if (!successGenerated || resultBytes == null) {
-                        throw new RuntimeException("Все модели перегружены, вернули брак (черные квадраты) или отклонили запрос.");
+                        throw new RuntimeException("Все модели перегружены, вернули черные квадраты или отклонили запрос.");
                     }
 
                     final Bitmap finalBmp = BitmapFactory.decodeByteArray(resultBytes, 0, resultBytes.length);
@@ -1140,32 +1146,26 @@ public class MainActivity extends Activity {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            progress.dismiss();
+                            if (progressDialog != null) progressDialog.dismiss();
                             imageView.setImageBitmap(finalBmp);
                             statusText.setText("✅ Успешно сгенерировано и сохранено!");
-                            btnStop.setEnabled(false);
-                            btnStop.setAlpha(0.5f);
-                            btnProcess.setEnabled(true);
-                            btnProcess.setAlpha(1.0f);
                             Toast.makeText(MainActivity.this, "Фото сохранено в Pictures/MonsterAI", Toast.LENGTH_LONG).show();
                             appendLog("✨ Готово! Фото сохранено в галерею устройства.");
                         }
                     });
 
                 } catch (final Exception e) {
-                    appendLog("❌ КРИТИЧЕСКАЯ ОШИБКА: " + e.getMessage());
-                    handler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            progress.dismiss();
-                            btnStop.setEnabled(false);
-                            btnStop.setAlpha(0.5f);
-                            btnProcess.setEnabled(true);
-                            btnProcess.setAlpha(1.0f);
-                            statusText.setText("❌ Ошибка: " + e.getMessage());
-                            Toast.makeText(MainActivity.this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                        }
-                    });
+                    if (!isGenerationCancelled) {
+                        appendLog("❌ КРИТИЧЕСКАЯ ОШИБКА: " + e.getMessage());
+                        handler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (progressDialog != null) progressDialog.dismiss();
+                                statusText.setText("❌ Ошибка: " + e.getMessage());
+                                Toast.makeText(MainActivity.this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                            }
+                        });
+                    }
                 }
             }
         }).start();
