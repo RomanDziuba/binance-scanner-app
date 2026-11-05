@@ -2,7 +2,6 @@ package com.newhentay1.version01;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.ProgressDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.ContentValues;
@@ -80,7 +79,6 @@ public class MainActivity extends Activity {
     private volatile boolean isGenerationCancelled = false;
     private String activeJobId = null;
     private String activeApiKey = null;
-    private ProgressDialog progressDialog = null;
     
     private OkHttpClient httpClient = new OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
@@ -207,7 +205,6 @@ public class MainActivity extends Activity {
         modelsScrollView.setBackgroundColor(Color.parseColor("#0F172A"));
         modelsScrollView.addView(modelsContainer);
         
-        // Исправление скроллинга пальцем
         modelsScrollView.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -238,7 +235,7 @@ public class MainActivity extends Activity {
         });
         rootLayout.addView(btnProcess);
 
-        // Кнопка экстренной остановки задачи (сохраняет текущее фото)
+        // Кнопка экстренной остановки задачи (всегда активна)
         Button btnStop = createStyledButton("⏹ Остановить генерацию", "#DC2626");
         btnStop.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -270,10 +267,9 @@ public class MainActivity extends Activity {
         logConsole.setTextSize(11f);
         logConsole.setTypeface(Typeface.MONOSPACE);
         logConsole.setPadding(15, 15, 15, 15);
-        logConsole.setTextIsSelectable(true); // Разрешает выделение текста пальцем
+        logConsole.setTextIsSelectable(true);
         logScrollView.addView(logConsole);
 
-        // Исправление скроллинга консоли логов
         logScrollView.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -465,7 +461,6 @@ public class MainActivity extends Activity {
             rowParams.setMargins(4, 4, 4, 4);
             rowLayout.setLayoutParams(rowParams);
 
-            // NSFW модели подсвечиваются полупрозрачным красным фоном (ARGB: 44EF4444)
             if (isNsfw) {
                 rowLayout.setBackgroundColor(Color.parseColor("#44EF4444"));
             } else {
@@ -473,7 +468,8 @@ public class MainActivity extends Activity {
             }
 
             Button mBtn = new Button(this);
-            String labelDisplay = mName + (isNsfw ? " 🔞 [NSFW]" : "");
+            // Добавлен порядковый номер модели для удобства
+            String labelDisplay = (i + 1) + ". " + mName + (isNsfw ? " 🔞 [NSFW]" : "");
             mBtn.setText(labelDisplay);
             mBtn.setTextSize(12f);
             mBtn.setTypeface(Typeface.DEFAULT_BOLD);
@@ -863,11 +859,8 @@ public class MainActivity extends Activity {
         handler.post(new Runnable() {
             @Override
             public void run() {
-                if (progressDialog != null && progressDialog.isShowing()) {
-                    progressDialog.dismiss();
-                }
                 statusText.setText("⏹ Генерация остановлена. Текущее фото сохранено.");
-                Toast.makeText(MainActivity.this, "⏹ Генерация остановлена. Текущее фото сохранено.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "⏹ Генерация остановлена.", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -917,11 +910,7 @@ public class MainActivity extends Activity {
         final String userChangesRaw = inputChanges.getText().toString().trim();
         final boolean isNsfwActive = isModelNsfw(selectedModel);
 
-        progressDialog = new ProgressDialog(this);
-        progressDialog.setTitle("⏳ Обработка задачи");
-        progressDialog.setMessage("Подготовка и генерация...");
-        progressDialog.setCancelable(false);
-        progressDialog.show();
+        statusText.setText("⏳ Подготовка и генерация...");
 
         new Thread(new Runnable() {
             @Override
@@ -932,7 +921,7 @@ public class MainActivity extends Activity {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            if (progressDialog != null) progressDialog.setMessage("Анализ и перевод пожеланий...");
+                            statusText.setText("⏳ Анализ и перевод пожеланий...");
                         }
                     });
                     
@@ -942,7 +931,7 @@ public class MainActivity extends Activity {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            if (progressDialog != null) progressDialog.setMessage("Проверка ключей доступа...");
+                            statusText.setText("⏳ Проверка ключей доступа...");
                         }
                     });
                     List<String> workingKeys = getPrioritizedWorkingKeys();
@@ -1015,7 +1004,7 @@ public class MainActivity extends Activity {
                                 handler.post(new Runnable() {
                                     @Override
                                     public void run() {
-                                        if (progressDialog != null) progressDialog.setMessage("Модель: " + modelName);
+                                        statusText.setText("⏳ Модель: " + modelName);
                                     }
                                 });
 
@@ -1105,9 +1094,7 @@ public class MainActivity extends Activity {
                                             handler.post(new Runnable() {
                                                 @Override
                                                 public void run() {
-                                                    if (progressDialog != null) {
-                                                        progressDialog.setMessage("Очередь [" + modelName + "], позиция: " + qPos);
-                                                    }
+                                                    statusText.setText("⏳ Очередь [" + modelName + "], позиция: " + qPos);
                                                 }
                                             });
                                         }
@@ -1121,7 +1108,7 @@ public class MainActivity extends Activity {
                                     handler.post(new Runnable() {
                                         @Override
                                         public void run() {
-                                            if (progressDialog != null) progressDialog.setMessage("Скачивание результата...");
+                                            statusText.setText("⏳ Скачивание результата...");
                                         }
                                     });
 
@@ -1162,7 +1149,6 @@ public class MainActivity extends Activity {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            if (progressDialog != null) progressDialog.dismiss();
                             imageView.setImageBitmap(finalBmp);
                             statusText.setText("✅ Успешно сгенерировано и сохранено!");
                             Toast.makeText(MainActivity.this, "Фото сохранено в Pictures/MonsterAI", Toast.LENGTH_LONG).show();
@@ -1176,7 +1162,6 @@ public class MainActivity extends Activity {
                         handler.post(new Runnable() {
                             @Override
                             public void run() {
-                                if (progressDialog != null) progressDialog.dismiss();
                                 statusText.setText("❌ Ошибка: " + e.getMessage());
                                 Toast.makeText(MainActivity.this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
                             }
