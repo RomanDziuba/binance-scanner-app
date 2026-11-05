@@ -812,7 +812,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // Метод экстренной остановки текущей генерации
     private void stopCurrentGeneration() {
         isGenerationCancelled = true;
         appendLog("⏹ Запрос на остановку генерации от пользователя...");
@@ -846,7 +845,6 @@ public class MainActivity extends Activity {
                     progressDialog.dismiss();
                 }
                 statusText.setText("⏹ Генерация остановлена. Текущее фото сохранено.");
-                Toast.MainActivity_Toast = null;
                 Toast.makeText(MainActivity.this, "⏹ Генерация остановлена. Текущее фото сохранено.", Toast.LENGTH_SHORT).show();
             }
         });
@@ -857,14 +855,12 @@ public class MainActivity extends Activity {
         return id.substring(0, 6) + "...";
     }
 
-    // Проверка растрового изображения на то, является ли оно полностью черным или поврежденным
     private boolean isBitmapInvalidOrBlack(Bitmap bitmap) {
         if (bitmap == null) return true;
         int w = bitmap.getWidth();
         int h = bitmap.getHeight();
         if (w <= 0 || h <= 0) return true;
 
-        // Выборочная проверка пикселей (чтобы не тормозить процессор)
         int blackPixelsCount = 0;
         int totalChecked = 0;
         int stepX = Math.max(1, w / 20);
@@ -883,7 +879,6 @@ public class MainActivity extends Activity {
             }
         }
 
-        // Если более 95% проверенных точек черные — считаем результат черным квадратом
         return ((double) blackPixelsCount / totalChecked) > 0.95;
     }
 
@@ -1114,10 +1109,9 @@ public class MainActivity extends Activity {
                                         byte[] tempBytes = imgResp.body().bytes();
                                         Bitmap decodedBitmap = BitmapFactory.decodeByteArray(tempBytes, 0, tempBytes.length);
 
-                                        // Защита от черных квадратов/поврежденных изображений
                                         if (isBitmapInvalidOrBlack(decodedBitmap)) {
                                             appendLog("⚠️ Модель " + modelName + " вернула пустой/черный квадрат. Пробуем следующую модель...");
-                                            continue; // Пропускаем эту модель и пробуем другую
+                                            continue;
                                         }
 
                                         resultBytes = tempBytes;
@@ -1133,7 +1127,7 @@ public class MainActivity extends Activity {
                     }
 
                     if (isGenerationCancelled) {
-                        return; // Прерываем без ошибок, так как отменил пользователь
+                        return;
                     }
 
                     if (!successGenerated || resultBytes == null) {
