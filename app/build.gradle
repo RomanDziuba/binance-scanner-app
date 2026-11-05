@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.newhentay1.version01'
+    namespace 'com.aiphoto.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.newhentay1.version01"
+        applicationId "com.aiphoto.version01"
         minSdk 21
         targetSdk 34
-        versionCode 50
+        versionCode 51
         versionName "01"
     }
     compileOptions {
