@@ -2,7 +2,6 @@ package com.aiphoto6.version06;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -38,6 +37,8 @@ import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.core.app.NotificationCompat;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -379,18 +380,14 @@ public class MainActivity extends Activity {
         }
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, pendingIntentFlags);
 
-        Notification.Builder builder;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            builder = new Notification.Builder(this, CHANNEL_ID);
-        } else {
-            builder = new Notification.Builder(this);
-        }
-
-        builder.setContentTitle("🔥 Monster AI Horde")
-               .setContentText("Генерация завершена! Фото сохранено в галерею.")
-               .setSmallIcon(android.R.drawable.ic_menu_camera)
-               .setContentIntent(pendingIntent)
-               .setAutoCancel(true);
+        // Используем универсальный конструктор NotificationCompat с setChannelId для 100% совместимости
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
+                .setChannelId(CHANNEL_ID)
+                .setContentTitle("🔥 Monster AI Horde")
+                .setContentText("Генерация завершена! Фото сохранено в галерею.")
+                .setSmallIcon(android.R.drawable.ic_menu_camera)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true);
 
         notificationManager.notify(1, builder.build());
     }
