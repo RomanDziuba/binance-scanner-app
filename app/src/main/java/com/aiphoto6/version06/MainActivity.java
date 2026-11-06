@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
     private TextView logConsole;
     private ScrollView logScrollView;
     private byte[] selectedImageBytes;
-    private Uri selectedImageUri; // Сохраняем Uri для предотвращения вылетов при сворачивании
+    private Uri selectedImageUri; 
     
     private Handler handler = new Handler(Looper.getMainLooper());
     
@@ -87,7 +87,6 @@ public class MainActivity extends Activity {
     private Button btnStopGen;
     private Button btnStartGen;
 
-    // Элементы управления отменой генерации
     private volatile boolean isGenerationCancelled = false;
     private String activeJobId = null;
     private String activeApiKey = null;
@@ -102,15 +101,12 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Инициализация канала уведомлений и запрос разрешений
         createNotificationChannel();
         checkNotificationPermission();
         
-        // Загрузка сохраненной ранее активной модели
         SharedPreferences prefs = getSharedPreferences("ModelPrefs", MODE_PRIVATE);
         selectedModel = prefs.getString("active_selected_model", "grapefruit");
 
-        // Ключи доступа AI Horde
         hordeKeys.add("lJSv4pVAjwtzOYfVldIVxg");
         hordeKeys.add("OjbJD9mxPNcXGU7DfGQAXQ");
         hordeKeys.add("V0lhf56Xg982yORgPuZl6A");
@@ -191,7 +187,6 @@ public class MainActivity extends Activity {
         labelModel.setPadding(0, 10, 0, 5);
         rootLayout.addView(labelModel);
 
-        // Кнопка-селектор моделей
         btnModelSelector = createStyledButton("🤖 Загрузка моделей...", "#1E293B");
         btnModelSelector.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -203,7 +198,6 @@ public class MainActivity extends Activity {
         });
         rootLayout.addView(btnModelSelector);
 
-        // Панель прогресса и статуса (не блокирует интерфейс, кнопка стоп всегда доступна)
         progressStatusLayout = new LinearLayout(this);
         progressStatusLayout.setOrientation(LinearLayout.VERTICAL);
         progressStatusLayout.setBackgroundColor(Color.parseColor("#1E293B"));
@@ -236,7 +230,6 @@ public class MainActivity extends Activity {
         progressStatusLayout.addView(btnStopGen);
         rootLayout.addView(progressStatusLayout);
 
-        // Кнопка запуска генерации
         btnStartGen = createStyledButton("🚀 Запустить генерацию", "#059669");
         btnStartGen.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -319,7 +312,6 @@ public class MainActivity extends Activity {
         mainScroll.addView(rootLayout);
         setContentView(mainScroll);
 
-        // Восстановление данных при повороте или первичный запуск
         if (savedInstanceState != null) {
             String restoredModel = savedInstanceState.getString("selectedModel", null);
             if (restoredModel != null) {
@@ -328,7 +320,6 @@ public class MainActivity extends Activity {
             inputChanges.setText(savedInstanceState.getString("inputText", ""));
             logConsole.setText(savedInstanceState.getString("logText", ""));
             
-            // Восстановление фото по Uri без переполнения Binder (без TransactionTooLargeException)
             String uriStr = savedInstanceState.getString("selectedImageUri", null);
             if (uriStr != null) {
                 selectedImageUri = Uri.parse(uriStr);
@@ -348,8 +339,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // --- Методы для работы с уведомлениями ---
-
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             CharSequence name = "Monster AI Notifications";
@@ -366,15 +355,15 @@ public class MainActivity extends Activity {
 
     private void checkNotificationPermission() {
         if (Build.VERSION.SDK_INT >= 33) {
-            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 102);
+            if (checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 102);
             }
         }
     }
 
     private void showGenerationCompleteNotification() {
         if (Build.VERSION.SDK_INT >= 33) {
-            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            if (checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
                 return; 
             }
         }
@@ -386,7 +375,7 @@ public class MainActivity extends Activity {
         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_SINGLE_TOP);
         int pendingIntentFlags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= 31) {
-            pendingIntentFlags |= PendingIntent.FLAG_MUTABLE;
+            pendingIntentFlags |= 0x02000000; // FLAG_MUTABLE безопасно для компилятора
         }
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, pendingIntentFlags);
 
@@ -406,8 +395,6 @@ public class MainActivity extends Activity {
         notificationManager.notify(1, builder.build());
     }
 
-    // ------------------------------------------
-
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
@@ -415,7 +402,6 @@ public class MainActivity extends Activity {
         outState.putString("inputText", inputChanges.getText().toString());
         outState.putString("logText", logConsole.getText().toString());
         outState.putStringArrayList("allModels", new ArrayList<String>(allAvailableModels));
-        // Сохраняем только легкий Uri изображения вместо огромных байтов
         if (selectedImageUri != null) {
             outState.putString("selectedImageUri", selectedImageUri.toString());
         }
@@ -997,7 +983,7 @@ public class MainActivity extends Activity {
                 if (isFinishing()) return;
                 progressStatusLayout.setVisibility(View.GONE);
                 btnStartGen.setVisibility(View.VISIBLE);
-                updateModelButtonLabel(); // Возвращаем исходную модель на кнопку
+                updateModelButtonLabel(); 
                 statusText.setText("⏹ Генерация остановлена пользователем.");
                 Toast.makeText(MainActivity.this, "⏹ Генерация остановлена.", Toast.LENGTH_SHORT).show();
             }
@@ -1080,7 +1066,6 @@ public class MainActivity extends Activity {
                     String negativePrompt = "";
 
                     if (isNsfwActive) {
-                        // Улучшенный и максимально откровенный, детализированный NSFW 3D промпт
                         String baseStyle = "masterpiece, best quality, 3d render:1.3, cgi, Unreal Engine 5 render, octane render, extremely detailed 3d character, raw studio lighting, subsurface scattering skin texture, flawless erotic body shape, detailed nipples, wet skin sheen, exquisite curves, full nudity, unmasked intimate details, anatomical accuracy, explicit sensual pose, highly detailed genitalia, soft volumetric lighting, dramatic cinematic shadows, 8k resolution";
                         String nsfwCore = "";
                         
@@ -1143,7 +1128,6 @@ public class MainActivity extends Activity {
                             try {
                                 appendLog("👉 Модель: [" + modelName + "], Ключ: " + apiKey.substring(0, 5) + "...");
                                 
-                                // Визуальное отображение активной тестируемой модели в кнопке и логах в реальном времени
                                 handler.post(new Runnable() {
                                     @Override
                                     public void run() {
@@ -1264,7 +1248,6 @@ public class MainActivity extends Activity {
                     final Bitmap finalBmp = BitmapFactory.decodeByteArray(resultBytes, 0, resultBytes.length);
                     saveBitmapToGallery(finalBmp, "MonsterAI_" + System.currentTimeMillis() + ".jpg");
 
-                    // Отправка системного уведомления
                     showGenerationCompleteNotification();
 
                     handler.post(new Runnable() {
@@ -1273,7 +1256,7 @@ public class MainActivity extends Activity {
                             if (isFinishing()) return;
                             progressStatusLayout.setVisibility(View.GONE);
                             btnStartGen.setVisibility(View.VISIBLE);
-                            updateModelButtonLabel(); // Возвращаем исходную модель на кнопку
+                            updateModelButtonLabel(); 
                             imageView.setImageBitmap(finalBmp);
                             statusText.setText("✅ Успешно сгенерировано и сохранено!");
                             Toast.makeText(MainActivity.this, "Фото сохранено в Pictures/MonsterAI", Toast.LENGTH_LONG).show();
@@ -1290,7 +1273,7 @@ public class MainActivity extends Activity {
                                 if (isFinishing()) return;
                                 progressStatusLayout.setVisibility(View.GONE);
                                 btnStartGen.setVisibility(View.VISIBLE);
-                                updateModelButtonLabel(); // Возвращаем исходную модель на кнопку
+                                updateModelButtonLabel(); 
                                 statusText.setText("❌ Ошибка: " + e.getMessage());
                                 Toast.makeText(MainActivity.this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
                             }
