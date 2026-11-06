@@ -1018,7 +1018,7 @@ public class MainActivity extends Activity {
 
                     if (isNsfwActive) {
                         // Базовый качественный каркас стиля с высоким приоритетом пользовательского ввода в начале
-                        String baseStyle = "masterpiece, best quality, 3d render:1.2, cgi, Unreal Engine 5 render, octane render, naked, artistic nudity, highly detailed 3d character, beautiful detailed face:1.3, perfect anatomy, accurate lighting, vibrant colors, expressive body, gorgeous physique, sensual curves, fully detailed skin texture, detailed of all organs, uncovered body:1.3, aesthetic explicit detailed anatomy body:1.4";
+                        String baseStyle = "masterpiece, best quality, ultra-detailed 3d render, Unreal Engine 5 render, octane render, raw studio lighting, subsurface scattering skin texture, highly detailed 3d character, complex anatomy, gorgeous physique, sensual curves, wet skin sheen, intricate body contours, anatomically correct proportions, highly detailed erotic body:1.3, complete exposed physique, soft volumetric lighting, dramatic shadows, photorealistic muscles and skin folds, 8k resolution";
                         String nsfwCore = "";
                         
                         if (!translatedChanges.isEmpty()) {
@@ -1028,7 +1028,7 @@ public class MainActivity extends Activity {
                             nsfwCore = baseStyle;
                         }
 
-                        negativePrompt = "(lowres, bad anatomy:1.4, bad hands:1.5, poorly drawn hands:1.5, missing fingers:1.5, extra fingers:1.5, mutated hands:1.5, disfigured, text, ugly, blurry, censored)";
+                        negativePrompt = "(lowres, bad anatomy:1.4, bad hands:1.5, poorly drawn hands:1.5, missing fingers:1.5, extra fingers:1.5, mutated hands:1.5, disfigured, text, ugly, blurry, censored, mosaic, pixelated, bar censor, black bars, deformed limbs, extra limbs, fused fingers, duplicate)";
                         fullPrompt = nsfwCore + " ### " + negativePrompt;
                         appendLog("🔥 Активен NSFW-промпт высочайшего качества.");
                     } else {
