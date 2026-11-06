@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.aiphoto3.version03'
+    namespace 'com.aiphoto4.version04'
     compileSdk 34
     defaultConfig {
-        applicationId "com.aiphoto3.version03"
+        applicationId "com.aiphoto4.version04"
         minSdk 21
         targetSdk 34
-        versionCode 58
-        versionName "03"
+        versionCode 59
+        versionName "04"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "AI_фото3_v03-" + variant.name + ".apk"
+            outputFileName = "AI_фото4_v04-" + variant.name + ".apk"
         }
     }
 }
