@@ -380,9 +380,8 @@ public class MainActivity extends Activity {
         }
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, pendingIntentFlags);
 
-        // Используем универсальный конструктор NotificationCompat с setChannelId для 100% совместимости
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
-                .setChannelId(CHANNEL_ID)
+        // Используем стандартный конструктор NotificationCompat с двумя аргументами (Context, channelId)
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("🔥 Monster AI Horde")
                 .setContentText("Генерация завершена! Фото сохранено в галерею.")
                 .setSmallIcon(android.R.drawable.ic_menu_camera)
