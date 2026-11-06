@@ -1,5 +1,9 @@
 package com.aiphoto3.version03;
 
+import java.util.*;
+import java.util.regex.*;
+import java.io.*;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ClipData;
