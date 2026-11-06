@@ -356,15 +356,15 @@ public class MainActivity extends Activity {
 
     private void checkNotificationPermission() {
         if (Build.VERSION.SDK_INT >= 33) {
-            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 102);
+            if (checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 102);
             }
         }
     }
 
     private void showGenerationCompleteNotification() {
         if (Build.VERSION.SDK_INT >= 33) {
-            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            if (checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
                 return; 
             }
         }
@@ -380,7 +380,6 @@ public class MainActivity extends Activity {
         }
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, pendingIntentFlags);
 
-        // Используем NotificationCompat для гарантированной совместимости и отсутствия ошибок компиляции
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("🔥 Monster AI Horde")
                 .setContentText("Генерация завершена! Фото сохранено в галерею.")
