@@ -372,14 +372,13 @@ public class MainActivity extends Activity {
         if (notificationManager == null) return;
 
         Intent intent = new Intent(this, MainActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_SINGLE_TOP);
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP); // <-- ИСПРАВЛЕНО ЗДЕСЬ
         int pendingIntentFlags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= 31) {
             pendingIntentFlags |= PendingIntent.FLAG_MUTABLE;
         }
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, pendingIntentFlags);
 
-        // Используем встроенный системный Notification.Builder для гарантированной сборки
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder builder = new Notification.Builder(this, CHANNEL_ID)
                     .setContentTitle("🔥 Monster AI Horde")
