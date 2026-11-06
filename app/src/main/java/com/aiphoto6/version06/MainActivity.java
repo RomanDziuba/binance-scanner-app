@@ -2,7 +2,6 @@ package com.aiphoto6.version06;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -39,6 +38,8 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.core.app.NotificationCompat;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -72,7 +73,7 @@ public class MainActivity extends Activity {
     private TextView logConsole;
     private ScrollView logScrollView;
     private byte[] selectedImageBytes;
-    private Uri selectedImageUri; 
+    private Uri selectedImageUri;
     
     private Handler handler = new Handler(Looper.getMainLooper());
     
@@ -355,15 +356,15 @@ public class MainActivity extends Activity {
 
     private void checkNotificationPermission() {
         if (Build.VERSION.SDK_INT >= 33) {
-            if (checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 102);
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 102);
             }
         }
     }
 
     private void showGenerationCompleteNotification() {
         if (Build.VERSION.SDK_INT >= 33) {
-            if (checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 return; 
             }
         }
@@ -375,22 +376,17 @@ public class MainActivity extends Activity {
         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_SINGLE_TOP);
         int pendingIntentFlags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= 31) {
-            pendingIntentFlags |= 0x02000000; // FLAG_MUTABLE безопасно для компилятора
+            pendingIntentFlags |= PendingIntent.FLAG_MUTABLE;
         }
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, pendingIntentFlags);
 
-        Notification.Builder builder;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            builder = new Notification.Builder(this, CHANNEL_ID);
-        } else {
-            builder = new Notification.Builder(this);
-        }
-
-        builder.setContentTitle("🔥 Monster AI Horde")
-               .setContentText("Генерация завершена! Фото сохранено в галерею.")
-               .setSmallIcon(android.R.drawable.ic_menu_camera)
-               .setContentIntent(pendingIntent)
-               .setAutoCancel(true);
+        // Используем NotificationCompat для гарантированной совместимости и отсутствия ошибок компиляции
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("🔥 Monster AI Horde")
+                .setContentText("Генерация завершена! Фото сохранено в галерею.")
+                .setSmallIcon(android.R.drawable.ic_menu_camera)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true);
 
         notificationManager.notify(1, builder.build());
     }
@@ -983,7 +979,7 @@ public class MainActivity extends Activity {
                 if (isFinishing()) return;
                 progressStatusLayout.setVisibility(View.GONE);
                 btnStartGen.setVisibility(View.VISIBLE);
-                updateModelButtonLabel(); 
+                updateModelButtonLabel();
                 statusText.setText("⏹ Генерация остановлена пользователем.");
                 Toast.makeText(MainActivity.this, "⏹ Генерация остановлена.", Toast.LENGTH_SHORT).show();
             }
@@ -1256,7 +1252,7 @@ public class MainActivity extends Activity {
                             if (isFinishing()) return;
                             progressStatusLayout.setVisibility(View.GONE);
                             btnStartGen.setVisibility(View.VISIBLE);
-                            updateModelButtonLabel(); 
+                            updateModelButtonLabel();
                             imageView.setImageBitmap(finalBmp);
                             statusText.setText("✅ Успешно сгенерировано и сохранено!");
                             Toast.makeText(MainActivity.this, "Фото сохранено в Pictures/MonsterAI", Toast.LENGTH_LONG).show();
@@ -1273,7 +1269,7 @@ public class MainActivity extends Activity {
                                 if (isFinishing()) return;
                                 progressStatusLayout.setVisibility(View.GONE);
                                 btnStartGen.setVisibility(View.VISIBLE);
-                                updateModelButtonLabel(); 
+                                updateModelButtonLabel();
                                 statusText.setText("❌ Ошибка: " + e.getMessage());
                                 Toast.makeText(MainActivity.this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
                             }
