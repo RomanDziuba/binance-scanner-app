@@ -587,63 +587,21 @@ public class MainActivity extends Activity {
         cfgDialog.show();
     }
 
-    // Продвинутое меню выбора моделей: два отдельных скроллируемых блока + настройки + кнопка обновления
-    private void showAdvancedModelSelectionDialog() {
-        if (isFinishing()) return;
-        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        
-        ScrollView dialogScroll = new ScrollView(this);
-        LinearLayout mainDialogLayout = new LinearLayout(this);
-        mainDialogLayout.setOrientation(LinearLayout.VERTICAL);
-        mainDialogLayout.setPadding(25, 25, 25, 25);
-        mainDialogLayout.setBackgroundColor(Color.parseColor("#0F172A"));
-        dialogScroll.addView(mainDialogLayout);
+    // Вспомогательный метод для отрисовки категории в каталоге моделей
+    private void addModelCategorySection(LinearLayout parentLayout, String headerText, String headerColorHex, List<String> modelList, boolean isNsfwSection, final AlertDialog[] dialogHolder) {
+        if (modelList.isEmpty()) return;
 
-        TextView dialogTitle = new TextView(this);
-        dialogTitle.setText("🤖 Каталог моделей (Всего активных: " + allAvailableModels.size() + ")");
-        dialogTitle.setTextColor(Color.parseColor("#38BDF8"));
-        dialogTitle.setTextSize(16f);
-        dialogTitle.setTypeface(Typeface.DEFAULT_BOLD);
-        dialogTitle.setPadding(0, 0, 0, 15);
-        mainDialogLayout.addView(dialogTitle);
+        TextView header = new TextView(this);
+        header.setText("\n" + headerText + " (" + modelList.size() + "):");
+        header.setTextColor(Color.parseColor(headerColorHex));
+        header.setTextSize(13f);
+        header.setTypeface(Typeface.DEFAULT_BOLD);
+        parentLayout.addView(header);
 
-        // Кнопка обновления моделей прямо в меню
-        Button btnRefreshInDialog = createStyledButton("🔄 Обновить список с сервера", "#0284C7");
-        btnRefreshInDialog.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                fetchOnlineModelsAsync(true);
-            }
-        });
-        mainDialogLayout.addView(btnRefreshInDialog);
-
-        // Разделение моделей на Обычные и NSFW
-        List<String> normalModels = new ArrayList<String>();
-        List<String> nsfwModels = new ArrayList<String>();
-
-        for (int i = 0; i < allAvailableModels.size(); i++) {
-            String m = allAvailableModels.get(i);
-            if (isModelNsfw(m)) {
-                nsfwModels.add(m);
-            } else {
-                normalModels.add(m);
-            }
-        }
-
-        final AlertDialog[] dialogHolder = new AlertDialog[1];
-
-        // Блок 1: Обычные модели
-        TextView headerNormal = new TextView(this);
-        headerNormal.setText("\n🟢 Стандартные модели (" + normalModels.size() + "):");
-        headerNormal.setTextColor(Color.parseColor("#34D399"));
-        headerNormal.setTextSize(13f);
-        headerNormal.setTypeface(Typeface.DEFAULT_BOLD);
-        mainDialogLayout.addView(headerNormal);
-
-        LinearLayout normalContainer = new LinearLayout(this);
-        normalContainer.setOrientation(LinearLayout.VERTICAL);
-        for (int i = 0; i < normalModels.size(); i++) {
-            final String modelName = normalModels.get(i);
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        for (int i = 0; i < modelList.size(); i++) {
+            final String modelName = modelList.get(i);
             final int indexNum = i + 1;
 
             LinearLayout rowLayout = new LinearLayout(this);
@@ -655,7 +613,7 @@ public class MainActivity extends Activity {
 
             Button mBtn = new Button(this);
             boolean isSelected = modelName.equals(selectedModel);
-            mBtn.setText(indexNum + ". " + modelName + (isSelected ? " ✅ [АКТИВНА]" : ""));
+            mBtn.setText(indexNum + ". " + modelName + (isNsfwSection ? " 🔞" : "") + (isSelected ? " ✅ [АКТИВНА]" : ""));
             mBtn.setTextSize(12f);
             mBtn.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
             mBtn.setPadding(15, 12, 15, 12);
@@ -664,8 +622,13 @@ public class MainActivity extends Activity {
                 mBtn.setBackgroundColor(Color.parseColor("#059669"));
                 mBtn.setTextColor(Color.WHITE);
             } else {
-                mBtn.setBackgroundColor(Color.parseColor("#1E293B"));
-                mBtn.setTextColor(Color.parseColor("#CBD5E1"));
+                if (isNsfwSection) {
+                    mBtn.setBackgroundColor(Color.parseColor("#44EF4444"));
+                    mBtn.setTextColor(Color.parseColor("#FCA5A5"));
+                } else {
+                    mBtn.setBackgroundColor(Color.parseColor("#1E293B"));
+                    mBtn.setTextColor(Color.parseColor("#CBD5E1"));
+                }
             }
             
             LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
@@ -697,78 +660,72 @@ public class MainActivity extends Activity {
 
             rowLayout.addView(mBtn);
             rowLayout.addView(settingsBtn);
-            normalContainer.addView(rowLayout);
+            container.addView(rowLayout);
         }
-        mainDialogLayout.addView(normalContainer);
+        parentLayout.addView(container);
+    }
 
-        // Блок 2: NSFW модели
-        TextView headerNsfw = new TextView(this);
-        headerNsfw.setText("\n🔞 NSFW модели (" + nsfwModels.size() + "):");
-        headerNsfw.setTextColor(Color.parseColor("#FCA5A5"));
-        headerNsfw.setTextSize(13f);
-        headerNsfw.setTypeface(Typeface.DEFAULT_BOLD);
-        mainDialogLayout.addView(headerNsfw);
+    // Расширенное меню выбора моделей с категориями (Фотореализм, Аниме, Фурри, Общие, NSFW) + настройки + обновление
+    private void showAdvancedModelSelectionDialog() {
+        if (isFinishing()) return;
+        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        
+        ScrollView dialogScroll = new ScrollView(this);
+        LinearLayout mainDialogLayout = new LinearLayout(this);
+        mainDialogLayout.setOrientation(LinearLayout.VERTICAL);
+        mainDialogLayout.setPadding(25, 25, 25, 25);
+        mainDialogLayout.setBackgroundColor(Color.parseColor("#0F172A"));
+        dialogScroll.addView(mainDialogLayout);
 
-        LinearLayout nsfwContainer = new LinearLayout(this);
-        nsfwContainer.setOrientation(LinearLayout.VERTICAL);
-        for (int i = 0; i < nsfwModels.size(); i++) {
-            final String modelName = nsfwModels.get(i);
-            final int indexNum = i + 1;
+        TextView dialogTitle = new TextView(this);
+        dialogTitle.setText("🤖 Каталог моделей (Всего активных: " + allAvailableModels.size() + ")");
+        dialogTitle.setTextColor(Color.parseColor("#38BDF8"));
+        dialogTitle.setTextSize(16f);
+        dialogTitle.setTypeface(Typeface.DEFAULT_BOLD);
+        dialogTitle.setPadding(0, 0, 0, 15);
+        mainDialogLayout.addView(dialogTitle);
 
-            LinearLayout rowLayout = new LinearLayout(this);
-            rowLayout.setOrientation(LinearLayout.HORIZONTAL);
-            rowLayout.setGravity(Gravity.CENTER_VERTICAL);
-            LinearLayout.LayoutParams rParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            rParams.setMargins(0, 3, 0, 3);
-            rowLayout.setLayoutParams(rParams);
-
-            Button mBtn = new Button(this);
-            boolean isSelected = modelName.equals(selectedModel);
-            mBtn.setText(indexNum + ". " + modelName + " 🔞" + (isSelected ? " ✅ [АКТИВНА]" : ""));
-            mBtn.setTextSize(12f);
-            mBtn.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-            mBtn.setPadding(15, 12, 15, 12);
-            
-            if (isSelected) {
-                mBtn.setBackgroundColor(Color.parseColor("#059669"));
-                mBtn.setTextColor(Color.WHITE);
-            } else {
-                mBtn.setBackgroundColor(Color.parseColor("#44EF4444"));
-                mBtn.setTextColor(Color.parseColor("#FCA5A5"));
+        // Кнопка обновления моделей прямо в меню
+        Button btnRefreshInDialog = createStyledButton("🔄 Обновить список с сервера", "#0284C7");
+        btnRefreshInDialog.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                fetchOnlineModelsAsync(true);
             }
-            
-            LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-            mBtn.setLayoutParams(bp);
-            mBtn.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    selectedModel = modelName;
-                    updateModelButtonLabel();
-                    appendLog("Выбрана NSFW модель: " + selectedModel);
-                    if (dialogHolder[0] != null) dialogHolder[0].dismiss();
-                }
-            });
+        });
+        mainDialogLayout.addView(btnRefreshInDialog);
 
-            Button settingsBtn = new Button(this);
-            settingsBtn.setText("⚙️ Меню");
-            settingsBtn.setTextSize(11f);
-            settingsBtn.setBackgroundColor(Color.parseColor("#334155"));
-            settingsBtn.setTextColor(Color.parseColor("#F8FAFC"));
-            LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            sp.setMargins(5, 0, 0, 0);
-            settingsBtn.setLayoutParams(sp);
-            settingsBtn.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    showModelMenuDialog(modelName);
-                }
-            });
+        // Разделение моделей на категории по ключевым словам и NSFW-флагам
+        List<String> realisticModels = new ArrayList<String>();
+        List<String> animeModels = new ArrayList<String>();
+        List<String> furryModels = new ArrayList<String>();
+        List<String> otherNormalModels = new ArrayList<String>();
+        List<String> nsfwModels = new ArrayList<String>();
 
-            rowLayout.addView(mBtn);
-            rowLayout.addView(settingsBtn);
-            nsfwContainer.addView(rowLayout);
+        for (int i = 0; i < allAvailableModels.size(); i++) {
+            String m = allAvailableModels.get(i);
+            String lower = m.toLowerCase();
+            if (isModelNsfw(m)) {
+                nsfwModels.add(m);
+            } else if (lower.contains("furry") || lower.contains("pony")) {
+                furryModels.add(m);
+            } else if (lower.contains("realistic") || lower.contains("real") || lower.contains("dos")) {
+                realisticModels.add(m);
+            } else if (lower.contains("anime") || lower.contains("mix") || lower.contains("grapefruit") || lower.contains("meinamix") || lower.contains("ghostmix")) {
+                animeModels.add(m);
+            } else {
+                otherNormalModels.add(m);
+            }
         }
-        mainDialogLayout.addView(nsfwContainer);
+
+        final AlertDialog[] dialogHolder = new AlertDialog[1];
+
+        // Отрисовка категорий в диалоговом окне
+        addModelCategorySection(mainDialogLayout, "📸 Фотореалистичные модели", "#38BDF8", realisticModels, false, dialogHolder);
+        addModelCategorySection(mainDialogLayout, "🎨 Аниме / 2.5D модели", "#34D399", animeModels, false, dialogHolder);
+        addModelCategorySection(mainDialogLayout, "🦊🐾 Фурри / Pony модели", "#FBBF24", furryModels, false, dialogHolder);
+        addModelCategorySection(mainDialogLayout, "🤖 Общие модели", "#94A3B8", otherNormalModels, false, dialogHolder);
+        addModelCategorySection(mainDialogLayout, "🔞 NSFW модели", "#FCA5A5", nsfwModels, true, dialogHolder);
 
         builder.setView(dialogScroll);
         builder.setPositiveButton("Закрыть", null);
@@ -1061,7 +1018,7 @@ public class MainActivity extends Activity {
 
                     if (isNsfwActive) {
                         // Базовый качественный каркас стиля с высоким приоритетом пользовательского ввода в начале
-                        String baseStyle = "masterpiece, best quality, 3d render:1.2, cgi, Unreal Engine 5 render, octane render, naked:1.5, highly detailed 3d character, beautiful detailed face:1.3, perfect anatomy, accurate lighting, vibrant colors, expressive body, gorgeous physique, sensual curves, fully detailed skin texture, artistic nudity:1.3, detailed of all organs, uncovered body:1.3, aesthetic explicit detailed anatomy body:1.4";
+                        String baseStyle = "masterpiece, best quality, 3d render:1.2, cgi, Unreal Engine 5 render, octane render, naked, artistic nudity, highly detailed 3d character, beautiful detailed face:1.3, perfect anatomy, accurate lighting, vibrant colors, expressive body, gorgeous physique, sensual curves, fully detailed skin texture and genitals, detailed of all organs, uncovered body:1.3, aesthetic explicit detailed anatomy body:1.4";
                         String nsfwCore = "";
                         
                         if (!translatedChanges.isEmpty()) {
