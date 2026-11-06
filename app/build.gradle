@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version06'
+    namespace 'com.rza.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version06"
+        applicationId "com.rza.version01"
         minSdk 21
         targetSdk 34
-        versionCode 74
-        versionName "06"
+        versionCode 75
+        versionName "01"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "AI_фото6_v06-" + variant.name + ".apk"
+            outputFileName = "Направление мощности_v01-" + variant.name + ".apk"
         }
     }
 }
