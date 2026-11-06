@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.aiphoto5.version05'
+    namespace 'com.aiphoto6.version06'
     compileSdk 34
     defaultConfig {
-        applicationId "com.aiphoto5.version05"
+        applicationId "com.aiphoto6.version06"
         minSdk 21
         targetSdk 34
-        versionCode 61
-        versionName "05"
+        versionCode 62
+        versionName "06"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "AI_фото5_v05-" + variant.name + ".apk"
+            outputFileName = "AI_фото6_v06-" + variant.name + ".apk"
         }
     }
 }
