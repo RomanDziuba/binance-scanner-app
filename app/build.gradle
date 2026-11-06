@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.aiphoto3.version05'
+    namespace 'com.aiphoto5.version05'
     compileSdk 34
     defaultConfig {
-        applicationId "com.aiphoto3.version05"
+        applicationId "com.aiphoto5.version05"
         minSdk 21
         targetSdk 34
-        versionCode 60
+        versionCode 61
         versionName "05"
     }
     compileOptions {
