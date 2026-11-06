@@ -9,7 +9,7 @@ android {
         applicationId "com.aiphoto3.version06"
         minSdk 21
         targetSdk 34
-        versionCode 62
+        versionCode 63
         versionName "06"
     }
     compileOptions {
