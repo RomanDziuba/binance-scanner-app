@@ -1062,7 +1062,7 @@ public class MainActivity extends Activity {
                     String negativePrompt = "";
 
                     if (isNsfwActive) {
-                        String baseStyle = "masterpiece, best quality, 3d render:1.3, cgi, Unreal Engine 5 render, octane render, extremely detailed 3d character, raw studio lighting, subsurface scattering skin texture, flawless erotic body shape, detailed nipples, wet skin sheen, exquisite curves, full nudity, unmasked intimate details, anatomical accuracy, explicit sensual pose, highly detailed genitalia, soft volumetric lighting, dramatic cinematic shadows, 8k resolution";
+                        String baseStyle = "masterpiece, best quality, 3d render:1.3, cgi, Unreal Engine 5 render, octane render, extremely detailed 3d character, raw studio lighting, subsurface scattering skin texture, flawless erotic body shape, detailed nipples, wet skin sheen, exquisite curves, full nudity, unmasked intimate details, anatomical accuracy, explicit sensual pose, highly detailed genitalia, soft volumetric lighting, detailed face, beautiful detailed eyes:1.1, sharp focus on face, 8k resolution";
                         String nsfwCore = "";
                         
                         if (!translatedChanges.isEmpty()) {
@@ -1072,7 +1072,7 @@ public class MainActivity extends Activity {
                             nsfwCore = baseStyle;
                         }
 
-                        negativePrompt = "(lowres, bad anatomy:1.4, bad hands:1.5, poorly drawn hands:1.5, missing fingers:1.5, extra fingers:1.5, mutated hands:1.5, disfigured, text, ugly, blurry, censored, mosaic, pixelated, bar censor, black bars)";
+                        negativePrompt = "(lowres, bad anatomy:1.4, bad hands:1.5, poorly drawn hands:1.5, missing fingers:1.5, extra fingers:1.5, mutated hands:1.5, bad face, deformed face, poorly drawn face, mutation, extra eyes, mutated eyes:1.1, fused fingers, disfigured, text, ugly, blurry, censored, mosaic, pixelated, bar censor, black bars)";
                         fullPrompt = nsfwCore + " ### " + negativePrompt;
                         appendLog("🔥 Активен максимально откровенный NSFW-промпт высочайшего качества.");
                     } else {
