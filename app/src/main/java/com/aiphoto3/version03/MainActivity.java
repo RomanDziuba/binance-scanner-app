@@ -1060,17 +1060,21 @@ public class MainActivity extends Activity {
                     String negativePrompt = "";
 
                     if (isNsfwActive) {
-                        String nsfwCore = "masterpiece, best quality, 3d render:1.2, cgi, Unreal Engine 5 render, octane render, naked:1.5, highly detailed 3d character, beautiful detailed face:1.3, perfect anatomy, accurate lighting, vibrant colors, expressive body, gorgeous physique, sensual curves, fully detailed skin texture, artistic nudity:1.2, detailed of all organs, uncovered body:1.3, aesthetic explicit detailed anatomy:1.4";
-                        if (!translatedChanges.isEmpty()) nsfwCore += ", " + translatedChanges;
-                        negativePrompt = "(lowres, bad anatomy, bad hands:1.5, poorly drawn hands:1.5, missing fingers:1.5, extra fingers:1.5, mutated hands:1.5, disfigured, text, ugly, blurry, censored:1.2)";
+                       // Базовый качественный каркас стиля
+                        String nsfwCore = "masterpiece, best quality, 3d render:1.2, cgi, Unreal Engine 5 render, octane render, naked:1.5, highly detailed 3d character, beautiful detailed face:1.3, perfect anatomy, accurate lighting, vibrant colors, expressive body, gorgeous physique, sensual curves, fully detailed skin texture, artistic nudity:1.3, detailed of all organs, uncovered body:1.3, aesthetic explicit detailed anatomy body:1.4";
+    
+                        String nsfwCore = "";
+                        // Если вы что-то написали, ставим это в САМОЕ НАЧАЛО для максимального приоритета!
+                        if (!translatedChanges.isEmpty()) {
+                            nsfwCore = translatedChanges + ", " + baseStyle;
+                            appendLog("🔥 Промпт пользователя перенесен в начало для высшего приоритета.");
+                        } else {
+                            nsfwCore = baseStyle;
+                        }
+
+                        negativePrompt = "(lowres, bad anatomy1.4, bad hands:1.5, poorly drawn hands:1.5, missing fingers:1.5, extra fingers:1.5, mutated hands:1.5, disfigured, text, ugly, blurry, censored)";
                         fullPrompt = nsfwCore + " ### " + negativePrompt;
                         appendLog("🔥 Активен NSFW-промпт высочайшего качества.");
-                    } else {
-                        String standardCore = "masterpiece, best quality, ultra-detailed photo, sharp focus, professional studio lighting, 8k resolution, photorealistic";
-                        if (!translatedChanges.isEmpty()) standardCore += ", " + translatedChanges;
-                        negativePrompt = "(lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, cropped, worst quality, low quality)";
-                        fullPrompt = standardCore + " ### " + negativePrompt;
-                        appendLog("✨ Активен стандартный фото-промпт.");
                     }
 
                     // Чтение индивидуальных настроек модели из SharedPreferences
