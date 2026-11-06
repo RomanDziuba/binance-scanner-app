@@ -9,7 +9,7 @@ android {
         applicationId "com.aiphoto3.version03"
         minSdk 21
         targetSdk 34
-        versionCode 57
+        versionCode 58
         versionName "03"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "AI_фото2_v03-" + variant.name + ".apk"
+            outputFileName = "AI_фото3_v03-" + variant.name + ".apk"
         }
     }
 }
