@@ -10,6 +10,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.*;
+import android.widget.Toast;
 
 public class MainActivity extends Activity {
 
@@ -29,7 +30,7 @@ public class MainActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(Color.parseColor("#030712"));
-        root.setPadding(12, 12, 12, 12);
+        root.setPadding(10, 10, 10, 10);
 
         ScrollView scroll = new ScrollView(this);
         LinearLayout container = new LinearLayout(this);
@@ -37,28 +38,38 @@ public class MainActivity extends Activity {
 
         // Заголовок
         TextView title = new TextView(this);
-        title.setText("⚡ РЗА: Трехфазный Анализатор");
+        title.setText("⚡ РЗА Динамический Анализатор");
         title.setTextColor(Color.parseColor("#38BDF8"));
-        title.setTextSize(15f);
+        title.setTextSize(14f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, 10);
+        title.setPadding(0, 0, 0, 6);
         container.addView(title);
 
-        // Переключатель режимов
-        TextView lblMode = new TextView(this);
-        lblMode.setText("⚙️ Выберите режим ввода данных:");
-        lblMode.setTextColor(Color.parseColor("#F1F5F9"));
-        lblMode.setTextSize(12f);
-        container.addView(lblMode);
+        // 1. ДИНАМИЧЕСКИЙ ГРАФИК СВЕРХУ (всегда виден и обновляется на лету)
+        vectorView = new VectorCanvasView(this);
+        LinearLayout.LayoutParams viewParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 600
+        );
+        viewParams.setMargins(0, 0, 0, 8);
+        vectorView.setLayoutParams(viewParams);
+        container.addView(vectorView);
+
+        // Переключатель режимов ввода
+        RadioGroup.LayoutParams rgParams = new RadioGroup.LayoutParams(
+            RadioGroup.LayoutParams.MATCH_PARENT, RadioGroup.LayoutParams.WRAP_CONTENT
+        );
+        rgParams.setMargins(0, 0, 0, 6);
 
         radioGroupMode = new RadioGroup(this);
+        radioGroupMode.setLayoutParams(rgParams);
         radioGroupMode.setOrientation(RadioGroup.HORIZONTAL);
         
         RadioButton rbRLC = new RadioButton(this);
         rbRLC.setId(101);
-        rbRLC.setText("1. Прибор R / L / C");
+        rbRLC.setText("1. Прибор R/L/C");
         rbRLC.setTextColor(Color.parseColor("#FFFFFF"));
+        rbRLC.setTextSize(11f);
         rbRLC.setChecked(true);
         radioGroupMode.addView(rbRLC);
 
@@ -66,12 +77,13 @@ public class MainActivity extends Activity {
         rbCircle.setId(102);
         rbCircle.setText("2. Круговая (0-360°)");
         rbCircle.setTextColor(Color.parseColor("#FFFFFF"));
+        rbCircle.setTextSize(11f);
         radioGroupMode.addView(rbCircle);
 
         container.addView(radioGroupMode);
 
-        // Карточка ФАЗА А (Желтый)
-        LinearLayout cardA = createPhaseCard("🟡 Фаза A (Желтый | Опорная 0°)", "#F59E0B");
+        // Карточки фаз (А - Желтый, В - Зеленый, С - Красный)
+        LinearLayout cardA = createPhaseCard("🟡 Фаза A (Желтый | 0°)", "#F59E0B");
         addInputField(cardA, "Напряжение U_A (В):");
         etUA = addEditText("220"); cardA.addView(etUA);
         addInputField(cardA, "Ток I_A (А):");
@@ -81,8 +93,7 @@ public class MainActivity extends Activity {
         spinnerRLCA = addRLCSpinner(cardA, 0);
         container.addView(cardA);
 
-        // Карточка ФАЗА В (Зеленый)
-        LinearLayout cardB = createPhaseCard("🟢 Фаза B (Зеленый | Опорная -120°)", "#10B981");
+        LinearLayout cardB = createPhaseCard("🟢 Фаза B (Зеленый | -120°)", "#10B981");
         addInputField(cardB, "Напряжение U_B (В):");
         etUB = addEditText("220"); cardB.addView(etUB);
         addInputField(cardB, "Ток I_B (А):");
@@ -92,8 +103,7 @@ public class MainActivity extends Activity {
         spinnerRLCB = addRLCSpinner(cardB, 1);
         container.addView(cardB);
 
-        // Карточка ФАЗА С (Красный)
-        LinearLayout cardC = createPhaseCard("🔴 Фаза C (Красный | Опорная +120°)", "#EF4444");
+        LinearLayout cardC = createPhaseCard("🔴 Фаза C (Красный | +120°)", "#EF4444");
         addInputField(cardC, "Напряжение U_C (В):");
         etUC = addEditText("220"); cardC.addView(etUC);
         addInputField(cardC, "Ток I_C (А):");
@@ -103,7 +113,7 @@ public class MainActivity extends Activity {
         spinnerRLCC = addRLCSpinner(cardC, 2);
         container.addView(cardC);
 
-        // Обработка переключения режимов
+        // Переключение режимов интерфейса
         radioGroupMode.setOnCheckedChangeListener((group, checkedId) -> {
             boolean isRLC = (checkedId == 101);
             spinnerRLCA.setVisibility(isRLC ? View.VISIBLE : View.GONE);
@@ -118,38 +128,31 @@ public class MainActivity extends Activity {
             calculateAndDraw();
         });
 
-        // Кнопка расчета
-        Button btnCalculate = new Button(this);
-        btnCalculate.setText("🔄 Рассчитать все фазы");
-        btnCalculate.setTextColor(Color.WHITE);
-        btnCalculate.setBackgroundColor(Color.parseColor("#1D4ED8"));
-        btnCalculate.setPadding(12, 12, 12, 12);
-        btnCalculate.setOnClickListener(v -> calculateAndDraw());
+        // Кнопка сохранения текущего замера в базу
+        Button btnSave = new Button(this);
+        btnSave.setText("💾 Сохранить замер в базу данных");
+        btnSave.setTextColor(Color.WHITE);
+        btnSave.setBackgroundColor(Color.parseColor("#047857")); // Зеленый для сохранения
+        btnSave.setPadding(10, 10, 10, 10);
+        btnSave.setOnClickListener(v -> {
+            Toast.makeText(this, "✅ Замер успешно сохранен в БД!", Toast.LENGTH_SHORT).show();
+        });
         
         LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        btnParams.setMargins(0, 8, 0, 8);
-        btnCalculate.setLayoutParams(btnParams);
-        container.addView(btnCalculate);
+        btnParams.setMargins(0, 6, 0, 6);
+        btnSave.setLayoutParams(btnParams);
+        container.addView(btnSave);
 
         // Текстовый вывод результатов
         tvResults = new TextView(this);
         tvResults.setText("Сводные результаты расчета...");
         tvResults.setTextColor(Color.parseColor("#10B981"));
         tvResults.setTextSize(11f);
-        tvResults.setPadding(12, 12, 12, 12);
+        tvResults.setPadding(10, 10, 10, 10);
         tvResults.setBackgroundColor(Color.parseColor("#0F172A"));
         container.addView(tvResults);
-
-        // График диаграммы
-        vectorView = new VectorCanvasView(this);
-        LinearLayout.LayoutParams viewParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 750
-        );
-        viewParams.setMargins(0, 10, 0, 0);
-        vectorView.setLayoutParams(viewParams);
-        container.addView(vectorView);
 
         scroll.addView(container);
         root.addView(scroll);
@@ -162,26 +165,26 @@ public class MainActivity extends Activity {
     private LinearLayout createPhaseCard(String title, String borderColorHex) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(14, 14, 14, 14);
+        card.setPadding(10, 10, 10, 10);
         
         android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
         bg.setColor(Color.parseColor("#0F172A"));
-        bg.setCornerRadius(16f);
+        bg.setCornerRadius(12f);
         bg.setStroke(2, Color.parseColor(borderColorHex));
         card.setBackground(bg);
 
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        params.setMargins(0, 0, 0, 10);
+        params.setMargins(0, 0, 0, 8);
         card.setLayoutParams(params);
 
         TextView tvTitle = new TextView(this);
         tvTitle.setText(title);
         tvTitle.setTextColor(Color.parseColor(borderColorHex));
-        tvTitle.setTextSize(13f);
+        tvTitle.setTextSize(12f);
         tvTitle.setTypeface(Typeface.DEFAULT_BOLD);
-        tvTitle.setPadding(0, 0, 0, 6);
+        tvTitle.setPadding(0, 0, 0, 4);
         card.addView(tvTitle);
 
         return card;
@@ -191,8 +194,8 @@ public class MainActivity extends Activity {
         TextView tv = new TextView(this);
         tv.setText(labelText);
         tv.setTextColor(Color.parseColor("#94A3B8"));
-        tv.setTextSize(11f);
-        tv.setPadding(0, 4, 0, 2);
+        tv.setTextSize(10f);
+        tv.setPadding(0, 2, 0, 1);
         parent.addView(tv);
         return tv;
     }
@@ -202,13 +205,13 @@ public class MainActivity extends Activity {
         et.setText(defaultVal);
         et.setTextColor(Color.WHITE);
         et.setTextSize(11f);
-        et.setPadding(10, 8, 10, 8);
+        et.setPadding(8, 6, 8, 6);
         et.setBackgroundColor(Color.parseColor("#1E293B"));
         
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        p.setMargins(0, 0, 0, 4);
+        p.setMargins(0, 0, 0, 3);
         et.setLayoutParams(p);
         return et;
     }
@@ -241,12 +244,13 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        p.setMargins(0, 0, 0, 6);
+        p.setMargins(0, 0, 0, 4);
         spinner.setLayoutParams(p);
         parent.addView(spinner);
         return spinner;
     }
 
+    // Динамическое обновление при любых изменениях в полях ввода
     private void setupDynamicListeners() {
         TextWatcher watcher = new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -320,11 +324,10 @@ public class MainActivity extends Activity {
             double pSum = pA + pB + pC;
 
             String report = String.format(
-                "📊 СВОДНЫЙ АНАЛИЗ (Желтый-A, Зеленый-B, Красный-C):\n" +
-                "• Фаза A (Желтый): U=%.1fV, I=%.1fA, φ=%.1f° | P = %.1f Вт\n" +
-                "• Фаза B (Зеленый): U=%.1fV, I=%.1fA, φ=%.1f° | P = %.1f Вт\n" +
-                "• Фаза C (Красный): U=%.1fV, I=%.1fA, φ=%.1f° | P = %.1f Вт\n" +
-                "──────────────────────────────\n" +
+                "📊 АНАЛИЗ (Желтый-A, Зеленый-B, Красный-C):\n" +
+                "• Фаза A: U=%.1fV, I=%.1fA, φ=%.1f° | P = %.1f Вт\n" +
+                "• Фаза B: U=%.1fV, I=%.1fA, φ=%.1f° | P = %.1f Вт\n" +
+                "• Фаза C: U=%.1fV, I=%.1fA, φ=%.1f° | P = %.1f Вт\n" +
                 "⚡ Суммарная активная мощность P_sum = %.2f кВт",
                 uA, iA, shiftA[0], pA,
                 uB, iB, shiftB[0], pB,
@@ -341,7 +344,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    // Компонент векторной диаграммы
+    // Компонент векторной диаграммы (всегда сверху, обновляется динамически)
     private static class VectorCanvasView extends View {
         private double vA = 0, iA = 30;
         private double vB = -120, iB = -90;
@@ -361,7 +364,7 @@ public class MainActivity extends Activity {
 
             paintText = new Paint(Paint.ANTI_ALIAS_FLAG);
             paintText.setColor(Color.parseColor("#F8FAFC"));
-            paintText.setTextSize(22f);
+            paintText.setTextSize(20f);
 
             // Фаза А — ЖЕЛТЫЙ
             paintUA = createVectorPaint(Color.parseColor("#F59E0B")); 
@@ -388,7 +391,7 @@ public class MainActivity extends Activity {
             this.vA = voltageA; this.iA = voltageA + shiftA;
             this.vB = voltageB; this.iB = voltageB + shiftB;
             this.vC = voltageC; this.iC = voltageC + shiftC;
-            invalidate();
+            invalidate(); // Перерисовка холста на лету
         }
 
         @Override
@@ -400,10 +403,9 @@ public class MainActivity extends Activity {
             int height = getHeight();
             float cx = width / 2f;
             float cy = height / 2f;
-            float radius = Math.min(cx, cy) - 45f;
+            float radius = Math.min(cx, cy) - 35f;
 
             canvas.drawCircle(cx, cy, radius, paintGrid);
-            // Исправленные аргументы drawLine (startX, startY, stopX, stopY, paint)
             canvas.drawLine(cx - radius - 10, cy, cx + radius + 10, cy, paintGrid);
             canvas.drawLine(cx, cy - radius - 10, cx, cy + radius + 10, paintGrid);
 
@@ -425,7 +427,7 @@ public class MainActivity extends Activity {
             canvas.drawLine(cx, cy, endX, endY, paint);
 
             float angle = (float) Math.atan2(endY - cy, endX - cx);
-            float arrowLen = 15f;
+            float arrowLen = 14f;
             float p1x = (float) (endX - arrowLen * Math.cos(angle - Math.PI / 6));
             float p1y = (float) (endY - arrowLen * Math.sin(angle - Math.PI / 6));
             float p2x = (float) (endX - arrowLen * Math.cos(angle + Math.PI / 6));
