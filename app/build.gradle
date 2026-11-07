@@ -3,22 +3,22 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version09'
+    namespace 'com.xls.version09'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version09"
-        minSdk 21
+        applicationId "com.xls.version09"
+        minSdk 26
         targetSdk 34
-        versionCode 110
+        versionCode 111
         versionName "09"
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "MonsterClock_v09-" + variant.name + ".apk"
+            outputFileName = "xls_v09-" + variant.name + ".apk"
         }
     }
 }
