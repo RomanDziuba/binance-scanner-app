@@ -15,6 +15,7 @@ public class MainActivity extends Activity {
 
     private RadioGroup radioGroupMode;
     private EditText etUA, etIA, etValA, etUB, etIB, etValB, etUC, etIC, etValC;
+    private TextView tvLabelValA, tvLabelValB, tvLabelValC;
     private Spinner spinnerRLCA, spinnerRLCB, spinnerRLCC;
     private TextView tvResults;
     private VectorCanvasView vectorView;
@@ -36,9 +37,9 @@ public class MainActivity extends Activity {
 
         // Заголовок
         TextView title = new TextView(this);
-        title.setText("⚡ РЗА: Трехфазный Анализатор (A-Желтый, B-Зеленый, C-Красный)");
+        title.setText("⚡ РЗА: Трехфазный Анализатор");
         title.setTextColor(Color.parseColor("#38BDF8"));
-        title.setTextSize(14f);
+        title.setTextSize(15f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setGravity(Gravity.CENTER);
         title.setPadding(0, 0, 0, 10);
@@ -46,7 +47,7 @@ public class MainActivity extends Activity {
 
         // Переключатель режимов
         TextView lblMode = new TextView(this);
-        lblMode.setText("⚙️ Режим ввода данных:");
+        lblMode.setText("⚙️ Выберите режим ввода данных:");
         lblMode.setTextColor(Color.parseColor("#F1F5F9"));
         lblMode.setTextSize(12f);
         container.addView(lblMode);
@@ -55,46 +56,65 @@ public class MainActivity extends Activity {
         radioGroupMode.setOrientation(RadioGroup.HORIZONTAL);
         
         RadioButton rbRLC = new RadioButton(this);
+        rbRLC.setId(101);
         rbRLC.setText("1. Прибор R / L / C");
         rbRLC.setTextColor(Color.parseColor("#FFFFFF"));
         rbRLC.setChecked(true);
         radioGroupMode.addView(rbRLC);
 
         RadioButton rbCircle = new RadioButton(this);
+        rbCircle.setId(102);
         rbCircle.setText("2. Круговая (0-360°)");
         rbCircle.setTextColor(Color.parseColor("#FFFFFF"));
         radioGroupMode.addView(rbCircle);
 
         container.addView(radioGroupMode);
 
-        // Карточки фаз с новой цветовой маркировкой (А - Желтый, В - Зеленый, С - Красный)
+        // Карточка ФАЗА А (Желтый)
         LinearLayout cardA = createPhaseCard("🟡 Фаза A (Желтый | Опорная 0°)", "#F59E0B");
-        etUA = addInputField(cardA, "Напряжение U_A (В)", "220");
-        etIA = addInputField(cardA, "Ток I_A (А)", "10");
-        etValA = addInputField(cardA, "Угол / Значение", "30");
+        addInputField(cardA, "Напряжение U_A (В):");
+        etUA = addEditText("220"); cardA.addView(etUA);
+        addInputField(cardA, "Ток I_A (А):");
+        etIA = addEditText("10"); cardA.addView(etIA);
+        tvLabelValA = addInputField(cardA, "Угол сдвига φ (°):");
+        etValA = addEditText("30"); cardA.addView(etValA);
         spinnerRLCA = addRLCSpinner(cardA, 0);
         container.addView(cardA);
 
+        // Карточка ФАЗА В (Зеленый)
         LinearLayout cardB = createPhaseCard("🟢 Фаза B (Зеленый | Опорная -120°)", "#10B981");
-        etUB = addInputField(cardB, "Напряжение U_B (В)", "220");
-        etIB = addInputField(cardB, "Ток I_B (А)", "10");
-        etValB = addInputField(cardB, "Угол / Значение", "30");
+        addInputField(cardB, "Напряжение U_B (В):");
+        etUB = addEditText("220"); cardB.addView(etUB);
+        addInputField(cardB, "Ток I_B (А):");
+        etIB = addEditText("10"); cardB.addView(etIB);
+        tvLabelValB = addInputField(cardB, "Угол сдвига φ (°):");
+        etValB = addEditText("30"); cardB.addView(etValB);
         spinnerRLCB = addRLCSpinner(cardB, 1);
         container.addView(cardB);
 
+        // Карточка ФАЗА С (Красный)
         LinearLayout cardC = createPhaseCard("🔴 Фаза C (Красный | Опорная +120°)", "#EF4444");
-        etUC = addInputField(cardC, "Напряжение U_C (В)", "220");
-        etIC = addInputField(cardC, "Ток I_C (А)", "10");
-        etValC = addInputField(cardC, "Угол / Значение", "30");
+        addInputField(cardC, "Напряжение U_C (В):");
+        etUC = addEditText("220"); cardC.addView(etUC);
+        addInputField(cardC, "Ток I_C (А):");
+        etIC = addEditText("10"); cardC.addView(etIC);
+        tvLabelValC = addInputField(cardC, "Угол сдвига φ (°):");
+        etValC = addEditText("30"); cardC.addView(etValC);
         spinnerRLCC = addRLCSpinner(cardC, 2);
         container.addView(cardC);
 
-        // Обработка переключения режимов
+        // Обработка переключения режимов (исправлено на ID)
         radioGroupMode.setOnCheckedChangeListener((group, checkedId) -> {
-            boolean isRLC = (checkedId == rbRLC.getId());
+            boolean isRLC = (checkedId == 101);
             spinnerRLCA.setVisibility(isRLC ? View.VISIBLE : View.GONE);
             spinnerRLCB.setVisibility(isRLC ? View.VISIBLE : View.GONE);
             spinnerRLCC.setVisibility(isRLC ? View.VISIBLE : View.GONE);
+
+            String labelText = isRLC ? "Угол сдвига φ (°):" : "Угол по круговой шкале (0-360°):";
+            tvLabelValA.setText(labelText);
+            tvLabelValB.setText(labelText);
+            tvLabelValC.setText(labelText);
+
             calculateAndDraw();
         });
 
@@ -113,7 +133,7 @@ public class MainActivity extends Activity {
         btnCalculate.setLayoutParams(btnParams);
         container.addView(btnCalculate);
 
-        // Текстовый вывод
+        // Текстовый вывод результатов
         tvResults = new TextView(this);
         tvResults.setText("Сводные результаты расчета...");
         tvResults.setTextColor(Color.parseColor("#10B981"));
@@ -167,12 +187,20 @@ public class MainActivity extends Activity {
         return card;
     }
 
-    private EditText addInputField(LinearLayout parent, String hint, String defaultVal) {
+    private TextView addInputField(LinearLayout parent, String labelText) {
+        TextView tv = new TextView(this);
+        tv.setText(labelText);
+        tv.setTextColor(Color.parseColor("#94A3B8")); // Светло-серый читаемый цвет подписи
+        tv.setTextSize(11f);
+        tv.setPadding(0, 4, 0, 2);
+        parent.addView(tv);
+        return tv;
+    }
+
+    private EditText addEditText(String defaultVal) {
         EditText et = new EditText(this);
-        et.setHint(hint);
         et.setText(defaultVal);
         et.setTextColor(Color.WHITE);
-        et.setHintTextColor(Color.parseColor("#64748B"));
         et.setTextSize(11f);
         et.setPadding(10, 8, 10, 8);
         et.setBackgroundColor(Color.parseColor("#1E293B"));
@@ -180,9 +208,8 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        p.setMargins(0, 0, 0, 6);
+        p.setMargins(0, 0, 0, 4);
         et.setLayoutParams(p);
-        parent.addView(et);
         return et;
     }
 
@@ -270,7 +297,7 @@ public class MainActivity extends Activity {
     private void calculateAndDraw() {
         isUpdating = true;
         try {
-            boolean isRLCMode = (radioGroupMode.getCheckedRadioButtonId() == radioGroupMode.getChildAt(0).getId());
+            boolean isRLCMode = (radioGroupMode.getCheckedRadioButtonId() == 101);
 
             double uA = Double.parseDouble(etUA.getText().toString());
             double iA = Double.parseDouble(etIA.getText().toString());
@@ -306,8 +333,6 @@ public class MainActivity extends Activity {
             );
 
             tvResults.setText(report);
-
-            // Передаем данные на график: A=0°, B=-120°, C=+120°
             vectorView.updateData(0.0, shiftA[0], -120.0, shiftB[0], 120.0, shiftC[0]);
 
         } catch (Exception ignored) {
@@ -316,7 +341,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    // Компонент векторной диаграммы с новой цветовой схемой фаз
+    // Компонент векторной диаграммы
     private static class VectorCanvasView extends View {
         private double vA = 0, iA = 30;
         private double vB = -120, iB = -90;
@@ -338,15 +363,15 @@ public class MainActivity extends Activity {
             paintText.setColor(Color.parseColor("#F8FAFC"));
             paintText.setTextSize(22f);
 
-            // Фаза А — ЖЕЛТЫЙ (#F59E0B / #FDE68A)
+            // Фаза А — ЖЕЛТЫЙ
             paintUA = createVectorPaint(Color.parseColor("#F59E0B")); 
             paintIA = createVectorPaint(Color.parseColor("#FDE68A")); 
 
-            // Фаза В — ЗЕЛЕНЫЙ (#10B981 / #A7F3D0)
+            // Фаза В — ЗЕЛЕНЫЙ
             paintUB = createVectorPaint(Color.parseColor("#10B981")); 
             paintIB = createVectorPaint(Color.parseColor("#A7F3D0")); 
 
-            // Фаза С — КРАСНЫЙ (#EF4444 / #FCA5A5)
+            // Фаза С — КРАСНЫЙ
             paintUC = createVectorPaint(Color.parseColor("#EF4444")); 
             paintIC = createVectorPaint(Color.parseColor("#FCA5A5")); 
         }
@@ -377,12 +402,10 @@ public class MainActivity extends Activity {
             float cy = height / 2f;
             float radius = Math.min(cx, cy) - 45f;
 
-            // Сетка
             canvas.drawCircle(cx, cy, radius, paintGrid);
             canvas.drawLine(cx - radius - 10, cy, cx + radius + 10, cy, paintGrid);
-            canvas.drawLine(cx, cy - radius - 10, cx, cy + radius + 10, paintGrid);
+            canvas.drawLine(cx, cy - radius - 10, cx, cy + radius + 10, cy, paintGrid);
 
-            // Отрисовка векторов (Фаза А - желтый, Фаза В - зеленый, Фаза С - красный)
             drawVector(canvas, cx, cy, radius * 0.75f, vA, "U_A", paintUA);
             drawVector(canvas, cx, cy, radius * 0.55f, iA, "I_A", paintIA);
 
