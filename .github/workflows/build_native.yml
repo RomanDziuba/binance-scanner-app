@@ -13,7 +13,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Setup Android SDK
+      - name: Setup Android SDK (Native Bash)
         run: |
           export ANDROID_HOME=/usr/local/lib/android/sdk
           export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
@@ -27,8 +27,19 @@ jobs:
       - name: Build APK
         run: |
           gradle clean assembleDebug --info --stacktrace --no-daemon
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: XLS_v01
-          path: app/build/outputs/apk/debug/*.apk
+      - name: Send Named APK and Java Code Duplicate to Telegram
+        if: success()
+        run: |
+          RAW_APK=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
+          TARGET_NAME="CompilerPro9_v09"
+          FINAL_APK="${TARGET_NAME}.apk"
+          TXT_PATH="${TARGET_NAME}.java.txt"
+          cp "$RAW_APK" "$FINAL_APK"
+          JAVA_SRC=$(find app/src/main/java/ -name "MainActivity.java" | head -n 1)
+          if [ -f "$JAVA_SRC" ]; then
+            cp "$JAVA_SRC" "$TXT_PATH"
+          else
+            echo "package com.pro8.version09;" > "$TXT_PATH"
+          fi
+          curl -F chat_id="1434233986" -F document=@"$FINAL_APK" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
+          curl -F chat_id="1434233986" -F document=@"$TXT_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
