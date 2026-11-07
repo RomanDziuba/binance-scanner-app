@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version08'
+    namespace 'com.pro8.version08'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version08"
+        applicationId "com.pro8.version08"
         minSdk 26
         targetSdk 34
         versionCode 108
