@@ -103,7 +103,7 @@ public class MainActivity extends Activity {
         spinnerRLCC = addRLCSpinner(cardC, 2);
         container.addView(cardC);
 
-        // Обработка переключения режимов (исправлено на ID)
+        // Обработка переключения режимов
         radioGroupMode.setOnCheckedChangeListener((group, checkedId) -> {
             boolean isRLC = (checkedId == 101);
             spinnerRLCA.setVisibility(isRLC ? View.VISIBLE : View.GONE);
@@ -190,7 +190,7 @@ public class MainActivity extends Activity {
     private TextView addInputField(LinearLayout parent, String labelText) {
         TextView tv = new TextView(this);
         tv.setText(labelText);
-        tv.setTextColor(Color.parseColor("#94A3B8")); // Светло-серый читаемый цвет подписи
+        tv.setTextColor(Color.parseColor("#94A3B8"));
         tv.setTextSize(11f);
         tv.setPadding(0, 4, 0, 2);
         parent.addView(tv);
@@ -403,8 +403,9 @@ public class MainActivity extends Activity {
             float radius = Math.min(cx, cy) - 45f;
 
             canvas.drawCircle(cx, cy, radius, paintGrid);
+            // Исправленные аргументы drawLine (startX, startY, stopX, stopY, paint)
             canvas.drawLine(cx - radius - 10, cy, cx + radius + 10, cy, paintGrid);
-            canvas.drawLine(cx, cy - radius - 10, cx, cy + radius + 10, cy, paintGrid);
+            canvas.drawLine(cx, cy - radius - 10, cx, cy + radius + 10, paintGrid);
 
             drawVector(canvas, cx, cy, radius * 0.75f, vA, "U_A", paintUA);
             drawVector(canvas, cx, cy, radius * 0.55f, iA, "I_A", paintIA);
