@@ -9,7 +9,7 @@ android {
         applicationId "com.xls.version01"
         minSdk 26
         targetSdk 34
-        versionCode 92
+        versionCode 93
         versionName "01"
         multiDexEnabled true
     }
@@ -22,7 +22,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "XLS_v01-" + variant.name + ".apk"
+            outputFileName = "ексель_v01-" + variant.name + ".apk"
         }
     }
 }
