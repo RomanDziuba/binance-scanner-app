@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.pro9.version09'
+    namespace 'com.pro5.version09'
     compileSdk 34
     defaultConfig {
-        applicationId "com.pro9.version09"
+        applicationId "com.pro5.version09"
         minSdk 26
         targetSdk 34
         versionCode 100
