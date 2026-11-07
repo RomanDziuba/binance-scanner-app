@@ -7,15 +7,15 @@ android {
     compileSdk 34
     defaultConfig {
         applicationId "com.roman.version01"
-        minSdk 21
+        minSdk 26
         targetSdk 34
-        versionCode 97
+        versionCode 98
         versionName "01"
         multiDexEnabled true
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     packaging {
         resources.excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE', 'META-INF/LICENSE.txt', 'META-INF/NOTICE', 'META-INF/NOTICE.txt', 'META-INF/ASL2.0', 'META-INF/LGPL2.1']
