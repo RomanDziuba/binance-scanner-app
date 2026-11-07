@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.xls.version01'
+    namespace 'com.pro5.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.xls.version01"
+        applicationId "com.pro5.version01"
         minSdk 26
         targetSdk 34
         versionCode 93
