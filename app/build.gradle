@@ -9,7 +9,7 @@ android {
         applicationId "com.xls.version01"
         minSdk 26
         targetSdk 34
-        versionCode 91
+        versionCode 92
         versionName "01"
         multiDexEnabled true
     }
