@@ -3,22 +3,26 @@ plugins {
 }
 
 android {
-    namespace 'com.pro8.version08'
+    namespace 'com.roman.version08'
     compileSdk 34
     defaultConfig {
-        applicationId "com.pro8.version08"
+        applicationId "com.roman.version08"
         minSdk 21
         targetSdk 34
         versionCode 88
         versionName "08"
+        multiDexEnabled true
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+    packaging {
+        resources.excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE', 'META-INF/LICENSE.txt', 'META-INF/NOTICE', 'META-INF/NOTICE.txt', 'META-INF/ASL2.0', 'META-INF/LGPL2.1']
+    }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "CompilerPro8_v08-" + variant.name + ".apk"
+            outputFileName = "RomaMonsterApp_v08-" + variant.name + ".apk"
         }
     }
 }
@@ -28,4 +32,7 @@ dependencies {
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.16.0'
+    implementation 'org.apache.poi:poi:4.1.2'
+    implementation 'org.apache.poi:poi-ooxml:4.1.2'
+    implementation 'androidx.multidex:multidex:2.0.1'
 }
