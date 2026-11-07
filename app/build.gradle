@@ -3,23 +3,22 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version01'
+    namespace 'com.pro5.version09'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version01"
-        minSdk 26
+        applicationId "com.pro5.version09"
+        minSdk 21
         targetSdk 34
-        versionCode 3
-        versionName "01"
-        multiDexEnabled true
+        versionCode 102
+        versionName "09"
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "XLS_v01-" + variant.name + ".apk"
+            outputFileName = "CompilerPro9_v09-" + variant.name + ".apk"
         }
     }
 }
@@ -27,5 +26,6 @@ android {
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
-    implementation 'androidx.multidex:multidex:2.0.1'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.16.0'
 }
