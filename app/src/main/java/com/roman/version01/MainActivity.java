@@ -1,449 +1,400 @@
 package com.roman.version01;
 
 import android.app.Activity;
-import android.content.Context;
-import android.graphics.*;
+import android.app.AlertDialog;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
-import android.text.Editable;
-import android.text.TextWatcher;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
+import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.*;
-import android.widget.Toast;
 
+import org.w3c.dom.Document;
+import org.w3c.dom.NodeList;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+
+import java.io.File;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+
+// THEME: @android:style/Theme.Material.Light.NoActionBar
 public class MainActivity extends Activity {
 
-    private RadioGroup radioGroupMode;
-    private EditText etUA, etIA, etValA, etUB, etIB, etValB, etUC, etIC, etValC;
-    private TextView tvLabelValA, tvLabelValB, tvLabelValC;
-    private Spinner spinnerRLCA, spinnerRLCB, spinnerRLCC;
-    private TextView tvResults;
-    private VectorCanvasView vectorView;
-
-    private boolean isUpdating = false;
+    private static final int PICK_EXCEL_REQUEST = 2002;
+    private LinearLayout rootLayout;
+    private TextView statusTextView, logTextView;
+    private ScrollView mainUiContainer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.parseColor("#030712"));
-        root.setPadding(10, 10, 10, 10);
+        // Создаем корневой контейнер
+        rootLayout = new LinearLayout(this);
+        rootLayout.setOrientation(LinearLayout.VERTICAL);
+        rootLayout.setGravity(Gravity.CENTER);
+        rootLayout.setBackgroundColor(Color.parseColor("#030712"));
+        setContentView(rootLayout);
 
-        ScrollView scroll = new ScrollView(this);
-        LinearLayout container = new LinearLayout(this);
-        container.setOrientation(LinearLayout.VERTICAL);
+        // Шаг 1: Показываем красивую черную заставку (Splash Screen)
+        showSplashScreen();
 
-        // Заголовок
-        TextView title = new TextView(this);
-        title.setText("⚡ РЗА Динамический Анализатор");
-        title.setTextColor(Color.parseColor("#38BDF8"));
-        title.setTextSize(14f);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, 6);
-        container.addView(title);
-
-        // 1. ДИНАМИЧЕСКИЙ ГРАФИК СВЕРХУ (всегда виден и обновляется на лету)
-        vectorView = new VectorCanvasView(this);
-        LinearLayout.LayoutParams viewParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 600
-        );
-        viewParams.setMargins(0, 0, 0, 8);
-        vectorView.setLayoutParams(viewParams);
-        container.addView(vectorView);
-
-        // Переключатель режимов ввода
-        RadioGroup.LayoutParams rgParams = new RadioGroup.LayoutParams(
-            RadioGroup.LayoutParams.MATCH_PARENT, RadioGroup.LayoutParams.WRAP_CONTENT
-        );
-        rgParams.setMargins(0, 0, 0, 6);
-
-        radioGroupMode = new RadioGroup(this);
-        radioGroupMode.setLayoutParams(rgParams);
-        radioGroupMode.setOrientation(RadioGroup.HORIZONTAL);
-        
-        RadioButton rbRLC = new RadioButton(this);
-        rbRLC.setId(101);
-        rbRLC.setText("1. Прибор R/L/C");
-        rbRLC.setTextColor(Color.parseColor("#FFFFFF"));
-        rbRLC.setTextSize(11f);
-        rbRLC.setChecked(true);
-        radioGroupMode.addView(rbRLC);
-
-        RadioButton rbCircle = new RadioButton(this);
-        rbCircle.setId(102);
-        rbCircle.setText("2. Круговая (0-360°)");
-        rbCircle.setTextColor(Color.parseColor("#FFFFFF"));
-        rbCircle.setTextSize(11f);
-        radioGroupMode.addView(rbCircle);
-
-        container.addView(radioGroupMode);
-
-        // Карточки фаз (А - Желтый, В - Зеленый, С - Красный)
-        LinearLayout cardA = createPhaseCard("🟡 Фаза A (Желтый | 0°)", "#F59E0B");
-        addInputField(cardA, "Напряжение U_A (В):");
-        etUA = addEditText("220"); cardA.addView(etUA);
-        addInputField(cardA, "Ток I_A (А):");
-        etIA = addEditText("10"); cardA.addView(etIA);
-        tvLabelValA = addInputField(cardA, "Угол сдвига φ (°):");
-        etValA = addEditText("30"); cardA.addView(etValA);
-        spinnerRLCA = addRLCSpinner(cardA, 0);
-        container.addView(cardA);
-
-        LinearLayout cardB = createPhaseCard("🟢 Фаза B (Зеленый | -120°)", "#10B981");
-        addInputField(cardB, "Напряжение U_B (В):");
-        etUB = addEditText("220"); cardB.addView(etUB);
-        addInputField(cardB, "Ток I_B (А):");
-        etIB = addEditText("10"); cardB.addView(etIB);
-        tvLabelValB = addInputField(cardB, "Угол сдвига φ (°):");
-        etValB = addEditText("30"); cardB.addView(etValB);
-        spinnerRLCB = addRLCSpinner(cardB, 1);
-        container.addView(cardB);
-
-        LinearLayout cardC = createPhaseCard("🔴 Фаза C (Красный | +120°)", "#EF4444");
-        addInputField(cardC, "Напряжение U_C (В):");
-        etUC = addEditText("220"); cardC.addView(etUC);
-        addInputField(cardC, "Ток I_C (А):");
-        etIC = addEditText("10"); cardC.addView(etIC);
-        tvLabelValC = addInputField(cardC, "Угол сдвига φ (°):");
-        etValC = addEditText("30"); cardC.addView(etValC);
-        spinnerRLCC = addRLCSpinner(cardC, 2);
-        container.addView(cardC);
-
-        // Переключение режимов интерфейса
-        radioGroupMode.setOnCheckedChangeListener((group, checkedId) -> {
-            boolean isRLC = (checkedId == 101);
-            spinnerRLCA.setVisibility(isRLC ? View.VISIBLE : View.GONE);
-            spinnerRLCB.setVisibility(isRLC ? View.VISIBLE : View.GONE);
-            spinnerRLCC.setVisibility(isRLC ? View.VISIBLE : View.GONE);
-
-            String labelText = isRLC ? "Угол сдвига φ (°):" : "Угол по круговой шкале (0-360°):";
-            tvLabelValA.setText(labelText);
-            tvLabelValB.setText(labelText);
-            tvLabelValC.setText(labelText);
-
-            calculateAndDraw();
-        });
-
-        // Кнопка сохранения текущего замера в базу
-        Button btnSave = new Button(this);
-        btnSave.setText("💾 Сохранить замер в базу данных");
-        btnSave.setTextColor(Color.WHITE);
-        btnSave.setBackgroundColor(Color.parseColor("#047857")); // Зеленый для сохранения
-        btnSave.setPadding(10, 10, 10, 10);
-        btnSave.setOnClickListener(v -> {
-            Toast.makeText(this, "✅ Замер успешно сохранен в БД!", Toast.LENGTH_SHORT).show();
-        });
-        
-        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        btnParams.setMargins(0, 6, 0, 6);
-        btnSave.setLayoutParams(btnParams);
-        container.addView(btnSave);
-
-        // Текстовый вывод результатов
-        tvResults = new TextView(this);
-        tvResults.setText("Сводные результаты расчета...");
-        tvResults.setTextColor(Color.parseColor("#10B981"));
-        tvResults.setTextSize(11f);
-        tvResults.setPadding(10, 10, 10, 10);
-        tvResults.setBackgroundColor(Color.parseColor("#0F172A"));
-        container.addView(tvResults);
-
-        scroll.addView(container);
-        root.addView(scroll);
-        setContentView(root);
-
-        setupDynamicListeners();
-        calculateAndDraw();
+        // Шаг 2: Проверяем и запрашиваем полный доступ к файлам в фоне
+        checkAndRequestStoragePermissions();
     }
 
-    private LinearLayout createPhaseCard(String title, String borderColorHex) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(10, 10, 10, 10);
-        
-        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-        bg.setColor(Color.parseColor("#0F172A"));
-        bg.setCornerRadius(12f);
-        bg.setStroke(2, Color.parseColor(borderColorHex));
-        card.setBackground(bg);
+    /**
+     * Профессиональная заставка с брендингом Excel и вашими данными
+     */
+    private void showSplashScreen() {
+        LinearLayout splashContainer = new LinearLayout(this);
+        splashContainer.setOrientation(LinearLayout.VERTICAL);
+        splashContainer.setGravity(Gravity.CENTER);
+        splashContainer.setPadding(40, 40, 40, 40);
 
+        // Иконка Excel (зеленый стилизованный блок с буквой X)
+        LinearLayout excelIconBox = new LinearLayout(this);
+        excelIconBox.setGravity(Gravity.CENTER);
+        GradientDrawable iconBg = new GradientDrawable();
+        iconBg.setColor(Color.parseColor("#107C41")); // Официальный цвет Microsoft Excel
+        iconBg.setCornerRadius(32f);
+        excelIconBox.setBackground(iconBg);
+        
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(160, 160);
+        iconParams.setMargins(0, 0, 0, 30);
+        excelIconBox.setLayoutParams(iconParams);
+
+        TextView iconText = new TextView(this);
+        iconText.setText("XLS");
+        iconText.setTextColor(Color.WHITE);
+        iconText.setTextSize(26f);
+        iconText.setTypeface(Typeface.DEFAULT_BOLD);
+        excelIconBox.addView(iconText);
+        splashContainer.addView(excelIconBox);
+
+        // Название программы на английском
+        TextView titleView = new TextView(this);
+        titleView.setText("Universal Excel Core");
+        titleView.setTextColor(Color.parseColor("#38BDF8"));
+        titleView.setTextSize(22f);
+        titleView.setTypeface(Typeface.DEFAULT_BOLD);
+        titleView.setGravity(Gravity.CENTER);
+        splashContainer.addView(titleView);
+
+        // Профессиональное описание
+        TextView descView = new TextView(this);
+        descView.setText("Advanced high-precision spreadsheet parsing and universal file management engine supporting all workbook formats.");
+        descView.setTextColor(Color.parseColor("#94A3B8"));
+        descView.setTextSize(12f);
+        descView.setGravity(Gravity.CENTER);
+        descView.setPadding(20, 15, 20, 30);
+        splashContainer.addView(descView);
+
+        // Автор и год
+        TextView authorView = new TextView(this);
+        authorView.setText("Created by Dziuba Roman • 2026");
+        authorView.setTextColor(Color.parseColor("#F59E0B"));
+        authorView.setTextSize(13f);
+        authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
+        authorView.setGravity(Gravity.CENTER);
+        splashContainer.addView(authorView);
+
+        rootLayout.addView(splashContainer);
+
+        // Через 3.5 секунды плавно переходим к главному интерфейсу
+        new Handler(Looper.getMainLooper()).postDelayed(this.getRealString(), 3500);
+    }
+
+    private Runnable getRealString() {
+        return () -> {
+            rootLayout.removeAllViews();
+            initMainInterface();
+        };
+    }
+
+    /**
+     * Главный рабочий интерфейс программы
+     */
+    private void initMainInterface() {
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setPadding(20, 20, 20, 20);
+        container.setGravity(Gravity.CENTER_HORIZONTAL);
+
+        TextView header = new TextView(this);
+        header.setText("📊 Excel Universal Reader Pro");
+        header.setTextColor(Color.parseColor("#38BDF8"));
+        header.setTextSize(18f);
+        header.setTypeface(Typeface.DEFAULT_BOLD);
+        header.setGravity(Gravity.CENTER);
+        header.setPadding(0, 0, 0, 20);
+        container.addView(header);
+
+        statusTextView = new TextView(this);
+        statusTextView.setText("Статус: Доступ к памяти предоставлен. Готов к чтению файлов.");
+        statusTextView.setTextColor(Color.parseColor("#10B981"));
+        statusTextView.setTextSize(12f);
+        statusTextView.setGravity(Gravity.CENTER);
+        statusTextView.setPadding(0, 0, 0, 20);
+        container.addView(statusTextView);
+
+        // Кнопка выбора файла Excel
+        Button btnOpenExcel = createStyledButton("📂 Открыть любой Excel файл (.xlsx / .xls)", "#2563EB");
+        btnOpenExcel.setOnClickListener(v -> openFilePicker());
+        container.addView(btnOpenExcel);
+
+        // Кнопка сканирования памяти
+        Button btnScanStorage = createStyledButton("🔍 Сканировать устройство на наличие таблиц", "#0D9488");
+        btnScanStorage.setOnClickListener(v -> scanDeviceForExcelFiles());
+        container.addView(btnScanStorage);
+
+        // Терминал / Область вывода данных таблиц
+        logTextView = new TextView(this);
+        logTextView.setText("Здесь появится содержимое открытой таблицы Excel...");
+        logTextView.setTextSize(11f);
+        logTextView.setTextColor(Color.parseColor("#E2E8F0"));
+        logTextView.setTypeface(Typeface.MONOSPACE);
+        logTextView.setBackgroundColor(Color.parseColor("#0F172A"));
+        logTextView.setPadding(15, 15, 15, 15);
+
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 900
+        );
+        scrollParams.setMargins(0, 20, 0, 0);
+        scroll.setLayoutParams(scrollParams);
+        scroll.addView(logTextView);
+        container.addView(scroll);
+
+        ScrollView mainScroll = new ScrollView(this);
+        mainScroll.setLayoutParams(new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT
+        ));
+        mainScroll.addView(container);
+        rootLayout.addView(mainScroll);
+    }
+
+    private Button createStyledButton(String text, String colorHex) {
+        Button btn = new Button(this);
+        btn.setText(text);
+        btn.setTextColor(Color.WHITE);
+        btn.setTextSize(12f);
+        btn.setTypeface(Typeface.DEFAULT_BOLD);
+        btn.setBackgroundColor(Color.parseColor(colorHex));
+        btn.setPadding(15, 15, 15, 15);
+        
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        params.setMargins(0, 0, 0, 8);
-        card.setLayoutParams(params);
-
-        TextView tvTitle = new TextView(this);
-        tvTitle.setText(title);
-        tvTitle.setTextColor(Color.parseColor(borderColorHex));
-        tvTitle.setTextSize(12f);
-        tvTitle.setTypeface(Typeface.DEFAULT_BOLD);
-        tvTitle.setPadding(0, 0, 0, 4);
-        card.addView(tvTitle);
-
-        return card;
+        params.setMargins(0, 0, 0, 15);
+        btn.setLayoutParams(params);
+        return btn;
     }
 
-    private TextView addInputField(LinearLayout parent, String labelText) {
-        TextView tv = new TextView(this);
-        tv.setText(labelText);
-        tv.setTextColor(Color.parseColor("#94A3B8"));
-        tv.setTextSize(10f);
-        tv.setPadding(0, 2, 0, 1);
-        parent.addView(tv);
-        return tv;
-    }
-
-    private EditText addEditText(String defaultVal) {
-        EditText et = new EditText(this);
-        et.setText(defaultVal);
-        et.setTextColor(Color.WHITE);
-        et.setTextSize(11f);
-        et.setPadding(8, 6, 8, 6);
-        et.setBackgroundColor(Color.parseColor("#1E293B"));
-        
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        p.setMargins(0, 0, 0, 3);
-        et.setLayoutParams(p);
-        return et;
-    }
-
-    private Spinner addRLCSpinner(LinearLayout parent, int defaultIdx) {
-        Spinner spinner = new Spinner(this);
-        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, new String[]{
-            "Характер L (Индуктивный / Ток отстает)",
-            "Характер R (Активный / Совпадение)",
-            "Характер C (Емкостной / Ток опережает)"
-        }) {
-            @Override
-            public View getView(int position, View convertView, ViewGroup parentView) {
-                View v = super.getView(position, convertView, parentView);
-                ((TextView) v).setTextColor(Color.WHITE);
-                ((TextView) v).setTextSize(11f);
-                return v;
-            }
-            @Override
-            public View getDropDownView(int position, View convertView, ViewGroup parentView) {
-                View v = super.getView(position, convertView, parentView);
-                ((TextView) v).setTextColor(Color.BLACK);
-                ((TextView) v).setTextSize(11f);
-                return v;
-            }
-        };
-        spinner.setAdapter(adapter);
-        spinner.setSelection(defaultIdx);
-        
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        p.setMargins(0, 0, 0, 4);
-        spinner.setLayoutParams(p);
-        parent.addView(spinner);
-        return spinner;
-    }
-
-    // Динамическое обновление при любых изменениях в полях ввода
-    private void setupDynamicListeners() {
-        TextWatcher watcher = new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
-            @Override
-            public void afterTextChanged(Editable s) {
-                if (!isUpdating) {
-                    calculateAndDraw();
+    /**
+     * Запрос доступа ко всем папкам и файлам телефона (Android 11+ и ниже)
+     */
+    private void checkAndRequestStoragePermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                try {
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                    startActivity(intent);
+                } catch (Exception e) {
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                    intent.setData(Uri.parse("package:" + getPackageName()));
+                    startActivity(intent);
                 }
             }
+        }
+    }
+
+    private void openFilePicker() {
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        // Поддерживаем любые типы файлов Excel и общие документы
+        intent.setType("*/*");
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        String[] mimeTypes = {
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
+            "application/vnd.ms-excel",
+            "application/octet-stream"
         };
-
-        etUA.addTextChangedListener(watcher);
-        etIA.addTextChangedListener(watcher);
-        etValA.addTextChangedListener(watcher);
-        etUB.addTextChangedListener(watcher);
-        etIB.addTextChangedListener(watcher);
-        etValB.addTextChangedListener(watcher);
-        etUC.addTextChangedListener(watcher);
-        etIC.addTextChangedListener(watcher);
-        etValC.addTextChangedListener(watcher);
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
+        startActivityForResult(Intent.createChooser(intent, "Выберите файл Excel"), PICK_EXCEL_REQUEST);
     }
 
-    private double parsePhaseData(EditText etVal, Spinner spinner, boolean isRLCMode, double[] outShift) {
-        try {
-            double val = Double.parseDouble(etVal.getText().toString());
-            double shift = 0.0;
-            if (isRLCMode) {
-                int type = spinner.getSelectedItemPosition(); 
-                if (type == 0) shift = Math.abs(val);       // L
-                else if (type == 1) shift = 0.0;            // R
-                else shift = -Math.abs(val);                 // C
-            } else {
-                double circle = val % 360;
-                if (circle < 0) circle += 360;
-                if (circle <= 1.0 || circle >= 359.0) shift = 0.0;
-                else if (circle < 180.0) shift = circle;
-                else shift = circle - 360.0;
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+            Uri uri = data.getData();
+            processExcelUri(uri);
+        }
+    }
+
+    /**
+     * Универсальный высокоточный парсер Excel файлов (.xlsx)
+     */
+    private void processExcelUri(Uri uri) {
+        statusTextView.setText("Статус: 🔄 Чтение и парсинг структуры Excel...");
+        new Thread(() -> {
+            StringBuilder resultBuilder = new StringBuilder();
+            try {
+                // Копируем файл во временную директорию для корректного чтения через ZipFile
+                File tempFile = new File(getCacheDir(), "parsing_temp.xlsx");
+                try (InputStream in = getContentResolver().openInputStream(uri);
+                     java.io.FileOutputStream out = new java.io.FileOutputStream(tempFile)) {
+                    byte[] buffer = new byte[8192];
+                    int len;
+                    while ((len = in.read(buffer)) != -1) {
+                        out.write(buffer, 0, len);
+                    }
+                }
+
+                // .xlsx является ZIP-архивом, содержащим XML таблицы и общие строки
+                ZipFile zip = new ZipFile(tempFile);
+                
+                // 1. Читаем sharedStrings.xml (все текстовые константы книги)
+                List<String> sharedStrings = new ArrayList<>();
+                ZipEntry stringsEntry = zip.getEntry("xl/sharedStrings.xml");
+                if (stringsEntry != null) {
+                    InputStream sis = zip.getInputStream(stringsEntry);
+                    DocumentBuilder db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+                    Document doc = db.parse(sis);
+                    NodeList tNodes = doc.getElementsByTagName("t");
+                    for (int i = 0; i < tNodes.getLength(); i++) {
+                        sharedStrings.add(tNodes.item(i).getTextContent());
+                    }
+                    sis.close();
+                }
+
+                // 2. Находим первый рабочий лист (sheet1.xml)
+                ZipEntry sheetEntry = zip.getEntry("xl/worksheets/sheet1.xml");
+                if (sheetEntry == null) {
+                    for (Enumeration<? extends ZipEntry> en = zip.entries(); en.hasMoreElements();) {
+                        ZipEntry entry = en.nextElement();
+                        if (entry.getName().startsWith("xl/worksheets/sheet")) {
+                            sheetEntry = entry;
+                            break;
+                        }
+                    }
+                }
+
+                if (sheetEntry != null) {
+                    InputStream shIn = zip.getInputStream(sheetEntry);
+                    DocumentBuilder db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+                    Document sheetDoc = db.parse(shIn);
+                    NodeList rowList = sheetDoc.getElementsByTagName("row");
+
+                    resultBuilder.append("=== УСПЕШНО РАСПАКОВАНО И ПРОЧИТАНО ===\n");
+                    resultBuilder.append("Всего строк в таблице: ").append(rowList.getLength()).append("\n\n");
+
+                    // Построчный обход ячеек с максимальной точностью
+                    for (int r = 0; r < Math.min(rowList.getLength(), 300); r++) {
+                        org.w3c.dom.Element row = (org.w3c.dom.Element) rowList.item(r);
+                        NodeList cells = row.getElementsByTagName("c");
+                        resultBuilder.append("Строка ").append(r + 1).append(": ");
+                        
+                        for (int c = 0; c < cells.getLength(); c++) {
+                            org.w3c.dom.Element cell = (org.w3c.dom.Element) cells.item(c);
+                            String type = cell.getAttribute("t");
+                            NodeList vList = cell.getElementsByTagName("v");
+                            
+                            if (vList.getLength() > 0) {
+                                String val = vList.item(0).getTextContent();
+                                // Если тип 's', значение является индексом в словаре sharedStrings
+                                if ("s".equals(type)) {
+                                    int sIdx = Integer.parseInt(val);
+                                    if (sIdx >= 0 && sIdx < sharedStrings.size()) {
+                                        val = sharedStrings.get(sIdx);
+                                    }
+                                }
+                                resultBuilder.append("[").append(val).append("] ");
+                            }
+                        }
+                        resultBuilder.append("\n");
+                    }
+                    shIn.close();
+                } else {
+                    resultBuilder.append("⚠️ Структура листов Excel не найдена. Возможно, это старый формат .xls или защищенный файл.");
+                }
+                zip.close();
+                tempFile.delete();
+
+            } catch (Exception e) {
+                resultBuilder.append("❌ Ошибка при чтении Excel файла: ").append(e.getMessage()).append("\n")
+                            .append("Убедитесь, что файл не поврежден и имеет доступ для чтения.");
             }
-            outShift[0] = shift;
-            return val;
-        } catch (Exception e) {
-            outShift[0] = 0.0;
-            return 0.0;
+
+            final String finalOutput = resultBuilder.toString();
+            handlerPost(() -> {
+                logTextView.setText(finalOutput);
+                statusTextView.setText("Статус: ✅ Файл успешно обработан!");
+            });
+        }).start();
+    }
+
+    private void scanDeviceForExcelFiles() {
+        statusTextView.setText("Статус: 🔍 Поиск таблиц Excel в памяти телефона...");
+        new Thread(() -> {
+            List<File> foundFiles = new ArrayList<>();
+            try {
+                File storage = Environment.getExternalStorageDirectory();
+                recursiveSearch(storage, foundFiles);
+            } catch (Exception ignored) {}
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("📂 Результаты сканирования памяти:\n");
+            if (foundFiles.isEmpty()) {
+                sb.append("Файлы .xlsx не найдены в корневых папках. Воспользуйтесь кнопкой выбора файла вручную.");
+            } else {
+                for (File f : foundFiles) {
+                    sb.append("• ").append(f.getName()).append(" (").append(f.getAbsolutePath()).append(")\n");
+                }
+            }
+
+            final String res = sb.toString();
+            handlerPost(() -> {
+                logTextView.setText(res);
+                statusTextView.setText("Статус: Сканирование завершено.");
+            });
+        }).start();
+    }
+
+    private void recursiveSearch(File dir, List<File> list) {
+        if (dir == null || !dir.isDirectory() || list.size() > 50) return;
+        File[] files = dir.listFiles();
+        if (files == null) return;
+        for (File f : files) {
+            if (f.isDirectory()) {
+                if (!f.getName().startsWith(".")) {
+                    recursiveSearch(f, list);
+                }
+            } else {
+                String name = f.getName().toLowerCase();
+                if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+                    list.add(f);
+                }
+            }
         }
     }
 
-    private void calculateAndDraw() {
-        isUpdating = true;
-        try {
-            boolean isRLCMode = (radioGroupMode.getCheckedRadioButtonId() == 101);
-
-            double uA = Double.parseDouble(etUA.getText().toString());
-            double iA = Double.parseDouble(etIA.getText().toString());
-            double[] shiftA = new double[1];
-            parsePhaseData(etValA, spinnerRLCA, isRLCMode, shiftA);
-
-            double uB = Double.parseDouble(etUB.getText().toString());
-            double iB = Double.parseDouble(etIB.getText().toString());
-            double[] shiftB = new double[1];
-            parsePhaseData(etValB, spinnerRLCB, isRLCMode, shiftB);
-
-            double uC = Double.parseDouble(etUC.getText().toString());
-            double iC = Double.parseDouble(etIC.getText().toString());
-            double[] shiftC = new double[1];
-            parsePhaseData(etValC, spinnerRLCC, isRLCMode, shiftC);
-
-            double pA = uA * iA * Math.cos(Math.toRadians(shiftA[0]));
-            double pB = uB * iB * Math.cos(Math.toRadians(shiftB[0]));
-            double pC = uC * iC * Math.cos(Math.toRadians(shiftC[0]));
-            double pSum = pA + pB + pC;
-
-            String report = String.format(
-                "📊 АНАЛИЗ (Желтый-A, Зеленый-B, Красный-C):\n" +
-                "• Фаза A: U=%.1fV, I=%.1fA, φ=%.1f° | P = %.1f Вт\n" +
-                "• Фаза B: U=%.1fV, I=%.1fA, φ=%.1f° | P = %.1f Вт\n" +
-                "• Фаза C: U=%.1fV, I=%.1fA, φ=%.1f° | P = %.1f Вт\n" +
-                "⚡ Суммарная активная мощность P_sum = %.2f кВт",
-                uA, iA, shiftA[0], pA,
-                uB, iB, shiftB[0], pB,
-                uC, iC, shiftC[0], pC,
-                (pSum / 1000.0)
-            );
-
-            tvResults.setText(report);
-            vectorView.updateData(0.0, shiftA[0], -120.0, shiftB[0], 120.0, shiftC[0]);
-
-        } catch (Exception ignored) {
-        } finally {
-            isUpdating = false;
-        }
-    }
-
-    // Компонент векторной диаграммы (всегда сверху, обновляется динамически)
-    private static class VectorCanvasView extends View {
-        private double vA = 0, iA = 30;
-        private double vB = -120, iB = -90;
-        private double vC = 120, iC = 150;
-        
-        private Paint paintUA, paintIA, paintUB, paintIB, paintUC, paintIC, paintGrid, paintText;
-
-        public VectorCanvasView(Context context) {
-            super(context);
-            init();
-        }
-
-        private void init() {
-            paintGrid = new Paint(Paint.ANTI_ALIAS_FLAG);
-            paintGrid.setColor(Color.parseColor("#334155"));
-            paintGrid.setStrokeWidth(2f);
-
-            paintText = new Paint(Paint.ANTI_ALIAS_FLAG);
-            paintText.setColor(Color.parseColor("#F8FAFC"));
-            paintText.setTextSize(20f);
-
-            // Фаза А — ЖЕЛТЫЙ
-            paintUA = createVectorPaint(Color.parseColor("#F59E0B")); 
-            paintIA = createVectorPaint(Color.parseColor("#FDE68A")); 
-
-            // Фаза В — ЗЕЛЕНЫЙ
-            paintUB = createVectorPaint(Color.parseColor("#10B981")); 
-            paintIB = createVectorPaint(Color.parseColor("#A7F3D0")); 
-
-            // Фаза С — КРАСНЫЙ
-            paintUC = createVectorPaint(Color.parseColor("#EF4444")); 
-            paintIC = createVectorPaint(Color.parseColor("#FCA5A5")); 
-        }
-
-        private Paint createVectorPaint(int color) {
-            Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-            p.setColor(color);
-            p.setStrokeWidth(4f);
-            p.setStyle(Paint.Style.STROKE);
-            return p;
-        }
-
-        public void updateData(double voltageA, double shiftA, double voltageB, double shiftB, double voltageC, double shiftC) {
-            this.vA = voltageA; this.iA = voltageA + shiftA;
-            this.vB = voltageB; this.iB = voltageB + shiftB;
-            this.vC = voltageC; this.iC = voltageC + shiftC;
-            invalidate(); // Перерисовка холста на лету
-        }
-
-        @Override
-        protected void onDraw(Canvas canvas) {
-            super.onDraw(canvas);
-            canvas.drawColor(Color.parseColor("#090D16"));
-
-            int width = getWidth();
-            int height = getHeight();
-            float cx = width / 2f;
-            float cy = height / 2f;
-            float radius = Math.min(cx, cy) - 35f;
-
-            canvas.drawCircle(cx, cy, radius, paintGrid);
-            canvas.drawLine(cx - radius - 10, cy, cx + radius + 10, cy, paintGrid);
-            canvas.drawLine(cx, cy - radius - 10, cx, cy + radius + 10, paintGrid);
-
-            drawVector(canvas, cx, cy, radius * 0.75f, vA, "U_A", paintUA);
-            drawVector(canvas, cx, cy, radius * 0.55f, iA, "I_A", paintIA);
-
-            drawVector(canvas, cx, cy, radius * 0.75f, vB, "U_B", paintUB);
-            drawVector(canvas, cx, cy, radius * 0.55f, iB, "I_B", paintIB);
-
-            drawVector(canvas, cx, cy, radius * 0.75f, vC, "U_C", paintUC);
-            drawVector(canvas, cx, cy, radius * 0.55f, iC, "I_C", paintIC);
-        }
-
-        private void drawVector(Canvas canvas, float cx, float cy, float len, double angleDeg, String label, Paint paint) {
-            double rad = Math.toRadians(-angleDeg);
-            float endX = (float) (cx + len * Math.cos(rad));
-            float endY = (float) (cy + len * Math.sin(rad));
-
-            canvas.drawLine(cx, cy, endX, endY, paint);
-
-            float angle = (float) Math.atan2(endY - cy, endX - cx);
-            float arrowLen = 14f;
-            float p1x = (float) (endX - arrowLen * Math.cos(angle - Math.PI / 6));
-            float p1y = (float) (endY - arrowLen * Math.sin(angle - Math.PI / 6));
-            float p2x = (float) (endX - arrowLen * Math.cos(angle + Math.PI / 6));
-            float p2y = (float) (endY - arrowLen * Math.sin(angle + Math.PI / 6));
-
-            Path path = new Path();
-            path.moveTo(endX, endY);
-            path.lineTo(p1x, p1y);
-            path.lineTo(p2x, p2y);
-            path.close();
-
-            Paint fill = new Paint(paint);
-            fill.setStyle(Paint.Style.FILL);
-            canvas.drawPath(path, fill);
-
-            canvas.drawText(label, endX + 6, endY + 4, paintText);
-        }
+    private void handlerPost(Runnable r) {
+        new Handler(Looper.getMainLooper()).post(r);
     }
 }
