@@ -5,7 +5,7 @@
     <uses-permission android:name="android.permission.TRANSMIT_IR" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.FLASHLIGHT" />
-    <application android:allowBackup="true" android:usesCleartextTraffic="true" android:icon="@mipmap/ic_launcher" android:label="RomaMonsterApp" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+    <application android:allowBackup="true" android:usesCleartextTraffic="true" android:icon="@mipmap/ic_launcher" android:label="XLS" android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
