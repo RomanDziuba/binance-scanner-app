@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.pro5.version01'
+    namespace 'com.pro8.version08'
     compileSdk 34
     defaultConfig {
-        applicationId "com.pro5.version01"
+        applicationId "com.pro8.version08"
         minSdk 21
         targetSdk 34
-        versionCode 87
-        versionName "01"
+        versionCode 88
+        versionName "08"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "XLS_v01-" + variant.name + ".apk"
+            outputFileName = "CompilerPro8_v08-" + variant.name + ".apk"
         }
     }
 }
