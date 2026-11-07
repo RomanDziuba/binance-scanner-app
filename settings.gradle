@@ -1,2 +1,2 @@
-rootProject.name = "Направление мощности"
+rootProject.name = "XLS"
 include ':app'
