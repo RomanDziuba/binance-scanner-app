@@ -27,11 +27,11 @@ jobs:
       - name: Build APK
         run: |
           gradle clean assembleDebug --info --stacktrace --no-daemon
-      - name: Send Named APK and Java Code Duplicate to Telegram
+      - name: Prepare Artifacts for Direct Download
         if: success()
         run: |
           RAW_APK=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
-          TARGET_NAME="CompilerPro9_v09"
+          TARGET_NAME="XLS_v01"
           FINAL_APK="${TARGET_NAME}.apk"
           TXT_PATH="${TARGET_NAME}.java.txt"
           cp "$RAW_APK" "$FINAL_APK"
@@ -39,7 +39,17 @@ jobs:
           if [ -f "$JAVA_SRC" ]; then
             cp "$JAVA_SRC" "$TXT_PATH"
           else
-            echo "package com.pro9.version09;" > "$TXT_PATH"
+            echo "package com.roman.version01;" > "$TXT_PATH"
           fi
-          curl -F chat_id="1434233986" -F document=@"$FINAL_APK" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
-          curl -F chat_id="1434233986" -F document=@"$TXT_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
+      - name: Upload APK Artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: XLS_v01_APK
+          path: XLS_v01.apk
+      - name: Upload Java Code Artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: XLS_v01_JAVA
+          path: XLS_v01.java.txt
