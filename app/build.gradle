@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.pro8.version08'
+    namespace 'com.roman.version08'
     compileSdk 34
     defaultConfig {
-        applicationId "com.pro8.version08"
+        applicationId "com.roman.version08"
         minSdk 21
         targetSdk 34
-        versionCode 106
+        versionCode 107
         versionName "08"
     }
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "CompilerPro8_v08-" + variant.name + ".apk"
+            outputFileName = "MonsterClock_v08-" + variant.name + ".apk"
         }
     }
 }
