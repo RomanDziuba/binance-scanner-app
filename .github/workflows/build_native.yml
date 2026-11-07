@@ -30,7 +30,7 @@ jobs:
       - name: Prepare APK and Java Code Duplicate
         run: |
           RAW_APK=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
-          TARGET_NAME="xls_v09"
+          TARGET_NAME="CompilerPro10_v10"
           FINAL_APK="${TARGET_NAME}.apk"
           TXT_PATH="${TARGET_NAME}.java.txt"
           cp "$RAW_APK" "$FINAL_APK"
@@ -38,12 +38,12 @@ jobs:
           if [ -f "$JAVA_SRC" ]; then
             cp "$JAVA_SRC" "$TXT_PATH"
           else
-            echo "package com.pro9.version09;" > "$TXT_PATH"
+            echo "package com.pro10.version10;" > "$TXT_PATH"
           fi
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: "xls_v09"
+          name: "CompilerPro10_v10"
           path: |
             *.apk
             *.java.txt
