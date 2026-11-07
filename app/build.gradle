@@ -3,26 +3,22 @@ plugins {
 }
 
 android {
-    namespace 'com.pro9.version01'
+    namespace 'com.pro5.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.pro9.version01"
-        minSdk 26
+        applicationId "com.pro5.version01"
+        minSdk 21
         targetSdk 34
         versionCode 95
         versionName "01"
-        multiDexEnabled true
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
-    packaging {
-        resources.excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE', 'META-INF/LICENSE.txt', 'META-INF/NOTICE', 'META-INF/NOTICE.txt', 'META-INF/ASL2.0', 'META-INF/LGPL2.1']
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "CompilerPro9_v01-" + variant.name + ".apk"
+            outputFileName = "CompilerPro8_v01-" + variant.name + ".apk"
         }
     }
 }
@@ -32,7 +28,4 @@ dependencies {
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.16.0'
-    implementation 'org.apache.poi:poi:4.1.2'
-    implementation 'org.apache.poi:poi-ooxml:4.1.2'
-    implementation 'androidx.multidex:multidex:2.0.1'
 }
