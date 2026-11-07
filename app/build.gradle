@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version2'
+    namespace 'com.xls3.version3'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version2"
+        applicationId "com.xls3.version3"
         minSdk 26
         targetSdk 34
-        versionCode 117
-        versionName "2"
+        versionCode 118
+        versionName "3"
         multiDexEnabled true
     }
     compileOptions {
@@ -19,7 +19,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "XLS2_v2-" + variant.name + ".apk"
+            outputFileName = "XLS3_v3-" + variant.name + ".apk"
         }
     }
 }
