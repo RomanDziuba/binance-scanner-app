@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version09'
+    namespace 'com.xls.version01'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version09"
+        applicationId "com.xls.version01"
         minSdk 26
         targetSdk 34
-        versionCode 105
-        versionName "09"
+        versionCode 106
+        versionName "01"
         multiDexEnabled true
     }
     compileOptions {
@@ -19,7 +19,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "RomaMonsterApp_v09-" + variant.name + ".apk"
+            outputFileName = "XLS_v01-" + variant.name + ".apk"
         }
     }
 }
