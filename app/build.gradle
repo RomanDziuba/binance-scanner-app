@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.pro8.version09'
+    namespace 'com.pro8.version08'
     compileSdk 34
     defaultConfig {
-        applicationId "com.pro8.version09"
+        applicationId "com.pro8.version08"
         minSdk 21
         targetSdk 34
-        versionCode 105
-        versionName "09"
+        versionCode 106
+        versionName "08"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "CompilerPro9_v09-" + variant.name + ".apk"
+            outputFileName = "CompilerPro8_v08-" + variant.name + ".apk"
         }
     }
 }
