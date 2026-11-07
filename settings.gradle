@@ -1,2 +1,2 @@
-rootProject.name = "xls"
+rootProject.name = "CompilerPro10"
 include ':app'
