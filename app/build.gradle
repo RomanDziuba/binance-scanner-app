@@ -9,7 +9,7 @@ android {
         applicationId "com.roman.version1"
         minSdk 21
         targetSdk 34
-        versionCode 145
+        versionCode 147
         versionName "1"
         multiDexEnabled true
     }
@@ -19,7 +19,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "BLUETTI_v1-" + variant.name + ".apk"
+            outputFileName = "MonsterClock_v1-" + variant.name + ".apk"
         }
     }
 }
