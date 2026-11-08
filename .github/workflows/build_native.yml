@@ -19,18 +19,15 @@ jobs:
           export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
           yes | sdkmanager --licenses || true
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.5'
-          cache-disabled: true
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
       - name: Build APK
         run: |
           gradle clean assembleDebug --info --stacktrace --no-daemon
       - name: Prepare APK and Java Code Duplicate
         run: |
           RAW_APK=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
-          TARGET_NAME="CompilerMonster11_v11"
+          TARGET_NAME="RomaMonsterApp_v11"
           FINAL_APK="${TARGET_NAME}.apk"
           TXT_PATH="${TARGET_NAME}.java.txt"
           cp "$RAW_APK" "$FINAL_APK"
@@ -38,12 +35,12 @@ jobs:
           if [ -f "$JAVA_SRC" ]; then
             cp "$JAVA_SRC" "$TXT_PATH"
           else
-            echo "package com.pro11.version11;" > "$TXT_PATH"
+            echo "package com.roman.version11;" > "$TXT_PATH"
           fi
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: "CompilerMonster11_v11"
+          name: "RomaMonsterApp_v11"
           path: |
             *.apk
             *.java.txt
