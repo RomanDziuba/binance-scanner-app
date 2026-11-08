@@ -58,10 +58,9 @@ public class MainActivity extends Activity {
     private final List<BluetoothDevice> scannedDevices = new ArrayList<>();
     private final List<String> scannedDeviceNames = new ArrayList<>();
 
-    // Стандартні UUID для Bluetti BLE (Modbus шина)
+    // Стандартні та альтернативні UUID Bluetti
     private static final UUID BLUETTI_SERVICE_UUID = UUID.fromString("0000ffe0-0000-1000-8000-00805f9b34fb");
-    private static final UUID BLUETTI_CHAR_WRITE_UUID = UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb");
-    private static final UUID BLUETTI_CHAR_NOTIFY_UUID = UUID.fromString("0000ffe2-0000-1000-8000-00805f9b34fb");
+    private static final UUID BLUETTI_ALT_SERVICE_UUID = UUID.fromString("0000ff00-0000-1000-8000-00805f9b34fb");
     private static final UUID CLIENT_CHARACTERISTIC_CONFIG = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
 
     private BluetoothGattCharacteristic writeCharacteristic = null;
@@ -123,7 +122,7 @@ public class MainActivity extends Activity {
         setContentView(rootLayout);
 
         checkAndRequestPermissions();
-        appendLog("🚀 Додаток запущено. Готовий до роботи.");
+        appendLog("🚀 Додаток запущено. Динамічний пошук сервісів активний.");
     }
 
     private void appendLog(String message) {
@@ -131,7 +130,6 @@ public class MainActivity extends Activity {
             if (logConsole != null) {
                 String timeStr = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
                 logConsole.append("[" + timeStr + "] " + message + "\n");
-                // Автопрокрутка вниз
                 int scrollAmount = logConsole.getLayout() != null ? logConsole.getLayout().getLineTop(logConsole.getLineCount()) - logConsole.getHeight() : 0;
                 if (scrollAmount > 0) {
                     logConsole.scrollTo(0, scrollAmount);
@@ -151,7 +149,7 @@ public class MainActivity extends Activity {
                 Manifest.permission.BLUETOOTH_CONNECT, 
                 Manifest.permission.ACCESS_FINE_LOCATION
             }, 101);
-            appendLog("⚠️ Запит системних дозволів Bluetooth та Локації...");
+            appendLog("⚠️ Запит системних дозволів Bluetooth...");
         }
     }
 
@@ -199,7 +197,6 @@ public class MainActivity extends Activity {
         container.addView(telemetryTable);
         renderPlaceholderTable();
 
-        // Консоль відладки
         TextView logLabel = new TextView(this);
         logLabel.setText("📋 Консоль відладки (Логи подій):");
         logLabel.setTextColor(Color.parseColor("#94A3B8"));
@@ -216,7 +213,7 @@ public class MainActivity extends Activity {
         logConsole.setGravity(Gravity.TOP);
         logConsole.setMinLines(6);
         logConsole.setMaxLines(10);
-        logConsole.setKeyListener(null); // Тільки для читання
+        logConsole.setKeyListener(null);
         container.addView(logConsole);
 
         btnCopyLog = createStyledButton("📋 Скопировать полный лог", "#334155");
@@ -258,7 +255,7 @@ public class MainActivity extends Activity {
         addTableRow("Обрана станція", connectedDeviceName, false);
         addTableRow("Рівень заряду (SoC)", "--- %", false);
         addTableRow("Потужність AC (Вихід)", "--- Вт", false);
-        addTableRow("Вхідна потужність (Мережа)", "--- Вт", false);
+        addTableRow("Вхідна мережа", "--- Вт", false);
     }
 
     private void addTableRow(String label, String value, boolean isHeader) {
@@ -358,6 +355,7 @@ public class MainActivity extends Activity {
 
         if (bluetoothGatt != null) {
             appendLog("🔌 Закриття попереднього GATT з'єднання...");
+            bluetoothGatt.disconnect();
             bluetoothGatt.close();
             bluetoothGatt = null;
         }
@@ -370,14 +368,20 @@ public class MainActivity extends Activity {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             if (status != BluetoothGatt.GATT_SUCCESS) {
-                appendLog("❌ Помилка GATT стану: status = " + status);
+                appendLog("⚠️ Увага GATT status = " + status);
             }
             if (newState == BluetoothProfile.STATE_CONNECTED) {
-                appendLog("✅ Успішно підключено до GATT сервера! Пошук сервісів...");
+                appendLog("✅ Успішно підключено до GATT сервера!");
                 mainHandler.post(() -> statusTextView.setText("Статус: ✅ Підключено! Пошук сервісів..."));
-                if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
-                    gatt.discoverServices();
-                }
+                
+                // Невелика затримка для стабілізації BLE стеку перед discoverServices
+                mainHandler.postDelayed(() -> {
+                    if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+                        appendLog("🔎 Запуск gatt.discoverServices()...");
+                        gatt.discoverServices();
+                    }
+                }, 600);
+
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 appendLog("🔌 З'єднання розірвано (STATE_DISCONNECTED).");
                 mainHandler.post(() -> {
@@ -392,40 +396,66 @@ public class MainActivity extends Activity {
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                appendLog("📊 Сервіси успішно виявлені!");
-                BluetoothGattService service = gatt.getService(BLUETTI_SERVICE_UUID);
-                if (service != null) {
-                    appendLog("✔ Знайдено основний сервіс Bluetti: " + BLUETTI_SERVICE_UUID);
-                    writeCharacteristic = service.getCharacteristic(BLUETTI_CHAR_WRITE_UUID);
-                    notifyCharacteristic = service.getCharacteristic(BLUETTI_CHAR_NOTIFY_UUID);
-                    
-                    if (writeCharacteristic != null) {
-                        appendLog("✔ Знайдено WRITE характеристику: " + BLUETTI_CHAR_WRITE_UUID);
-                    } else {
-                        appendLog("❌ WRITE характеристику не знайдено!");
-                    }
+                appendLog("📊 Завершено пошук GATT сервісів.");
+                
+                writeCharacteristic = null;
+                notifyCharacteristic = null;
 
-                    if (notifyCharacteristic != null) {
-                        appendLog("✔ Знайдено NOTIFY характеристику, підписка...");
-                        gatt.setCharacteristicNotification(notifyCharacteristic, true);
-                        BluetoothGattDescriptor descriptor = notifyCharacteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG);
-                        if (descriptor != null) {
-                            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                            if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
-                                gatt.writeDescriptor(descriptor);
+                // Универсальный сканер всех сервисов пристрою
+                List<BluetoothGattService> services = gatt.getServices();
+                appendLog("💡 Знайдено всього сервісів: " + services.size());
+
+                for (BluetoothGattService s : services) {
+                    String sUuid = s.getUuid().toString();
+                    appendLog("📦 Сервіс: " + sUuid);
+
+                    for (BluetoothGattCharacteristic c : s.getCharacteristics()) {
+                        String cUuid = c.getUuid().toString();
+                        int props = c.getProperties();
+
+                        // Ищем WRITE характеристику
+                        if ((props & BluetoothGattCharacteristic.PROPERTY_WRITE) != 0 || 
+                            (props & BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0) {
+                            if (writeCharacteristic == null) {
+                                writeCharacteristic = c;
+                                appendLog("  🎯 Авто-виявлено WRITE характеристику: " + cUuid);
+                            }
+                        }
+
+                        // Ищем NOTIFY характеристику
+                        if ((props & BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0) {
+                            if (notifyCharacteristic == null) {
+                                notifyCharacteristic = c;
+                                appendLog("  🔔 Авто-виявлено NOTIFY характеристику: " + cUuid);
                             }
                         }
                     }
-                } else {
-                    appendLog("❌ Сервіс Bluetti 0xFFE0 не знайдено у списку!");
                 }
 
-                mainHandler.post(() -> {
-                    statusTextView.setText("Статус: 🟢 Онлайн! Готовий до команд ⚡");
-                    btnAcTouchToggle.setEnabled(true);
-                    btnModeToggle.setEnabled(true);
-                    updateLiveTelemetry("Підключено (Online Stable)", "100%", "0 Вт", "150 Вт");
-                });
+                if (writeCharacteristic != null) {
+                    appendLog("✅ УСПІХ: Готова характеристика для відправки команд!");
+                    if (notifyCharacteristic != null) {
+                        if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+                            gatt.setCharacteristicNotification(notifyCharacteristic, true);
+                            BluetoothGattDescriptor descriptor = notifyCharacteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG);
+                            if (descriptor != null) {
+                                descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                                gatt.writeDescriptor(descriptor);
+                                appendLog("🔔 Підписку на сповіщення активовано.");
+                            }
+                        }
+                    }
+
+                    mainHandler.post(() -> {
+                        statusTextView.setText("Статус: 🟢 Онлайн! Готовий до команд ⚡");
+                        btnAcTouchToggle.setEnabled(true);
+                        btnModeToggle.setEnabled(true);
+                        updateLiveTelemetry("Підключено (Online)", "100%", "0 Вт", "150 Вт");
+                    });
+                } else {
+                    appendLog("❌ НЕ ЗНАЙДЕНО придатну WRITE характеристику у пристрої!");
+                }
+
             } else {
                 appendLog("❌ Помилка пошуку сервісів: status = " + status);
             }
@@ -435,16 +465,16 @@ public class MainActivity extends Activity {
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
             byte[] data = characteristic.getValue();
             if (data != null && data.length > 0) {
-                appendLog("📥 Отримано нові дані (" + data.length + " байт): " + bytesToHex(data));
+                appendLog("📥 Вхідні дані (" + data.length + " B): " + bytesToHex(data));
             }
         }
 
         @Override
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                appendLog("📤 Запис пакету в характеристику УСПІШНИЙ ✅");
+                appendLog("📤 Команда успішно записана в станцію ✅");
             } else {
-                appendLog("❌ Помилка запису в характеристику: status = " + status);
+                appendLog("❌ Помилка запису в станцію: status = " + status);
             }
         }
     };
@@ -506,7 +536,6 @@ public class MainActivity extends Activity {
         sendModbusCommand(0x000F, modeVal);
     }
 
-    // Модбас з розрахунком CRC16 (критично для виконання команд станцією!)
     private void sendModbusCommand(int registerAddress, int value) {
         if (bluetoothGatt == null || writeCharacteristic == null) {
             appendLog("❌ Помилка: Станція не підключена або WRITE характеристика відсутня!");
@@ -515,8 +544,8 @@ public class MainActivity extends Activity {
         }
         
         byte[] packetWithoutCrc = new byte[] {
-            0x01, // Unit ID
-            0x06, // Function 0x06: Write Single Register
+            0x01,
+            0x06,
             (byte) (registerAddress >> 8),
             (byte) (registerAddress & 0xFF),
             (byte) (value >> 8),
@@ -526,18 +555,18 @@ public class MainActivity extends Activity {
         byte[] crc = calculateModbusCRC(packetWithoutCrc);
         byte[] fullPacket = new byte[8];
         System.arraycopy(packetWithoutCrc, 0, fullPacket, 0, 6);
-        fullPacket[6] = crc[0]; // CRC Low
-        fullPacket[7] = crc[1]; // CRC High
+        fullPacket[6] = crc[0];
+        fullPacket[7] = crc[1];
         
         writeCharacteristic.setValue(fullPacket);
         writeCharacteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
         
-        appendLog(String.format("📤 Виклик writeCharacteristic [Регістр: 0x%04X, Знач: 0x%04X] HEX: %s", 
+        appendLog(String.format("📤 Відправка Modbus [Регістр: 0x%04X, Знач: 0x%04X] HEX: %s", 
             registerAddress, value, bytesToHex(fullPacket)));
         
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
             boolean success = bluetoothGatt.writeCharacteristic(writeCharacteristic);
-            appendLog("🔍 writeCharacteristic статус повернення: " + success);
+            appendLog("🔍 Статус виклику writeCharacteristic: " + success);
         }
     }
 
@@ -592,7 +621,7 @@ public class MainActivity extends Activity {
                 } else if (which == 7) {
                     sendModbusCommand(0x0030, 0x0000);
                 }
-                Toast.makeText(this, "Команду регістру надіслано в консоль!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Команду надіслано!", Toast.LENGTH_SHORT).show();
             })
             .setNegativeButton("Закрити", null)
             .show();
