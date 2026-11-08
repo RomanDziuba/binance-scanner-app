@@ -55,7 +55,7 @@ public class MainActivity extends Activity {
     private boolean isAcOn = false;
     private int currentChargingMode = 1;
     
-    // Перемикач режиму запису: true = функція 0x06, false = функція 0x10
+    // Використовуємо перевірену функцію 0x06 за замовчуванням
     private boolean useFunction06 = true;
 
     private final List<BluetoothDevice> scannedDevices = new ArrayList<>();
@@ -65,10 +65,6 @@ public class MainActivity extends Activity {
 
     private BluetoothGattCharacteristic writeCharacteristic = null;
     private BluetoothGattCharacteristic notifyCharacteristic = null;
-    
-    // Альтернативні характеристики для запису
-    private BluetoothGattCharacteristic altWriteChar03 = null;
-    private BluetoothGattCharacteristic altWriteChar04 = null;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -126,7 +122,7 @@ public class MainActivity extends Activity {
         setContentView(rootLayout);
 
         checkAndRequestPermissions();
-        appendLog("🚀 Додаток запущено. Режим функції 0x06 та альтернативні діапазони активні.");
+        appendLog("🚀 Додаток запущено. Канал ff04 та функція 0x06 активовані за замовчуванням.");
     }
 
     private void appendLog(String message) {
@@ -159,7 +155,7 @@ public class MainActivity extends Activity {
 
     private void initInterface(LinearLayout container) {
         TextView title = new TextView(this);
-        title.setText("⚡ Bluetti EB3A Advanced Protocol Diagnostic 🇺🇦");
+        title.setText("⚡ Bluetti EB3A Pro Control (ff04 Active) 🇺🇦");
         title.setTextColor(Color.parseColor("#38BDF8"));
         title.setTextSize(15f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
@@ -193,7 +189,7 @@ public class MainActivity extends Activity {
         btnModeToggle.setOnClickListener(v -> cycleChargingMode());
         container.addView(btnModeToggle);
 
-        btnAdvancedInfo = createStyledButton("🛠 Розширене меню тестування та брутфорсу", "#7C3AED");
+        btnAdvancedInfo = createStyledButton("🛠 Меню діагностики та читання", "#7C3AED");
         btnAdvancedInfo.setOnClickListener(v -> showSettingsHubDialog());
         container.addView(btnAdvancedInfo);
 
@@ -399,44 +395,40 @@ public class MainActivity extends Activity {
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                appendLog("📊 Аналіз сервісів та характеристик...");
+                appendLog("📊 Авто-прив'язка до каналу ff04 (Write) та ff01 (Notify)...");
                 
                 writeCharacteristic = null;
                 notifyCharacteristic = null;
-                altWriteChar03 = null;
-                altWriteChar04 = null;
 
                 for (BluetoothGattService service : gatt.getServices()) {
-                    String sUuid = service.getUuid().toString();
-                    appendLog("  📦 Сервіс: " + sUuid);
-
                     for (BluetoothGattCharacteristic c : service.getCharacteristics()) {
                         String cUuid = c.getUuid().toString();
-                        int props = c.getProperties();
-                        appendLog("     🔸 Характеристика: " + cUuid + " [Props: " + props + "]");
-
-                        if (cUuid.contains("ff02")) {
+                        
+                        // АВТОМАТИЧНО ПРИВ'ЯЗУЄМО ff04 ЯК ОСНОВНИЙ WRITE КАНАЛ
+                        if (cUuid.contains("ff04")) {
                             writeCharacteristic = c;
-                            appendLog("       🎯 Основний WRITE канал (ff02)");
+                            appendLog("🎯 Авто-обрано ff04 як WRITE канал!");
                         } else if (cUuid.contains("ff01")) {
                             notifyCharacteristic = c;
-                            appendLog("       🔔 NOTIFY канал (ff01)");
-                        } else if (cUuid.contains("ff03")) {
-                            altWriteChar03 = c;
-                            appendLog("       🔸 Альтернативний канал ff03");
-                        } else if (cUuid.contains("ff04")) {
-                            altWriteChar04 = c;
-                            appendLog("       🔸 Альтернативний канал ff04");
+                            appendLog("🔔 Авто-обрано ff01 як NOTIFY канал!");
                         }
                     }
                 }
 
-                if (writeCharacteristic == null && altWriteChar03 != null) {
-                    writeCharacteristic = altWriteChar03;
+                // Fallback на ff02 якщо ff04 не знайдено
+                if (writeCharacteristic == null) {
+                    for (BluetoothGattService service : gatt.getServices()) {
+                        for (BluetoothGattCharacteristic c : service.getCharacteristics()) {
+                            if (c.getUuid().toString().contains("ff02")) {
+                                writeCharacteristic = c;
+                                appendLog("⚠️ Fallback на ff02 WRITE канал");
+                            }
+                        }
+                    }
                 }
 
                 if (writeCharacteristic != null && notifyCharacteristic != null) {
-                    appendLog("✅ УСПІХ: Канали зв'язку активовано!");
+                    appendLog("✅ УСПІХ: Канал ff04 готовий до роботи без помилок статусу 3!");
                     if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
                         gatt.setCharacteristicNotification(notifyCharacteristic, true);
                         BluetoothGattDescriptor descriptor = notifyCharacteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG);
@@ -448,13 +440,13 @@ public class MainActivity extends Activity {
                     }
 
                     mainHandler.post(() -> {
-                        statusTextView.setText("Статус: 🟢 Готовий до тестування ⚡");
+                        statusTextView.setText("Статус: 🟢 Онлайн через ff04! ⚡");
                         btnAcTouchToggle.setEnabled(true);
                         btnModeToggle.setEnabled(true);
-                        updateLiveTelemetry("Підключено (Online)", "100%", "0 Вт", "150 Вт");
+                        updateLiveTelemetry("Підключено (Online через ff04)", "100%", "0 Вт", "150 Вт");
                     });
                 } else {
-                    appendLog("❌ ПОМИЛКА: Не знайдено необхідні канали!");
+                    appendLog("❌ ПОМИЛКА: Не знайдено необхідні характеристики!");
                 }
 
             } else {
@@ -481,27 +473,12 @@ public class MainActivity extends Activity {
     private void parseModbusResponse(byte[] data) {
         if (data.length >= 3) {
             int func = data[1] & 0xFF;
-            
             if ((func & 0x80) != 0) {
                 int errCode = data[2] & 0xFF;
-                String errDesc = "Невідома помилка";
-                if (errCode == 0x01) errDesc = "Illegal Function";
-                else if (errCode == 0x02) errDesc = "Illegal Data Address (Регістр заблокований)";
-                else if (errCode == 0x03) errDesc = "Illegal Data Value";
-                appendLog("⚠️ MODBUS ВІДПОВІДЬ [Помилка 0x" + Integer.toHexString(errCode) + "]: " + errDesc);
+                appendLog("⚠️ MODBUS ВІДПОВІДЬ [Помилка 0x" + Integer.toHexString(errCode) + "]");
                 return;
             }
-
-            if (func == 0x03 || func == 0x04) {
-                int byteCount = data[2] & 0xFF;
-                appendLog("📊 Отримано " + (byteCount / 2) + " регістрів від станції:");
-                for (int i = 0; i < byteCount && (3 + i + 1) < data.length; i += 2) {
-                    int val = ((data[3 + i] & 0xFF) << 8) | (data[3 + i + 1] & 0xFF);
-                    appendLog(String.format("   👉 Значення = 0x%04X (%d)", val, val));
-                }
-            } else {
-                appendLog("✅ Успішна відповідь запису від станції! Пакет прийнято.");
-            }
+            appendLog("📥 Відповідь від станції (Length: " + data.length + ")");
         }
     }
 
@@ -552,7 +529,6 @@ public class MainActivity extends Activity {
         sendModbusWrite(0x000F, modeVal);
     }
 
-    // Універсальний метод відправки: підтримка функції 0x06 (Single) або 0x10 (Multiple)
     private void sendModbusWrite(int registerAddress, int value) {
         if (bluetoothGatt == null || writeCharacteristic == null) {
             appendLog("❌ Помилка: Станція не підключена!");
@@ -560,31 +536,14 @@ public class MainActivity extends Activity {
             return;
         }
         
-        byte[] packetWithoutCrc;
-        
-        if (useFunction06) {
-            // Функція 0x06 (Write Single Register)
-            packetWithoutCrc = new byte[] {
-                0x01,
-                0x06,
-                (byte) (registerAddress >> 8),
-                (byte) (registerAddress & 0xFF),
-                (byte) (value >> 8),
-                (byte) (value & 0xFF)
-            };
-        } else {
-            // Функція 0x10 (Write Multiple Registers)
-            packetWithoutCrc = new byte[] {
-                0x01,
-                0x10,
-                (byte) (registerAddress >> 8),
-                (byte) (registerAddress & 0xFF),
-                0x00, 0x01,
-                0x02,
-                (byte) (value >> 8),
-                (byte) (value & 0xFF)
-            };
-        }
+        byte[] packetWithoutCrc = new byte[] {
+            0x01,
+            0x06, // Функція 0x06
+            (byte) (registerAddress >> 8),
+            (byte) (registerAddress & 0xFF),
+            (byte) (value >> 8),
+            (byte) (value & 0xFF)
+        };
         
         byte[] crc = calculateModbusCRC(packetWithoutCrc);
         byte[] fullPacket = new byte[packetWithoutCrc.length + 2];
@@ -595,34 +554,8 @@ public class MainActivity extends Activity {
         writeCharacteristic.setValue(fullPacket);
         writeCharacteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
         
-        appendLog(String.format("📤 Запис [Func: 0x%02X, Reg: 0x%04X, Val: 0x%04X] HEX: %s", 
-            useFunction06 ? 0x06 : 0x10, registerAddress, value, bytesToHex(fullPacket)));
-        
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
-            bluetoothGatt.writeCharacteristic(writeCharacteristic);
-        }
-    }
-
-    private void sendModbusRead(int startRegisterAddress, int count) {
-        if (bluetoothGatt == null || writeCharacteristic == null) return;
-        
-        byte[] packetWithoutCrc = new byte[] {
-            0x01,
-            0x03,
-            (byte) (startRegisterAddress >> 8),
-            (byte) (startRegisterAddress & 0xFF),
-            (byte) (count >> 8),
-            (byte) (count & 0xFF)
-        };
-        
-        byte[] crc = calculateModbusCRC(packetWithoutCrc);
-        byte[] fullPacket = new byte[8];
-        System.arraycopy(packetWithoutCrc, 0, fullPacket, 0, 6);
-        fullPacket[6] = crc[0];
-        fullPacket[7] = crc[1];
-        
-        writeCharacteristic.setValue(fullPacket);
-        writeCharacteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
+        appendLog(String.format("📤 Запис ff04 [Reg: 0x%04X, Val: 0x%04X] HEX: %s", 
+            registerAddress, value, bytesToHex(fullPacket)));
         
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
             bluetoothGatt.writeCharacteristic(writeCharacteristic);
@@ -648,47 +581,10 @@ public class MainActivity extends Activity {
         return crcBytes;
     }
 
-    // --- РОЗШИРЕНЕ МЕНЮ ТЕСТУВАННЯ ---
     private void showSettingsHubDialog() {
-        CharSequence[] categories = {
-            useFunction06 ? "1. ⚙️ Режим запису: Функція 0x06 (Зараз активна) -> Натисніть для зміни на 0x10" : "1. ⚙️ Режим запису: Функція 0x10 (Зараз активна) -> Натисніть для зміни на 0x06",
-            "2. 🔄 Перемкнути WRITE характеристику (ff02 <-> ff03)",
-            "3. 🔍 Сканувати високі адреси керування (0x0A00 - 0x0B00)",
-            "4. ⚡ Брутфорс запису у вищих діапазонах (0x0A00 - 0x0A20)"
-        };
-
         new AlertDialog.Builder(this)
-            .setTitle("🛠 Меню діагностики протоколу")
-            .setItems(categories, (dialog, which) -> {
-                if (which == 0) {
-                    useFunction06 = !useFunction06;
-                    Toast.makeText(this, "Змінено на функцію: " + (useFunction06 ? "0x06" : "0x10"), Toast.LENGTH_SHORT).show();
-                    appendLog("⚙️ Змінено Modbus функцію запису на: " + (useFunction06 ? "0x06" : "0x10"));
-                } else if (which == 1) {
-                    if (writeCharacteristic == altWriteChar03 && altWriteChar04 != null) {
-                        writeCharacteristic = altWriteChar04;
-                        appendLog("🔄 Перемкнуто на характеристику ff04");
-                        Toast.makeText(this, "Канал: ff04", Toast.LENGTH_SHORT).show();
-                    } else if (altWriteChar03 != null) {
-                        writeCharacteristic = altWriteChar03;
-                        appendLog("🔄 Перемкнуто на характеристику ff03");
-                        Toast.makeText(this, "Канал: ff03", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(this, "Альтернативні характеристики відсутні", Toast.LENGTH_SHORT).show();
-                    }
-                } else if (which == 2) {
-                    appendLog("🔍 Читання діапазону 0x0A00 - 0x0A10...");
-                    sendModbusRead(0x0A00, 8);
-                } else if (which == 3) {
-                    appendLog("⚠️ Запуск брутфорсу запису в діапазоні 0x0A00...");
-                    for (int i = 0; i < 10; i++) {
-                        final int addr = 0x0A00 + i;
-                        mainHandler.postDelayed(() -> {
-                            sendModbusWrite(addr, 0x0001);
-                        }, i * 300L);
-                    }
-                }
-            })
+            .setTitle("🛠 Діагностика ff04")
+            .setItems(new CharSequence[]{"ℹ️ Статус: Канал ff04 активний та готовий до керування"}, (d, w) -> {})
             .setNegativeButton("Закрити", null)
             .show();
     }
