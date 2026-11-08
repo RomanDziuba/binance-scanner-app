@@ -3,14 +3,15 @@ plugins {
 }
 
 android {
-    namespace 'com.pro11.version11'
+    namespace 'com.pro9.version1'
     compileSdk 34
     defaultConfig {
-        applicationId "com.pro11.version11"
+        applicationId "com.pro9.version1"
         minSdk 26
         targetSdk 34
-        versionCode 153
-        versionName "11"
+        versionCode 151
+        versionName "1"
+        multiDexEnabled true
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -18,7 +19,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "CompilerMonster11_v11-" + variant.name + ".apk"
+            outputFileName = "bluetti_v1-" + variant.name + ".apk"
         }
     }
 }
@@ -28,4 +29,6 @@ dependencies {
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.16.0'
+    implementation 'org.apache.poi:poi:5.2.3'
+    implementation 'org.apache.poi:poi-ooxml:5.2.3'
 }
