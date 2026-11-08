@@ -9,7 +9,7 @@ android {
         applicationId "com.pdfdocx.version1"
         minSdk 26
         targetSdk 34
-        versionCode 188
+        versionCode 189
         versionName "1"
         multiDexEnabled true
     }
