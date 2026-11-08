@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.xls.version11'
+    namespace 'com.xls111.version111'
     compileSdk 34
     defaultConfig {
-        applicationId "com.xls.version11"
+        applicationId "com.xls111.version111"
         minSdk 26
         targetSdk 34
-        versionCode 162
-        versionName "11"
+        versionCode 163
+        versionName "111"
         multiDexEnabled true
     }
     compileOptions {
@@ -19,7 +19,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "CompilerMonster11_v11-" + variant.name + ".apk"
+            outputFileName = "xxxlllsss_v111-" + variant.name + ".apk"
         }
     }
 }
