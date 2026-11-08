@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.pro11.version11'
+    namespace 'com.roman.version11'
     compileSdk 34
     defaultConfig {
-        applicationId "com.pro11.version11"
+        applicationId "com.roman.version11"
         minSdk 26
         targetSdk 34
         versionCode 152
@@ -19,7 +19,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "CompilerMonster11_v11-" + variant.name + ".apk"
+            outputFileName = "RomaMonsterApp_v11-" + variant.name + ".apk"
         }
     }
 }
