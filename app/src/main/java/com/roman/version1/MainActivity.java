@@ -122,7 +122,7 @@ public class MainActivity extends Activity {
         setContentView(rootLayout);
 
         checkAndRequestPermissions();
-        appendLog("🚀 Додаток запущено. Режим розширеної діагностики та калібрування активовано.");
+        appendLog("🚀 Додаток запущено. Режим функції 0x10 та діагностики активний.");
     }
 
     private void appendLog(String message) {
@@ -155,7 +155,7 @@ public class MainActivity extends Activity {
 
     private void initInterface(LinearLayout container) {
         TextView title = new TextView(this);
-        title.setText("⚡ Bluetti EB3A Calibration & Diagnostics 🇺🇦");
+        title.setText("⚡ Bluetti EB3A Advanced Control & Telemetry 🇺🇦");
         title.setTextColor(Color.parseColor("#38BDF8"));
         title.setTextSize(16f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
@@ -189,7 +189,7 @@ public class MainActivity extends Activity {
         btnModeToggle.setOnClickListener(v -> cycleChargingMode());
         container.addView(btnModeToggle);
 
-        btnAdvancedInfo = createStyledButton("🛠 Калібрування, Читання Логів та Сервіс", "#7C3AED");
+        btnAdvancedInfo = createStyledButton("🛠 Меню калібрування, логів та сервісу", "#7C3AED");
         btnAdvancedInfo.setOnClickListener(v -> showSettingsHubDialog());
         container.addView(btnAdvancedInfo);
 
@@ -407,7 +407,7 @@ public class MainActivity extends Activity {
                 }
 
                 if (writeCharacteristic != null && notifyCharacteristic != null) {
-                    appendLog("✅ УСПІХ: Канали Bluetti готової роботи!");
+                    appendLog("✅ УСПІХ: Канали Bluetti готові до роботи!");
                     if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
                         gatt.setCharacteristicNotification(notifyCharacteristic, true);
                         BluetoothGattDescriptor descriptor = notifyCharacteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG);
@@ -457,18 +457,16 @@ public class MainActivity extends Activity {
         if (data.length >= 3) {
             int func = data[1] & 0xFF;
             
-            // Обробка помилок Modbus
             if ((func & 0x80) != 0) {
                 int errCode = data[2] & 0xFF;
                 String errDesc = "Невідома помилка";
                 if (errCode == 0x01) errDesc = "Illegal Function (Функція не підтримується)";
-                else if (errCode == 0x02) errDesc = "Illegal Data Address (Адреса регістра заблокована чи відсутня)";
+                else if (errCode == 0x02) errDesc = "Illegal Data Address (Адреса регістра заблокована)";
                 else if (errCode == 0x03) errDesc = "Illegal Data Value (Недопустиме значення)";
                 appendLog("⚠️ ПОМИЛКА MODBUS СТАНЦІЇ [0x" + Integer.toHexString(errCode) + "]: " + errDesc);
                 return;
             }
 
-            // Відповідь на читання регістрів (Функція 0x03 / 0x04)
             if (func == 0x03 || func == 0x04) {
                 int byteCount = data[2] & 0xFF;
                 appendLog("📊 Отримано " + (byteCount / 2) + " регістрів від станції:");
@@ -503,51 +501,34 @@ public class MainActivity extends Activity {
         if (isAcOn) {
             btnAcTouchToggle.setText("🔌 Вимкнути AC (220В)");
             btnAcTouchToggle.setBackgroundColor(Color.parseColor("#10B981"));
-            appendLog("⚙️ Команда: УВІМКНЕННЯ AC (220В)");
+            appendLog("⚙️ Запит: УВІМКНЕННЯ AC (220В)");
         } else {
             btnAcTouchToggle.setText("🔌 Увімкнути AC (220В)");
             btnAcTouchToggle.setBackgroundColor(Color.parseColor("#475569"));
-            appendLog("⚙️ Команда: ВИМКНЕННЯ AC (220В)");
+            appendLog("⚙️ Запит: ВИМКНЕННЯ AC (220В)");
         }
         sendModbusWrite(0x000B, isAcOn ? 0x01 : 0x00);
+        mainHandler.postDelayed(() -> sendModbusWrite(0x001B, isAcOn ? 0x01 : 0x00), 300);
     }
 
     private void cycleChargingMode() {
         currentChargingMode = (currentChargingMode + 1) % 3;
+        int modeVal = currentChargingMode;
+        
         String modeName = "Стандартний";
-        String colorHex = "#D97706";
-        int modeVal = 1;
-        if (currentChargingMode == 0) {
-            modeName = "Тихий (Silent - 200Вт)";
-            colorHex = "#2563EB";
-            modeVal = 0;
-        } else if (currentChargingMode == 1) {
-            modeName = "Стандартний (Standard - 350Вт)";
-            colorHex = "#D97706";
-            modeVal = 1;
-        } else if (currentChargingMode == 2) {
-            modeName = "Турбо (Turbo - 430Вт)";
-            colorHex = "#DC2626";
-            modeVal = 2;
-        }
+        if (modeVal == 0) modeName = "Тихий (200Вт)";
+        else if (modeVal == 1) modeName = "Стандартний (350Вт)";
+        else if (modeVal == 2) modeName = "Турбо (430Вт)";
+
         btnModeToggle.setText("⚙️ Режим заряду: " + modeName);
-        btnModeToggle.setBackgroundColor(Color.parseColor(colorHex));
         appendLog("⚙️ Зміна режиму зарядки: " + modeName);
         
         sendModbusWrite(0x000F, modeVal);
+        mainHandler.postDelayed(() -> sendModbusWrite(0x0022, modeVal), 300);
     }
 
-    // Запис в регістр (Modbus Function 0x06)
+    // Запис через функцію 0x10 (Write Multiple Registers) для нових прошивок
     private void sendModbusWrite(int registerAddress, int value) {
-        sendRawModbus(0x06, registerAddress, value);
-    }
-
-    // Читання блоку регістрів (Modbus Function 0x03)
-    private void sendModbusRead(int startRegisterAddress, int count) {
-        sendRawModbus(0x03, startRegisterAddress, count);
-    }
-
-    private void sendRawModbus(int functionCode, int regAddr, int valueOrCount) {
         if (bluetoothGatt == null || writeCharacteristic == null) {
             appendLog("❌ Помилка: Станція не підключена!");
             Toast.makeText(this, "Станція не підключена!", Toast.LENGTH_SHORT).show();
@@ -556,11 +537,46 @@ public class MainActivity extends Activity {
         
         byte[] packetWithoutCrc = new byte[] {
             0x01,
-            (byte) functionCode,
-            (byte) (regAddr >> 8),
-            (byte) (regAddr & 0xFF),
-            (byte) (valueOrCount >> 8),
-            (byte) (valueOrCount & 0xFF)
+            0x10, // Функція 0x10 для обходу захисту нових прошивок
+            (byte) (registerAddress >> 8),
+            (byte) (registerAddress & 0xFF),
+            0x00, 0x01, // Кількість регістрів: 1
+            0x02,       // Кількість байт: 2
+            (byte) (value >> 8),
+            (byte) (value & 0xFF)
+        };
+        
+        byte[] crc = calculateModbusCRC(packetWithoutCrc);
+        byte[] fullPacket = new byte[packetWithoutCrc.length + 2];
+        System.arraycopy(packetWithoutCrc, 0, fullPacket, 0, packetWithoutCrc.length);
+        fullPacket[fullPacket.length - 2] = crc[0];
+        fullPacket[fullPacket.length - 1] = crc[1];
+        
+        writeCharacteristic.setValue(fullPacket);
+        writeCharacteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
+        
+        appendLog(String.format("📤 Modbus 0x10 [Reg: 0x%04X, Val: 0x%04X] HEX: %s", 
+            registerAddress, value, bytesToHex(fullPacket)));
+        
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+            boolean success = bluetoothGatt.writeCharacteristic(writeCharacteristic);
+            appendLog("🔍 Статус запису: " + success);
+        }
+    }
+
+    private void sendModbusRead(int startRegisterAddress, int count) {
+        if (bluetoothGatt == null || writeCharacteristic == null) {
+            appendLog("❌ Помилка: Станція не підключена!");
+            return;
+        }
+        
+        byte[] packetWithoutCrc = new byte[] {
+            0x01,
+            0x03, // Функція 0x03 для читання регістрів
+            (byte) (startRegisterAddress >> 8),
+            (byte) (startRegisterAddress & 0xFF),
+            (byte) (count >> 8),
+            (byte) (count & 0xFF)
         };
         
         byte[] crc = calculateModbusCRC(packetWithoutCrc);
@@ -572,12 +588,11 @@ public class MainActivity extends Activity {
         writeCharacteristic.setValue(fullPacket);
         writeCharacteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
         
-        appendLog(String.format("📤 Modbus Send [Func: 0x%02X, Reg: 0x%04X, Val: 0x%04X] HEX: %s", 
-            functionCode, regAddr, valueOrCount, bytesToHex(fullPacket)));
+        appendLog(String.format("📤 Modbus Read [Reg: 0x%04X, Count: %d] HEX: %s", 
+            startRegisterAddress, count, bytesToHex(fullPacket)));
         
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
-            boolean success = bluetoothGatt.writeCharacteristic(writeCharacteristic);
-            appendLog("🔍 Статус надсилання: " + success);
+            bluetoothGatt.writeCharacteristic(writeCharacteristic);
         }
     }
 
@@ -600,12 +615,12 @@ public class MainActivity extends Activity {
         return crcBytes;
     }
 
-    // --- МЕНЮ КАЛІБРУВАННЯ ТА ДІАГНОСТИКИ СТАНЦІЇ ---
+    // --- МЕНЮ КАЛІБРУВАННЯ ТА ДІАГНОСТИКИ ---
     private void showSettingsHubDialog() {
         CharSequence[] categories = {
-            "1. 📋 Зчитати Повний Лог Помилок та Журнал Тривог (Read Fault Logs)",
-            "2. ⚖️ Робочий режим Калібрування BMS та Струму (BMS & Zero Current Calibrations)",
-            "3. 🔍 Сканер Діапазону Регістрів (Сканування відкритих регістрів 0x0000 - 0x0050)",
+            "1. 📋 Зчитати повний лог помилок та журнал тривог (Read Fault Logs)",
+            "2. ⚖️ Робочий режим калібрування BMS та струму (BMS Calibrations)",
+            "3. 🔍 Сканер діапазону регістрів (Пошук активних адрес 0x0000 - 0x0050)",
             "4. 🔌 Пряме керування виходами та режимами зарядки"
         };
 
@@ -623,25 +638,22 @@ public class MainActivity extends Activity {
 
     private void readFaultLogs() {
         appendLog("📋 Зчитування логів помилок з регістрів 0x0020 - 0x0035...");
-        // Читаємо регістри тривог BMS та інвертора
         sendModbusRead(0x0020, 6);
         mainHandler.postDelayed(() -> sendModbusRead(0x0030, 6), 500);
     }
 
     private void showCalibrationMenu() {
         CharSequence[] items = {
-            "1. Калібрування Нульового Струму BMS (Zero Current Offset [0x0010])\n   Виконується БЕЗ навантаження і БЕЗ підключеної мережі!",
-            "2. Скидання та Сінхронізація SoC 100% (Full Voltage Reset [0x0011])\n   Застосовується при заповненому акумуляторі.",
-            "3. Принудительне балансування осередків BMS (Force Balance [0x0014])\n   Активація вирівнювання напруги осередків."
+            "1. Калібрування нульового струму BMS (Zero Current Offset [0x0010])\n   Виконується БЕЗ навантаження і БЕЗ підключеної мережі!",
+            "2. Скидання та синхронізація SoC 100% (Full Voltage Reset [0x0011])\n   Застосовується при повністю зарядженому акумуляторі.",
+            "3. Примусове балансування осередків BMS (Force Balance [0x0014])\n   Активація вирівнювання напруги осередків."
         };
         new AlertDialog.Builder(this)
-            .setTitle("⚖️ Меню Калібрування BMS EB3A")
+            .setTitle("⚖️ Меню калібрування BMS EB3A")
             .setItems(items, (d, w) -> {
                 if (w == 0) {
                     appendLog("⚠️ Запуск калібрування нульового струму BMS...");
                     sendModbusWrite(0x0010, 0x0001);
-                    // Пробуємо альтернативний зсув регістру на випадок відхилення
-                    mainHandler.postDelayed(() -> sendModbusWrite(0x000E, 0x0001), 300);
                 } else if (w == 1) {
                     appendLog("⚠️ Синхронізація 100% SoC...");
                     sendModbusWrite(0x0011, 0x0001);
@@ -656,7 +668,7 @@ public class MainActivity extends Activity {
     }
 
     private void scanRegisterRange() {
-        appendLog("🔍 Початок сканування відкритих регістрів (0x0000 - 0x0020)...");
+        appendLog("🔍 Початок сканування регістрів (0x0000 - 0x0020)...");
         for (int i = 0; i <= 0x0020; i += 4) {
             final int reg = i;
             mainHandler.postDelayed(() -> sendModbusRead(reg, 2), reg * 200L);
