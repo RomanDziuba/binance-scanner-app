@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.bluetti.version002'
+    namespace 'com.roman.version002'
     compileSdk 34
     defaultConfig {
-        applicationId "com.bluetti.version002"
+        applicationId "com.roman.version002"
         minSdk 26
         targetSdk 34
         versionCode 2
