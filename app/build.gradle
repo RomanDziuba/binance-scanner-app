@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.xls.version1'
+    namespace 'com.roman.version1'
     compileSdk 34
     defaultConfig {
-        applicationId "com.xls.version1"
+        applicationId "com.roman.version1"
         minSdk 26
         targetSdk 34
         versionCode 130
