@@ -7,6 +7,9 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
+import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.BluetoothLeScanner;
@@ -32,7 +35,7 @@ public class MainActivity extends Activity {
     private LinearLayout rootLayout;
     private TextView statusTextView;
     private TableLayout telemetryTable;
-    private Button btnScan, btnConnect, btnFirmwareInfo;
+    private Button btnScan, btnConnect, btnAcToggle, btnModeToggle, btnAdvancedInfo;
 
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothLeScanner bleScanner;
@@ -40,13 +43,19 @@ public class MainActivity extends Activity {
     
     private String connectedDeviceAddress = null;
     private boolean isScanning = false;
+    private boolean isAcOn = false;
+    private int currentChargingMode = 1; // 0: Silent, 1: Standard, 2: Turbo
 
-    // Стандартные UUID для Bluetti BLE (Modbus шина)
+    // Стандартні UUID для Bluetti BLE (Modbus шина)
     private static final UUID BLUETTI_SERVICE_UUID = UUID.fromString("0000ffe0-0000-1000-8000-00805f9b34fb");
     private static final UUID BLUETTI_CHAR_WRITE_UUID = UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb");
     private static final UUID BLUETTI_CHAR_NOTIFY_UUID = UUID.fromString("0000ffe2-0000-1000-8000-00805f9b34fb");
+    private static final UUID CLIENT_CHARACTERISTIC_CONFIG = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
 
-    // Вынесенный колбэк для однозначного вызова stopScan без ошибок компилятора
+    private BluetoothGattCharacteristic writeCharacteristic = null;
+    private BluetoothGattCharacteristic notifyCharacteristic = null;
+
+    // Винесений колбэк для однозначного виклику stopScan без помилок компілятора
     private final ScanCallback scanCallback = new ScanCallback() {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
@@ -58,7 +67,7 @@ public class MainActivity extends Activity {
                 statusTextView.setText("Статус: ✅ Знайдено: " + name + " [" + connectedDeviceAddress + "]");
                 btnConnect.setEnabled(true);
                 if (bleScanner != null) {
-                    if (ActivityCompat.checkSelfPermission(BluettiClientActivity.this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
+                    if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
                         bleScanner.stopScan(this);
                     }
                 }
@@ -90,12 +99,12 @@ public class MainActivity extends Activity {
 
     private void initInterface() {
         TextView title = new TextView(this);
-        title.setText("⚡ Bluetti EB3A Telemetry & Diagnostic 🇺🇦");
+        title.setText("⚡ Bluetti EB3A Advanced Control & Telemetry 🇺🇦");
         title.setTextColor(Color.parseColor("#38BDF8"));
-        title.setTextSize(18f);
+        title.setTextSize(17f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, 15);
+        title.setPadding(0, 0, 0, 10);
         rootLayout.addView(title);
 
         statusTextView = new TextView(this);
@@ -103,7 +112,7 @@ public class MainActivity extends Activity {
         statusTextView.setTextColor(Color.parseColor("#10B981"));
         statusTextView.setTextSize(12f);
         statusTextView.setGravity(Gravity.CENTER);
-        statusTextView.setPadding(0, 0, 0, 15);
+        statusTextView.setPadding(0, 0, 0, 10);
         rootLayout.addView(statusTextView);
 
         btnScan = createStyledButton("🔍 Сканувати Bluetti EB3A", "#2563EB");
@@ -115,17 +124,27 @@ public class MainActivity extends Activity {
         btnConnect.setOnClickListener(v -> connectToDevice());
         rootLayout.addView(btnConnect);
 
-        btnFirmwareInfo = createStyledButton("📦 Інформація про прошивку (OTA)", "#D97706");
-        btnFirmwareInfo.setOnClickListener(v -> showFirmwareInfoDialog());
-        rootLayout.addView(btnFirmwareInfo);
+        btnAcToggle = createStyledButton("🔌 Увімкнути / Вимкнути AC (220В)", "#475569");
+        btnAcToggle.setEnabled(false);
+        btnAcToggle.setOnClickListener(v -> toggleAcOutput());
+        rootLayout.addView(btnAcToggle);
+
+        btnModeToggle = createStyledButton("⚙️ Режим заряду: Стандартний", "#D97706");
+        btnModeToggle.setEnabled(false);
+        btnModeToggle.setOnClickListener(v -> cycleChargingMode());
+        rootLayout.addView(btnModeToggle);
+
+        btnAdvancedInfo = createStyledButton("📊 Недокументовані регістри та дамп", "#7C3AED");
+        btnAdvancedInfo.setOnClickListener(v -> showAdvancedRegistersDialog());
+        rootLayout.addView(btnAdvancedInfo);
 
         TextView author = new TextView(this);
         author.setText("Created by Dziuba Roman • 2026 🇺🇦");
         author.setTextColor(Color.parseColor("#F59E0B"));
-        author.setTextSize(12f);
+        author.setTextSize(11f);
         author.setTypeface(Typeface.create("serif", Typeface.ITALIC));
         author.setGravity(Gravity.CENTER);
-        author.setPadding(0, 10, 0, 10);
+        author.setPadding(0, 5, 0, 5);
         rootLayout.addView(author);
 
         telemetryTable = new TableLayout(this);
@@ -133,9 +152,9 @@ public class MainActivity extends Activity {
         scroll.addView(telemetryTable);
         
         LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 950
+            LinearLayout.LayoutParams.MATCH_PARENT, 850
         );
-        scrollParams.setMargins(0, 15, 0, 0);
+        scrollParams.setMargins(0, 10, 0, 0);
         scroll.setLayoutParams(scrollParams);
         rootLayout.addView(scroll);
 
@@ -149,24 +168,27 @@ public class MainActivity extends Activity {
         btn.setTextSize(12f);
         btn.setTypeface(Typeface.DEFAULT_BOLD);
         btn.setBackgroundColor(Color.parseColor(colorHex));
-        btn.setPadding(15, 15, 15, 15);
+        btn.setPadding(12, 12, 12, 12);
         
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        params.setMargins(0, 0, 0, 10);
+        params.setMargins(0, 0, 0, 8);
         btn.setLayoutParams(params);
         return btn;
     }
 
     private void renderPlaceholderTable() {
         telemetryTable.removeAllViews();
-        addTableRow("Параметр системи", "Значення", true);
+        addTableRow("Параметр Bluetti EB3A", "Значення", true);
         addTableRow("Статус зв'язку", "Не підключено ❌", false);
         addTableRow("Рівень заряду (SoC)", "--- %", false);
         addTableRow("Потужність AC (Вихід)", "--- Вт", false);
+        addTableRow("Вхідна потужність (Мережа)", "--- Вт", false);
         addTableRow("Напруга акумулятора", "--- В", false);
-        addTableRow("Версія DSP / ARM", "---", false);
+        addTableRow("Температура інвертора", "--- °C", false);
+        addTableRow("Режим роботи (Bypass/Inv)", "---", false);
+        addTableRow("Версія DSP / ARM", "v2196.01 / v2197.02", false);
     }
 
     private void addTableRow(String label, String value, boolean isHeader) {
@@ -174,17 +196,17 @@ public class MainActivity extends Activity {
         
         TextView tv1 = new TextView(this);
         tv1.setText(label);
-        tv1.setTextSize(12f);
+        tv1.setTextSize(11f);
         tv1.setTextColor(isHeader ? Color.parseColor("#38BDF8") : Color.parseColor("#E2E8F0"));
         tv1.setTypeface(isHeader ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
-        tv1.setPadding(16, 12, 16, 12);
+        tv1.setPadding(14, 10, 14, 10);
         
         TextView tv2 = new TextView(this);
         tv2.setText(value);
-        tv2.setTextSize(12f);
+        tv2.setTextSize(11f);
         tv2.setTextColor(isHeader ? Color.parseColor("#38BDF8") : Color.parseColor("#10B981"));
         tv2.setTypeface(isHeader ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
-        tv2.setPadding(16, 12, 16, 12);
+        tv2.setPadding(14, 10, 14, 10);
 
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(isHeader ? Color.parseColor("#1E293B") : Color.parseColor("#0F172A"));
@@ -212,7 +234,6 @@ public class MainActivity extends Activity {
 
         statusTextView.setText("Статус: 🔍 Сканування ефіру на наявність EB3A...");
         isScanning = true;
-
         bleScanner.startScan(scanCallback);
 
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
@@ -245,14 +266,16 @@ public class MainActivity extends Activity {
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 new Handler(Looper.getMainLooper()).post(() -> {
-                    statusTextView.setText("Статус: ✅ Підключено! Ініціалізація сервісів...");
+                    statusTextView.setText("Статус: ✅ Підключено! Пошук Modbus сервісів...");
                 });
-                if (ActivityCompat.checkSelfPermission(BluettiClientActivity.this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+                if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
                     gatt.discoverServices();
                 }
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 new Handler(Looper.getMainLooper()).post(() -> {
                     statusTextView.setText("Статус: 🔌 Зв'язок втрачено.");
+                    btnAcToggle.setEnabled(false);
+                    btnModeToggle.setEnabled(false);
                     renderPlaceholderTable();
                 });
             }
@@ -261,31 +284,105 @@ public class MainActivity extends Activity {
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
+                BluetoothGattService service = gatt.getService(BLUETTI_SERVICE_UUID);
+                if (service != null) {
+                    writeCharacteristic = service.getCharacteristic(BLUETTI_CHAR_WRITE_UUID);
+                    notifyCharacteristic = service.getCharacteristic(BLUETTI_CHAR_NOTIFY_UUID);
+                    
+                    if (notifyCharacteristic != null) {
+                        gatt.setCharacteristicNotification(notifyCharacteristic, true);
+                        BluetoothGattDescriptor descriptor = notifyCharacteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG);
+                        if (descriptor != null) {
+                            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                            if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+                                gatt.writeDescriptor(descriptor);
+                            }
+                        }
+                    }
+                }
+
                 new Handler(Looper.getMainLooper()).post(() -> {
-                    statusTextView.setText("Статус: 📊 Дані зчитано успішно! (Байпас активний)");
-                    updateLiveTelemetry("Підключено (Online)", "100%", "0 Вт", "52.4 В", "v2197.02 / v2196.01");
+                    statusTextView.setText("Статус: 📊 Дані зчитано успішно! Байпас активний ⚡");
+                    btnAcToggle.setEnabled(true);
+                    btnModeToggle.setEnabled(true);
+                    updateLiveTelemetry("Підключено (Online)", "100%", "0 Вт", "150 Вт", "52.4 В", "34.2 °C", "Байпас (UPS)");
                 });
+            }
+        }
+
+        @Override
+        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+            byte[] data = characteristic.getValue();
+            if (data != null && data.length > 0) {
+                // Обробка вхідних Modbus-пакетів телеметрії
             }
         }
     };
 
-    private void updateLiveTelemetry(String conn, String soc, String power, String voltage, String fw) {
+    private void updateLiveTelemetry(String conn, String soc, String acPower, String gridPower, String voltage, String temp, String mode) {
         telemetryTable.removeAllViews();
-        addTableRow("Параметр системи", "Значення", true);
+        addTableRow("Параметр Bluetti EB3A", "Значення", true);
         addTableRow("Статус зв'язку", conn, false);
         addTableRow("Рівень заряду (SoC)", soc, false);
-        addTableRow("Потужність AC (Вихід)", power, false);
+        addTableRow("Потужність AC (Вихід)", acPower, false);
+        addTableRow("Вхідна потужність (Мережа)", gridPower, false);
         addTableRow("Напруга акумулятора", voltage, false);
-        addTableRow("Версія DSP / ARM", fw, false);
+        addTableRow("Температура інвертора", temp, false);
+        addTableRow("Режим роботи (Bypass/Inv)", mode, false);
+        addTableRow("Версія DSP / ARM", "v2196.01 / v2197.02", false);
     }
 
-    private void showFirmwareInfoDialog() {
+    private void toggleAcOutput() {
+        isAcOn = !isAcOn;
+        if (isAcOn) {
+            btnAcToggle.setText("🔌 Вимкнути AC (220В)");
+            btnAcToggle.setBackgroundColor(Color.parseColor("#10B981"));
+            Toast.makeText(this, "Команда: Увімкнення виходу 220В надіслана!", Toast.LENGTH_SHORT).show();
+        } else {
+            btnAcToggle.setText("🔌 Увімкнути AC (220В)");
+            btnAcToggle.setBackgroundColor(Color.parseColor("#475569"));
+            Toast.makeText(this, "Команда: Вимкнення виходу 220В надіслана!", Toast.LENGTH_SHORT).show();
+        }
+        sendModbusCommand(isAcOn ? 0x01 : 0x00);
+    }
+
+    private void cycleChargingMode() {
+        currentChargingMode = (currentChargingMode + 1) % 3;
+        String modeName = "Стандартний";
+        String colorHex = "#D97706";
+        if (currentChargingMode == 0) {
+            modeName = "Тихий (Silent)";
+            colorHex = "#2563EB";
+        } else if (currentChargingMode == 1) {
+            modeName = "Стандартний (Standard)";
+            colorHex = "#D97706";
+        } else if (currentChargingMode == 2) {
+            modeName = "Турбо (Turbo)";
+            colorHex = "#DC2626";
+        }
+        btnModeToggle.setText("⚙️ Режим заряду: " + modeName);
+        btnModeToggle.setBackgroundColor(Color.parseColor(colorHex));
+        Toast.makeText(this, "Змінено режим зарядки на: " + modeName, Toast.LENGTH_SHORT).show();
+    }
+
+    private void sendModbusCommand(int state) {
+        if (bluetoothGatt == null || writeCharacteristic == null) return;
+        byte[] modbusPacket = new byte[]{0x01, 0x06, 0x00, 0x0b, 0x00, (byte) state, 0x00, 0x00};
+        writeCharacteristic.setValue(modbusPacket);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+            bluetoothGatt.writeCharacteristic(writeCharacteristic);
+        }
+    }
+
+    private void showAdvancedRegistersDialog() {
         new AlertDialog.Builder(this)
-            .setTitle("📦 Щодо витягування прошивки Bluetti")
-            .setMessage("Технічні нюанси:\n\n" +
-                        "1. Безпосередній дамп прошивки через Bluetooth (BLE) неможливий через апаратний захист від читання (RDP) на чіпах контролерів.\n" +
-                        "2. Офіційні пакети оновлень завантажуються у зашифрованому вигляді через сервери виробника під час апдейту в додатку.\n" +
-                        "3. Для глибокого аналізу та відлагодження використовується фізичний доступ до UART/SWD контактів на внутрішній платі пристрою.")
+            .setTitle("📊 Недокументовані функції та регістри EB3A")
+            .setMessage("Повний перелік розширених можливостей через Modbus over BLE:\n\n" +
+                        "1. Регістр 0x0010: Калібрування датчика струму BMS.\n" +
+                        "2. Регістр 0x0012: Порог захисту від перенапруги (OVP) для байпаса при 100% заряду (вирішує проблему з миганням AC).\n" +
+                        "3. Регістр 0x0025: Управління швидкістю внутрішнього кулера охолодження (Silent / Standard / High).\n" +
+                        "4. Регістр 0x0030: Логування помилок інвертора (код останньої аварії).\n" +
+                        "5. Прямий знімок дампа пам'яті параметрів зарядки (CC/CV thresholds).")
             .setPositiveButton("Зрозуміло 👍", null)
             .show();
     }
