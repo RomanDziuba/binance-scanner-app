@@ -9,7 +9,7 @@ android {
         applicationId "com.bluetti.version1"
         minSdk 26
         targetSdk 34
-        versionCode 153
+        versionCode 154
         versionName "1"
         multiDexEnabled true
     }
