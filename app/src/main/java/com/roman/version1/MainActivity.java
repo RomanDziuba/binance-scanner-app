@@ -58,7 +58,6 @@ public class MainActivity extends Activity {
     private final List<BluetoothDevice> scannedDevices = new ArrayList<>();
     private final List<String> scannedDeviceNames = new ArrayList<>();
 
-    // Офіційні UUID сервісу та точних характеристик Bluetti EB3A
     private static final UUID BLUETTI_SERVICE_FF00 = UUID.fromString("0000ff00-0000-1000-8000-00805f9b34fb");
     private static final UUID CHAR_UUID_NOTIFY_01 = UUID.fromString("0000ff01-0000-1000-8000-00805f9b34fb");
     private static final UUID CHAR_UUID_WRITE_02 = UUID.fromString("0000ff02-0000-1000-8000-00805f9b34fb");
@@ -123,7 +122,7 @@ public class MainActivity extends Activity {
         setContentView(rootLayout);
 
         checkAndRequestPermissions();
-        appendLog("🚀 Додаток запущено. Використання точних каналів ff01/ff02.");
+        appendLog("🚀 Додаток запущено. Структуроване меню налаштувань готове.");
     }
 
     private void appendLog(String message) {
@@ -150,7 +149,7 @@ public class MainActivity extends Activity {
                 Manifest.permission.BLUETOOTH_CONNECT, 
                 Manifest.permission.ACCESS_FINE_LOCATION
             }, 101);
-            appendLog("⚠️ Запит дозволів Bluetooth...");
+            appendLog("⚠️ Запит системних дозволів Bluetooth...");
         }
     }
 
@@ -190,8 +189,8 @@ public class MainActivity extends Activity {
         btnModeToggle.setOnClickListener(v -> cycleChargingMode());
         container.addView(btnModeToggle);
 
-        btnAdvancedInfo = createStyledButton("📊 Регістри та розширене керування", "#7C3AED");
-        btnAdvancedInfo.setOnClickListener(v -> showAdvancedRegistersDialog());
+        btnAdvancedInfo = createStyledButton("📊 Головне меню розширених налаштувань", "#7C3AED");
+        btnAdvancedInfo.setOnClickListener(v -> showSettingsHubDialog());
         container.addView(btnAdvancedInfo);
 
         telemetryTable = new TableLayout(this);
@@ -287,7 +286,7 @@ public class MainActivity extends Activity {
 
     private void startBleScan() {
         if (bleScanner == null) {
-            appendLog("❌ Помилка: BLE сканер недоступний.");
+            appendLog("❌ BLE сканер недоступний.");
             Toast.makeText(this, "BLE не підтримується!", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -403,20 +402,19 @@ public class MainActivity extends Activity {
 
                 BluetoothGattService service = gatt.getService(BLUETTI_SERVICE_FF00);
                 if (service != null) {
-                    // Жорстко закріплюємо ff02 для запису команд та ff01 для сповіщень
                     writeCharacteristic = service.getCharacteristic(CHAR_UUID_WRITE_02);
                     notifyCharacteristic = service.getCharacteristic(CHAR_UUID_NOTIFY_01);
                     
                     if (writeCharacteristic != null) {
-                        appendLog("  🎯 WRITE канал успішно закріплено: 0000ff02");
+                        appendLog("  🎯 WRITE канал закріплено: 0000ff02");
                     }
                     if (notifyCharacteristic != null) {
-                        appendLog("  🔔 NOTIFY канал успішно закріплено: 0000ff01");
+                        appendLog("  🔔 NOTIFY канал закріплено: 0000ff01");
                     }
                 }
 
                 if (writeCharacteristic != null && notifyCharacteristic != null) {
-                    appendLog("✅ УСПІХ: Всі канали Bluetti налаштовані!");
+                    appendLog("✅ УСПІХ: Канали Bluetti налаштовані!");
                     if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
                         gatt.setCharacteristicNotification(notifyCharacteristic, true);
                         BluetoothGattDescriptor descriptor = notifyCharacteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG);
@@ -434,7 +432,7 @@ public class MainActivity extends Activity {
                         updateLiveTelemetry("Підключено (Online)", "100%", "0 Вт", "150 Вт");
                     });
                 } else {
-                    appendLog("❌ ПОМИЛКА: Не вдалося знайти офіційні канали ff01/ff02!");
+                    appendLog("❌ ПОМИЛКА: Не вдалося знайти канали ff01/ff02!");
                 }
 
             } else {
@@ -446,7 +444,18 @@ public class MainActivity extends Activity {
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
             byte[] data = characteristic.getValue();
             if (data != null && data.length > 0) {
-                appendLog("📥 Відповідь станції (" + data.length + " B): " + bytesToHex(data));
+                String hex = bytesToHex(data);
+                appendLog("📥 Відповідь станції (" + data.length + " B): " + hex);
+                
+                // Аналіз Modbus відповідей на помилки (наприклад, 0x86 02 - недопустима адреса)
+                if (data.length >= 3 && (data[1] & 0x80) != 0) {
+                    int errCode = data[2] & 0xFF;
+                    String errDesc = "Невідома помилка";
+                    if (errCode == 0x01) errDesc = "Недопустима функція";
+                    else if (errCode == 0x02) errDesc = "Недопустима адреса регістра (Регістр заблокований прошивкою)";
+                    else if (errCode == 0x03) errDesc = "Недопустиме значення параметра";
+                    appendLog("⚠️ ПОМИЛКА MODBUS ВІД СТАНЦІЇ [Код 0x" + Integer.toHexString(errCode) + "]: " + errDesc);
+                }
             }
         }
 
@@ -525,8 +534,8 @@ public class MainActivity extends Activity {
         }
         
         byte[] packetWithoutCrc = new byte[] {
-            0x01, // Slave ID
-            0x06, // Function 0x06 (Write Single Register)
+            0x01,
+            0x06,
             (byte) (registerAddress >> 8),
             (byte) (registerAddress & 0xFF),
             (byte) (value >> 8),
@@ -555,7 +564,7 @@ public class MainActivity extends Activity {
         int crc = 0xFFFF;
         for (int pos = 0; pos < data.length; pos++) {
             crc ^= (data[pos] & 0xFF);
-            for (int i = 8; i != 0; i--) {
+            for (int i = 8; i != 0; i != 0) {
                 if ((crc & 0x0001) != 0) {
                     crc >>= 1;
                     crc ^= 0xA001;
@@ -570,41 +579,109 @@ public class MainActivity extends Activity {
         return crcBytes;
     }
 
-    private void showAdvancedRegistersDialog() {
-        CharSequence[] options = {
-            "1. Режим Power Lifting (Підняття потужності до 1200Вт) [0x0040]",
-            "2. Швидкість кулера: 0-Silent / 1-Standard / 2-Turbo [0x0025]",
-            "3. Ліміт вхідного струму мережі (Grid Amperage) [0x0035]",
-            "4. Увімкнення / Вимкнення ECO-режиму [0x0016]",
-            "5. Калібрування датчика струму BMS [0x0010]",
-            "6. Поріг захисту OVP байпасу [0x0012]",
-            "7. Час підсвічування екрана LCD [0x0050]",
-            "8. Скидання логів помилок інвертора [0x0030]"
+    // --- СТРУКТУРОВАНЕ МЕНЮ НАЛАШТУВАНЬ (КОЖЕН ПУНКТ МАЄ ОКРЕМЕ ВІКНО З ПОЯСНЕННЯМ) ---
+    private void showSettingsHubDialog() {
+        CharSequence[] categories = {
+            "1. ⚡ Режими зарядки мережі (Silent / Standard / Turbo)",
+            "2. 🔌 Керування виходами (AC 220В / DC 12В / ECO-режим)",
+            "3. 🛡 Інвертор та захисти (Power Lifting / OVP захист)",
+            "4. 🌀 Кулер охолодження та Екран (Швидкість / Час підсвічування)",
+            "5. 🛠 Сервісні функції (Калібрування BMS та скидання помилок)"
         };
 
         new AlertDialog.Builder(this)
-            .setTitle("📊 Розширені регістри EB3A")
-            .setItems(options, (dialog, which) -> {
-                if (which == 0) {
-                    sendModbusCommand(0x0040, 0x0001);
-                } else if (which == 1) {
-                    sendModbusCommand(0x0025, 0x0002);
-                } else if (which == 2) {
-                    sendModbusCommand(0x0035, 0x000A);
-                } else if (which == 3) {
-                    sendModbusCommand(0x0016, 0x0001);
-                } else if (which == 4) {
-                    sendModbusCommand(0x0010, 0x0001);
-                } else if (which == 5) {
-                    sendModbusCommand(0x0012, 0x0138);
-                } else if (which == 6) {
-                    sendModbusCommand(0x0050, 0x003C);
-                } else if (which == 7) {
-                    sendModbusCommand(0x0030, 0x0000);
-                }
-                Toast.makeText(this, "Команду відправлено на 0xff02!", Toast.LENGTH_SHORT).show();
+            .setTitle("⚙️ Головне меню розширених налаштувань EB3A")
+            .setItems(categories, (dialog, which) -> {
+                if (which == 0) showChargingMenu();
+                else if (which == 1) showOutputsMenu();
+                else if (which == 2) showInverterMenu();
+                else if (which == 3) showFanDisplayMenu();
+                else if (which == 4) showServiceMenu();
             })
             .setNegativeButton("Закрити", null)
+            .show();
+    }
+
+    private void showChargingMenu() {
+        CharSequence[] items = {
+            "• Тихий режим (Silent - 200Вт)\n   Повільна зарядка, мінімальний шум кулера.",
+            "• Стандартний режим (Standard - 350Вт)\n   Збалансована швидкість зарядки від мережі.",
+            "• Турбо режим (Turbo - 430Вт)\n   Максимальна швидкість зарядки (нагріває станцію)."
+        };
+        new AlertDialog.Builder(this)
+            .setTitle("⚡ Режими зарядки [Регістр 0x000F]")
+            .setItems(items, (d, w) -> {
+                int val = (w == 0) ? 0 : (w == 1 ? 1 : 2);
+                sendModbusCommand(0x000F, val);
+                Toast.makeText(this, "Застосовано режим зарядки!", Toast.LENGTH_SHORT).show();
+            })
+            .setNegativeButton("Назад", (d, w) -> showSettingsHubDialog())
+            .show();
+    }
+
+    private void showOutputsMenu() {
+        CharSequence[] items = {
+            "• Увімкнути AC (220В розетки)\n   Подати напругу на вихідні розетки змінного струму.",
+            "• Вимкнути AC (220В розетки)\n   Знеструмити розетки 220В.",
+            "• Увімкнути / Вимкнути ECO-режим [Регістр 0x0016]\n   Автоматичне вимикання інвертора при відсутності навантаження."
+        };
+        new AlertDialog.Builder(this)
+            .setTitle("🔌 Керування виходами та ECO")
+            .setItems(items, (d, w) -> {
+                if (w == 0) sendModbusCommand(0x000B, 1);
+                else if (w == 1) sendModbusCommand(0x000B, 0);
+                else if (w == 2) sendModbusCommand(0x0016, 1);
+                Toast.makeText(this, "Команду виходів надіслано!", Toast.LENGTH_SHORT).show();
+            })
+            .setNegativeButton("Назад", (d, w) -> showSettingsHubDialog())
+            .show();
+    }
+
+    private void showInverterMenu() {
+        CharSequence[] items = {
+            "• Power Lifting [Регістр 0x0040]\n   Дозволяє живити потужні резистивні навантаження (фен, чайник до 1200Вт) за рахунок зниження напруги.",
+            "• Поріг захисту OVP байпасу [Регістр 0x0012]\n   Максимальна вхідна напруга мережі, при якій станція відключає байпас (наприклад, 312В)."
+        };
+        new AlertDialog.Builder(this)
+            .setTitle("🛡 Інвертор та захисти")
+            .setItems(items, (d, w) -> {
+                if (w == 0) sendModbusCommand(0x0040, 1);
+                else if (w == 1) sendModbusCommand(0x0012, 0x0138);
+                Toast.makeText(this, "Команду інвертора надіслано!", Toast.LENGTH_SHORT).show();
+            })
+            .setNegativeButton("Назад", (d, w) -> showSettingsHubDialog())
+            .show();
+    }
+
+    private void showFanDisplayMenu() {
+        CharSequence[] items = {
+            "• Швидкість кулера охолодження [Регістр 0x0025]\n   0 - Silent (Тихий), 1 - Standard, 2 - Turbo (Максимальний обдув).",
+            "• Час підсвічування екрана LCD [Регістр 0x0050]\n   Час (у секундах), через який екран гасне (наприклад, 60 сек)."
+        };
+        new AlertDialog.Builder(this)
+            .setTitle("🌀 Кулер та Дисплей")
+            .setItems(items, (d, w) -> {
+                if (w == 0) sendModbusCommand(0x0025, 2);
+                else if (w == 1) sendModbusCommand(0x0050, 0x003C);
+                Toast.makeText(this, "Команду кулера/екрана надіслано!", Toast.LENGTH_SHORT).show();
+            })
+            .setNegativeButton("Назад", (d, w) -> showSettingsHubDialog())
+            .show();
+    }
+
+    private void showServiceMenu() {
+        CharSequence[] items = {
+            "• Калібрування датчика струму BMS [Регістр 0x0010]\n   Скидання нульового зміщення датчика струму акумулятора.",
+            "• Скидання логів помилок інвертора [Регістр 0x0030]\n   Очищення внутрішньої пам'яті помилок та попереджень."
+        };
+        new AlertDialog.Builder(this)
+            .setTitle("🛠 Сервісні функції та BMS")
+            .setItems(items, (d, w) -> {
+                if (w == 0) sendModbusCommand(0x0010, 1);
+                else if (w == 1) sendModbusCommand(0x0030, 0);
+                Toast.makeText(this, "Сервісну команду надіслано!", Toast.LENGTH_SHORT).show();
+            })
+            .setNegativeButton("Назад", (d, w) -> showSettingsHubDialog())
             .show();
     }
 }
