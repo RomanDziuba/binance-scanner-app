@@ -60,7 +60,6 @@ public class MainActivity extends Activity {
 
     private static final UUID CLIENT_CHARACTERISTIC_CONFIG = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
 
-    // Зафіксований правильний канал запису
     private BluetoothGattCharacteristic writeCharacteristic = null;
     private BluetoothGattCharacteristic notifyCharacteristic = null;
 
@@ -120,7 +119,7 @@ public class MainActivity extends Activity {
         setContentView(rootLayout);
 
         checkAndRequestPermissions();
-        appendLog("🚀 Додаток запущено. Канал ff02 зафіксовано як основний.");
+        appendLog("🚀 Модуль реверсу авторизації запущено. Очікування підключення...");
     }
 
     private void appendLog(String message) {
@@ -153,7 +152,7 @@ public class MainActivity extends Activity {
 
     private void initInterface(LinearLayout container) {
         TextView title = new TextView(this);
-        title.setText("⚡ Bluetti EB3A ff02 Protocol Master 🇺🇦");
+        title.setText("⚡ Bluetti Auth & Handshake Sniffer 🇺🇦");
         title.setTextColor(Color.parseColor("#38BDF8"));
         title.setTextSize(15f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
@@ -162,33 +161,33 @@ public class MainActivity extends Activity {
         container.addView(title);
 
         statusTextView = new TextView(this);
-        statusTextView.setText("Статус: Готовий до пошуку станцій 🔍");
+        statusTextView.setText("Статус: Очікування сканування 🔍");
         statusTextView.setTextColor(Color.parseColor("#10B981"));
         statusTextView.setTextSize(12f);
         statusTextView.setGravity(Gravity.CENTER);
         statusTextView.setPadding(0, 0, 0, 8);
         container.addView(statusTextView);
 
-        btnScan = createStyledButton("🔍 Сканувати ефір (Показати станції)", "#2563EB");
+        btnScan = createStyledButton("🔍 Сканувати ефір", "#2563EB");
         btnScan.setOnClickListener(v -> startBleScan());
         container.addView(btnScan);
 
-        btnConnect = createStyledButton("🔗 Обрати станцію зі списку", "#0D9488");
+        btnConnect = createStyledButton("🔗 Обрати станцію", "#0D9488");
         btnConnect.setOnClickListener(v -> showDeviceSelectionDialog());
         container.addView(btnConnect);
 
-        btnAcTouchToggle = createStyledButton("🔌 Увімкнути / Вимкнути AC (220В)", "#475569");
+        btnAcTouchToggle = createStyledButton("🔌 Тест AC із запитом доступу", "#475569");
         btnAcTouchToggle.setEnabled(false);
-        btnAcTouchToggle.setOnClickListener(v -> toggleAcOutput());
+        btnAcTouchToggle.setOnClickListener(v -> sendHandshakeAndToggleAc());
         container.addView(btnAcTouchToggle);
 
-        btnModeToggle = createStyledButton("⚙️ Режим заряду: Стандартний", "#D97706");
+        btnModeToggle = createStyledButton("⚙️ Надіслати сервісний ключ логіна", "#D97706");
         btnModeToggle.setEnabled(false);
-        btnModeToggle.setOnClickListener(v -> cycleChargingMode());
+        btnModeToggle.setOnClickListener(v -> sendExplicitLoginPacket());
         container.addView(btnModeToggle);
 
-        btnAdvancedInfo = createStyledButton("🛠 СКАНИР / ПОШУК ДОСТУПНИХ РЕГІСТРІВ (ff02)", "#7C3AED");
-        btnAdvancedInfo.setOnClickListener(v -> showScanDialog());
+        btnAdvancedInfo = createStyledButton("🛠 Меню діагностики", "#7C3AED");
+        btnAdvancedInfo.setOnClickListener(v -> showAuthHubDialog());
         container.addView(btnAdvancedInfo);
 
         telemetryTable = new TableLayout(this);
@@ -196,7 +195,7 @@ public class MainActivity extends Activity {
         renderPlaceholderTable();
 
         TextView logLabel = new TextView(this);
-        logLabel.setText("📋 Консоль відладки:");
+        logLabel.setText("📋 Системний лог обміну даними:");
         logLabel.setTextColor(Color.parseColor("#94A3B8"));
         logLabel.setTextSize(11f);
         logLabel.setPadding(0, 10, 0, 4);
@@ -214,16 +213,15 @@ public class MainActivity extends Activity {
         logConsole.setKeyListener(null);
         container.addView(logConsole);
 
-        btnCopyLog = createStyledButton("📋 Скопіювати повний лог", "#334155");
+        btnCopyLog = createStyledButton("📋 Скопіювати лог", "#334155");
         btnCopyLog.setOnClickListener(v -> {
             try {
                 ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
                 ClipData clip = ClipData.newPlainText("BluettiLogs", logConsole.getText().toString());
                 clipboard.setPrimaryClip(clip);
-                Toast.makeText(this, "Повний лог скопійовано!", Toast.LENGTH_SHORT).show();
-                appendLog("📋 Лог успішно скопійовано.");
+                Toast.makeText(this, "Лог скопійовано!", Toast.LENGTH_SHORT).show();
             } catch (Exception e) {
-                Toast.makeText(this, "Помилка копіювання", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Помилка", Toast.LENGTH_SHORT).show();
             }
         });
         container.addView(btnCopyLog);
@@ -251,9 +249,7 @@ public class MainActivity extends Activity {
         addTableRow("Параметр Bluetti EB3A", "Значення", true);
         addTableRow("Статус зв'язку", "Не підключено ❌", false);
         addTableRow("Обрана станція", connectedDeviceName, false);
-        addTableRow("Рівень заряду (SoC)", "--- %", false);
-        addTableRow("Потужність AC (Вихід)", "--- Вт", false);
-        addTableRow("Вхідна мережа", "--- Вт", false);
+        addTableRow("Режим аутентифікації", "Очікування дампа", false);
     }
 
     private void addTableRow(String label, String value, boolean isHeader) {
@@ -283,22 +279,12 @@ public class MainActivity extends Activity {
     }
 
     private void startBleScan() {
-        if (bleScanner == null) {
-            appendLog("❌ BLE сканер недоступний.");
-            Toast.makeText(this, "BLE не підтримується!", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-            checkAndRequestPermissions();
-            return;
-        }
+        if (bleScanner == null) return;
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) return;
 
         scannedDevices.clear();
         scannedDeviceNames.clear();
-
-        statusTextView.setText("Статус: 🔍 Пошук станцій (10 сек)...");
-        appendLog("🔍 Сканування BLE ефіру...");
+        statusTextView.setText("Статус: 🔍 Сканування...");
         isScanning = true;
         bleScanner.startScan(scanCallback);
 
@@ -309,55 +295,33 @@ public class MainActivity extends Activity {
                 }
                 isScanning = false;
                 appendLog("⏹ Сканування завершено. Знайдено: " + scannedDevices.size());
-                statusTextView.setText("Статус: ✅ Знайдено станцій: " + scannedDevices.size());
-                if (!scannedDevices.isEmpty()) {
-                    showDeviceSelectionDialog();
-                } else {
-                    Toast.makeText(this, "Станцій не знайдено.", Toast.LENGTH_LONG).show();
-                }
+                if (!scannedDevices.isEmpty()) showDeviceSelectionDialog();
             }
         }, 10000);
     }
 
     private void showDeviceSelectionDialog() {
-        if (scannedDevices.isEmpty()) {
-            Toast.makeText(this, "Список порожній!", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
+        if (scannedDevices.isEmpty()) return;
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("🔋 Виберіть станцію Bluetti");
-        
+        builder.setTitle("Виберіть станцію");
         String[] items = scannedDeviceNames.toArray(new String[0]);
         builder.setItems(items, (dialog, which) -> {
-            BluetoothDevice selectedDevice = scannedDevices.get(which);
+            BluetoothDevice device = scannedDevices.get(which);
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
-                connectedDeviceAddress = selectedDevice.getAddress();
-                connectedDeviceName = selectedDevice.getName() != null ? selectedDevice.getName() : "Bluetti Device";
-                appendLog("📌 Обрано станцію: " + connectedDeviceName + " [" + connectedDeviceAddress + "]");
-                statusTextView.setText("Статус: 🔗 З'єднання з " + connectedDeviceName);
-                connectToDevice(selectedDevice);
+                connectedDeviceAddress = device.getAddress();
+                connectedDeviceName = device.getName() != null ? device.getName() : "Bluetti";
+                connectToDevice(device);
             }
         });
-        builder.setNegativeButton("Закрити", null);
         builder.show();
     }
 
     private void connectToDevice(BluetoothDevice device) {
-        if (device == null) return;
-        
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-            checkAndRequestPermissions();
-            return;
-        }
-
         if (bluetoothGatt != null) {
-            appendLog("🔌 Закриття попереднього з'єднання...");
             bluetoothGatt.disconnect();
             bluetoothGatt.close();
             bluetoothGatt = null;
         }
-
         appendLog("🔗 Підключення до " + device.getAddress());
         bluetoothGatt = device.connectGatt(this, false, gattCallback, BluetoothDevice.TRANSPORT_LE);
     }
@@ -366,23 +330,10 @@ public class MainActivity extends Activity {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
-                appendLog("✅ Успішно підключено до GATT сервера!");
-                mainHandler.post(() -> statusTextView.setText("Статус: ✅ Підключено! Пошук сервісів..."));
-                
-                mainHandler.postDelayed(() -> {
-                    if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
-                        gatt.discoverServices();
-                    }
-                }, 500);
-
+                appendLog("✅ Підключено до GATT. Запуск служб...");
+                mainHandler.post(() -> gatt.discoverServices());
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 appendLog("🔌 З'єднання розірвано.");
-                mainHandler.post(() -> {
-                    statusTextView.setText("Статус: 🔌 Зв'язок втрачено.");
-                    btnAcTouchToggle.setEnabled(false);
-                    btnModeToggle.setEnabled(false);
-                    renderPlaceholderTable();
-                });
             }
         }
 
@@ -395,190 +346,117 @@ public class MainActivity extends Activity {
                 for (BluetoothGattService service : gatt.getServices()) {
                     for (BluetoothGattCharacteristic c : service.getCharacteristics()) {
                         String cUuid = c.getUuid().toString();
-                        if (cUuid.contains("ff02")) {
-                            writeCharacteristic = c;
-                            appendLog("🎯 Знайдено та закріплено WRITE канал: ff02");
-                        } else if (cUuid.contains("ff01")) {
-                            notifyCharacteristic = c;
-                            appendLog("🔔 Знайдено NOTIFY канал: ff01");
-                        }
+                        if (cUuid.contains("ff02")) writeCharacteristic = c;
+                        else if (cUuid.contains("ff01")) notifyCharacteristic = c;
                     }
                 }
 
                 if (writeCharacteristic != null && notifyCharacteristic != null) {
-                    appendLog("✅ УСПІХ: Канал ff02 готовий до роботи!");
+                    appendLog("✅ Знайдено ff02 (Write) та ff01 (Notify). Активація сповіщень...");
                     if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
                         gatt.setCharacteristicNotification(notifyCharacteristic, true);
-                        BluetoothGattDescriptor descriptor = notifyCharacteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG);
-                        if (descriptor != null) {
-                            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                            gatt.writeDescriptor(descriptor);
-                            appendLog("🔔 Підписку на сповіщення активовано.");
+                        BluetoothGattDescriptor desc = notifyCharacteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG);
+                        if (desc != null) {
+                            desc.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                            gatt.writeDescriptor(desc);
                         }
                     }
 
                     mainHandler.post(() -> {
-                        statusTextView.setText("Статус: 🟢 Онлайн через ff02 ⚡");
+                        statusTextView.setText("Статус: 🟢 Онлайн, збираємо дамп хендшейку");
                         btnAcTouchToggle.setEnabled(true);
                         btnModeToggle.setEnabled(true);
-                        updateLiveTelemetry("Підключено (ff02)", "100%", "0 Вт", "150 Вт");
                     });
-                } else {
-                    appendLog("❌ ПОМИЛКА: Не знайдено ff02 або ff01!");
                 }
             }
         }
 
         @Override
-        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+        1public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
             byte[] data = characteristic.getValue();
             if (data != null && data.length > 0) {
-                parseModbusResponse(data);
+                parseAndLogSniffedData(data);
             }
         }
     };
 
-    private void parseModbusResponse(byte[] data) {
-        StringBuilder sb = new StringBuilder();
+    // Детальний парсер вхідного трафіку для перехоплення хендшейку
+    private void parseAndLogSniffedData(byte[] data) {
+        StringBuilder hex = new StringBuilder();
+        StringBuilder ascii = new StringBuilder();
         for (byte b : data) {
-            sb.append(String.format("%02X ", b));
+            hex.append(String.format("%02X ", b));
+            if (b >= 32 && b <= 126) ascii.append((char) b);
+            else ascii.append(".");
         }
-        
-        if (data.length >= 3 && (data[1] & 0x80) != 0) {
-            int errCode = data[2] & 0xFF;
-            String errStr = (errCode == 0x02) ? "Illegal Data Address (Регістр заблокований)" : "Код помилки 0x" + Integer.toHexString(errCode);
-            appendLog("📥 Відповідь [ПОМИЛКА]: " + sb.toString().trim() + " -> " + errStr);
-        } else {
-            appendLog("📥 Відповідь [УСПІХ/ДАНІ]: " + sb.toString().trim());
-        }
+        appendLog(String.format("📥 SNIFF [%d B] HEX: %s | ASCII: %s", data.length, hex.toString().trim(), ascii.toString()));
     }
 
-    private void updateLiveTelemetry(String conn, String soc, String acPower, String gridPower) {
-        telemetryTable.removeAllViews();
-        addTableRow("Параметр Bluetti EB3A", "Значення", true);
-        addTableRow("Статус зв'язку", conn, false);
-        addTableRow("Обрана станція", connectedDeviceName, false);
-        addTableRow("Рівень заряду (SoC)", soc, false);
-        addTableRow("Потужність AC (Вихід)", acPower, false);
-        addTableRow("Вхідна мережа", gridPower, false);
+    private void sendHandshakeAndToggleAc() {
+        appendLog("🚀 Спроба ініціалізації сесії перед увімкненням AC...");
+        // Відправляємо спочатку префіксний пакет ідентифікації (наприклад, станковий інфо-запит)
+        sendRawBytes(new byte[] { 0x01, 0x03, 0x00, 0x00, 0x00, 0x05, 0x85, 0xC9 });
+        
+        mainHandler.postDelayed(() -> {
+            // Потім команду увімкнення AC
+            sendModbusWrite(0x000B, 0x0001);
+        }, 500);
     }
 
-    private void toggleAcOutput() {
-        isAcOn = !isAcOn;
-        if (isAcOn) {
-            btnAcTouchToggle.setText("🔌 Вимкнути AC (220В)");
-            btnAcTouchToggle.setBackgroundColor(Color.parseColor("#10B981"));
-            appendLog("⚙️ Запит: УВІМКНЕННЯ AC (220В)");
-        } else {
-            btnAcTouchToggle.setText("🔌 Увімкнути AC (220В)");
-            btnAcTouchToggle.setBackgroundColor(Color.parseColor("#475569"));
-            appendLog("⚙️ Запит: ВИМКНЕННЯ AC (220В)");
-        }
-        sendModbusWrite(0x000B, isAcOn ? 0x01 : 0x00);
+    private void sendExplicitLoginPacket() {
+        appendLog("🔑 Відправка тестового масиву авторизації...");
+        // Деякі ревізії вимагають спеціальний пакет розблокування в регістр 0x0000 або 0x00F0
+        sendModbusWrite(0x00F0, 0x55AA);
     }
 
-    private void cycleChargingMode() {
-        currentChargingMode = (currentChargingMode + 1) % 3;
-        int modeVal = currentChargingMode;
-        
-        String modeName = "Стандартний";
-        if (modeVal == 0) modeName = "Тихий (200Вт)";
-        else if (modeVal == 1) modeName = "Стандартний (350Вт)";
-        else if (modeVal == 2) modeName = "Турбо (430Вт)";
+    private void sendModbusWrite(int reg, int val) {
+        if (bluetoothGatt == null || writeCharacteristic == null) return;
+        byte[] payload = new byte[] { 0x01, 0x06, (byte)(reg >> 8), (byte)(reg & 0xFF), (byte)(val >> 8), (byte)(val & 0xFF) };
+        byte[] crc = calculateCRC(payload);
+        byte[] packet = new byte[8];
+        System.arraycopy(payload, 0, packet, 0, 6);
+        packet[6] = crc[0];
+        packet[7] = crc[1];
 
-        btnModeToggle.setText("⚙️ Режим заряду: " + modeName);
-        appendLog("⚙️ Зміна режиму зарядки: " + modeName);
-        
-        sendModbusWrite(0x000F, modeVal);
-    }
-
-    private void sendModbusWrite(int registerAddress, int value) {
-        if (bluetoothGatt == null || writeCharacteristic == null) {
-            appendLog("❌ Помилка: Станція не підключена або ff02 недоступний!");
-            Toast.makeText(this, "Станція не підключена!", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        
-        // Функція 0x06 (Write Single Register) через ff02 без обгортки (як вимагає прошивка)
-        byte[] packetWithoutCrc = new byte[] {
-            0x01,
-            0x06,
-            (byte) (registerAddress >> 8),
-            (byte) (registerAddress & 0xFF),
-            (byte) (value >> 8),
-            (byte) (value & 0xFF)
-        };
-        
-        byte[] crc = calculateModbusCRC(packetWithoutCrc);
-        byte[] fullPacket = new byte[8];
-        System.arraycopy(packetWithoutCrc, 0, fullPacket, 0, 6);
-        fullPacket[6] = crc[0];
-        fullPacket[7] = crc[1];
-        
-        writeCharacteristic.setValue(fullPacket);
+        writeCharacteristic.setValue(packet);
         writeCharacteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
         
-        StringBuilder hexStr = new StringBuilder();
-        for (byte b : fullPacket) hexStr.append(String.format("%02X ", b));
-        
-        appendLog(String.format("📤 ff02 WRITE [Reg: 0x%04X, Val: 0x%04X] HEX: %s", 
-            registerAddress, value, hexStr.toString().trim()));
-        
+        StringBuilder sb = new StringBuilder();
+        for (byte b : packet) sb.append(String.format("%02X ", b));
+        appendLog("📤 WRITE ff02: " + sb.toString().trim());
+
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
             bluetoothGatt.writeCharacteristic(writeCharacteristic);
         }
     }
 
-    private byte[] calculateModbusCRC(byte[] data) {
+    private void sendRawBytes(byte[] raw) {
+        if (bluetoothGatt == null || writeCharacteristic == null) return;
+        writeCharacteristic.setValue(raw);
+        writeCharacteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+            bluetoothGatt.writeCharacteristic(writeCharacteristic);
+        }
+        appendLog("📤 RAW SEND: " + raw.length + " bytes");
+    }
+
+    private byte[] calculateCRC(byte[] data) {
         int crc = 0xFFFF;
-        for (int pos = 0; pos < data.length; pos++) {
-            crc ^= (data[pos] & 0xFF);
+        for (byte b : data) {
+            crc ^= (b & 0xFF);
             for (int i = 8; i != 0; i--) {
-                if ((crc & 0x0001) != 0) {
-                    crc >>= 1;
-                    crc ^= 0xA001;
-                } else {
-                    crc >>= 1;
-                }
+                if ((crc & 0x0001) != 0) { crc >>= 1; crc ^= 0xA001; }
+                else { crc >>= 1; }
             }
         }
-        return new byte[] { (byte) (crc & 0xFF), (byte) ((crc >> 8) & 0xFF) };
+        return new byte[] { (byte)(crc & 0xFF), (byte)((crc >> 8) & 0xFF) };
     }
 
-    // --- СКАНИР / ПОШУК ДОСТУПНИХ РЕГІСТРІВ ЧЕРЕЗ ff02 ---
-    private void showScanDialog() {
-        CharSequence[] options = {
-            "🔍 1. Сканувати базові регістри керування (0x0000 - 0x0020)",
-            "🔍 2. Сканувати сервісні регістри (0x0A00 - 0x0A10)",
-            "🔍 3. Сканувати системні блоки (0x1000 - 0x1010)"
-        };
-
+    private void showAuthHubDialog() {
         new AlertDialog.Builder(this)
-            .setTitle("🛠 Сканер регістрів через ff02")
-            .setItems(options, (dialog, which) -> {
-                if (which == 0) {
-                    runRegisterScan(0x0000, 0x0020);
-                } else if (which == 1) {
-                    runRegisterScan(0x0A00, 0x0A10);
-                } else if (which == 2) {
-                    runRegisterScan(0x1000, 0x1010);
-                }
-            })
+            .setTitle("🛠 Аналізатор хендшейку")
+            .setItems(new CharSequence[]{"ℹ️ Перевіряйте консоль при підключенні на наявність вхідних байтів"}, (d, w) -> {})
             .setNegativeButton("Закрити", null)
             .show();
-    }
-
-    private void runRegisterScan(int startReg, int endReg) {
-        appendLog(String.format("🚀 Запуск сканування діапазону 0x%04X - 0x%04X через ff02...", startReg, endReg));
-        Toast.makeText(this, "Сканування запущено. Дивіться лог.", Toast.LENGTH_SHORT).show();
-
-        int delay = 0;
-        for (int reg = startReg; reg <= endReg; reg++) {
-            final int currentReg = reg;
-            mainHandler.postDelayed(() -> {
-                sendModbusWrite(currentReg, 0x0001);
-            }, delay * 350L);
-            delay++;
-        }
     }
 }
