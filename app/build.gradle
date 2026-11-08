@@ -3,15 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version1'
+    namespace 'com.pro8.version1'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version1"
+        applicationId "com.pro8.version1"
         minSdk 21
         targetSdk 34
-        versionCode 147
+        versionCode 148
         versionName "1"
-        multiDexEnabled true
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -29,6 +28,4 @@ dependencies {
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.16.0'
-    implementation 'org.apache.poi:poi:5.2.3'
-    implementation 'org.apache.poi:poi-ooxml:5.2.3'
 }
