@@ -30,7 +30,7 @@ jobs:
       - name: Prepare APK and Java Code Duplicate
         run: |
           RAW_APK=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
-          TARGET_NAME="PDF_DOCX_v1"
+          TARGET_NAME="CompilerMonster11_v11"
           FINAL_APK="${TARGET_NAME}.apk"
           TXT_PATH="${TARGET_NAME}.java.txt"
           cp "$RAW_APK" "$FINAL_APK"
@@ -38,12 +38,12 @@ jobs:
           if [ -f "$JAVA_SRC" ]; then
             cp "$JAVA_SRC" "$TXT_PATH"
           else
-            echo "package com.pdfdocx.version1;" > "$TXT_PATH"
+            echo "package com.pro9.version11;" > "$TXT_PATH"
           fi
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: "PDF_DOCX_v1"
+          name: "CompilerMonster11_v11"
           path: |
             *.apk
             *.java.txt
