@@ -9,7 +9,7 @@ android {
         applicationId "com.roman.version1"
         minSdk 26
         targetSdk 34
-        versionCode 176
+        versionCode 177
         versionName "1"
         multiDexEnabled true
     }
