@@ -22,6 +22,7 @@ import android.view.View;
 import android.widget.*;
 
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
@@ -296,11 +297,11 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * Чтение Excel: вычисление результатов, извлечение цветов (.xlsx и .xls) и сохранение живых формул
+     * Чтение Excel: с поддержкой объединенных ячеек (Merged Cells), вычислением формул и сохранением цветов
      */
     private void processExcelFileWithPoi(Uri uri) {
         activeFileName = getFileName(uri);
-        statusTextView.setText("Статус: 🔄 Читання даних та кольорів 🌈");
+        statusTextView.setText("Статус: 🔄 Читання структури та об'єднаних комірок 🌈");
 
         new Thread(() -> {
             List<List<String>> loadedData = new ArrayList<>();
@@ -329,6 +330,37 @@ public class MainActivity extends Activity {
                         DataFormatter formatter = new DataFormatter();
                         FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
                         
+                        // 1. Определяем максимальное количество колонок и карту объединенных ячеек (Merged Cells)
+                        int maxCols = 1;
+                        Map<String, String> mergedCellsMap = new HashMap<>();
+
+                        for (int i = 0; i < sheet.getNumMergedRegions(); i++) {
+                            CellRangeAddress region = sheet.getMergedRegion(i);
+                            if (region.getLastColumn() + 1 > maxCols) {
+                                maxCols = region.getLastColumn() + 1;
+                            }
+                            Row r = sheet.getRow(region.getFirstRow());
+                            if (r != null) {
+                                Cell c = r.getCell(region.getFirstColumn(), Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+                                if (c != null) {
+                                    String val = formatter.formatCellValue(c, evaluator);
+                                    if (val != null && !val.isEmpty()) {
+                                        for (int rowIdx = region.getFirstRow(); rowIdx <= region.getLastRow(); rowIdx++) {
+                                            for (int colIdx = region.getFirstColumn(); colIdx <= region.getLastColumn(); colIdx++) {
+                                                mergedCellsMap.put(rowIdx + "_" + colIdx, val);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        for (Row row : sheet) {
+                            if (row.getLastCellNum() > maxCols) {
+                                maxCols = row.getLastCellNum();
+                            }
+                        }
+
                         int rowCount = 0;
 
                         for (Row row : sheet) {
@@ -336,36 +368,33 @@ public class MainActivity extends Activity {
                             List<String> rowCells = new ArrayList<>();
                             List<String> rowFormulas = new ArrayList<>();
                             List<Integer> rowCellColors = new ArrayList<>();
-                            
-                            int maxCells = Math.max(row.getLastCellNum(), 1);
-                            boolean isRowEmpty = true;
 
-                            for (int c = 0; c < maxCells; c++) {
+                            for (int c = 0; c < maxCols; c++) {
                                 Cell cell = row.getCell(c, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
                                 
-                                // Отображаем вычисленный результат на экране
                                 String displayVal = formatter.formatCellValue(cell, evaluator);
-                                rowCells.add(displayVal);
                                 
-                                // Сохраняем формулу, если она есть
+                                // Если ячейка пустая, но находится внутри объединенного региона — берем текст из шапки
+                                String mergedVal = mergedCellsMap.get(rowCount + "_" + c);
+                                if ((displayVal == null || displayVal.trim().isEmpty()) && mergedVal != null) {
+                                    displayVal = mergedVal;
+                                }
+                                
+                                rowCells.add(displayVal != null ? displayVal : "");
+                                
                                 String formulaStr = "";
                                 if (cell.getCellType() == CellType.FORMULA) {
                                     formulaStr = cell.getCellFormula();
                                 }
                                 rowFormulas.add(formulaStr);
-                                
-                                if ((displayVal != null && !displayVal.trim().isEmpty()) || !formulaStr.isEmpty()) {
-                                    isRowEmpty = false;
-                                }
 
-                                // Безопасное извлечение цветов для .xlsx и старых .xls файлов
+                                // Безопасное извлечение цветов для .xlsx и .xls
                                 int cellColor = (rowCount == 0) ? Color.parseColor("#1E293B") : Color.parseColor("#0F172A");
                                 try {
                                     CellStyle style = cell.getCellStyle();
                                     if (style != null) {
                                         FillPatternType pattern = style.getFillPattern();
                                         if (pattern != null && pattern != FillPatternType.NO_FILL) {
-                                            // 1. Для современного формата .xlsx (XSSF)
                                             org.apache.poi.ss.usermodel.Color poiColor = style.getFillForegroundColorColor();
                                             if (poiColor instanceof XSSFColor) {
                                                 byte[] rgb = ((XSSFColor) poiColor).getRGB();
@@ -378,17 +407,14 @@ public class MainActivity extends Activity {
                                                     }
                                                 }
                                             } 
-                                            // 2. Для старого формата .xls (HSSF) через палитру
                                             else if (workbook instanceof HSSFWorkbook) {
                                                 HSSFWorkbook hssfWorkbook = (HSSFWorkbook) workbook;
                                                 HSSFPalette palette = hssfWorkbook.getCustomPalette();
                                                 short colorIndex = style.getFillForegroundColor();
-                                                
                                                 HSSFColor hssfColor = null;
                                                 if (palette != null) {
                                                     hssfColor = palette.getColor(colorIndex);
                                                 }
-                                                
                                                 if (hssfColor != null) {
                                                     short[] triplet = hssfColor.getTriplet();
                                                     if (triplet != null && triplet.length >= 3) {
@@ -408,12 +434,11 @@ public class MainActivity extends Activity {
                                 rowCellColors.add(cellColor);
                             }
                             
-                            if (!isRowEmpty) {
-                                loadedData.add(rowCells);
-                                loadedFormulas.add(rowFormulas);
-                                loadedColors.add(rowCellColors);
-                                rowCount++;
-                            }
+                            // Добавляем все строки без пропусков, чтобы номера строк совпадали с Excel
+                            loadedData.add(rowCells);
+                            loadedFormulas.add(rowFormulas);
+                            loadedColors.add(rowCellColors);
+                            rowCount++;
                         }
                     }
                 }
@@ -440,7 +465,7 @@ public class MainActivity extends Activity {
             new Handler(Looper.getMainLooper()).post(() -> {
                 buildTableUI();
                 btnSaveExcel.setVisibility(View.VISIBLE);
-                statusTextView.setText("Статус: ✅ Завантажено з кольорами та формулами! 📊");
+                statusTextView.setText("Статус: ✅ Завантажено рівно по сітці Excel! 📊");
             });
         }).start();
     }
@@ -534,7 +559,6 @@ public class MainActivity extends Activity {
         }
         String currentValue = currentTableData.get(rowIndex).get(colIndex);
         
-        // В редакторе показываем формулу со знаком "=" или обычное значение
         final String initialEditText = (currentFormula != null && !currentFormula.isEmpty()) ? "=" + currentFormula : currentValue;
 
         LinearLayout layout = new LinearLayout(this);
