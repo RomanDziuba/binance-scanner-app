@@ -3,23 +3,23 @@ plugins {
 }
 
 android {
-    namespace 'com.pro11.version1'
+    namespace 'com.roman.version1'
     compileSdk 34
     defaultConfig {
-        applicationId "com.pro11.version1"
-        minSdk 26
+        applicationId "com.roman.version1"
+        minSdk 21
         targetSdk 34
         versionCode 194
         versionName "1"
         multiDexEnabled true
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "CompilerMonster11_v1-" + variant.name + ".apk"
+            outputFileName = "RomaMonsterApp_v1-" + variant.name + ".apk"
         }
     }
 }
@@ -31,4 +31,5 @@ dependencies {
     implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.16.0'
     implementation 'org.apache.poi:poi:5.2.3'
     implementation 'org.apache.poi:poi-ooxml:5.2.3'
+    implementation 'com.tom_roush:pdfbox-android:2.0.27.0'
 }
