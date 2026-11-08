@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.bluetti.version1'
+    namespace 'com.pro9.version11'
     compileSdk 34
     defaultConfig {
-        applicationId "com.bluetti.version1"
+        applicationId "com.pro9.version11"
         minSdk 26
         targetSdk 34
-        versionCode 162
-        versionName "1"
+        versionCode 160
+        versionName "11"
         multiDexEnabled true
     }
     compileOptions {
@@ -19,7 +19,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "bluetti_v1-" + variant.name + ".apk"
+            outputFileName = "CompilerMonster11_v11-" + variant.name + ".apk"
         }
     }
 }
