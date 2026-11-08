@@ -358,7 +358,7 @@ public class MainActivity extends Activity {
                                     isRowEmpty = false;
                                 }
 
-                                // Улучшенное и безопасное извлечение цветов для .xlsx и старых .xls файлов
+                                // Безопасное извлечение цветов для .xlsx и старых .xls файлов
                                 int cellColor = (rowCount == 0) ? Color.parseColor("#1E293B") : Color.parseColor("#0F172A");
                                 try {
                                     CellStyle style = cell.getCellStyle();
@@ -387,9 +387,6 @@ public class MainActivity extends Activity {
                                                 HSSFColor hssfColor = null;
                                                 if (palette != null) {
                                                     hssfColor = palette.getColor(colorIndex);
-                                                }
-                                                if (hssfColor == null) {
-                                                    hssfColor = HSSFColor.toHSSFColor(colorIndex);
                                                 }
                                                 
                                                 if (hssfColor != null) {
