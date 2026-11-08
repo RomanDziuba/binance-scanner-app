@@ -9,7 +9,7 @@ android {
         applicationId "com.pro11.version11"
         minSdk 26
         targetSdk 34
-        versionCode 195
+        versionCode 196
         versionName "11"
         multiDexEnabled true
     }
