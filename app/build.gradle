@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version1'
+    namespace 'com.pdf.version1'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version1"
+        applicationId "com.pdf.version1"
         minSdk 21
         targetSdk 34
-        versionCode 194
+        versionCode 195
         versionName "1"
         multiDexEnabled true
     }
@@ -19,7 +19,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "RomaMonsterApp_v1-" + variant.name + ".apk"
+            outputFileName = "PDF_DOCS_v1-" + variant.name + ".apk"
         }
     }
 }
