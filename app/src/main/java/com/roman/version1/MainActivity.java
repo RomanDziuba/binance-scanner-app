@@ -58,9 +58,9 @@ public class MainActivity extends Activity {
     private final List<BluetoothDevice> scannedDevices = new ArrayList<>();
     private final List<String> scannedDeviceNames = new ArrayList<>();
 
-    // Стандартні та альтернативні UUID Bluetti
-    private static final UUID BLUETTI_SERVICE_UUID = UUID.fromString("0000ffe0-0000-1000-8000-00805f9b34fb");
-    private static final UUID BLUETTI_ALT_SERVICE_UUID = UUID.fromString("0000ff00-0000-1000-8000-00805f9b34fb");
+    // Основні сервіси Bluetti EB3A
+    private static final UUID BLUETTI_SERVICE_FF00 = UUID.fromString("0000ff00-0000-1000-8000-00805f9b34fb");
+    private static final UUID BLUETTI_SERVICE_FFE0 = UUID.fromString("0000ffe0-0000-1000-8000-00805f9b34fb");
     private static final UUID CLIENT_CHARACTERISTIC_CONFIG = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
 
     private BluetoothGattCharacteristic writeCharacteristic = null;
@@ -122,7 +122,7 @@ public class MainActivity extends Activity {
         setContentView(rootLayout);
 
         checkAndRequestPermissions();
-        appendLog("🚀 Додаток запущено. Динамічний пошук сервісів активний.");
+        appendLog("🚀 Додаток запущено. Точний пошук Bluetti-сервісу активний.");
     }
 
     private void appendLog(String message) {
@@ -374,7 +374,6 @@ public class MainActivity extends Activity {
                 appendLog("✅ Успішно підключено до GATT сервера!");
                 mainHandler.post(() -> statusTextView.setText("Статус: ✅ Підключено! Пошук сервісів..."));
                 
-                // Невелика затримка для стабілізації BLE стеку перед discoverServices
                 mainHandler.postDelayed(() -> {
                     if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
                         appendLog("🔎 Запуск gatt.discoverServices()...");
@@ -401,39 +400,59 @@ public class MainActivity extends Activity {
                 writeCharacteristic = null;
                 notifyCharacteristic = null;
 
-                // Универсальный сканер всех сервисов пристрою
-                List<BluetoothGattService> services = gatt.getServices();
-                appendLog("💡 Знайдено всього сервісів: " + services.size());
+                // КРОК 1: Шукаємо суворо в кастомному сервісі Bluetti (ff00 або ffe0)
+                BluetoothGattService bluettiService = gatt.getService(BLUETTI_SERVICE_FF00);
+                if (bluettiService == null) {
+                    bluettiService = gatt.getService(BLUETTI_SERVICE_FFE0);
+                }
 
-                for (BluetoothGattService s : services) {
-                    String sUuid = s.getUuid().toString();
-                    appendLog("📦 Сервіс: " + sUuid);
-
-                    for (BluetoothGattCharacteristic c : s.getCharacteristics()) {
+                if (bluettiService != null) {
+                    appendLog("✔ Знайдено офіційний сервіс Bluetti: " + bluettiService.getUuid());
+                    for (BluetoothGattCharacteristic c : bluettiService.getCharacteristics()) {
                         String cUuid = c.getUuid().toString();
                         int props = c.getProperties();
+                        appendLog("  🔸 Характеристика: " + cUuid + " [Props: " + props + "]");
 
-                        // Ищем WRITE характеристику
+                        // Визначаємо WRITE (підтримує write або write_no_response)
                         if ((props & BluetoothGattCharacteristic.PROPERTY_WRITE) != 0 || 
                             (props & BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0) {
-                            if (writeCharacteristic == null) {
-                                writeCharacteristic = c;
-                                appendLog("  🎯 Авто-виявлено WRITE характеристику: " + cUuid);
-                            }
+                            writeCharacteristic = c;
+                            appendLog("    🎯 Обрано як WRITE канал: " + cUuid);
                         }
 
-                        // Ищем NOTIFY характеристику
+                        // Визначаємо NOTIFY
                         if ((props & BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0) {
-                            if (notifyCharacteristic == null) {
-                                notifyCharacteristic = c;
-                                appendLog("  🔔 Авто-виявлено NOTIFY характеристику: " + cUuid);
+                            notifyCharacteristic = c;
+                            appendLog("    🔔 Обрано як NOTIFY канал: " + cUuid);
+                        }
+                    }
+                } else {
+                    appendLog("⚠️ Сервіс ff00/ffe0 не знайдено, скануємо всі доступні кастомні канали...");
+                    for (BluetoothGattService s : gatt.getServices()) {
+                        String sUuid = s.getUuid().toString();
+                        if (sUuid.startsWith("000018")) continue; // Пропускаємо стандартні системні служби (1800, 1801 і т.д.)
+                        
+                        for (BluetoothGattCharacteristic c : s.getCharacteristics()) {
+                            int props = c.getProperties();
+                            if ((props & BluetoothGattCharacteristic.PROPERTY_WRITE) != 0 || 
+                                (props & BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0) {
+                                if (writeCharacteristic == null) {
+                                    writeCharacteristic = c;
+                                    appendLog("  🎯 Fallback WRITE: " + c.getUuid() + " у сервісі " + sUuid);
+                                }
+                            }
+                            if ((props & BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0) {
+                                if (notifyCharacteristic == null) {
+                                    notifyCharacteristic = c;
+                                    appendLog("  🔔 Fallback NOTIFY: " + c.getUuid() + " у сервісі " + sUuid);
+                                }
                             }
                         }
                     }
                 }
 
                 if (writeCharacteristic != null) {
-                    appendLog("✅ УСПІХ: Готова характеристика для відправки команд!");
+                    appendLog("✅ УСПІХ: Знайдено робочий WRITE канал для команд!");
                     if (notifyCharacteristic != null) {
                         if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
                             gatt.setCharacteristicNotification(notifyCharacteristic, true);
@@ -453,7 +472,7 @@ public class MainActivity extends Activity {
                         updateLiveTelemetry("Підключено (Online)", "100%", "0 Вт", "150 Вт");
                     });
                 } else {
-                    appendLog("❌ НЕ ЗНАЙДЕНО придатну WRITE характеристику у пристрої!");
+                    appendLog("❌ ПОМИЛКА: Не вдалося знайти WRITE характеристику в пристрої!");
                 }
 
             } else {
