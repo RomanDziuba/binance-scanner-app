@@ -1,389 +1,139 @@
 package com.roman.version1;
 
-import android.Manifest;
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCallback;
-import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothGattDescriptor;
-import android.bluetooth.BluetoothGattService;
-import android.bluetooth.BluetoothManager;
-import android.bluetooth.BluetoothProfile;
-import android.bluetooth.le.BluetoothLeScanner;
-import android.bluetooth.le.ScanCallback;
-import android.bluetooth.le.ScanResult;
 import android.content.Context;
-import android.content.pm.PackageManager;
+import android.hardware.camera2.CameraManager;
+import android.os.Bundle;
+import android.view.Gravity;
+import android.view.WindowManager;
+import android.widget.*;
 import android.graphics.Color;
 import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
-import android.view.Gravity;
-import android.widget.*;
+import ai.onnxruntime.OrtEnvironment;
+import ai.onnxruntime.OrtSession;
+import java.io.File;
+import java.io.InputStream;
+import java.io.FileOutputStream;
 
-import androidx.core.app.ActivityCompat;
-
-import java.util.UUID;
-
+// THEME: @android:style/Theme.Material.Light.NoActionBar
 public class MainActivity extends Activity {
-
-    private LinearLayout rootLayout;
-    private TextView statusTextView;
-    private TableLayout telemetryTable;
-    private Button btnScan, btnConnect, btnAcToggle, btnModeToggle, btnAdvancedInfo;
-
-    private BluetoothAdapter bluetoothAdapter;
-    private BluetoothLeScanner bleScanner;
-    private BluetoothGatt bluetoothGatt;
-    
-    private String connectedDeviceAddress = null;
-    private boolean isScanning = false;
-    private boolean isAcOn = false;
-    private int currentChargingMode = 1; // 0: Silent, 1: Standard, 2: Turbo
-
-    // Стандартні UUID для Bluetti BLE (Modbus шина)
-    private static final UUID BLUETTI_SERVICE_UUID = UUID.fromString("0000ffe0-0000-1000-8000-00805f9b34fb");
-    private static final UUID BLUETTI_CHAR_WRITE_UUID = UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb");
-    private static final UUID BLUETTI_CHAR_NOTIFY_UUID = UUID.fromString("0000ffe2-0000-1000-8000-00805f9b34fb");
-    private static final UUID CLIENT_CHARACTERISTIC_CONFIG = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
-
-    private BluetoothGattCharacteristic writeCharacteristic = null;
-    private BluetoothGattCharacteristic notifyCharacteristic = null;
-
-    // Винесений колбэк для однозначного виклику stopScan без помилок компілятора
-    private final ScanCallback scanCallback = new ScanCallback() {
-        @Override
-        public void onScanResult(int callbackType, ScanResult result) {
-            super.onScanResult(callbackType, result);
-            BluetoothDevice device = result.getDevice();
-            String name = device.getName();
-            if (name != null && name.contains("EB3A")) {
-                connectedDeviceAddress = device.getAddress();
-                statusTextView.setText("Статус: ✅ Знайдено: " + name + " [" + connectedDeviceAddress + "]");
-                btnConnect.setEnabled(true);
-                if (bleScanner != null) {
-                    if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
-                        bleScanner.stopScan(this);
-                    }
-                }
-                isScanning = false;
-            }
-        }
-    };
+    private boolean isFlashOn = false;
+    private CameraManager cameraManager;
+    private String cameraId;
+    private OrtEnvironment aiEnv;
+    private OrtSession aiSession;
+    private TextView aiStatusText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setGravity(Gravity.CENTER);
+        layout.setBackgroundColor(Color.parseColor("#030712"));
+        layout.setPadding(30, 30, 30, 30);
 
-        rootLayout = new LinearLayout(this);
-        rootLayout.setOrientation(LinearLayout.VERTICAL);
-        rootLayout.setPadding(20, 20, 20, 20);
-        rootLayout.setBackgroundColor(Color.parseColor("#030712"));
-        setContentView(rootLayout);
-
-        BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-        if (bluetoothManager != null) {
-            bluetoothAdapter = bluetoothManager.getAdapter();
-            if (bluetoothAdapter != null) {
-                bleScanner = bluetoothAdapter.getBluetoothLeScanner();
-            }
-        }
-
-        initInterface();
-    }
-
-    private void initInterface() {
         TextView title = new TextView(this);
-        title.setText("⚡ Bluetti EB3A Advanced Control & Telemetry 🇺🇦");
+        title.setText("⚡ Monster Clock, Flash & AI");
         title.setTextColor(Color.parseColor("#38BDF8"));
-        title.setTextSize(17f);
+        title.setTextSize(20f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, 10);
-        rootLayout.addView(title);
+        title.setPadding(0, 0, 0, 15);
+        layout.addView(title);
 
-        statusTextView = new TextView(this);
-        statusTextView.setText("Статус: Готовий до пошуку станції 🔍");
-        statusTextView.setTextColor(Color.parseColor("#10B981"));
-        statusTextView.setTextSize(12f);
-        statusTextView.setGravity(Gravity.CENTER);
-        statusTextView.setPadding(0, 0, 0, 10);
-        rootLayout.addView(statusTextView);
+        aiStatusText = new TextView(this);
+        aiStatusText.setText("⏳ Инициализация оффлайн ИИ...");
+        aiStatusText.setTextColor(Color.parseColor("#10B981"));
+        aiStatusText.setTextSize(11f);
+        aiStatusText.setGravity(Gravity.CENTER);
+        aiStatusText.setPadding(0, 0, 0, 20);
+        layout.addView(aiStatusText);
 
-        btnScan = createStyledButton("🔍 Сканувати Bluetti EB3A", "#2563EB");
-        btnScan.setOnClickListener(v -> startBleScan());
-        rootLayout.addView(btnScan);
+        new Thread(this::initOfflineAiModel).start();
 
-        btnConnect = createStyledButton("🔗 Підключитися до станції", "#0D9488");
-        btnConnect.setEnabled(false);
-        btnConnect.setOnClickListener(v -> connectToDevice());
-        rootLayout.addView(btnConnect);
+        TextClock clock = new TextClock(this);
+        clock.setTextColor(Color.parseColor("#10B981"));
+        clock.setTextSize(48f);
+        clock.setTypeface(Typeface.DEFAULT_BOLD);
+        clock.setGravity(Gravity.CENTER);
+        clock.setPadding(0, 0, 0, 30);
+        layout.addView(clock);
 
-        btnAcToggle = createStyledButton("🔌 Увімкнути / Вимкнути AC (220В)", "#475569");
-        btnAcToggle.setEnabled(false);
-        btnAcToggle.setOnClickListener(v -> toggleAcOutput());
-        rootLayout.addView(btnAcToggle);
+        Button flashBtn = new Button(this);
+        flashBtn.setText("🔦 Включить фонарик");
+        flashBtn.setTextColor(Color.WHITE);
+        flashBtn.setTextSize(14f);
+        flashBtn.setBackgroundColor(Color.parseColor("#2563EB"));
+        flashBtn.setPadding(20, 20, 20, 20);
+        layout.addView(flashBtn);
 
-        btnModeToggle = createStyledButton("⚙️ Режим заряду: Стандартний", "#D97706");
-        btnModeToggle.setEnabled(false);
-        btnModeToggle.setOnClickListener(v -> cycleChargingMode());
-        rootLayout.addView(btnModeToggle);
+        TextView brightLabel = new TextView(this);
+        brightLabel.setText("☀️ Яркость экрана");
+        brightLabel.setTextColor(Color.parseColor("#94A3B8"));
+        brightLabel.setTextSize(12f);
+        brightLabel.setPadding(0, 25, 0, 8);
+        layout.addView(brightLabel);
 
-        btnAdvancedInfo = createStyledButton("📊 Недокументовані регістри та дамп", "#7C3AED");
-        btnAdvancedInfo.setOnClickListener(v -> showAdvancedRegistersDialog());
-        rootLayout.addView(btnAdvancedInfo);
-
-        TextView author = new TextView(this);
-        author.setText("Created by Dziuba Roman • 2026 🇺🇦");
-        author.setTextColor(Color.parseColor("#F59E0B"));
-        author.setTextSize(11f);
-        author.setTypeface(Typeface.create("serif", Typeface.ITALIC));
-        author.setGravity(Gravity.CENTER);
-        author.setPadding(0, 5, 0, 5);
-        rootLayout.addView(author);
-
-        telemetryTable = new TableLayout(this);
-        ScrollView scroll = new ScrollView(this);
-        scroll.addView(telemetryTable);
-        
-        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 850
-        );
-        scrollParams.setMargins(0, 10, 0, 0);
-        scroll.setLayoutParams(scrollParams);
-        rootLayout.addView(scroll);
-
-        renderPlaceholderTable();
-    }
-
-    private Button createStyledButton(String text, String colorHex) {
-        Button btn = new Button(this);
-        btn.setText(text);
-        btn.setTextColor(Color.WHITE);
-        btn.setTextSize(12f);
-        btn.setTypeface(Typeface.DEFAULT_BOLD);
-        btn.setBackgroundColor(Color.parseColor(colorHex));
-        btn.setPadding(12, 12, 12, 12);
-        
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        params.setMargins(0, 0, 0, 8);
-        btn.setLayoutParams(params);
-        return btn;
-    }
-
-    private void renderPlaceholderTable() {
-        telemetryTable.removeAllViews();
-        addTableRow("Параметр Bluetti EB3A", "Значення", true);
-        addTableRow("Статус зв'язку", "Не підключено ❌", false);
-        addTableRow("Рівень заряду (SoC)", "--- %", false);
-        addTableRow("Потужність AC (Вихід)", "--- Вт", false);
-        addTableRow("Вхідна потужність (Мережа)", "--- Вт", false);
-        addTableRow("Напруга акумулятора", "--- В", false);
-        addTableRow("Температура інвертора", "--- °C", false);
-        addTableRow("Режим роботи (Bypass/Inv)", "---", false);
-        addTableRow("Версія DSP / ARM", "v2196.01 / v2197.02", false);
-    }
-
-    private void addTableRow(String label, String value, boolean isHeader) {
-        TableRow row = new TableRow(this);
-        
-        TextView tv1 = new TextView(this);
-        tv1.setText(label);
-        tv1.setTextSize(11f);
-        tv1.setTextColor(isHeader ? Color.parseColor("#38BDF8") : Color.parseColor("#E2E8F0"));
-        tv1.setTypeface(isHeader ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
-        tv1.setPadding(14, 10, 14, 10);
-        
-        TextView tv2 = new TextView(this);
-        tv2.setText(value);
-        tv2.setTextSize(11f);
-        tv2.setTextColor(isHeader ? Color.parseColor("#38BDF8") : Color.parseColor("#10B981"));
-        tv2.setTypeface(isHeader ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
-        tv2.setPadding(14, 10, 14, 10);
-
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(isHeader ? Color.parseColor("#1E293B") : Color.parseColor("#0F172A"));
-        bg.setStroke(1, Color.parseColor("#334155"));
-        
-        row.addView(tv1);
-        row.addView(tv2);
-        telemetryTable.addView(row);
-    }
-
-    private void startBleScan() {
-        if (bleScanner == null) {
-            Toast.makeText(this, "BLE не підтримується!", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{
-                Manifest.permission.BLUETOOTH_SCAN, 
-                Manifest.permission.BLUETOOTH_CONNECT, 
-                Manifest.permission.ACCESS_FINE_LOCATION
-            }, 101);
-            return;
-        }
-
-        statusTextView.setText("Статус: 🔍 Сканування ефіру на наявність EB3A...");
-        isScanning = true;
-        bleScanner.startScan(scanCallback);
-
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            if (isScanning) {
-                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
-                    bleScanner.stopScan(scanCallback);
-                }
-                isScanning = false;
-                if (connectedDeviceAddress == null) {
-                    statusTextView.setText("Статус: ❌ Станцію EB3A не виявлено.");
-                }
+        SeekBar seekBar = new SeekBar(this);
+        seekBar.setMax(100);
+        seekBar.setProgress(50);
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {
+                try {
+                    WindowManager.LayoutParams lp = getWindow().getAttributes();
+                    lp.screenBrightness = Math.max(0.01f, progress / 100f);
+                    getWindow().setAttributes(lp);
+                } catch (Exception ignored) {}
             }
-        }, 10000);
-    }
+            @Override public void onStartTrackingTouch(SeekBar sb) {}
+            @Override public void onStopTrackingTouch(SeekBar sb) {}
+        });
+        layout.addView(seekBar);
 
-    private void connectToDevice() {
-        if (connectedDeviceAddress == null) return;
-        BluetoothDevice device = bluetoothAdapter.getRemoteDevice(connectedDeviceAddress);
-        
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
+        cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+        try {
+            if (cameraManager != null && cameraManager.getCameraIdList().length > 0) {
+                cameraId = cameraManager.getCameraIdList()[0];
+            }
+        } catch (Exception ignored) {}
 
-        statusTextView.setText("Статус: 🔗 Підключення до енергостанції...");
-        bluetoothGatt = device.connectGatt(this, false, gattCallback);
-    }
-
-    private final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
-        @Override
-        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-            if (newState == BluetoothProfile.STATE_CONNECTED) {
-                new Handler(Looper.getMainLooper()).post(() -> {
-                    statusTextView.setText("Статус: ✅ Підключено! Пошук Modbus сервісів...");
-                });
-                if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
-                    gatt.discoverServices();
+        flashBtn.setOnClickListener(v -> {
+            try {
+                if (cameraManager != null && cameraId != null) {
+                    isFlashOn = !isFlashOn;
+                    cameraManager.setTorchMode(cameraId, isFlashOn);
+                    flashBtn.setText(isFlashOn ? "🔦 Выключить фонарик" : "🔦 Включить фонарик");
+                    flashBtn.setBackgroundColor(Color.parseColor(isFlashOn ? "#DC2626" : "#2563EB"));
                 }
-            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                new Handler(Looper.getMainLooper()).post(() -> {
-                    statusTextView.setText("Статус: 🔌 Зв'язок втрачено.");
-                    btnAcToggle.setEnabled(false);
-                    btnModeToggle.setEnabled(false);
-                    renderPlaceholderTable();
-                });
-            }
-        }
+            } catch (Exception e) {}
+        });
 
-        @Override
-        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                BluetoothGattService service = gatt.getService(BLUETTI_SERVICE_UUID);
-                if (service != null) {
-                    writeCharacteristic = service.getCharacteristic(BLUETTI_CHAR_WRITE_UUID);
-                    notifyCharacteristic = service.getCharacteristic(BLUETTI_CHAR_NOTIFY_UUID);
-                    
-                    if (notifyCharacteristic != null) {
-                        gatt.setCharacteristicNotification(notifyCharacteristic, true);
-                        BluetoothGattDescriptor descriptor = notifyCharacteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG);
-                        if (descriptor != null) {
-                            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                            if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
-                                gatt.writeDescriptor(descriptor);
-                            }
-                        }
-                    }
+        setContentView(layout);
+    }
+
+    private void initOfflineAiModel() {
+        try {
+            File modelFile = new File(getFilesDir(), "model.onnx");
+            if (!modelFile.exists() || modelFile.length() == 0) {
+                InputStream in = getAssets().open("model.onnx");
+                FileOutputStream out = new FileOutputStream(modelFile);
+                byte[] buf = new byte[8192];
+                int len;
+                while ((len = in.read(buf)) != -1) {
+                    out.write(buf, 0, len);
                 }
-
-                new Handler(Looper.getMainLooper()).post(() -> {
-                    statusTextView.setText("Статус: 📊 Дані зчитано успішно! Байпас активний ⚡");
-                    btnAcToggle.setEnabled(true);
-                    btnModeToggle.setEnabled(true);
-                    updateLiveTelemetry("Підключено (Online)", "100%", "0 Вт", "150 Вт", "52.4 В", "34.2 °C", "Байпас (UPS)");
-                });
+                out.close();
+                in.close();
             }
+            aiEnv = OrtEnvironment.getEnvironment();
+            aiSession = aiEnv.createSession(modelFile.getAbsolutePath());
+            runOnUiThread(() -> aiStatusText.setText("✅ Оффлайн ИИ модель активна!"));
+        } catch (Exception e) {
+            runOnUiThread(() -> aiStatusText.setText(
+                "ℹ️ Режим стандартного приложения (ИИ модель не найдена в assets)"
+            ));
         }
-
-        @Override
-        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-            byte[] data = characteristic.getValue();
-            if (data != null && data.length > 0) {
-                // Обробка вхідних Modbus-пакетів телеметрії
-            }
-        }
-    };
-
-    private void updateLiveTelemetry(String conn, String soc, String acPower, String gridPower, String voltage, String temp, String mode) {
-        telemetryTable.removeAllViews();
-        addTableRow("Параметр Bluetti EB3A", "Значення", true);
-        addTableRow("Статус зв'язку", conn, false);
-        addTableRow("Рівень заряду (SoC)", soc, false);
-        addTableRow("Потужність AC (Вихід)", acPower, false);
-        addTableRow("Вхідна потужність (Мережа)", gridPower, false);
-        addTableRow("Напруга акумулятора", voltage, false);
-        addTableRow("Температура інвертора", temp, false);
-        addTableRow("Режим роботи (Bypass/Inv)", mode, false);
-        addTableRow("Версія DSP / ARM", "v2196.01 / v2197.02", false);
-    }
-
-    private void toggleAcOutput() {
-        isAcOn = !isAcOn;
-        if (isAcOn) {
-            btnAcToggle.setText("🔌 Вимкнути AC (220В)");
-            btnAcToggle.setBackgroundColor(Color.parseColor("#10B981"));
-            Toast.makeText(this, "Команда: Увімкнення виходу 220В надіслана!", Toast.LENGTH_SHORT).show();
-        } else {
-            btnAcToggle.setText("🔌 Увімкнути AC (220В)");
-            btnAcToggle.setBackgroundColor(Color.parseColor("#475569"));
-            Toast.makeText(this, "Команда: Вимкнення виходу 220В надіслана!", Toast.LENGTH_SHORT).show();
-        }
-        sendModbusCommand(isAcOn ? 0x01 : 0x00);
-    }
-
-    private void cycleChargingMode() {
-        currentChargingMode = (currentChargingMode + 1) % 3;
-        String modeName = "Стандартний";
-        String colorHex = "#D97706";
-        if (currentChargingMode == 0) {
-            modeName = "Тихий (Silent)";
-            colorHex = "#2563EB";
-        } else if (currentChargingMode == 1) {
-            modeName = "Стандартний (Standard)";
-            colorHex = "#D97706";
-        } else if (currentChargingMode == 2) {
-            modeName = "Турбо (Turbo)";
-            colorHex = "#DC2626";
-        }
-        btnModeToggle.setText("⚙️ Режим заряду: " + modeName);
-        btnModeToggle.setBackgroundColor(Color.parseColor(colorHex));
-        Toast.makeText(this, "Змінено режим зарядки на: " + modeName, Toast.LENGTH_SHORT).show();
-    }
-
-    private void sendModbusCommand(int state) {
-        if (bluetoothGatt == null || writeCharacteristic == null) return;
-        byte[] modbusPacket = new byte[]{0x01, 0x06, 0x00, 0x0b, 0x00, (byte) state, 0x00, 0x00};
-        writeCharacteristic.setValue(modbusPacket);
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
-            bluetoothGatt.writeCharacteristic(writeCharacteristic);
-        }
-    }
-
-    private void showAdvancedRegistersDialog() {
-        new AlertDialog.Builder(this)
-            .setTitle("📊 Недокументовані функції та регістри EB3A")
-            .setMessage("Повний перелік розширених можливостей через Modbus over BLE:\n\n" +
-                        "1. Регістр 0x0010: Калібрування датчика струму BMS.\n" +
-                        "2. Регістр 0x0012: Порог захисту від перенапруги (OVP) для байпаса при 100% заряду (вирішує проблему з миганням AC).\n" +
-                        "3. Регістр 0x0025: Управління швидкістю внутрішнього кулера охолодження (Silent / Standard / High).\n" +
-                        "4. Регістр 0x0030: Логування помилок інвертора (код останньої аварії).\n" +
-                        "5. Прямий знімок дампа пам'яті параметрів зарядки (CC/CV thresholds).")
-            .setPositiveButton("Зрозуміло 👍", null)
-            .show();
     }
 }
