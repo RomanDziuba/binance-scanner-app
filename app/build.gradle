@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version11'
+    namespace 'com.bluetti.version1'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version11"
+        applicationId "com.bluetti.version1"
         minSdk 26
         targetSdk 34
-        versionCode 159
-        versionName "11"
+        versionCode 160
+        versionName "1"
         multiDexEnabled true
     }
     compileOptions {
@@ -19,7 +19,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "RomaMonsterApp_v11-" + variant.name + ".apk"
+            outputFileName = "bluetti_v1-" + variant.name + ".apk"
         }
     }
 }
