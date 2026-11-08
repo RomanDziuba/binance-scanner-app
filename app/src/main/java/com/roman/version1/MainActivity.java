@@ -372,7 +372,7 @@ public class MainActivity extends Activity {
         }
 
         @Override
-        1public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
             byte[] data = characteristic.getValue();
             if (data != null && data.length > 0) {
                 parseAndLogSniffedData(data);
@@ -380,7 +380,6 @@ public class MainActivity extends Activity {
         }
     };
 
-    // Детальний парсер вхідного трафіку для перехоплення хендшейку
     private void parseAndLogSniffedData(byte[] data) {
         StringBuilder hex = new StringBuilder();
         StringBuilder ascii = new StringBuilder();
@@ -394,18 +393,15 @@ public class MainActivity extends Activity {
 
     private void sendHandshakeAndToggleAc() {
         appendLog("🚀 Спроба ініціалізації сесії перед увімкненням AC...");
-        // Відправляємо спочатку префіксний пакет ідентифікації (наприклад, станковий інфо-запит)
         sendRawBytes(new byte[] { 0x01, 0x03, 0x00, 0x00, 0x00, 0x05, 0x85, 0xC9 });
         
         mainHandler.postDelayed(() -> {
-            // Потім команду увімкнення AC
             sendModbusWrite(0x000B, 0x0001);
         }, 500);
     }
 
     private void sendExplicitLoginPacket() {
         appendLog("🔑 Відправка тестового масиву авторизації...");
-        // Деякі ревізії вимагають спеціальний пакет розблокування в регістр 0x0000 або 0x00F0
         sendModbusWrite(0x00F0, 0x55AA);
     }
 
