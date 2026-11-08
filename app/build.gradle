@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.pro9.version1'
+    namespace 'com.pro11.version1'
     compileSdk 34
     defaultConfig {
-        applicationId "com.pro9.version1"
+        applicationId "com.pro11.version1"
         minSdk 26
         targetSdk 34
-        versionCode 191
+        versionCode 192
         versionName "1"
         multiDexEnabled true
     }
