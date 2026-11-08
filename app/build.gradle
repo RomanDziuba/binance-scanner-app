@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version1'
+    namespace 'com.xxxlllsss.version1'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version1"
+        applicationId "com.xxxlllsss.version1"
         minSdk 26
         targetSdk 34
-        versionCode 4
+        versionCode 5
         versionName "1"
         multiDexEnabled true
     }
@@ -19,7 +19,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "bluetti_v1-" + variant.name + ".apk"
+            outputFileName = "xxxllls_v1-" + variant.name + ".apk"
         }
     }
 }
