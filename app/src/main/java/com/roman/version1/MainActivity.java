@@ -122,7 +122,7 @@ public class MainActivity extends Activity {
         setContentView(rootLayout);
 
         checkAndRequestPermissions();
-        appendLog("🚀 Додаток запущено. Режим функції 0x10 та діагностики активний.");
+        appendLog("🚀 Додаток запущено. Авторизація сесії та діагностика активні.");
     }
 
     private void appendLog(String message) {
@@ -461,7 +461,7 @@ public class MainActivity extends Activity {
                 int errCode = data[2] & 0xFF;
                 String errDesc = "Невідома помилка";
                 if (errCode == 0x01) errDesc = "Illegal Function (Функція не підтримується)";
-                else if (errCode == 0x02) errDesc = "Illegal Data Address (Адреса регістра заблокована)";
+                else if (errCode == 0x02) errDesc = "Illegal Data Address (Адреса заблокована)";
                 else if (errCode == 0x03) errDesc = "Illegal Data Value (Недопустиме значення)";
                 appendLog("⚠️ ПОМИЛКА MODBUS СТАНЦІЇ [0x" + Integer.toHexString(errCode) + "]: " + errDesc);
                 return;
@@ -507,8 +507,7 @@ public class MainActivity extends Activity {
             btnAcTouchToggle.setBackgroundColor(Color.parseColor("#475569"));
             appendLog("⚙️ Запит: ВИМКНЕННЯ AC (220В)");
         }
-        sendModbusWrite(0x000B, isAcOn ? 0x01 : 0x00);
-        mainHandler.postDelayed(() -> sendModbusWrite(0x001B, isAcOn ? 0x01 : 0x00), 300);
+        sendAuthenticatedWrite(0x000B, isAcOn ? 0x01 : 0x00);
     }
 
     private void cycleChargingMode() {
@@ -523,21 +522,32 @@ public class MainActivity extends Activity {
         btnModeToggle.setText("⚙️ Режим заряду: " + modeName);
         appendLog("⚙️ Зміна режиму зарядки: " + modeName);
         
-        sendModbusWrite(0x000F, modeVal);
-        mainHandler.postDelayed(() -> sendModbusWrite(0x0022, modeVal), 300);
+        sendAuthenticatedWrite(0x000F, modeVal);
     }
 
-    // Запис через функцію 0x10 (Write Multiple Registers) для нових прошивок
-    private void sendModbusWrite(int registerAddress, int value) {
+    // Авторизований запис: спочатку шлемо ключ розблокування сесії, потім саму команду
+    private void sendAuthenticatedWrite(int registerAddress, int value) {
         if (bluetoothGatt == null || writeCharacteristic == null) {
             appendLog("❌ Помилка: Станція не підключена!");
             Toast.makeText(this, "Станція не підключена!", Toast.LENGTH_SHORT).show();
             return;
         }
-        
+
+        // Крок 1: Пакет розблокування/авторизації (запис 0x0001 в системний регістр 0x00F0)
+        sendRawModbus10(0x00F0, 0x0001);
+
+        // Крок 2: Відправка основної команди з невеликою затримкою 250мс для проходження рукостискання
+        mainHandler.postDelayed(() -> {
+            sendRawModbus10(registerAddress, value);
+        }, 250);
+    }
+
+    private void sendRawModbus10(int registerAddress, int value) {
+        if (bluetoothGatt == null || writeCharacteristic == null) return;
+
         byte[] packetWithoutCrc = new byte[] {
             0x01,
-            0x10, // Функція 0x10 для обходу захисту нових прошивок
+            0x10, // Функція 0x10 (Write Multiple Registers)
             (byte) (registerAddress >> 8),
             (byte) (registerAddress & 0xFF),
             0x00, 0x01, // Кількість регістрів: 1
@@ -555,12 +565,11 @@ public class MainActivity extends Activity {
         writeCharacteristic.setValue(fullPacket);
         writeCharacteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
         
-        appendLog(String.format("📤 Modbus 0x10 [Reg: 0x%04X, Val: 0x%04X] HEX: %s", 
+        appendLog(String.format("📤 Auth Modbus [Reg: 0x%04X, Val: 0x%04X] HEX: %s", 
             registerAddress, value, bytesToHex(fullPacket)));
         
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
-            boolean success = bluetoothGatt.writeCharacteristic(writeCharacteristic);
-            appendLog("🔍 Статус запису: " + success);
+            bluetoothGatt.writeCharacteristic(writeCharacteristic);
         }
     }
 
@@ -653,13 +662,13 @@ public class MainActivity extends Activity {
             .setItems(items, (d, w) -> {
                 if (w == 0) {
                     appendLog("⚠️ Запуск калібрування нульового струму BMS...");
-                    sendModbusWrite(0x0010, 0x0001);
+                    sendAuthenticatedWrite(0x0010, 0x0001);
                 } else if (w == 1) {
                     appendLog("⚠️ Синхронізація 100% SoC...");
-                    sendModbusWrite(0x0011, 0x0001);
+                    sendAuthenticatedWrite(0x0011, 0x0001);
                 } else if (w == 2) {
                     appendLog("⚠️ Запуск вирівнювання осередків...");
-                    sendModbusWrite(0x0014, 0x0001);
+                    sendAuthenticatedWrite(0x0014, 0x0001);
                 }
                 Toast.makeText(this, "Команду калібрування надіслано!", Toast.LENGTH_SHORT).show();
             })
@@ -684,9 +693,9 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this)
             .setTitle("🔌 Керування параметрами")
             .setItems(items, (d, w) -> {
-                if (w == 0) sendModbusWrite(0x0040, 1);
-                else if (w == 1) sendModbusWrite(0x0025, 2);
-                else if (w == 2) sendModbusWrite(0x0030, 0);
+                if (w == 0) sendAuthenticatedWrite(0x0040, 1);
+                else if (w == 1) sendAuthenticatedWrite(0x0025, 2);
+                else if (w == 2) sendAuthenticatedWrite(0x0030, 0);
             })
             .setNegativeButton("Назад", (d, w) -> showSettingsHubDialog())
             .show();
