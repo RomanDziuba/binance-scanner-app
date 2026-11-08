@@ -21,7 +21,10 @@ import android.view.View;
 import android.widget.*;
 
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.hssf.util.HSSFColor;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -41,8 +44,8 @@ public class MainActivity extends Activity {
     private TableLayout tableLayout;
     private Button btnSaveExcel;
     
-    // Внутреннее хранилище данных таблицы для отображения и редактирования
     private List<List<String>> currentTableData = new ArrayList<>();
+    private List<List<Integer>> currentTableColors = new ArrayList<>();
     private String activeFileName = "edited_table.xlsx";
 
     @Override
@@ -77,7 +80,7 @@ public class MainActivity extends Activity {
         excelIconBox.setLayoutParams(iconParams);
 
         TextView iconText = new TextView(this);
-        iconText.setText("v3");
+        iconText.setText("😛");
         iconText.setTextColor(Color.WHITE);
         iconText.setTextSize(26f);
         iconText.setTypeface(Typeface.DEFAULT_BOLD);
@@ -85,7 +88,7 @@ public class MainActivity extends Activity {
         splashContainer.addView(excelIconBox);
 
         TextView titleView = new TextView(this);
-        titleView.setText("Universal Excel Reader v3 Pro");
+        titleView.setText("Universal Excel Reader v_1");
         titleView.setTextColor(Color.parseColor("#38BDF8"));
         titleView.setTextSize(22f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -93,7 +96,7 @@ public class MainActivity extends Activity {
         splashContainer.addView(titleView);
 
         TextView descView = new TextView(this);
-        descView.setText("Advanced spreadsheet parsing, formula evaluation & formatting preservation engine.");
+        descView.setText("Advanced spreadsheet parsing, formula evaluation & original color rendering.");
         descView.setTextColor(Color.parseColor("#94A3B8"));
         descView.setTextSize(12f);
         descView.setGravity(Gravity.CENTER);
@@ -101,7 +104,7 @@ public class MainActivity extends Activity {
         splashContainer.addView(descView);
 
         TextView authorView = new TextView(this);
-        authorView.setText("Created by Dziuba Roman • 2026");
+        authorView.setText("Created by Dziuba Roman • 2026 🇺🇦");
         authorView.setTextColor(Color.parseColor("#F59E0B"));
         authorView.setTextSize(13f);
         authorView.setTypeface(Typeface.create("serif", Typeface.ITALIC));
@@ -121,7 +124,7 @@ public class MainActivity extends Activity {
         container.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView header = new TextView(this);
-        header.setText("📊 Universal Excel Reader & Editor v3");
+        header.setText("🧾 Universal Excel Reader & Editor v1 🇺🇦");
         header.setTextColor(Color.parseColor("#38BDF8"));
         header.setTextSize(18f);
         header.setTypeface(Typeface.DEFAULT_BOLD);
@@ -130,31 +133,31 @@ public class MainActivity extends Activity {
         container.addView(header);
 
         statusTextView = new TextView(this);
-        statusTextView.setText("Статус: Готов к работе. Нажмите ячейку для редактирования.");
+        statusTextView.setText("Статус: Готовий до роботи!🚀");
         statusTextView.setTextColor(Color.parseColor("#10B981"));
         statusTextView.setTextSize(12f);
         statusTextView.setGravity(Gravity.CENTER);
         statusTextView.setPadding(0, 0, 0, 15);
         container.addView(statusTextView);
 
-        Button btnOpenExcel = createStyledButton("📂 Открыть файл Excel через проводник", "#2563EB");
+        Button btnOpenExcel = createStyledButton("📂 Відкрити файл Excel", "#2563EB");
         btnOpenExcel.setOnClickListener(v -> openFilePicker());
         container.addView(btnOpenExcel);
 
-        Button btnScanStorage = createStyledButton("🔍 Сканировать устройство (Свежие таблицы)", "#0D9488");
+        Button btnScanStorage = createStyledButton("🔍 Сканувати свіжі таблиці", "#0D9488");
         btnScanStorage.setOnClickListener(v -> scanAndShowExcelFilesDialog());
         container.addView(btnScanStorage);
 
-        btnSaveExcel = createStyledButton("💾 Сохранить изменения в Excel (Downloads)", "#D97706");
-        btnSaveExcel.setVisibility(View.GONE); // Появляется после загрузки файла
+        btnSaveExcel = createStyledButton("💾 Зберегти зміни в Excel (Downloads)", "#D97706");
+        btnSaveExcel.setVisibility(View.GONE);
         btnSaveExcel.setOnClickListener(v -> saveModifiedExcelFile());
         container.addView(btnSaveExcel);
 
-        Button btnExit = createStyledButton("🚪 Закрыть приложение", "#B91C1C");
+        Button btnExit = createStyledButton("🚪 Закрити додаток", "#B91C1C");
         btnExit.setOnClickListener(v -> finishAffinity());
         container.addView(btnExit);
 
-        // Инициализация графической сетки табличного интерфейса (высота 1200 для максимального обзора)
+        // Таблица с безопасной высотой 1200 пикселей для стабильной прокрутки без конфликтов скролла
         tableLayout = new TableLayout(this);
         tableLayout.setPadding(5, 5, 5, 5);
 
@@ -185,7 +188,7 @@ public class MainActivity extends Activity {
         tableLayout.removeAllViews();
         TableRow row = new TableRow(this);
         TextView tv = new TextView(this);
-        tv.setText("   Здесь появится таблица. Откройте файл Excel.   ");
+        tv.setText(" 👉 Відкрийте  файл Excel та він з'явиться ось тут👇");
         tv.setTextColor(Color.parseColor("#94A3B8"));
         tv.setTextSize(12f);
         tv.setPadding(20, 20, 20, 20);
@@ -229,7 +232,7 @@ public class MainActivity extends Activity {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
         intent.addCategory(Intent.CATEGORY_OPENABLE);
-        startActivityForResult(Intent.createChooser(intent, "Выберите таблицу Excel"), PICK_EXCEL_REQUEST);
+        startActivityForResult(Intent.createChooser(intent, "Виберіть таблицю Excel 📑"), PICK_EXCEL_REQUEST);
     }
 
     @Override
@@ -259,19 +262,20 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * Профессиональный парсинг Excel с вычислением формул и фильтрацией пустых строк (лимит 600)
+     * Полноценное универсальное чтение Excel (как .xls так и .xlsx) с безопасным определением цветов
      */
     private void processExcelFileWithPoi(Uri uri) {
         activeFileName = getFileName(uri);
-        statusTextView.setText("Статус: 🔄 Чтение и вычисление формул...");
+        statusTextView.setText("Статус: 🔄 Читання та встановлення кольорів 🌈");
 
         new Thread(() -> {
             currentTableData.clear();
+            currentTableColors.clear();
             try {
                 File tempFile = new File(getCacheDir(), "poi_temp_file.xls");
                 try (InputStream in = getContentResolver().openInputStream(uri);
                      FileOutputStream out = new FileOutputStream(tempFile)) {
-                    if (in == null) throw new Exception("Не удалось открыть поток файла");
+                    if (in == null) throw new Exception("Не вдалося відкрити  файл 😔");
                     byte[] buffer = new byte[16384];
                     int len;
                     while ((len = in.read(buffer)) != -1) {
@@ -293,8 +297,9 @@ public class MainActivity extends Activity {
                         int rowCount = 0;
 
                         for (Row row : sheet) {
-                            if (rowCount > 600) break; // Увеличенный лимит 600 строк
+                            if (rowCount > 600) break; // Лимит 600 строк
                             List<String> rowCells = new ArrayList<>();
+                            List<Integer> rowCellColors = new ArrayList<>();
                             
                             int maxCells = Math.max(row.getLastCellNum(), 1);
                             boolean isRowEmpty = true;
@@ -307,27 +312,68 @@ public class MainActivity extends Activity {
                                 if (val != null && !val.trim().isEmpty()) {
                                     isRowEmpty = false;
                                 }
+
+                                // Безопасное извлечение цветов для любых форматов (.xls и .xlsx)
+                                int cellColor = (rowCount == 0) ? Color.parseColor("#1E293B") : Color.parseColor("#0F172A");
+                                try {
+                                    CellStyle style = cell.getCellStyle();
+                                    if (style != null) {
+                                        // Проверка для .xlsx (XSSF)
+                                        org.apache.poi.ss.usermodel.Color poiColor = style.getFillForegroundColorColor();
+                                        if (poiColor instanceof XSSFColor) {
+                                            byte[] rgb = ((XSSFColor) poiColor).getRGB();
+                                            if (rgb != null && rgb.length >= 3) {
+                                                int r = rgb[0] & 0xFF;
+                                                int g = rgb[1] & 0xFF;
+                                                int b = rgb[2] & 0xFF;
+                                                if (!(r > 245 && g > 245 && b > 245) && !(r < 10 && g < 10 && b < 10)) {
+                                                    cellColor = Color.rgb(r, g, b);
+                                                }
+                                            }
+                                        } 
+                                        // Проверка для старых .xls (HSSF)
+                                        else if (workbook instanceof HSSFWorkbook) {
+                                            HSSFColor hssfColor = ((org.apache.poi.hssf.usermodel.HSSFCellStyle) style).getFillForegroundColorColor();
+                                            if (hssfColor != null) {
+                                                short[] triplet = hssfColor.getTriplet();
+                                                if (triplet != null && triplet.length >= 3) {
+                                                    int r = triplet[0] & 0xFF;
+                                                    int g = triplet[1] & 0xFF;
+                                                    int b = triplet[2] & 0xFF;
+                                                    if (!(r > 245 && g > 245 && b > 245) && !(r < 10 && g < 10 && b < 10)) {
+                                                        cellColor = Color.rgb(r, g, b);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                } catch (Throwable ignored) {}
+                                
+                                rowCellColors.add(cellColor);
                             }
                             
-                            // Пропускаем абсолютно пустые строки
                             if (!isRowEmpty) {
                                 currentTableData.add(rowCells);
+                                currentTableColors.add(rowCellColors);
                                 rowCount++;
                             }
                         }
                     }
                 }
 
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 List<String> errRow = new ArrayList<>();
-                errRow.add("❌ Ошибка чтения: " + e.getMessage());
+                errRow.add("❌ Помилка читання: " + e.getMessage());
                 currentTableData.add(errRow);
+                List<Integer> errColor = new ArrayList<>();
+                errColor.add(Color.parseColor("#991B1B"));
+                currentTableColors.add(errColor);
             }
 
             new Handler(Looper.getMainLooper()).post(() -> {
                 buildTableUI();
                 btnSaveExcel.setVisibility(View.VISIBLE);
-                statusTextView.setText("Статус: ✅ Загружено! Формулы вычислены.");
+                statusTextView.setText("Статус: ✅ Завантажено !👍");
             });
         }).start();
     }
@@ -339,6 +385,9 @@ public class MainActivity extends Activity {
             while ((line = br.readLine()) != null && count < 600) {
                 String[] parts = line.split("[,;]");
                 currentTableData.add(Arrays.asList(parts));
+                List<Integer> rowColors = new ArrayList<>();
+                for (String p : parts) rowColors.add(Color.parseColor("#0F172A"));
+                currentTableColors.add(rowColors);
                 count++;
             }
         }
@@ -349,17 +398,19 @@ public class MainActivity extends Activity {
 
         for (int r = 0; r < currentTableData.size(); r++) {
             List<String> rowData = currentTableData.get(r);
+            List<Integer> rowColors = currentTableColors.get(r);
             TableRow tableRow = new TableRow(this);
 
-            TextView indexTv = createCellView(String.valueOf(r + 1), true, r == 0);
+            TextView indexTv = createCellView(String.valueOf(r + 1), true, r == 0, Color.parseColor("#1E293B"));
             tableRow.addView(indexTv);
 
             for (int c = 0; c < rowData.size(); c++) {
                 final int rowIndex = r;
                 final int colIndex = c;
                 String cellValue = rowData.get(c);
+                int cellBgColor = (c < rowColors.size()) ? rowColors.get(c) : Color.parseColor("#0F172A");
 
-                TextView cellTv = createCellView(cellValue, false, r == 0);
+                TextView cellTv = createCellView(cellValue, false, r == 0, cellBgColor);
                 cellTv.setOnClickListener(v -> showEditCellDialog(rowIndex, colIndex));
                 
                 tableRow.addView(cellTv);
@@ -368,11 +419,27 @@ public class MainActivity extends Activity {
         }
     }
 
-    private TextView createCellView(String text, boolean isHeaderIndex, boolean isTopHeaderRow) {
+    private TextView createCellView(String text, boolean isHeaderIndex, boolean isTopHeaderRow, int customBgColor) {
         TextView tv = new TextView(this);
         tv.setText(text);
         tv.setTextSize(11f);
-        tv.setTextColor(isTopHeaderRow || isHeaderIndex ? Color.parseColor("#38BDF8") : Color.parseColor("#E2E8F0"));
+        
+        int textColor = Color.parseColor("#E2E8F0");
+        if (isTopHeaderRow || isHeaderIndex) {
+            textColor = Color.parseColor("#38BDF8");
+        } else if (customBgColor != Color.parseColor("#0F172A") && customBgColor != Color.parseColor("#1E293B")) {
+            int red = Color.red(customBgColor);
+            int green = Color.green(customBgColor);
+            int blue = Color.blue(customBgColor);
+            double luminance = (0.299 * red + 0.587 * green + 0.114 * blue);
+            if (luminance > 130) {
+                textColor = Color.parseColor("#0F172A"); // Темный текст на светлом фоне
+            } else {
+                textColor = Color.parseColor("#FFFFFF"); // Белый текст на темном фоне
+            }
+        }
+        tv.setTextColor(textColor);
+
         if (isTopHeaderRow || isHeaderIndex) {
             tv.setTypeface(Typeface.DEFAULT_BOLD);
         }
@@ -381,7 +448,7 @@ public class MainActivity extends Activity {
         tv.setSingleLine(false);
 
         GradientDrawable cellBg = new GradientDrawable();
-        cellBg.setColor(isTopHeaderRow ? Color.parseColor("#1E293B") : Color.parseColor("#0F172A"));
+        cellBg.setColor(customBgColor);
         cellBg.setStroke(1, Color.parseColor("#334155"));
         tv.setBackground(cellBg);
 
@@ -397,37 +464,33 @@ public class MainActivity extends Activity {
 
         final EditText input = new EditText(this);
         input.setText(currentValue);
-        input.setTextColor(Color.parseColor("#0F172A"));    // Контрастный текст
-        input.setBackgroundColor(Color.parseColor("#E2E8F0")); // Светлый фон поля
+        input.setTextColor(Color.parseColor("#0F172A"));
+        input.setBackgroundColor(Color.parseColor("#E2E8F0"));
         input.setTextSize(13f);
         input.setPadding(20, 20, 20, 20);
         layout.addView(input);
 
         new AlertDialog.Builder(this)
-            .setTitle("✏️ Редактировать ячейку [" + (rowIndex + 1) + ", " + (colIndex + 1) + "]")
+            .setTitle("✏️ Редагувати  комірку [" + (rowIndex + 1) + ", " + (colIndex + 1) + "]")
             .setView(layout)
-            .setPositiveButton("Сохранить", (dialog, which) -> {
+            .setPositiveButton("Зберегти", (dialog, which) -> {
                 String newValue = input.getText().toString();
                 currentTableData.get(rowIndex).set(colIndex, newValue);
                 buildTableUI();
-                Toast.makeText(this, "Ячейка обновлена!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Комірка оновлена!👌", Toast.LENGTH_SHORT).show();
             })
-            .setNegativeButton("Отмена", null)
+            .setNegativeButton("Відміна🙅", null)
             .show();
     }
 
-    /**
-     * Сохранение с сохранением оригинального форматирования, цветов и структуры
-     */
     private void saveModifiedExcelFile() {
-        statusTextView.setText("Статус: 💾 Сохранение файла с сохранением форматирования...");
+        statusTextView.setText("Статус: 💾 Збереження файла...");
         new Thread(() -> {
             try {
                 File tempFile = new File(getCacheDir(), "poi_temp_file.xls");
                 Workbook workbook;
                 
                 if (tempFile.exists()) {
-                    // Открываем оригинальный шаблон со всеми стилями, цветами и оформлением
                     InputStream fileIn = new FileInputStream(tempFile);
                     workbook = WorkbookFactory.create(fileIn);
                     fileIn.close();
@@ -437,7 +500,6 @@ public class MainActivity extends Activity {
 
                 Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheetAt(0) : workbook.createSheet("Sheet1");
 
-                // Перезаписываем только текст в ячейках, сохраняя оригинальные стили
                 for (int r = 0; r < currentTableData.size(); r++) {
                     Row row = sheet.getRow(r);
                     if (row == null) {
@@ -461,13 +523,13 @@ public class MainActivity extends Activity {
                 workbook.close();
 
                 new Handler(Looper.getMainLooper()).post(() -> {
-                    statusTextView.setText("Статус: ✅ Успешно сохранено!");
-                    Toast.makeText(this, "Файл сохранен в Загрузки: " + outFile.getName(), Toast.LENGTH_LONG).show();
+                    statusTextView.setText("Статус: ✅ Успішне збереження!🔥");
+                    Toast.makeText(this, "Файл збережен до  Загрузок 👌: " + outFile.getName(), Toast.LENGTH_LONG).show();
                 });
 
             } catch (Exception e) {
                 new Handler(Looper.getMainLooper()).post(() -> {
-                    statusTextView.setText("Статус: ❌ Ошибка сохранения");
+                    statusTextView.setText("Статус: ❌ Помилка збереження 🤷");
                     Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
                 });
             }
@@ -475,7 +537,7 @@ public class MainActivity extends Activity {
     }
 
     private void scanAndShowExcelFilesDialog() {
-        statusTextView.setText("Статус: 🔍 Поиск таблиц на устройстве...");
+        statusTextView.setText("Статус: 🔍 Пошук таблиць на пристрої...👀");
         new Thread(() -> {
             List<File> foundFiles = new ArrayList<>();
             try {
@@ -492,9 +554,9 @@ public class MainActivity extends Activity {
             }
 
             new Handler(Looper.getMainLooper()).post(() -> {
-                statusTextView.setText("Статус: Найдено таблиц: " + foundFiles.size());
+                statusTextView.setText("Статус: Знайдено таблиць: 👉" + foundFiles.size());
                 if (foundFiles.isEmpty()) {
-                    Toast.makeText(this, "Таблицы не найдены на устройстве", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Таблиці не знайдені на пристрої 👀", Toast.LENGTH_SHORT).show();
                     return;
                 }
 
@@ -527,9 +589,9 @@ public class MainActivity extends Activity {
                 dialogLayout.addView(listView);
 
                 AlertDialog dialog = new AlertDialog.Builder(this)
-                    .setTitle("📁 Найденные таблицы")
+                    .setTitle("📁 Знайдені таблиці")
                     .setView(dialogLayout)
-                    .setNegativeButton("Закрыть", null)
+                    .setNegativeButton("Закрити 🙅", null)
                     .create();
 
                 listView.setOnItemClickListener((parent, view, position, id) -> {
@@ -538,7 +600,7 @@ public class MainActivity extends Activity {
                     processExcelFileWithPoi(Uri.fromFile(selectedFile));
                 });
 
-                dialog.show();
+.show();
             });
         }).start();
     }
