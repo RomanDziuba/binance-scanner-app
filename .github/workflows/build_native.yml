@@ -27,7 +27,7 @@ jobs:
       - name: Prepare APK and Java Code Duplicate
         run: |
           RAW_APK=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
-          TARGET_NAME="RomaMonsterApp_v11"
+          TARGET_NAME="bluetti_v1"
           FINAL_APK="${TARGET_NAME}.apk"
           TXT_PATH="${TARGET_NAME}.java.txt"
           cp "$RAW_APK" "$FINAL_APK"
@@ -35,12 +35,12 @@ jobs:
           if [ -f "$JAVA_SRC" ]; then
             cp "$JAVA_SRC" "$TXT_PATH"
           else
-            echo "package com.roman.version11;" > "$TXT_PATH"
+            echo "package com.bluetti.version1;" > "$TXT_PATH"
           fi
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: "RomaMonsterApp_v11"
+          name: "bluetti_v1"
           path: |
             *.apk
             *.java.txt
