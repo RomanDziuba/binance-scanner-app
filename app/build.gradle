@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version2'
+    namespace 'com.xls2.version2'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version2"
+        applicationId "com.xls2.version2"
         minSdk 26
         targetSdk 34
-        versionCode 137
+        versionCode 138
         versionName "2"
         multiDexEnabled true
     }
