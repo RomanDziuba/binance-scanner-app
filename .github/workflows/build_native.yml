@@ -27,11 +27,10 @@ jobs:
       - name: Build APK
         run: |
           gradle clean assembleDebug --info --stacktrace --no-daemon
-      - name: Send Named APK and Java Code Duplicate to Telegram
-        if: success()
+      - name: Prepare APK and Java Code Duplicate
         run: |
           RAW_APK=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
-          TARGET_NAME="CompilerMonster11_v11"
+          TARGET_NAME="bluetti_v1"
           FINAL_APK="${TARGET_NAME}.apk"
           TXT_PATH="${TARGET_NAME}.java.txt"
           cp "$RAW_APK" "$FINAL_APK"
@@ -39,7 +38,12 @@ jobs:
           if [ -f "$JAVA_SRC" ]; then
             cp "$JAVA_SRC" "$TXT_PATH"
           else
-            echo "package com.pro11.version11;" > "$TXT_PATH"
+            echo "package com.pro9.version1;" > "$TXT_PATH"
           fi
-          curl -F chat_id="1434233986" -F document=@"$FINAL_APK" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
-          curl -F chat_id="1434233986" -F document=@"$TXT_PATH" https://api.telegram.org/bot8815256130:AAEW6brOnE5NpvsgzvZbfm87b3X7bFzaw9Y/sendDocument
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: "bluetti_v1"
+          path: |
+            *.apk
+            *.java.txt
