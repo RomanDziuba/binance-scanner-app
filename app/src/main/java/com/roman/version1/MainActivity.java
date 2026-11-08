@@ -393,7 +393,7 @@ public class MainActivity extends Activity {
 
     private void sendHandshakeAndToggleAc() {
         appendLog("🚀 Спроба ініціалізації сесії перед увімкненням AC...");
-        sendRawBytes(new byte[] { 0x01, 0x03, 0x00, 0x00, 0x00, 0x05, 0x85, 0xC9 });
+        sendRawBytes(new byte[] { 0x01, 0x03, 0x00, 0x00, 0x00, 0x05, (byte)0x85, (byte)0xC9 });
         
         mainHandler.postDelayed(() -> {
             sendModbusWrite(0x000B, 0x0001);
