@@ -52,7 +52,6 @@ public class MainActivity extends Activity {
     private String connectedDeviceAddress = null;
     private String connectedDeviceName = "Не выбрано";
     private boolean isScanning = false;
-    private boolean isAcOn = false;
 
     private final List<BluetoothDevice> scannedDevices = new ArrayList<>();
     private final List<String> scannedDeviceNames = new ArrayList<>();
@@ -63,6 +62,8 @@ public class MainActivity extends Activity {
     private BluetoothGattCharacteristic notifyCharacteristic = null;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final Handler heartbeatHandler = new Handler(Looper.getMainLooper());
+    private Runnable heartbeatRunnable;
 
     private final ScanCallback scanCallback = new ScanCallback() {
         @Override
@@ -75,6 +76,7 @@ public class MainActivity extends Activity {
             String name = device.getName();
             String address = device.getAddress();
             
+            // Фильтруем только устройства Bluetti для удобства
             if (name != null && !addressListContains(address)) {
                 scannedDevices.add(device);
                 scannedDeviceNames.add("🔋 " + name + "\n📍 " + address);
@@ -145,7 +147,7 @@ public class MainActivity extends Activity {
                 Manifest.permission.BLUETOOTH_CONNECT, 
                 Manifest.permission.ACCESS_FINE_LOCATION
             }, 101);
-            appendLog("⚠️ Запрос разрешения доступа...");
+            appendLog("⚠️ Запрос разрешений...");
         }
     }
 
@@ -160,7 +162,7 @@ public class MainActivity extends Activity {
         container.addView(title);
 
         statusTextView = new TextView(this);
-        statusTextView.setText("Статус: Готов к работе 🔍");
+        statusTextView.setText("Статус: Ожидание сканирования 🔍");
         statusTextView.setTextColor(Color.parseColor("#10B981"));
         statusTextView.setTextSize(12f);
         statusTextView.setGravity(Gravity.CENTER);
@@ -185,7 +187,7 @@ public class MainActivity extends Activity {
         btnModeToggle.setOnClickListener(v -> sendLoginChallenge());
         container.addView(btnModeToggle);
 
-        btnAdvancedInfo = createStyledButton("🧹 Очистить консоль лога", "#7C3AED");
+        btnAdvancedInfo = createStyledButton("🧹 Очистить лог", "#7C3AED");
         btnAdvancedInfo.setOnClickListener(v -> {
             if (logConsole != null) logConsole.setText("");
             appendLog("🧹 Лог очищен.");
@@ -251,7 +253,7 @@ public class MainActivity extends Activity {
         addTableRow("Параметр Bluetti EB3A", "Значение", true);
         addTableRow("Статус связи", "Не подключено ❌", false);
         addTableRow("Устройство", connectedDeviceName, false);
-        addTableRow("Подписка Notify", "Не активна", false);
+        addTableRow("Сессия Heartbeat", "Ожидание", false);
     }
 
     private void addTableRow(String label, String value, boolean isHeader) {
@@ -305,7 +307,7 @@ public class MainActivity extends Activity {
     private void showDeviceSelectionDialog() {
         if (scannedDevices.isEmpty()) return;
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Выберите устройство Bluetti");
+        builder.setTitle("Выберите станцию Bluetti");
         String[] items = scannedDeviceNames.toArray(new String[0]);
         builder.setItems(items, (dialog, which) -> {
             BluetoothDevice device = scannedDevices.get(which);
@@ -335,7 +337,8 @@ public class MainActivity extends Activity {
                 appendLog("✅ Подключено к GATT. Поиск служб...");
                 mainHandler.post(() -> gatt.discoverServices());
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                appendLog("🔌 Связь разорвана.");
+                appendLog("🔌 Связь разорвана станцией.");
+                stopHeartbeatLoop();
                 mainHandler.post(() -> {
                     statusTextView.setText("Статус: 🔌 Отключено");
                     btnAcTouchToggle.setEnabled(false);
@@ -359,7 +362,7 @@ public class MainActivity extends Activity {
                 }
 
                 if (writeCharacteristic != null && notifyCharacteristic != null) {
-                    appendLog("✅ Найдены ff02 (Write) и ff01 (Notify). Включение уведомлений...");
+                    appendLog("✅ Найдены ff02 (Write) и ff01 (Notify). Включаем уведомления...");
                     if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
                         gatt.setCharacteristicNotification(notifyCharacteristic, true);
                         BluetoothGattDescriptor desc = notifyCharacteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG);
@@ -369,8 +372,11 @@ public class MainActivity extends Activity {
                         }
                     }
 
+                    // ЗАПУСКАЕМ УДЕРЖАНИЕ СВЯЗИ (HEARTBEAT)
+                    startHeartbeatLoop();
+
                     mainHandler.post(() -> {
-                        statusTextView.setText("Статус: 🟢 Логгер активен");
+                        statusTextView.setText("Статус: 🟢 Сессия удержана (Heartbeat активен)");
                         btnAcTouchToggle.setEnabled(true);
                         btnModeToggle.setEnabled(true);
                     });
@@ -387,6 +393,30 @@ public class MainActivity extends Activity {
         }
     };
 
+    private void startHeartbeatLoop() {
+        stopHeartbeatLoop();
+        heartbeatRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (bluetoothGatt != null && writeCharacteristic != null) {
+                    // Стандартный пакет поддержания сеанса (Heartbeat)
+                    byte[] heartbeat = new byte[] { (byte)0xAA, 0x55, 0x01, 0x00, 0x00, 0x00 };
+                    sendRawBytesSilent(heartbeat);
+                }
+                heartbeatHandler.postDelayed(this, 1000); // Повтор каждую секунду
+            }
+        };
+        heartbeatHandler.postDelayed(heartbeatRunnable, 1000);
+        appendLog("💓 Цикл удержания связи (Heartbeat) запущен.");
+    }
+
+    private void stopHeartbeatLoop() {
+        if (heartbeatRunnable != null) {
+            heartbeatHandler.removeCallbacks(heartbeatRunnable);
+            heartbeatRunnable = null;
+        }
+    }
+
     private void parseAndLogSniffedData(String uuid, byte[] data) {
         StringBuilder hex = new StringBuilder();
         StringBuilder ascii = new StringBuilder();
@@ -396,17 +426,16 @@ public class MainActivity extends Activity {
             else ascii.append(".");
         }
         String shortUuid = uuid.length() >= 8 ? uuid.substring(0, 8) : uuid;
-        appendLog(String.format("📥 RECV [%s] (%dB): %s", shortUuid, data.length, hex.toString().trim()));
+        appendLog(String.format("📥 RECV [%s] (%dB): %s | ASCII: %s", shortUuid, data.length, hex.toString().trim(), ascii.toString()));
     }
 
     private void requestStatusRegisters() {
-        appendLog("🚀 Чтение стандартных регистров состояния (0x000B - 0x000F)...");
-        // Запрос чтения 5 регистров с адреса 0x000B
+        appendLog("🚀 Запрос чтения регистров состояния...");
         sendRawBytes(new byte[] { 0x01, 0x03, 0x00, (byte)0x0B, 0x00, 0x05, (byte)0x35, (byte)0xC9 });
     }
 
     private void sendLoginChallenge() {
-        appendLog("🔑 Отправка сервисного запроса идентификации...");
+        appendLog("🔑 Отправка тестового запроса идиентификации...");
         sendRawBytes(new byte[] { 0x01, 0x03, 0x00, 0x00, 0x00, 0x08, (byte)0x44, (byte)0x0C });
     }
 
@@ -419,6 +448,15 @@ public class MainActivity extends Activity {
         for (byte b : raw) sb.append(String.format("%02X ", b));
         appendLog("📤 SEND: " + sb.toString().trim());
 
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+            bluetoothGatt.writeCharacteristic(writeCharacteristic);
+        }
+    }
+
+    private void sendRawBytesSilent(byte[] raw) {
+        if (bluetoothGatt == null || writeCharacteristic == null) return;
+        writeCharacteristic.setValue(raw);
+        writeCharacteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
             bluetoothGatt.writeCharacteristic(writeCharacteristic);
         }
