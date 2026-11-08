@@ -60,10 +60,13 @@ public class MainActivity extends Activity {
 
     private static final UUID CLIENT_CHARACTERISTIC_CONFIG = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
 
-    // Зберігаємо колекцію всіх знайдених характеристик запису для тестів
-    private final List<BluetoothGattCharacteristic> availableWriteChars = new ArrayList<>();
-    private BluetoothGattCharacteristic activeWriteCharacteristic = null;
+    private BluetoothGattCharacteristic writeCharacteristic = null;
     private BluetoothGattCharacteristic notifyCharacteristic = null;
+    
+    // Додаткові знайдені характеристики для матриці перебору
+    private BluetoothGattCharacteristic charFf02 = null;
+    private BluetoothGattCharacteristic charFf03 = null;
+    private BluetoothGattCharacteristic charFf04 = null;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -121,7 +124,7 @@ public class MainActivity extends Activity {
         setContentView(rootLayout);
 
         checkAndRequestPermissions();
-        appendLog("🚀 Додаток запущено. Режим матричного авто-брутфорсу готовий.");
+        appendLog("🚀 Додаток запущено. Меню масового перебору та матриці тестів активне.");
     }
 
     private void appendLog(String message) {
@@ -154,7 +157,7 @@ public class MainActivity extends Activity {
 
     private void initInterface(LinearLayout container) {
         TextView title = new TextView(this);
-        title.setText("⚡ Bluetti EB3A Matrix Brute-Force 🇺🇦");
+        title.setText("⚡ Bluetti EB3A Master Matrix Brute-Force 🇺🇦");
         title.setTextColor(Color.parseColor("#38BDF8"));
         title.setTextSize(15f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
@@ -188,8 +191,8 @@ public class MainActivity extends Activity {
         btnModeToggle.setOnClickListener(v -> cycleChargingMode());
         container.addView(btnModeToggle);
 
-        btnAdvancedInfo = createStyledButton("🛠 МЕНЮ АВТО-БРУТФОРСУ (Усі варіанти)", "#7C3AED");
-        btnAdvancedInfo.setOnClickListener(v -> showSettingsHubDialog());
+        btnAdvancedInfo = createStyledButton("🛠 МЕНЮ МАСОВОГО ПЕРЕБОРУ ВАРІАНТІВ (MASTER MATRIX)", "#7C3AED");
+        btnAdvancedInfo.setOnClickListener(v -> showMasterMatrixDialog());
         container.addView(btnAdvancedInfo);
 
         telemetryTable = new TableLayout(this);
@@ -366,9 +369,6 @@ public class MainActivity extends Activity {
     private final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-            if (status != BluetoothGatt.GATT_SUCCESS) {
-                appendLog("⚠️ GATT status = " + status);
-            }
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 appendLog("✅ Успішно підключено до GATT сервера!");
                 mainHandler.post(() -> statusTextView.setText("Статус: ✅ Підключено! Пошук сервісів..."));
@@ -377,10 +377,10 @@ public class MainActivity extends Activity {
                     if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
                         gatt.discoverServices();
                     }
-                }, 400);
+                }, 500);
 
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                appendLog("🔌 З'єднання розірвано.");
+                appendLog("🔌 З'єднання розірвано (Status: " + status + ")");
                 mainHandler.post(() -> {
                     statusTextView.setText("Статус: 🔌 Зв'язок втрачено.");
                     btnAcTouchToggle.setEnabled(false);
@@ -393,30 +393,30 @@ public class MainActivity extends Activity {
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                availableWriteChars.clear();
+                writeCharacteristic = null;
                 notifyCharacteristic = null;
+                charFf02 = null;
+                charFf03 = null;
+                charFf04 = null;
 
                 for (BluetoothGattService service : gatt.getServices()) {
                     for (BluetoothGattCharacteristic c : service.getCharacteristics()) {
                         String cUuid = c.getUuid().toString();
-                        int props = c.getProperties();
-                        
-                        if ((props & (BluetoothGattCharacteristic.PROPERTY_WRITE | BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)) != 0) {
-                            availableWriteChars.add(c);
-                            appendLog("🎯 Знайдено WRITE канал: " + cUuid);
-                        }
-                        if (cUuid.contains("ff01")) {
+                        if (cUuid.contains("ff04")) {
+                            charFf04 = c;
+                            writeCharacteristic = c; // Основний за замовчуванням
+                        } else if (cUuid.contains("ff03")) {
+                            charFf03 = c;
+                        } else if (cUuid.contains("ff02")) {
+                            charFf02 = c;
+                        } else if (cUuid.contains("ff01")) {
                             notifyCharacteristic = c;
-                            appendLog("🔔 Знайдено NOTIFY канал: " + cUuid);
                         }
                     }
                 }
 
-                if (!availableWriteChars.isEmpty()) {
-                    activeWriteCharacteristic = availableWriteChars.get(0); // За замовчуванням перший
-                }
-
-                if (notifyCharacteristic != null) {
+                if (writeCharacteristic != null && notifyCharacteristic != null) {
+                    appendLog("✅ УСПІХ: Знайдено всі канали обміну!");
                     if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
                         gatt.setCharacteristicNotification(notifyCharacteristic, true);
                         BluetoothGattDescriptor descriptor = notifyCharacteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG);
@@ -426,30 +426,35 @@ public class MainActivity extends Activity {
                             appendLog("🔔 Підписку на сповіщення активовано.");
                         }
                     }
-                }
 
-                mainHandler.post(() -> {
-                    statusTextView.setText("Статус: 🟢 Готовий до тестування ⚡");
-                    btnAcTouchToggle.setEnabled(true);
-                    btnModeToggle.setEnabled(true);
-                    updateLiveTelemetry("Підключено", "100%", "0 Вт", "150 Вт");
-                });
+                    mainHandler.post(() -> {
+                        statusTextView.setText("Статус: 🟢 Готовий до масового перебору ⚡");
+                        btnAcTouchToggle.setEnabled(true);
+                        btnModeToggle.setEnabled(true);
+                        updateLiveTelemetry("Підключено (Ready)", "100%", "0 Вт", "150 Вт");
+                    });
+                } else {
+                    appendLog("❌ ПОМИЛКА: Не знайдено необхідні канали!");
+                }
             }
         }
 
         @Override
-        v.override // just standard callback formatting
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
             byte[] data = characteristic.getValue();
             if (data != null && data.length > 0) {
-                StringBuilder sb = new StringBuilder();
-                for (byte b : data) {
-                    sb.append(String.format("%02X ", b));
-                }
-                appendLog("📥 ВХІДНИЙ ПАКЕТ (" + data.length + " B): " + sb.toString().trim());
+                parseBluettiResponse(data);
             }
         }
     };
+
+    private void parseBluettiResponse(byte[] data) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : data) {
+            sb.append(String.format("%02X ", b));
+        }
+        appendLog("📥 Вхідний пакет (" + data.length + " B): " + sb.toString().trim());
+    }
 
     private void updateLiveTelemetry(String conn, String soc, String acPower, String gridPower) {
         telemetryTable.removeAllViews();
@@ -463,48 +468,98 @@ public class MainActivity extends Activity {
 
     private void toggleAcOutput() {
         isAcOn = !isAcOn;
-        appendLog(isAcOn ? "⚙️ Запит: УВІМКНЕННЯ AC (220В)" : "⚙️ Запит: ВИМКНЕННЯ AC (220В)");
-        sendUniversalCommand(0x000B, isAcOn ? 0x01 : 0x00);
+        if (isAcOn) {
+            btnAcTouchToggle.setText("🔌 Вимкнути AC (220В)");
+            btnAcTouchToggle.setBackgroundColor(Color.parseColor("#10B981"));
+            appendLog("⚙️ Запит: УВІМКНЕННЯ AC (220В)");
+        } else {
+            btnAcTouchToggle.setText("🔌 Увімкнути AC (220В)");
+            btnAcTouchToggle.setBackgroundColor(Color.parseColor("#475569"));
+            appendLog("⚙️ Запит: ВИМКНЕННЯ AC (220В)");
+        }
+        sendDirectModbus(0x000B, isAcOn ? 0x01 : 0x00);
     }
 
     private void cycleChargingMode() {
         currentChargingMode = (currentChargingMode + 1) % 3;
         int modeVal = currentChargingMode;
-        appendLog("⚙️ Зміна режиму зарядки на індекс: " + modeVal);
-        sendUniversalCommand(0x000F, modeVal);
+        
+        String modeName = "Стандартний";
+        if (modeVal == 0) modeName = "Тихий (200Вт)";
+        else if (modeVal == 1) modeName = "Стандартний (350Вт)";
+        else if (modeVal == 2) modeName = "Турбо (430Вт)";
+
+        btnModeToggle.setText("⚙️ Режим заряду: " + modeName);
+        appendLog("⚙️ Зміна режиму зарядки: " + modeName);
+        
+        sendDirectModbus(0x000F, modeVal);
     }
 
-    // Універсальна відправка з урахуванням активного каналу
-    private void sendUniversalCommand(int registerAddress, int value) {
-        if (bluetoothGatt == null || activeWriteCharacteristic == null) {
-            appendLog("❌ Помилка: Немає підключення або WRITE каналу!");
+    // Стандартна відправка через поточний writeCharacteristic
+    private void sendDirectModbus(int register, int value) {
+        sendCustomPacket(writeCharacteristic, register, value, true, false);
+    }
+
+    // Низькорівневий метод відправки з можливістю вибору характеристик та обгортки 2A 2A
+    private void sendCustomPacket(BluetoothGattCharacteristic targetChar, int register, int value, boolean use06, boolean wrap2A) {
+        if (bluetoothGatt == null || targetChar == null) {
+            appendLog("❌ Помилка: Станція або канал не готові!");
             return;
         }
 
-        // Формуємо чистий Modbus (Функція 0x06) + CRC
-        byte[] modbusPayload = new byte[] {
-            0x01, 0x06,
-            (byte) (registerAddress >> 8),
-            (byte) (registerAddress & 0xFF),
-            (byte) (value >> 8),
-            (byte) (value & 0xFF)
-        };
-        byte[] crc = calculateModbusCRC(modbusPayload);
-        byte[] packet = new byte[8];
-        System.arraycopy(modbusPayload, 0, packet, 0, 6);
-        packet[6] = crc[0];
-        packet[7] = crc[1];
+        // 1. Формуємо Modbus payload (Функція 0x06 або 0x10)
+        byte[] modbusBytes;
+        if (use06) {
+            modbusBytes = new byte[] {
+                0x01, 0x06,
+                (byte) (register >> 8), (byte) (register & 0xFF),
+                (byte) (value >> 8), (byte) (value & 0xFF)
+            };
+        } else {
+            modbusBytes = new byte[] {
+                0x01, 0x10,
+                (byte) (register >> 8), (byte) (register & 0xFF),
+                0x00, 0x01, 0x02,
+                (byte) (value >> 8), (byte) (value & 0xFF)
+            };
+        }
 
-        activeWriteCharacteristic.setValue(packet);
-        activeWriteCharacteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
+        byte[] crc = calculateModbusCRC(modbusBytes);
+        byte[] fullModbus = new byte[modbusBytes.length + 2];
+        System.arraycopy(modbusBytes, 0, fullModbus, 0, modbusBytes.length);
+        fullModbus[fullModbus.length - 2] = crc[0];
+        fullModbus[fullModbus.length - 1] = crc[1];
 
-        StringBuilder sb = new StringBuilder();
-        for (byte b : packet) sb.append(String.format("%02X ", b));
-        
-        appendLog(String.format("📤 Відправка [Reg: 0x%04X, Val: 0x%04X] HEX: %s", registerAddress, value, sb.toString().trim()));
+        byte[] finalPayload;
+        if (wrap2A) {
+            // Обгортка 2A 2A
+            finalPayload = new byte[2 + fullModbus.length + 2];
+            finalPayload[0] = 0x2A;
+            finalPayload[1] = 0x2A;
+            System.arraycopy(fullModbus, 0, finalPayload, 2, fullModbus.length);
+            int sum = 0;
+            for (int i = 2; i < finalPayload.length - 2; i++) sum += (finalPayload[i] & 0xFF);
+            finalPayload[finalPayload.length - 2] = (byte) (sum & 0xFF);
+            finalPayload[finalPayload.length - 1] = (byte) ((sum >> 8) & 0xFF);
+        } else {
+            finalPayload = fullModbus;
+        }
+
+        targetChar.setValue(finalPayload);
+        targetChar.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
+
+        StringBuilder hexStr = new StringBuilder();
+        for (byte b : finalPayload) hexStr.append(String.format("%02X ", b));
+
+        String charName = "ff04";
+        if (targetChar == charFf02) charName = "ff02";
+        else if (targetChar == charFf03) charName = "ff03";
+
+        appendLog(String.format("📤 [%s] Reg:0x%04X Val:0x%04X (Fn:%s, 2A:%s) HEX: %s",
+                charName, register, value, use06 ? "06" : "10", wrap2A ? "YES" : "NO", hexStr.toString().trim()));
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
-            bluetoothGatt.writeCharacteristic(activeWriteCharacteristic);
+            bluetoothGatt.writeCharacteristic(targetChar);
         }
     }
 
@@ -524,107 +579,110 @@ public class MainActivity extends Activity {
         return new byte[] { (byte) (crc & 0xFF), (byte) ((crc >> 8) & 0xFF) };
     }
 
-    // --- МЕНЮ АВТО-БРУТФОРСУ (УСІ ВАРІАНТИ ОДНИМ НАТИСКАНИМ) ---
-    private void showSettingsHubDialog() {
+    // --- ГАВНЕЙШЕЕ МЕНЮ МАСОВОГО ПЕРЕБОРУ (MASTER MATRIX) ---
+    private void showMasterMatrixDialog() {
         CharSequence[] options = {
-            "🚀 1. АВТО-МАТРИЦЯ: Перебрати усі WRITE канали та формати пакетів під час зв'язку",
-            "🔄 2. Змінити поточний WRITE канал (Перемикати по черзі)",
-            "📋 3. Надіслати тестовий пакет читання моделі (Регістр 0x000C)"
+            "🔥 1. АВТОМАТИЧНИЙ МАСОВИЙ ПЕРЕБІР УСІХ ВАРІАНТІВ (Full Master Brute-Force)",
+            "📋 2. Тест перебору регістрів режиму зарядки (0x000F, 0x0022, 0x0035)",
+            "🔌 3. Тест перебору регістрів AC 220В (0x000B, 0x001B, 0x002B)",
+            "🎯 4. Змінити активний канал запису вручну (ff02 / ff03 / ff04)"
         };
 
         new AlertDialog.Builder(this)
-            .setTitle("🛠 Меню повного брутфорсу")
+            .setTitle("🛠 Меню масового перебору (Master Matrix)")
             .setItems(options, (dialog, which) -> {
                 if (which == 0) {
-                    startFullMatrixBruteForce();
+                    runFullMasterBruteForce();
                 } else if (which == 1) {
-                    cycleWriteCharacteristic();
+                    runChargingRegistersBruteForce();
                 } else if (which == 2) {
-                    sendTestReadCommand();
+                    runAcRegistersBruteForce();
+                } else if (which == 3) {
+                    showCharacteristicSelector();
                 }
             })
             .setNegativeButton("Закрити", null)
             .show();
     }
 
-    private void cycleWriteCharacteristic() {
-        if (availableWriteChars.isEmpty()) {
-            Toast.norm(this, "Немає доступних каналів", Toast.LENGTH_SHORT);
+    // 1. Полный автоматический перебор ВСЕХ комбинаций (характеристики, функции, обертки, регистры)
+    private void runFullMasterBruteForce() {
+        appendLog("🔥🔥 ЗАПУСК ПОЛНОГО МААССОВОГО ПЕРЕБОРА (MASTER MATRIX)...");
+        Toast.makeText(this, "Перебор запущен! Следите за логами.", Toast.LENGTH_LONG).show();
+
+        BluetoothGattCharacteristic[] chars = { charFf04, charFf03, charFf02 };
+        int[] registers = { 0x000B, 0x000F, 0x001B, 0x0022 };
+        boolean[] functions = { true, false }; // true = 0x06, false = 0x10
+        boolean[] wrappers = { false, true };  // false = чистый modbus, true = 2A 2A
+
+        int delayIndex = 0;
+        for (BluetoothGattCharacteristic ch : chars) {
+            if (ch == null) continue;
+            for (int reg : registers) {
+                for (boolean fn06 : functions) {
+                    for (boolean wrap : wrappers) {
+                        final BluetoothGattCharacteristic target = ch;
+                        final int r = reg;
+                        final boolean f = fn06;
+                        final boolean w = wrap;
+
+                        mainHandler.postDelayed(() -> {
+                            appendLog(String.format("🧪 [TEST] Reg=0x%04X | Fn=%s | 2A=%s", r, f ? "06" : "10", w ? "ON" : "OFF"));
+                            sendCustomPacket(target, r, 0x0001, f, w);
+                        }, delayIndex * 500L); // Пауза 500мс между тестами, чтобы не перегрузить BLE-стек (GATT 19)
+
+                        delayIndex++;
+                    }
+                }
+            }
+        }
+    }
+
+    private void runChargingRegistersBruteForce() {
+        appendLog("⚙️ Перебор регистров зарядки (0x000F, 0x0022, 0x0035, 0x0040)...");
+        int[] regs = { 0x000F, 0x0022, 0x0035, 0x0040 };
+        int idx = 0;
+        for (int r : regs) {
+            mainHandler.postDelayed(() -> {
+                appendLog(String.format("⚙️ Тест регистра зарядки: 0x%04X", r));
+                sendDirectModbus(r, 0x0002); // Турбо режим / значение 2
+            }, idx * 400L);
+            idx++;
+        }
+    }
+
+    private void runAcRegistersBruteForce() {
+        appendLog("🔌 Перебор регистров AC (0x000B, 0x001B, 0x002B, 0x100B)...");
+        int[] regs = { 0x000B, 0x001B, 0x002B, 0x100B };
+        int idx = 0;
+        for (int r : regs) {
+            mainHandler.postDelayed(() -> {
+                appendLog(String.format("🔌 Тест регистра AC: 0x%04X", r));
+                sendDirectModbus(r, 0x0001); // Включение AC
+            }, idx * 400L);
+            idx++;
+        }
+    }
+
+    private void showCharacteristicSelector() {
+        List<String> names = new ArrayList<>();
+        List<BluetoothGattCharacteristic> list = new ArrayList<>();
+        if (charFf04 != null) { names.add("ff04 (Основной)"); list.add(charFf04); }
+        if (charFf03 != null) { names.add("ff03"); list.add(charFf03); }
+        if (charFf02 != null) { names.add("ff02"); list.add(charFf02); }
+
+        if (names.isEmpty()) {
+            Toast.makeText(this, "Нет доступных характеристик", Toast.LENGTH_SHORT).show();
             return;
         }
-        int currentIndex = availableWriteChars.indexOf(activeWriteCharacteristic);
-        int nextIndex = (currentIndex + 1) % availableWriteChars.size();
-        activeWriteCharacteristic = availableWriteChars.get(nextIndex);
-        appendLog("🔄 Ручне перемикання WRITE каналу на: " + activeWriteCharacteristic.getUuid().toString());
-        Toast.makeText(this, "Канал змінено!", Toast.LENGTH_SHORT).show();
-    }
 
-    private void sendTestReadCommand() {
-        if (bluetoothGatt == null || activeWriteCharacteristic == null) return;
-        // Читання регістра 0x000C (модель) за допомогою функції 0x03
-        byte[] payload = new byte[] { 0x01, 0x03, 0x00, 0x0C, 0x00, 0x02 };
-        byte[] crc = calculateModbusCRC(payload);
-        byte[] packet = new byte[8];
-        System.arraycopy(payload, 0, packet, 0, 6);
-        packet[6] = crc[0]; packet[7] = crc[1];
-
-        activeWriteCharacteristic.setValue(packet);
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
-            bluetoothGatt.writeCharacteristic(activeWriteCharacteristic);
-            appendLog("📤 Тест читання (0x03) надіслано.");
-        }
-    }
-
-    // ГОЛОВНИЙ АВТОМАТИЧНИЙ БРУТФОРС УКЛАДЕНИХ ВАРІАНТІВ
-    private void startFullMatrixBruteForce() {
-        appendLog("🚀 ЗАПУСК АВТО-МАТРИЦІ БРУТФОРСУ (Перебір каналів і форматів)...");
-        Toast.makeText(this, "Авто-брутфорс пішов, дивіться логи!", Toast.LENGTH_LONG).show();
-
-        if (availableWriteChars.isEmpty()) {
-            appendLog("❌ Помилка: Немає доступних характеристик запису.");
-            return;
-        }
-
-        // Послідовність тестів з інтервалами, щоб не крашити Bluetooth-стек станції
-        int delayStep = 1000; // 1 секунда між тестами
-        int counter = 0;
-
-        for (int c = 0; c < availableWriteChars.size(); c++) {
-            final BluetoothGattCharacteristic charToTest = availableWriteChars.get(c);
-            
-            // Тест 1: Чистий Modbus 0x06 (Запит увімкнення AC)
-            mainHandler.postDelayed(() -> {
-                activeWriteCharacteristic = charToTest;
-                appendLog(String.format("🧪 [Тест %d] Канал: %s | Функція: 0x06 (AC On)", counter, charToTest.getUuid().toString()));
-                sendUniversalCommand(0x000B, 0x0001);
-            }, counter * delayStep);
-            counter++;
-
-            // Тест 2: Пакет із заголовком 2A 2A
-            mainHandler.postDelayed(() -> {
-                activeWriteCharacteristic = charToTest;
-                appendLog(String.format("🧪 [Тест %d] Канал: %s | Формат: 2A 2A обгортка", counter, charToTest.getUuid().toString()));
-                sendBluettiWrappedCommand(0x000B, 0x0001);
-            }, counter * delayStep);
-            counter++;
-        }
-    }
-
-    private void sendBluettiWrappedCommand(int reg, int val) {
-        if (bluetoothGatt == null || activeWriteCharacteristic == null) return;
-        byte[] modbus = new byte[] { 0x01, 0x06, (byte)(reg >> 8), (byte)(reg & 0xFF), (byte)(val >> 8), (byte)(val & 0xFF) };
-        byte[] crc = calculateModbusCRC(modbus);
-        
-        byte[] wrapped = new byte[2 + 8 + 2];
-        wrapped[0] = 0x2A; wrapped[1] = 0x2A;
-        System.arraycopy(modbus, 0, wrapped, 2, 6);
-        wrapped[8] = crc[0]; wrapped[9] = crc[1];
-        // контрольний суматор хвоста
-        wrapped[10] = 0x00; wrapped[11] = 0x01;
-
-        activeWriteCharacteristic.setValue(wrapped);
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
-            bluetoothGatt.writeCharacteristic(activeWriteCharacteristic);
-        }
+        new AlertDialog.Builder(this)
+            .setTitle("Выберите WRITE характеристику")
+            .setItems(names.toArray(new CharSequence[0]), (d, w) -> {
+                writeCharacteristic = list.get(w);
+                appendLog("🎯 Вручную выбрана характеристика: " + names.get(w));
+                Toast.makeText(this, "Выбрано: " + names.get(w), Toast.LENGTH_SHORT).show();
+            })
+            .show();
     }
 }
