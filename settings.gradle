@@ -1,2 +1,2 @@
-rootProject.name = "APCMI"
+rootProject.name = "GPS"
 include ':app'
