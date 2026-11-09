@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version2'
+    namespace 'com.gps.version2'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version2"
+        applicationId "com.gps.version2"
         minSdk 26
         targetSdk 34
-        versionCode 218
+        versionCode 219
         versionName "2"
         multiDexEnabled true
     }
