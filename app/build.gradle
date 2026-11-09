@@ -9,7 +9,7 @@ android {
         applicationId "com.gps.version1"
         minSdk 26
         targetSdk 34
-        versionCode 226
+        versionCode 227
         versionName "1"
         multiDexEnabled true
     }
