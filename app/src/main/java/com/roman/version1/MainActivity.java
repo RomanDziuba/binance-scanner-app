@@ -29,10 +29,10 @@ public class MainActivity extends Activity implements LocationListener {
     private LocationManager locationManager;
     private TextView statusTextView, coordTextView;
     private Location lastValidLocation = null;
-    private boolean isMapLoaded = false;
+    private float lastBearing = 0f;
     
-    // Аппаратный коллбэк для мгновенного отслеживания спутников и РЭБ
-    private GnssStatus.Callback gnssCallback;
+    private GnssStatus.Callback gnssStatusCallback;
+    private boolean isMapLoaded = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,7 +61,7 @@ public class MainActivity extends Activity implements LocationListener {
         topBar.addView(title);
 
         statusTextView = new TextView(this);
-        statusTextView.setText("⏳ Инициализация спутников...");
+        statusTextView.setText("⏳ Загрузка карты через интернет...");
         statusTextView.setTextColor(Color.parseColor("#FBBF24"));
         statusTextView.setTextSize(12f);
         statusTextView.setPadding(0, 4, 0, 2);
@@ -87,12 +87,12 @@ public class MainActivity extends Activity implements LocationListener {
             public void onPageFinished(WebView view, String url) {
                 isMapLoaded = true;
                 if (lastValidLocation != null) {
-                    updateMapPosition(lastValidLocation);
+                    updateMapPosition(lastValidLocation, lastBearing);
                 }
             }
         });
 
-        // HTML/JS оболочка карты со стрелкой направления движения (Bearing)
+        // HTML/JS оболочка карты со стрелкой направления движения
         String mapHtml = "<!DOCTYPE html><html><head><meta charset=\"utf-8\" />" +
                 "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">" +
                 "<link rel=\"stylesheet\" href=\"https://unpkg.com/leaflet@1.9.4/dist/leaflet.css\" />" +
@@ -105,17 +105,23 @@ public class MainActivity extends Activity implements LocationListener {
                 "var marker = null; var accuracyCircle = null;" +
                 "function updateMarker(lat, lon, accuracy, bearing) {" +
                 "  var latLng = [lat, lon];" +
-                "  var arrowHtml = '<div style=\"transform: rotate(' + bearing + 'deg); width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));\">' + " +
-                "                  '<svg width=\"30\" height=\"30\" viewBox=\"0 0 24 24\" fill=\"#38BDF8\" stroke=\"#ffffff\" stroke-width=\"1.5\"><polygon points=\"12,2 22,22 12,17 2,22\"></polygon></svg>' + " +
-                "                  '</div>';" +
-                "  var arrowIcon = L.divIcon({ className: 'nav-arrow', html: arrowHtml, iconSize: [38, 38], iconAnchor: [19, 19] });" +
+                "  var arrowHtml = '<div style=\"transform: rotate(' + bearing + 'deg); width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;\">' +" +
+                "    '<svg width=\"30\" height=\"30\" viewBox=\"0 0 24 24\" fill=\"#38BDF8\" xmlns=\"http://www.w3.org/2000/svg\">' +" +
+                "    '<path d=\"M12 2L3 19L12 15L21 19L12 2Z\" stroke=\"#ffffff\" stroke-width=\"1.5\" stroke-linejoin=\"round\"/>' +" +
+                "    '</svg></div>';" +
+                "  var icon = L.divIcon({" +
+                "    className: 'custom-arrow-icon'," +
+                "    html: arrowHtml," +
+                "    iconSize: [36, 36]," +
+                "    iconAnchor: [18, 18]" +
+                "  });" +
                 "  if (!marker) {" +
-                "    marker = L.marker(latLng, {icon: arrowIcon}).addTo(map);" +
-                "    accuracyCircle = L.circle(latLng, {radius: accuracy, color: '#38BDF8', fillOpacity: 0.15, weight: 1}).addTo(map);" +
+                "    marker = L.marker(latLng, {icon: icon}).addTo(map);" +
+                "    accuracyCircle = L.circle(latLng, {radius: accuracy, color: '#38BDF8', fillOpacity: 0.2}).addTo(map);" +
                 "    map.setView(latLng, 16);" +
                 "  } else {" +
                 "    marker.setLatLng(latLng);" +
-                "    marker.setIcon(arrowIcon);" +
+                "    marker.setIcon(icon);" +
                 "    accuracyCircle.setLatLng(latLng);" +
                 "    accuracyCircle.setRadius(Math.max(accuracy, 10));" +
                 "  }" +
@@ -146,7 +152,7 @@ public class MainActivity extends Activity implements LocationListener {
         btnCenter.setPadding(16, 14, 16, 14);
         btnCenter.setOnClickListener(v -> {
             if (lastValidLocation != null) {
-                updateMapPosition(lastValidLocation);
+                updateMapPosition(lastValidLocation, lastBearing);
                 webView.evaluateJavascript("centerMap(" + lastValidLocation.getLatitude() + ", " + lastValidLocation.getLongitude() + ");", null);
                 Toast.makeText(this, "Центрирование по последней точке", Toast.LENGTH_SHORT).show();
             } else {
@@ -196,47 +202,35 @@ public class MainActivity extends Activity implements LocationListener {
                 locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 0.0f, this);
                 locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 2000, 0.0f, this);
 
-                // Регистрация аппаратного контроля спутников (SDK 24+) для мгновенного детектирования РЭБ
-                if (Build.VERSION.SDK_INT >= 24) {
-                    gnssCallback = new GnssStatus.Callback() {
+                // Автоматическое мгновенное определение потери связи сatellites/РЭБ через GnssStatus
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    gnssStatusCallback = new GnssStatus.Callback() {
                         @Override
-                        public void onStarted() {
-                            runOnUiThread(() -> {
-                                statusTextView.setText("🟢 СКАНИРОВАНИЕ СПУТНИКОВ...");
-                                statusTextView.setTextColor(Color.parseColor("#38BDF8"));
-                            });
-                        }
+                        public void onStarted() {}
 
                         @Override
                         public void onStopped() {
                             runOnUiThread(() -> {
-                                statusTextView.setText("⚠️ РЭБ / СИГНАЛ ПОДАВЛЕН (Спутники отключены)");
+                                statusTextView.setText("⚠️ РЭБ / ПОТЕРЯ СИГНАЛА СПУТНИКОВ — Удержание точки");
                                 statusTextView.setTextColor(Color.parseColor("#DC2626"));
                             });
                         }
 
                         @Override
                         public void onSatelliteStatusChanged(GnssStatus status) {
-                            int usedSatellites = 0;
-                            int total = status.getSatelliteCount();
-                            for (int i = 0; i < total; i++) {
-                                if (status.usedInFix(i)) {
-                                    usedSatellites++;
-                                }
+                            int satCount = 0;
+                            for (int i = 0; i < status.getSatelliteCount(); i++) {
+                                if (status.usedInFix(i)) satCount++;
                             }
-
-                            runOnUiThread(() -> {
-                                if (usedSatellites == 0) {
-                                    statusTextView.setText("⚠️ РЭБ / ГЛУШЕНИЕ (0 спутников в фиксе) — Удержание");
+                            if (satCount == 0 && lastValidLocation != null) {
+                                runOnUiThread(() -> {
+                                    statusTextView.setText("⚠️ РЭБ / НОЛЬ СПУТНИКОВ — Удержание точки");
                                     statusTextView.setTextColor(Color.parseColor("#DC2626"));
-                                } else {
-                                    statusTextView.setText("🟢 СВЯЗЬ АКТИВНА | Спутников: " + usedSatellites);
-                                    statusTextView.setTextColor(Color.parseColor("#10B981"));
-                                }
-                            });
+                                });
+                            }
                         }
                     };
-                    locationManager.registerGnssStatusCallback(gnssCallback, null);
+                    locationManager.registerGnssStatusCallback(gnssStatusCallback);
                 }
 
                 Location lastGPS = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
@@ -273,6 +267,14 @@ public class MainActivity extends Activity implements LocationListener {
     public void onLocationChanged(Location location) {
         if (location == null) return;
         lastValidLocation = location;
+        
+        // Фиксируем направление движения (азимут), если есть скорость
+        if (location.hasBearing() && location.getSpeed() > 0.3f) {
+            lastBearing = location.getBearing();
+        }
+
+        statusTextView.setText("🟢 СВЯЗЬ АКТИВНА (ОНЛАЙН КАРТА)");
+        statusTextView.setTextColor(Color.parseColor("#10B981"));
 
         double lat = location.getLatitude();
         double lon = location.getLongitude();
@@ -281,36 +283,35 @@ public class MainActivity extends Activity implements LocationListener {
 
         coordTextView.setText(String.format("Шир: %.5f | Дол: %.5f\nТочность: %.1fм | Скорость: %.1f км/ч", lat, lon, acc, speed));
 
-        updateMapPosition(location);
+        updateMapPosition(location, lastBearing);
     }
 
-    private void updateMapPosition(Location loc) {
+    private void updateMapPosition(Location loc, float bearing) {
         if (isMapLoaded && loc != null) {
-            float bearing = loc.hasBearing() ? loc.getBearing() : 0f;
-            String js = String.format("updateMarker(%.6f, %.6f, %.1f, %.1f);", 
-                loc.getLatitude(), 
-                loc.getLongitude(), 
-                loc.hasAccuracy() ? loc.getAccuracy() : 20f,
-                bearing
-            );
+            String js = String.format("updateMarker(%.6f, %.6f, %.1f, %.1f);", loc.getLatitude(), loc.getLongitude(), loc.hasAccuracy() ? loc.getAccuracy() : 20f, bearing);
             webView.evaluateJavascript(js, null);
         }
     }
 
     @Override public void onProviderEnabled(String provider) {}
-    @Override public void onProviderDisabled(String provider) {}
+    @Override public void onProviderDisabled(String provider) {
+        if (provider.equals(LocationManager.GPS_PROVIDER)) {
+            statusTextView.setText("⚠️ GPS ОТКЛЮЧЕН / ПОДАВЛЕН РЭБ");
+            statusTextView.setTextColor(Color.parseColor("#DC2626"));
+        }
+    }
     @Override public void onStatusChanged(String provider, int status, Bundle extras) {}
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         if (locationManager != null) {
-            try { locationManager.removeUpdates(this); } catch (Exception ignored) {}
-            if (Build.VERSION.SDK_INT >= 24 && gnssCallback != null) {
-                try {
-                    locationManager.unregisterGnssStatusCallback(gnssCallback);
-                } catch (Exception ignored) {}
-            }
+            try { 
+                locationManager.removeUpdates(this); 
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && gnssStatusCallback != null) {
+                    locationManager.unregisterGnssStatusCallback(gnssStatusCallback);
+                }
+            } catch (Exception ignored) {}
         }
     }
 }
