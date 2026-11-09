@@ -12,6 +12,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.*;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -31,240 +32,273 @@ import java.util.zip.ZipOutputStream;
 // THEME: @android:style/Theme.Material.Light.NoActionBar
 public class MainActivity extends Activity {
 
-    private static final int PICK_APC_FILE = 2001;
+    private static final int PICK_APC_FILE = 3001;
 
-    private boolean isEditMode = false;
-    private String currentFileName = "config.apcmi";
+    private boolean isParamEditMode = false;
+    private String currentProjectName = "Substation_IED_Config.apcmi";
     
-    // Карта файлов внутри архива: Имя файла -> Текст
-    private Map<String, String> archiveFiles = new HashMap<>();
-    private String activeInternalFile = "";
+    // Хранилище файлов внутри .apcmi контейнера
+    private Map<String, String> projectFiles = new HashMap<>();
+    private String activeNodeFile = "config.json";
 
-    private LinearLayout containerLayout;
+    private LinearLayout containerLayout, propertyGridContainer;
     private ScrollView mainScroll;
-    private TextView statusTextView, titleView;
-    private Button btnToggleMode, btnOpenFile, btnSaveFile;
-    private EditText codeEditorInput;
+    private TextView statusTextView, projectTitleView;
+    private Button btnToggleView, btnOpenProject, btnSaveProject;
+    private EditText rawEditorInput;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Демо-данные на случай первого запуска
-        archiveFiles.put("config.json", "{\n  \"config_name\": \"Default APCMI Config\",\n  \"version\": \"1.0.0\",\n  \"author\": \"Dziuba Roman\"\n}");
-        archiveFiles.put("exported.xml", "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<resources>\n    <setting name=\"mode\">pro</setting>\n</resources>");
-        activeInternalFile = "config.json";
+        // Инициализация демо-структуры IED в стиле PCM600
+        projectFiles.put("config.json", "{\n  \"ied_name\": \"REF615_Feeder_Protection\",\n  \"station_voltage_kv\": 110,\n  \"relay_group\": \"Chint_NR2_NC2\",\n  \"trip_delay_ms\": 150,\n  \"os_version\": \"v5.2.3\",\n  \"auto_reclosing\": true\n}");
+        projectFiles.put("exported.xml", "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<IED name=\"REF615\">\n    <Setting parameter=\"ZeroSequence\" value=\"Enabled\"/>\n    <Setting parameter=\"Threshold\" value=\"120A\"/>\n</IED>");
+        projectFiles.put("PDSdata.dat", "LOG_EVENT: Substation bay 3 initialized.\nRELAY_STATUS: Normal\nCURRENT_LOAD_A: 110.5");
+        activeNodeFile = "config.json";
 
+        // Главный контейнер в инженерном стиле PCM600 (темный промышленный фон)
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
-        rootLayout.setBackgroundColor(Color.parseColor("#030712"));
-        rootLayout.setPadding(24, 24, 24, 24);
+        rootLayout.setBackgroundColor(Color.parseColor("#0A0E17"));
+        rootLayout.setPadding(16, 16, 16, 16);
 
-        // Верхняя панель
-        LinearLayout topBar = new LinearLayout(this);
-        topBar.setOrientation(LinearLayout.HORIZONTAL);
-        topBar.setGravity(Gravity.CENTER_VERTICAL);
-        topBar.setPadding(0, 0, 0, 16);
+        // --- ВЕРХНЯЯ ПАНЕЛЬ ИНСТРУМЕНТОВ (ToolBar) ---
+        LinearLayout toolBar = new LinearLayout(this);
+        toolBar.setOrientation(LinearLayout.HORIZONTAL);
+        toolBar.setGravity(Gravity.CENTER_VERTICAL);
+        toolBar.setPadding(12, 12, 12, 12);
+        
+        GradientDrawable toolbarBg = new GradientDrawable();
+        toolbarBg.setColor(Color.parseColor("#131B2E"));
+        toolbarBg.setCornerRadius(8f);
+        toolbarBg.setStroke(1, Color.parseColor("#1E293B"));
+        toolBar.setBackground(toolbarBg);
 
-        titleView = new TextView(this);
-        titleView.setText("📂 APCMI Configurator (ZIP Engine)");
-        titleView.setTextColor(Color.parseColor("#38BDF8"));
-        titleView.setTextSize(13f);
-        titleView.setTypeface(Typeface.DEFAULT_BOLD);
+        projectTitleView = new TextView(this);
+        projectTitleView.setText("⚡ PCM600: IED Plant Structure");
+        projectTitleView.setTextColor(Color.parseColor("#38BDF8"));
+        projectTitleView.setTextSize(12f);
+        projectTitleView.setTypeface(Typeface.DEFAULT_BOLD);
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
-        titleView.setLayoutParams(titleParams);
-        topBar.addView(titleView);
+        projectTitleView.setLayoutParams(titleParams);
+        toolBar.addView(projectTitleView);
 
-        btnToggleMode = createStyledButton("✏️ Редактор", "#1E293B", 100);
-        btnToggleMode.setOnClickListener(v -> toggleMode());
-        topBar.addView(btnToggleMode);
+        btnToggleView = createStyledButton("📝 Редактор", "#1E293B", 100);
+        btnToggleView.setOnClickListener(v -> toggleViewMode());
+        toolBar.addView(btnToggleView);
 
-        rootLayout.addView(topBar);
+        rootLayout.addView(toolBar);
+        addSpacer(rootLayout, 10);
 
-        // Панель кнопок действий
+        // --- ПАНЕЛЬ ДЕЙСТВИЙ (Project Actions) ---
         LinearLayout actionRow = new LinearLayout(this);
         actionRow.setOrientation(LinearLayout.HORIZONTAL);
-        actionRow.setPadding(0, 0, 0, 16);
 
-        btnOpenFile = createStyledButton("📁 Открыть .apcmi", "#0F766E", 0);
-        btnOpenFile.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
-        btnOpenFile.setOnClickListener(v -> openFilePicker());
-        actionRow.addView(btnOpenFile);
+        btnOpenProject = createStyledButton("📁 Открыть .apcmi", "#0F766E", 0);
+        btnOpenProject.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+        btnOpenProject.setOnClickListener(v -> openApcmiFilePicker());
+        actionRow.addView(btnOpenProject);
 
-        addSpacer(actionRow, 12);
+        addSpacerHoriz(actionRow, 10);
 
-        btnSaveFile = createStyledButton("💾 Сохранить архив", "#1D4ED8", 0);
-        btnSaveFile.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
-        btnSaveFile.setOnClickListener(v -> saveFileToStorage());
-        actionRow.addView(btnSaveFile);
+        btnSaveProject = createStyledButton("💾 Сохранить .apcmi", "#1D4ED8", 0);
+        btnSaveProject.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+        btnSaveProject.setOnClickListener(v -> saveApcmiArchive());
+        actionRow.addView(btnSaveProject);
 
         rootLayout.addView(actionRow);
+        addSpacer(rootLayout, 10);
 
+        // --- СТАТУС СТРОКА (Status Bar) ---
         statusTextView = new TextView(this);
-        statusTextView.setText("Файл: " + currentFileName + " | Активный файл: " + activeInternalFile);
+        statusTextView.setText(" Проект: " + currentProjectName + " | Выбран узел: " + activeNodeFile);
         statusTextView.setTextColor(Color.parseColor("#10B981"));
         statusTextView.setTextSize(11f);
-        statusTextView.setPadding(0, 0, 0, 12);
+        statusTextView.setPadding(8, 6, 8, 6);
+        
+        GradientDrawable statusBg = new GradientDrawable();
+        statusBg.setColor(Color.parseColor("#0F172A"));
+        statusBg.setCornerRadius(6f);
+        statusTextView.setBackground(statusBg);
         rootLayout.addView(statusTextView);
+        addSpacer(rootLayout, 10);
 
-        // Область контента
+        // --- РАБОЧАЯ ОБЛАСТЬ (Split Workspace: Tree Navigator + Property Grid) ---
+        LinearLayout workspace = new LinearLayout(this);
+        workspace.setOrientation(LinearLayout.VERTICAL);
+
+        // 1. Дерево узлов проекта (Горизонтальные вкладки-узлы в стиле Plant Structure PCM600)
+        HorizontalScrollView treeScroll = new HorizontalScrollView(this);
+        treeScroll.setPadding(0, 0, 0, 8);
+        
+        containerLayout = new LinearLayout(this);
+        containerLayout.setOrientation(LinearLayout.HORIZONTAL);
+        treeScroll.addView(containerLayout);
+        workspace.addView(treeScroll);
+
+        // 2. Таблица параметров / Свойств (Property Grid / Parameter Settings)
         mainScroll = new ScrollView(this);
         mainScroll.setLayoutParams(new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.0f
         ));
 
-        containerLayout = new LinearLayout(this);
-        containerLayout.setOrientation(LinearLayout.VERTICAL);
-        mainScroll.addView(containerLayout);
-        rootLayout.addView(mainScroll);
+        propertyGridContainer = new LinearLayout(this);
+        propertyGridContainer.setOrientation(LinearLayout.VERTICAL);
+        mainScroll.addView(propertyGridContainer);
+        workspace.addView(mainScroll);
+
+        LinearLayout.LayoutParams wsParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.0f
+        );
+        workspace.setLayoutParams(wsParams);
+        rootLayout.addView(workspace);
 
         setContentView(rootLayout);
-        renderContent();
+        renderWorkspace();
     }
 
-    private void toggleMode() {
-        isEditMode = !isEditMode;
-        if (isEditMode) {
-            btnToggleMode.setText("👁️ Просмотр");
-            btnToggleMode.setBackgroundColor(Color.parseColor("#047857"));
-            statusTextView.setText("Режим: Редактирование файла [" + activeInternalFile + "]");
+    private void toggleViewMode() {
+        isParamEditMode = !isParamEditMode;
+        if (isParamEditMode) {
+            btnToggleView.setText("📊 Таблица");
+            btnToggleView.setBackgroundColor(Color.parseColor("#047857"));
+            statusTextView.setText(" Режим: Текстовый редактор [Raw Code]");
         } else {
-            if (codeEditorInput != null && !activeInternalFile.isEmpty()) {
-                archiveFiles.put(activeInternalFile, codeEditorInput.getText().toString());
+            if (rawEditorInput != null && !activeNodeFile.isEmpty()) {
+                projectFiles.put(activeNodeFile, rawEditorInput.getText().toString());
             }
-            btnToggleMode.setText("✏️ Редактор");
-            btnToggleMode.setBackgroundColor(Color.parseColor("#1E293B"));
-            statusTextView.setText("Режим: Просмотр архива [" + currentFileName + "]");
+            btnToggleView.setText("📝 Редактор");
+            btnToggleView.setBackgroundColor(Color.parseColor("#1E293B"));
+            statusTextView.setText(" Проект: " + currentProjectName + " | Узел: " + activeNodeFile);
         }
-        renderContent();
+        renderWorkspace();
     }
 
-    private void renderContent() {
+    private void renderWorkspace() {
         containerLayout.removeAllViews();
+        propertyGridContainer.removeAllViews();
 
-        if (isEditMode) {
-            TextView label = new TextView(this);
-            label.setText("📝 Редактирование файла: " + activeInternalFile);
-            label.setTextColor(Color.parseColor("#38BDF8"));
-            label.setTextSize(12f);
-            label.setPadding(0, 0, 0, 8);
-            containerLayout.addView(label);
+        // Отрисовка дерева узлов IED (Plant Structure Navigator)
+        for (String fileName : projectFiles.keySet()) {
+            boolean isSelected = fileName.equals(activeNodeFile);
+            Button nodeBtn = createStyledButton("📁 " + fileName, isSelected ? "#0F766E" : "#1E293B", 0);
+            nodeBtn.setTextSize(11f);
+            
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.setMargins(0, 0, 8, 0);
+            nodeBtn.setLayoutParams(lp);
 
-            codeEditorInput = new EditText(this);
-            codeEditorInput.setText(archiveFiles.get(activeInternalFile) != null ? archiveFiles.get(activeInternalFile) : "");
-            codeEditorInput.setTextColor(Color.parseColor("#E2E8F0"));
-            codeEditorInput.setTextSize(12f);
-            codeEditorInput.setTypeface(Typeface.MONOSPACE);
-            codeEditorInput.setBackgroundColor(Color.parseColor("#0F172A"));
-            codeEditorInput.setPadding(20, 20, 20, 20);
-            codeEditorInput.setGravity(Gravity.TOP);
-            codeEditorInput.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 800
-            ));
-            containerLayout.addView(codeEditorInput);
-        } else {
-            TextView header = new TextView(this);
-            header.setText("📦 Файлы внутри .apcmi архива (Нажмите для выбора):");
-            header.setTextColor(Color.parseColor("#FBBF24"));
-            header.setTextSize(12f);
-            header.setPadding(0, 0, 0, 10);
-            containerLayout.addView(header);
-
-            for (String fileName : archiveFiles.keySet()) {
-                Button fileItemBtn = createStyledButton("📄 " + fileName + (fileName.equals(activeInternalFile) ? " (Выбран)" : ""), 
-                    fileName.equals(activeInternalFile) ? "#0F766E" : "#1E293B", 0);
-                fileItemBtn.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-                ((LinearLayout.LayoutParams) fileItemBtn.getLayoutParams()).setMargins(0, 0, 0, 8);
-                
-                final String fName = fileName;
-                fileItemBtn.setOnClickListener(v -> {
-                    activeInternalFile = fName;
-                    renderContent();
-                });
-                containerLayout.addView(fileItemBtn);
-            }
-
-            View divider = new View(this);
-            divider.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 2));
-            divider.setBackgroundColor(Color.parseColor("#334155"));
-            ((LinearLayout.LayoutParams) divider.getLayoutParams()).setMargins(0, 15, 0, 15);
-            containerLayout.addView(divider);
-
-            TextView contentHeader = new TextView(this);
-            contentHeader.setText("🔍 Просмотр содержимого: " + activeInternalFile);
-            contentHeader.setTextColor(Color.parseColor("#38BDF8"));
-            contentHeader.setTextSize(12f);
-            contentHeader.setPadding(0, 0, 0, 8);
-            containerLayout.addView(contentHeader);
-
-            String content = archiveFiles.get(activeInternalFile);
-            if (content != null) {
-                try {
-                    JSONObject json = new JSONObject(content);
-                    Iterator<String> keys = json.keys();
-                    while (keys.hasNext()) {
-                        String key = keys.next();
-                        Object val = json.get(key);
-                        containerLayout.addView(createParameterCard(key, String.valueOf(val)));
-                    }
-                } catch (Exception e) {
-                    TextView textCard = new TextView(this);
-                    textCard.setText(content);
-                    textCard.setTextColor(Color.parseColor("#E2E8F0"));
-                    textCard.setTextSize(12f);
-                    textCard.setPadding(16, 16, 16, 16);
-
-                    GradientDrawable bg = new GradientDrawable();
-                    bg.setColor(Color.parseColor("#0F172A"));
-                    bg.setCornerRadius(16f);
-                    bg.setStroke(1, Color.parseColor("#334155"));
-                    textCard.setBackground(bg);
-                    containerLayout.addView(textCard);
+            final String nodeName = fileName;
+            nodeBtn.setOnClickListener(v -> {
+                if (isParamEditMode && rawEditorInput != null && !activeNodeFile.isEmpty()) {
+                    projectFiles.put(activeNodeFile, rawEditorInput.getText().toString());
                 }
+                activeNodeFile = nodeName;
+                statusTextView.setText(" Проект: " + currentProjectName + " | Узел: " + activeNodeFile);
+                renderWorkspace();
+            });
+            containerLayout.addView(nodeBtn);
+        }
+
+        // Отрисовка содержимого выбранного узла
+        String content = projectFiles.get(activeNodeFile);
+        if (content == null) content = "";
+
+        if (isParamEditMode) {
+            // Режим сырого редактора кода / конфигурации
+            rawEditorInput = new EditText(this);
+            rawEditorInput.setText(content);
+            rawEditorInput.setTextColor(Color.parseColor("#E2E8F0"));
+            rawEditorInput.setTextSize(12f);
+            rawEditorInput.setTypeface(Typeface.MONOSPACE);
+            rawEditorInput.setBackgroundColor(Color.parseColor("#0F172A"));
+            rawEditorInput.setPadding(16, 16, 16, 16);
+            rawEditorInput.setGravity(Gravity.TOP);
+            rawEditorInput.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 850
+            ));
+            propertyGridContainer.addView(rawEditorInput);
+        } else {
+            // Режим Property Grid / Parameter Settings (в стиле таблиц параметров PCM600)
+            TextView gridHeader = new TextView(this);
+            gridHeader.setText("⚙️ Окно параметров и свойств узла: " + activeNodeFile);
+            gridHeader.setTextColor(Color.parseColor("#FBBF24"));
+            gridHeader.setTextSize(12f);
+            gridHeader.setTypeface(Typeface.DEFAULT_BOLD);
+            gridHeader.setPadding(4, 4, 4, 12);
+            propertyGridContainer.addView(gridHeader);
+
+            try {
+                JSONObject json = new JSONObject(content);
+                Iterator<String> keys = json.keys();
+                while (keys.hasNext()) {
+                    String key = keys.next();
+                    Object val = json.get(key);
+                    propertyGridContainer.addView(createParameterRowCard(key, String.valueOf(val)));
+                }
+            } catch (Exception e) {
+                // Если формат не JSON, отображаем как структурированный лог/текст
+                TextView textCard = new TextView(this);
+                textCard.setText(content);
+                textCard.setTextColor(Color.parseColor("#E2E8F0"));
+                textCard.setTextSize(12f);
+                textCard.setTypeface(Typeface.MONOSPACE);
+                textCard.setPadding(16, 16, 16, 16);
+
+                GradientDrawable cardBg = new GradientDrawable();
+                cardBg.setColor(Color.parseColor("#0F172A"));
+                cardBg.setCornerRadius(8f);
+                cardBg.setStroke(1, Color.parseColor("#1E293B"));
+                textCard.setBackground(cardBg);
+                propertyGridContainer.addView(textCard);
             }
         }
     }
 
-    private View createParameterCard(String key, String value) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(16, 12, 16, 12);
-        
+    private View createParameterRowCard(String paramName, String paramValue) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(16, 12, 16, 12);
+
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.parseColor("#0F172A"));
-        bg.setCornerRadius(16f);
+        bg.setCornerRadius(8f);
         bg.setStroke(1, Color.parseColor("#1E293B"));
-        card.setBackground(bg);
+        row.setBackground(bg);
 
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
         );
-        params.setMargins(0, 0, 0, 8);
-        card.setLayoutParams(params);
+        params.setMargins(0, 0, 0, 6);
+        row.setLayoutParams(params);
 
-        TextView keyView = new TextView(this);
-        keyView.setText("🔑 " + key.toUpperCase());
-        keyView.setTextColor(Color.parseColor("#38BDF8"));
-        keyView.setTextSize(11f);
-        keyView.setTypeface(Typeface.DEFAULT_BOLD);
-        card.addView(keyView);
+        TextView nameView = new TextView(this);
+        nameView.setText(paramName);
+        nameView.setTextColor(Color.parseColor("#38BDF8"));
+        nameView.setTextSize(12f);
+        nameView.setTypeface(Typeface.DEFAULT_BOLD);
+        LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+        nameView.setLayoutParams(nameParams);
+        row.addView(nameView);
 
         TextView valView = new TextView(this);
-        valView.setText(value);
+        valView.setText(paramValue);
         valView.setTextColor(Color.parseColor("#F8FAFC"));
-        valView.setTextSize(13f);
-        valView.setPadding(0, 4, 0, 0);
-        card.addView(valView);
+        valView.setTextSize(12f);
+        valView.setTypeface(Typeface.MONOSPACE);
+        row.addView(valView);
 
-        return card;
+        return row;
     }
 
-    private void openFilePicker() {
+    private void openApcmiFilePicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         try {
-            startActivityForResult(Intent.createChooser(intent, "Выберите APCMI файл"), PICK_APC_FILE);
+            startActivityForResult(Intent.createChooser(intent, "Выберите APCMI проект"), PICK_APC_FILE);
         } catch (Exception e) {
             Toast.makeText(this, "Файловый менеджер недоступен", Toast.LENGTH_SHORT).show();
         }
@@ -276,7 +310,7 @@ public class MainActivity extends Activity {
         if (resultCode == RESULT_OK && data != null && data.getData() != null) {
             Uri uri = data.getData();
             try {
-                File tempZip = new File(getCacheDir(), "temp_import.zip");
+                File tempZip = new File(getCacheDir(), "import_ied.zip");
                 InputStream in = getContentResolver().openInputStream(uri);
                 FileOutputStream out = new FileOutputStream(tempZip);
                 byte[] buf = new byte[8192];
@@ -285,10 +319,10 @@ public class MainActivity extends Activity {
                 out.close();
                 in.close();
 
-                archiveFiles.clear();
+                projectFiles.clear();
                 ZipFile zipFile = new ZipFile(tempZip);
                 Enumeration<? extends ZipEntry> entries = zipFile.entries();
-                
+
                 while (entries.hasMoreElements()) {
                     ZipEntry entry = entries.nextElement();
                     if (!entry.isDirectory()) {
@@ -300,46 +334,45 @@ public class MainActivity extends Activity {
                             sb.append(line).append("\n");
                         }
                         reader.close();
-                        archiveFiles.put(entry.getName(), sb.toString());
+                        projectFiles.put(entry.getName(), sb.toString());
                     }
                 }
                 zipFile.close();
                 tempZip.delete();
 
-                if (!archiveFiles.isEmpty()) {
-                    activeInternalFile = archiveFiles.keySet().iterator().next();
+                if (!projectFiles.isEmpty()) {
+                    activeNodeFile = projectFiles.keySet().iterator().next();
                 } else {
-                    archiveFiles.put("config.json", "{}");
-                    activeInternalFile = "config.json";
+                    projectFiles.put("config.json", "{}");
+                    activeNodeFile = "config.json";
                 }
 
-                currentFileName = uri.getLastPathSegment();
-                if (currentFileName == null) currentFileName = "config.apcmi";
+                currentProjectName = uri.getLastPathSegment();
+                if (currentProjectName == null) currentProjectName = "ied_config.apcmi";
 
-                statusTextView.setText("Файл: " + currentFileName + " успешно распакован!");
-                renderContent();
-                Toast.makeText(this, "Архив .apcmi открыт!", Toast.LENGTH_SHORT).show();
+                statusTextView.setText(" Проект: " + currentProjectName + " успешно загружен!");
+                renderWorkspace();
+                Toast.makeText(this, "IED Конфигурация открыта!", Toast.LENGTH_SHORT).show();
 
             } catch (Exception e) {
-                Toast.makeText(this, "Ошибка распаковки: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "Ошибка чтения архива: " + e.getMessage(), Toast.LENGTH_LONG).show();
             }
         }
     }
 
-    private void saveFileToStorage() {
-        if (isEditMode && codeEditorInput != null && !activeInternalFile.isEmpty()) {
-            archiveFiles.put(activeInternalFile, codeEditorInput.getText().toString());
+    private void saveApcmiArchive() {
+        if (isParamEditMode && rawEditorInput != null && !activeNodeFile.isEmpty()) {
+            projectFiles.put(activeNodeFile, rawEditorInput.getText().toString());
         }
 
         try {
             File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
             if (!downloadsDir.exists()) downloadsDir.mkdirs();
 
-            File outFile = new File(downloadsDir, currentFileName);
-            
-            // Упаковываем обратно в валидный ZIP (.apcmi)
+            File outFile = new File(downloadsDir, currentProjectName);
             ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(outFile));
-            for (Map.Entry<String, String> entry : archiveFiles.entrySet()) {
+            
+            for (Map.Entry<String, String> entry : projectFiles.entrySet()) {
                 ZipEntry ze = new ZipEntry(entry.getKey());
                 zos.putNextEntry(ze);
                 byte[] data = entry.getValue().getBytes(StandardCharsets.UTF_8);
@@ -348,8 +381,8 @@ public class MainActivity extends Activity {
             }
             zos.close();
 
-            Toast.makeText(this, "💾 Архив .apcmi сохранен в Загрузки!", Toast.LENGTH_LONG).show();
-            statusTextView.setText("Сохранено: " + outFile.getAbsolutePath());
+            Toast.makeText(this, "💾 Проект PCM600 сохранен в Загрузки!", Toast.LENGTH_LONG).show();
+            statusTextView.setText(" Сохранено: " + outFile.getAbsolutePath());
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка сохранения: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
@@ -362,7 +395,7 @@ public class MainActivity extends Activity {
         btn.setTextSize(11f);
         btn.setTypeface(Typeface.DEFAULT_BOLD);
         btn.setBackgroundColor(Color.parseColor(colorHex));
-        btn.setPadding(12, 12, 12, 12);
+        btn.setPadding(10, 10, 10, 10);
         
         if (widthDp > 0) {
             float scale = getResources().getDisplayMetrics().density;
@@ -372,7 +405,15 @@ public class MainActivity extends Activity {
         return btn;
     }
 
-    private void addSpacer(LinearLayout layout, int widthDp) {
+    private void addSpacer(LinearLayout layout, int heightDp) {
+        View spacer = new View(this);
+        float scale = getResources().getDisplayMetrics().density;
+        int px = (int) (heightDp * scale + 0.5f);
+        spacer.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, px));
+        layout.addView(spacer);
+    }
+
+    private void addSpacerHoriz(LinearLayout layout, int widthDp) {
         View spacer = new View(this);
         float scale = getResources().getDisplayMetrics().density;
         int px = (int) (widthDp * scale + 0.5f);
