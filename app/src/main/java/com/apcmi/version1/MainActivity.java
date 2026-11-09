@@ -22,6 +22,7 @@ import android.widget.*;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -29,8 +30,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
@@ -311,13 +310,11 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    // Умный ридер с автоматическим определением UTF-8 / UTF-16 и фильтрацией бинарного мусора
     private String readTextStreamSmart(InputStream is) {
         try {
             byte[] bytes = readAllBytes(is);
             if (bytes.length < 2) return "";
 
-            // Проверка на UTF-16 (например, XML от ABB)
             if ((bytes[0] == (byte) 0xFF && bytes[1] == (byte) 0xFE) || (bytes[0] == (byte) 0xFE && bytes[1] == (byte) 0xFF)) {
                 return new String(bytes, StandardCharsets.UTF_16);
             }
@@ -327,12 +324,10 @@ public class MainActivity extends Activity {
                 return textUtf8;
             }
 
-            // Если файл текстовый / лог
             if (isTextReadable(textUtf8)) {
                 return textUtf8;
             }
 
-            // Если это бинарный или неизвестный DAT/LDF файл, извлекаем понятные строки и параметры для наладки
             StringBuilder extracted = new StringBuilder();
             extracted.append("--- PCM600 IED Binary / Parameter Block ---\n");
             
@@ -347,7 +342,7 @@ public class MainActivity extends Activity {
                         i++;
                     }
                     String token = new String(bytes, start, i - start, StandardCharsets.US_ASCII).trim();
-                    if (token.length() > 3 && token.length() < 30 && !token.contains("")) {
+                    if (token.length() > 3 && token.length() < 30) {
                         if (token.matches(".*[A-Z].*") && (token.contains("PC") || token.contains("PT") || token.contains("TRIP") || token.contains("AR") || token.contains("OC"))) {
                             currentGroup = token;
                             extracted.append("\nFunctionGroup: ").append(currentGroup).append("\n");
@@ -409,7 +404,6 @@ public class MainActivity extends Activity {
             }
         }
 
-        // Если парсер не нашел групп, создаем стандартные уставки для удобной наладки
         if (groupParams.isEmpty()) {
             groupParams.put("IED_Device_Status", "Active / Normal");
             groupParams.put("Configuration_Version", "v5.2.3");
@@ -440,7 +434,6 @@ public class MainActivity extends Activity {
         containerLayout.removeAllViews();
         propertyGridContainer.removeAllViews();
 
-        // Рендер дерева узлов IED (Вкладки файлов)
         for (String fileName : projectFiles.keySet()) {
             boolean isSelected = fileName.equals(activeNodeFile);
             Button nodeBtn = createStyledButton("📁 " + fileName, isSelected ? "#0F766E" : "#1E293B", 0);
@@ -480,7 +473,6 @@ public class MainActivity extends Activity {
             ));
             propertyGridContainer.addView(rawEditorInput);
         } else {
-            // Окно Параметров и Наладки блоков (PCM600 Parameter Setting Grid)
             TextView gridHeader = new TextView(this);
             gridHeader.setText("⚙️ Таблица уставок и наладки блоков: " + activeNodeFile);
             gridHeader.setTextColor(Color.parseColor("#FBBF24"));
@@ -493,7 +485,6 @@ public class MainActivity extends Activity {
                 String groupName = groupEntry.getKey();
                 Map<String, String> params = groupEntry.getValue();
 
-                // Заголовок группы функции
                 TextView groupHeader = new TextView(this);
                 groupHeader.setText("📌 [Функциональный блок]: " + groupName);
                 groupHeader.setTextColor(Color.parseColor("#38BDF8"));
@@ -535,7 +526,6 @@ public class MainActivity extends Activity {
         nameView.setLayoutParams(nameParams);
         row.addView(nameView);
 
-        // Интерактивное поле ввода для наладки уставки (как в Parameter Setting PCM600)
         final EditText valEdit = new EditText(this);
         valEdit.setText(paramVal);
         valEdit.setTextColor(Color.parseColor("#38BDF8"));
@@ -549,7 +539,6 @@ public class MainActivity extends Activity {
 
         valEdit.setOnFocusChangeListener((v, hasFocus) -> {
             if (!hasFocus) {
-                // Сохранение отрегулированного значения уставки
                 parsedParameters.get(group).put(paramKey, valEdit.getText().toString());
                 updateRawContentFromParameters();
             }
