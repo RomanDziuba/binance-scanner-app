@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.roman.version2'
+    namespace 'com.gps1.version1'
     compileSdk 34
     defaultConfig {
-        applicationId "com.roman.version2"
+        applicationId "com.gps1.version1"
         minSdk 26
         targetSdk 34
-        versionCode 219
-        versionName "2"
+        versionCode 220
+        versionName "1"
         multiDexEnabled true
     }
     compileOptions {
@@ -19,7 +19,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "GPS_v2-" + variant.name + ".apk"
+            outputFileName = "GPS_v1-" + variant.name + ".apk"
         }
     }
 }
