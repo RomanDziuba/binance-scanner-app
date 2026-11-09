@@ -30,7 +30,7 @@ jobs:
       - name: Prepare APK and Java Code Duplicate
         run: |
           RAW_APK=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
-          TARGET_NAME="GPS_v1"
+          TARGET_NAME="GPS_v2"
           FINAL_APK="${TARGET_NAME}.apk"
           TXT_PATH="${TARGET_NAME}.java.txt"
           cp "$RAW_APK" "$FINAL_APK"
@@ -38,12 +38,12 @@ jobs:
           if [ -f "$JAVA_SRC" ]; then
             cp "$JAVA_SRC" "$TXT_PATH"
           else
-            echo "package com.gps.version1;" > "$TXT_PATH"
+            echo "package com.roman.version2;" > "$TXT_PATH"
           fi
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: "GPS_v1"
+          name: "GPS_v2"
           path: |
             *.apk
             *.java.txt
