@@ -65,7 +65,7 @@ public class MainActivity extends Activity {
         // Демо-структура блоков IED для PCM600
         projectFiles.put("exported.xml", "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<IED name=\"REX615\">\n    <Setting parameter=\"ZeroSequence\" value=\"Enabled\"/>\n    <Setting parameter=\"Threshold\" value=\"120A\"/>\n</IED>");
         projectFiles.put("PDSdata.dat", "FunctionGroup: TPGAPC1\n  - PickupDelay: 150ms\n  - OperateValue: 5.2A\n  - Status: Active\nFunctionGroup: PHHPTOC1\n  - CurrentTrip: 120A\n  - TimeMultiplier: 0.1s");
-        activeNodeFile = "PDSdata.dat";
+        activeNodeFile = "exported.xml";
 
         // Главный контейнер PCM600
         LinearLayout rootLayout = new LinearLayout(this);
@@ -172,8 +172,7 @@ public class MainActivity extends Activity {
         rootLayout.addView(workspace);
 
         setContentView(rootLayout);
-        parseActiveNodeParameters();
-        renderWorkspace();
+        switchTabSafely(activeNodeFile);
     }
 
     private void checkStoragePermissions() {
@@ -292,9 +291,7 @@ public class MainActivity extends Activity {
                         projectFiles = tempMap;
                         activeNodeFile = projectFiles.keySet().iterator().next();
                         currentProjectName = file.getName();
-                        parseActiveNodeParameters();
-                        statusTextView.setText(" Проект: " + currentProjectName + " успешно загружен!");
-                        renderWorkspace();
+                        switchTabSafely(activeNodeFile);
                         Toast.makeText(this, "Проект PCM600 открыт!", Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(this, "Архив пуст", Toast.LENGTH_SHORT).show();
@@ -335,7 +332,8 @@ public class MainActivity extends Activity {
             extracted.append("FunctionGroup: ").append(currentGroup).append("\n");
 
             int paramId = 1;
-            for (int i = 0; i < bytes.length - 3; i++) {
+            int limitCount = 0;
+            for (int i = 0; i < bytes.length - 3 && limitCount < 1000; i++) {
                 if (bytes[i] >= 32 && bytes[i] <= 126 && bytes[i+1] >= 32 && bytes[i+1] <= 126) {
                     int start = i;
                     while (i < bytes.length && bytes[i] >= 32 && bytes[i] <= 126) {
@@ -349,6 +347,7 @@ public class MainActivity extends Activity {
                         } else {
                             extracted.append("  - Param_").append(paramId++).append(": ").append(token).append("\n");
                         }
+                        limitCount++;
                     }
                 }
             }
@@ -378,6 +377,26 @@ public class MainActivity extends Activity {
         return (double) printable / total > 0.85;
     }
 
+    // Асинхронное переключение вкладки во избежание зависаний (ANR)
+    private void switchTabSafely(String nodeName) {
+        ProgressDialog progress = new ProgressDialog(this);
+        progress.setTitle("⚙️ Загрузка узла");
+        progress.setMessage("Парсинг уставок и параметров...");
+        progress.setCancelable(false);
+        progress.show();
+
+        new Thread(() -> {
+            activeNodeFile = nodeName;
+            parseActiveNodeParameters();
+
+            handler.post(() -> {
+                progress.dismiss();
+                statusTextView.setText(" Проект: " + currentProjectName + " | Блок: " + activeNodeFile);
+                renderWorkspace();
+            });
+        }).start();
+    }
+
     private void parseActiveNodeParameters() {
         parsedParameters.clear();
         String content = projectFiles.get(activeNodeFile);
@@ -388,7 +407,9 @@ public class MainActivity extends Activity {
         parsedParameters.put(currentGroup, groupParams);
 
         String[] lines = content.split("\n");
+        int lineCount = 0;
         for (String line : lines) {
+            if (lineCount++ > 1500) break; // Защита от зависания на слишком длинных файлах
             String trimmed = line.trim();
             if (trimmed.startsWith("FunctionGroup:") || trimmed.startsWith("<") && trimmed.contains("name=")) {
                 currentGroup = trimmed.replace("FunctionGroup:", "").replace("<", "").trim();
@@ -421,7 +442,8 @@ public class MainActivity extends Activity {
         } else {
             if (rawEditorInput != null && !activeNodeFile.isEmpty()) {
                 projectFiles.put(activeNodeFile, rawEditorInput.getText().toString());
-                parseActiveNodeParameters();
+                switchTabSafely(activeNodeFile);
+                return;
             }
             btnToggleView.setText("📝 Raw Код");
             btnToggleView.setBackgroundColor(Color.parseColor("#1E293B"));
@@ -448,10 +470,7 @@ public class MainActivity extends Activity {
                 if (isParamEditMode && rawEditorInput != null && !activeNodeFile.isEmpty()) {
                     projectFiles.put(activeNodeFile, rawEditorInput.getText().toString());
                 }
-                activeNodeFile = nodeName;
-                parseActiveNodeParameters();
-                statusTextView.setText(" Проект: " + currentProjectName + " | Блок: " + activeNodeFile);
-                renderWorkspace();
+                switchTabSafely(nodeName);
             });
             containerLayout.addView(nodeBtn);
         }
@@ -539,8 +558,10 @@ public class MainActivity extends Activity {
 
         valEdit.setOnFocusChangeListener((v, hasFocus) -> {
             if (!hasFocus) {
-                parsedParameters.get(group).put(paramKey, valEdit.getText().toString());
-                updateRawContentFromParameters();
+                if (parsedParameters.containsKey(group)) {
+                    parsedParameters.get(group).put(paramKey, valEdit.getText().toString());
+                    updateRawContentFromParameters();
+                }
             }
         });
 
@@ -661,10 +682,10 @@ public class MainActivity extends Activity {
         layout.addView(spacer);
     }
 
-    private void addSpacerHoriz(LinearLayout layout, int widthDp) {
+    private void addSpacerHoriz(LinearLayout layout, int widthDiv) {
         View spacer = new View(this);
         float scale = getResources().getDisplayMetrics().density;
-        int px = (int) (widthDp * scale + 0.5f);
+        int px = (int) (widthDiv * scale + 0.5f);
         spacer.setLayoutParams(new LinearLayout.LayoutParams(px, ViewGroup.LayoutParams.MATCH_PARENT));
         layout.addView(spacer);
     }
