@@ -31,34 +31,37 @@ public class MainActivity extends Activity implements LocationListener {
     private Location lastValidLocation = null;
     private boolean isMapLoaded = false;
     
-    // Аппаратный коллбэк для мониторинга спутников
+    // Аппаратный коллбэк для мгновенного отслеживания спутников и РЭБ
     private GnssStatus.Callback gnssCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Держим экран включенным для постоянного контроля
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         checkAndRequestPermissions();
 
+        // Корневой макет приложения
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(Color.parseColor("#030712"));
 
+        // Верхняя информационная панель статуса
         LinearLayout topBar = new LinearLayout(this);
         topBar.setOrientation(LinearLayout.VERTICAL);
         topBar.setBackgroundColor(Color.parseColor("#0F172A"));
         topBar.setPadding(20, 20, 20, 20);
 
         TextView title = new TextView(this);
-        title.setText("🗺 ONLINE MAP + REB SHIELD");
+        title.setText("🗺 ONLINE MAP + REB SHIELD PRO");
         title.setTextColor(Color.parseColor("#38BDF8"));
         title.setTextSize(15f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         topBar.addView(title);
 
         statusTextView = new TextView(this);
-        statusTextView.setText("⏳ Инициализация спутников...");
+        statusTextView.setText("⏳ Инициализация спутникового модуля...");
         statusTextView.setTextColor(Color.parseColor("#FBBF24"));
         statusTextView.setTextSize(12f);
         statusTextView.setPadding(0, 4, 0, 2);
@@ -72,6 +75,7 @@ public class MainActivity extends Activity implements LocationListener {
 
         root.addView(topBar);
 
+        // WebView с интерактивной онлайн-картой OpenStreetMap / Leaflet и векторной стрелкой направления
         webView = new WebView(this);
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -88,6 +92,7 @@ public class MainActivity extends Activity implements LocationListener {
             }
         });
 
+        // HTML/JS оболочка карты с кастомным SVG-маркером направления движения (Bearing)
         String mapHtml = "<!DOCTYPE html><html><head><meta charset=\"utf-8\" />" +
                 "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">" +
                 "<link rel=\"stylesheet\" href=\"https://unpkg.com/leaflet@1.9.4/dist/leaflet.css\" />" +
@@ -126,6 +131,7 @@ public class MainActivity extends Activity implements LocationListener {
         webView.setLayoutParams(webParams);
         root.addView(webView);
 
+        // Нижняя панель управления с функциональными кнопками
         LinearLayout bottomBar = new LinearLayout(this);
         bottomBar.setOrientation(LinearLayout.HORIZONTAL);
         bottomBar.setBackgroundColor(Color.parseColor("#0F172A"));
@@ -190,6 +196,7 @@ public class MainActivity extends Activity implements LocationListener {
                 locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 0.0f, this);
                 locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 2000, 0.0f, this);
 
+                // Регистрация аппаратного контроля спутников (SDK 24+) для мгновенного детектирования РЭБ без таймеров
                 if (Build.VERSION.SDK_INT >= 24) {
                     gnssCallback = new GnssStatus.Callback() {
                         @Override
@@ -213,6 +220,7 @@ public class MainActivity extends Activity implements LocationListener {
                             int usedSatellites = 0;
                             int total = status.getSatelliteCount();
                             for (int i = 0; i < total; i++) {
+                                // Используем правильный метод usedInFix(i)
                                 if (status.usedInFix(i)) {
                                     usedSatellites++;
                                 }
