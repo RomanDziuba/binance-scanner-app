@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace 'com.pdfdocx.version1'
+    namespace 'com.apcmi.version1'
     compileSdk 34
     defaultConfig {
-        applicationId "com.pdfdocx.version1"
+        applicationId "com.apcmi.version1"
         minSdk 26
         targetSdk 34
         versionCode 199
@@ -19,7 +19,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "PDF_DOCX_v1-" + variant.name + ".apk"
+            outputFileName = "CompilerMonster11_v1-" + variant.name + ".apk"
         }
     }
 }
@@ -31,5 +31,4 @@ dependencies {
     implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.16.0'
     implementation 'org.apache.poi:poi:5.2.3'
     implementation 'org.apache.poi:poi-ooxml:5.2.3'
-    implementation 'com.github.tomroush:pdfbox-android:2.0.27.2'
 }
