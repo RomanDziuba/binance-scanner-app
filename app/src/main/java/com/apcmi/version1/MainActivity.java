@@ -1,12 +1,16 @@
 package com.apcmi.version1;
 
+import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -19,6 +23,7 @@ import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -32,19 +37,19 @@ import java.util.zip.ZipOutputStream;
 public class MainActivity extends Activity {
 
     private static final int PICK_APC_FILE = 3001;
+    private static final int PERMISSION_REQUEST_CODE = 1002;
 
     private boolean isParamEditMode = false;
     private String currentProjectName = "Substation_IED_Config.apcmi";
     
-    // Безопасное хранение файлов в байтах для обработки текста и бинарных данных
-    private Map<String, byte[]> projectFilesBytes = new HashMap<>();
-    private List<String> filePathsList = new ArrayList<>();
+    // Хранилище файлов проекта
+    private Map<String, String> projectFiles = new LinkedHashMap<>();
     private String activeNodeFile = "";
 
     private LinearLayout containerLayout, propertyGridContainer;
     private ScrollView mainScroll;
     private TextView statusTextView, projectTitleView;
-    private Button btnToggleView, btnOpenProject, btnSaveProject;
+    private Button btnToggleView, btnOpenProject, btnSaveProject, btnScanPhone;
     private EditText rawEditorInput;
     private Handler handler = new Handler(Looper.getMainLooper());
 
@@ -52,13 +57,14 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Демо-данные для инициализации
-        String demoJson = "{\n  \"ied_name\": \"REF615_Feeder_Protection\",\n  \"station_voltage_kv\": 110,\n  \"relay_group\": \"Chint_NR2_NC2\",\n  \"trip_delay_ms\": 150,\n  \"auto_reclosing\": true\n}";
-        projectFilesBytes.put("config.json", demoJson.getBytes(StandardCharsets.UTF_8));
-        filePathsList.add("config.json");
+        // Проверка и запрос разрешений на чтение памяти для сканирования телефона
+        checkStoragePermissions();
+
+        // Демо-данные
+        projectFiles.put("config.json", "{\n  \"ied_name\": \"REF615_Feeder_Protection\",\n  \"station_voltage_kv\": 110,\n  \"relay_group\": \"Chint_NR2_NC2\",\n  \"trip_delay_ms\": 150\n}");
         activeNodeFile = "config.json";
 
-        // Главный контейнер в промышленном стиле PCM600
+        // Главный контейнер в стиле PCM600
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
         rootLayout.setBackgroundColor(Color.parseColor("#0A0E17"));
@@ -92,21 +98,28 @@ public class MainActivity extends Activity {
         rootLayout.addView(toolBar);
         addSpacer(rootLayout, 10);
 
-        // --- ПАНЕЛЬ ДЕЙСТВИЙ ---
+        // --- ПАНЕЛЬ ДЕЙСТВИЙ И СКАНИРОВАНИЯ ---
         LinearLayout actionRow = new LinearLayout(this);
         actionRow.setOrientation(LinearLayout.HORIZONTAL);
 
-        btnOpenProject = createStyledButton("📁 Открыть .apcmi", "#0F766E", 0);
+        btnOpenProject = createStyledButton("📁 Открыть", "#0F766E", 0);
         btnOpenProject.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
         btnOpenProject.setOnClickListener(v -> openApcmiFilePicker());
         actionRow.addView(btnOpenProject);
 
-        addSpacerHoriz(actionRow, 10);
+        addSpacerHoriz(actionRow, 8);
 
-        btnSaveProject = createStyledButton("💾 Сохранить .apcmi", "#1D4ED8", 0);
+        btnSaveProject = createStyledButton("💾 Сохранить", "#1D4ED8", 0);
         btnSaveProject.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
         btnSaveProject.setOnClickListener(v -> saveApcmiArchive());
         actionRow.addView(btnSaveProject);
+
+        addSpacerHoriz(actionRow, 8);
+
+        btnScanPhone = createStyledButton("🔍 Сканировать", "#B45309", 0);
+        btnScanPhone.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+        btnScanPhone.setOnClickListener(v -> scanPhoneForProjects());
+        actionRow.addView(btnScanPhone);
 
         rootLayout.addView(actionRow);
         addSpacer(rootLayout, 10);
@@ -129,7 +142,7 @@ public class MainActivity extends Activity {
         LinearLayout workspace = new LinearLayout(this);
         workspace.setOrientation(LinearLayout.VERTICAL);
 
-        // 1. Дерево узлов проекта (горизонтальный скролл путей)
+        // Дерево узлов проекта (Вкладки)
         HorizontalScrollView treeScroll = new HorizontalScrollView(this);
         treeScroll.setPadding(0, 0, 0, 8);
         
@@ -138,7 +151,7 @@ public class MainActivity extends Activity {
         treeScroll.addView(containerLayout);
         workspace.addView(treeScroll);
 
-        // 2. Окно параметров и свойств (Property Grid)
+        // Таблица параметров / Свойств (Property Grid)
         mainScroll = new ScrollView(this);
         mainScroll.setLayoutParams(new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.0f
@@ -159,6 +172,155 @@ public class MainActivity extends Activity {
         renderWorkspace();
     }
 
+    private void checkStoragePermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{
+                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                }, PERMISSION_REQUEST_CODE);
+            }
+        }
+    }
+
+    private void scanPhoneForProjects() {
+        ProgressDialog progress = new ProgressDialog(this);
+        progress.setTitle("🔍 Сканирование памяти");
+        progress.setMessage("Поиск файлов проектов (.apcmi, .zip, .cff) на устройстве...");
+        progress.setCancelable(false);
+        progress.show();
+
+        new Thread(() -> {
+            List<File> foundFiles = new ArrayList<>();
+            try {
+                File storageDir = Environment.getExternalStorageDirectory();
+                recursiveSearch(storageDir, foundFiles);
+            } catch (Exception ignored) {}
+
+            handler.post(() -> {
+                progress.dismiss();
+                showFoundFilesDialog(foundFiles);
+            });
+        }).start();
+    }
+
+    private void recursiveSearch(File dir, List<File> result) {
+        if (dir == null || !dir.isDirectory()) return;
+        File[] files = dir.listFiles();
+        if (files == null) return;
+
+        for (File f : files) {
+            if (f.isDirectory()) {
+                // Пропускаем системные папки для скорости
+                String name = f.getName().toLowerCase();
+                if (!name.startsWith(".") && !name.equals("android") && !name.equals("data")) {
+                    recursiveSearch(f, result);
+                }
+            } else {
+                String name = f.getName().toLowerCase();
+                if (name.endsWith(".apcmi") || name.endsWith(".zip") || name.endsWith(".cff") || name.endsWith(".dat")) {
+                    result.add(f);
+                }
+            }
+        }
+    }
+
+    private void showFoundFilesDialog(List<File> files) {
+        if (files.isEmpty()) {
+            Toast.makeText(this, "Файлы проектов не найдены на устройстве", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        List<String> displayNames = new ArrayList<>();
+        for (File f : files) {
+            displayNames.add(f.getName() + " (" + (f.length() / 1024) + " КБ)\nПуть: " + f.getParent());
+        }
+
+        final CharSequence[] items = displayNames.toArray(new CharSequence[0]);
+        new AlertDialog.Builder(this)
+            .setTitle("📁 Найденные файлы (" + files.size() + ")")
+            .setItems(items, (dialog, which) -> {
+                File selected = files.get(which);
+                loadArchiveFileSafely(selected);
+            })
+            .setNegativeButton("Закрыть", null)
+            .show();
+    }
+
+    private void loadArchiveFileSafely(File file) {
+        ProgressDialog progress = new ProgressDialog(this);
+        progress.setTitle("📂 Загрузка проекта");
+        progress.setMessage("Чтение и парсинг структуры IED...");
+        progress.setCancelable(false);
+        progress.show();
+
+        new Thread(() -> {
+            try {
+                Map<String, String> tempMap = new LinkedHashMap<>();
+                String lowerName = file.getName().toLowerCase();
+
+                if (lowerName.endsWith(".apcmi") || lowerName.endsWith(".zip")) {
+                    ZipFile zipFile = new ZipFile(file);
+                    Enumeration<? extends ZipEntry> entries = zipFile.entries();
+                    while (entries.hasMoreElements()) {
+                        ZipEntry entry = entries.nextElement();
+                        if (!entry.isDirectory()) {
+                            try (InputStream zis = zipFile.getInputStream(entry)) {
+                                BufferedReader reader = new BufferedReader(new InputStreamReader(zis, StandardCharsets.UTF_8));
+                                StringBuilder sb = new StringBuilder();
+                                String line;
+                                int lineCount = 0;
+                                // Защита от зависания на огромных файлах: читаем до 5000 строк
+                                while ((line = reader.readLine()) != null && lineCount < 5000) {
+                                    sb.append(line).append("\n");
+                                    lineCount++;
+                                }
+                                tempMap.put(entry.getName(), sb.toString());
+                            } catch (Exception e) {
+                                tempMap.put(entry.getName(), "[Бинарный или защищенный файл данных]");
+                            }
+                        }
+                    }
+                    zipFile.close();
+                } else {
+                    // Одиночный файл (.cff, .dat, .xml)
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
+                        StringBuilder sb = new StringBuilder();
+                        String line;
+                        int lineCount = 0;
+                        while ((line = reader.readLine()) != null && lineCount < 5000) {
+                            sb.append(line).append("\n");
+                            lineCount++;
+                        }
+                        tempMap.put(file.getName(), sb.toString());
+                    } catch (Exception e) {
+                        tempMap.put(file.getName(), "[Бинарный файл]");
+                    }
+                }
+
+                handler.post(() -> {
+                    progress.dismiss();
+                    if (!tempMap.isEmpty()) {
+                        projectFiles = tempMap;
+                        activeNodeFile = projectFiles.keySet().iterator().next();
+                        currentProjectName = file.getName();
+                        statusTextView.setText(" Проект: " + currentProjectName + " успешно загружен!");
+                        renderWorkspace();
+                        Toast.makeText(this, "Проект успешно открыт!", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(this, "Архив пуст", Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+            } catch (Exception e) {
+                handler.post(() -> {
+                    progress.dismiss();
+                    Toast.makeText(this, "Ошибка чтения файла: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        }).start();
+    }
+
     private void toggleViewMode() {
         isParamEditMode = !isParamEditMode;
         if (isParamEditMode) {
@@ -167,7 +329,7 @@ public class MainActivity extends Activity {
             statusTextView.setText(" Режим: Текстовый редактор [Raw Code]");
         } else {
             if (rawEditorInput != null && !activeNodeFile.isEmpty()) {
-                projectFilesBytes.put(activeNodeFile, rawEditorInput.getText().toString().getBytes(StandardCharsets.UTF_8));
+                projectFiles.put(activeNodeFile, rawEditorInput.getText().toString());
             }
             btnToggleView.setText("📝 Редактор");
             btnToggleView.setBackgroundColor(Color.parseColor("#1E293B"));
@@ -180,42 +342,37 @@ public class MainActivity extends Activity {
         containerLayout.removeAllViews();
         propertyGridContainer.removeAllViews();
 
-        // Отрисовка дерева узлов проекта (с защитой от длинных путей)
-        for (String filePath : filePathsList) {
-            boolean isSelected = filePath.equals(activeNodeFile);
-            String displayName = filePath.contains("/") ? filePath.substring(filePath.lastIndexOf('/') + 1) : filePath;
-            
-            Button nodeBtn = createStyledButton("📄 " + displayName, isSelected ? "#0F766E" : "#1E293B", 0);
+        // Отрисовка дерева узлов IED (Вкладки) без лагов
+        for (String fileName : projectFiles.keySet()) {
+            boolean isSelected = fileName.equals(activeNodeFile);
+            Button nodeBtn = createStyledButton("📁 " + fileName, isSelected ? "#0F766E" : "#1E293B", 0);
             nodeBtn.setTextSize(11f);
             
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             lp.setMargins(0, 0, 8, 0);
             nodeBtn.setLayoutParams(lp);
 
-            final String targetPath = filePath;
+            final String nodeName = fileName;
             nodeBtn.setOnClickListener(v -> {
                 if (isParamEditMode && rawEditorInput != null && !activeNodeFile.isEmpty()) {
-                    projectFilesBytes.put(activeNodeFile, rawEditorInput.getText().toString().getBytes(StandardCharsets.UTF_8));
+                    projectFiles.put(activeNodeFile, rawEditorInput.getText().toString());
                 }
-                activeNodeFile = targetPath;
-                statusTextView.setText(" Узел: " + activeNodeFile);
+                activeNodeFile = nodeName;
+                statusTextView.setText(" Проект: " + currentProjectName + " | Узел: " + activeNodeFile);
                 renderWorkspace();
             });
             containerLayout.addView(nodeBtn);
         }
 
-        byte[] data = projectFilesBytes.get(activeNodeFile);
-        if (data == null) data = new byte[0];
+        // Отрисовка содержимого
+        String content = projectFiles.get(activeNodeFile);
+        if (content == null) content = "";
 
         if (isParamEditMode) {
-            // Режим редактирования текста (для безопасности выводим только текстовые файлы размером до 250КБ)
-            String content = isBinary(data) ? "⚠️ [Бинарный файл. Редактирование заблокировано во избежание сбоя]" : new String(data, StandardCharsets.UTF_8);
-            
             rawEditorInput = new EditText(this);
             rawEditorInput.setText(content);
-            rawEditorInput.setEnabled(!isBinary(data));
             rawEditorInput.setTextColor(Color.parseColor("#E2E8F0"));
-            rawEditorInput.setTextSize(11f);
+            rawEditorInput.setTextSize(12f);
             rawEditorInput.setTypeface(Typeface.MONOSPACE);
             rawEditorInput.setBackgroundColor(Color.parseColor("#0F172A"));
             rawEditorInput.setPadding(16, 16, 16, 16);
@@ -225,61 +382,39 @@ public class MainActivity extends Activity {
             ));
             propertyGridContainer.addView(rawEditorInput);
         } else {
-            // Режим Property Grid / Просмотра
             TextView gridHeader = new TextView(this);
-            gridHeader.setText("⚙️ Свойства узла: " + activeNodeFile);
+            gridHeader.setText("⚙️ Параметры узла: " + activeNodeFile);
             gridHeader.setTextColor(Color.parseColor("#FBBF24"));
             gridHeader.setTextSize(12f);
             gridHeader.setTypeface(Typeface.DEFAULT_BOLD);
             gridHeader.setPadding(4, 4, 4, 12);
             propertyGridContainer.addView(gridHeader);
 
-            if (isBinary(data)) {
-                // Отображение информации о бинарном файле (осциллограммы, бинарники .dat)
-                propertyGridContainer.addView(createParameterRowCard("Тип файла", "Бинарный поток данных / COMTRADE / DAT"));
-                propertyGridContainer.addView(createParameterRowCard("Размер", data.length + " байт"));
-                propertyGridContainer.addView(createParameterRowCard("Статус", "Защищено от вылета (просмотр сырой бинарной графики отключен)"));
-            } else {
-                String content = new String(data, StandardCharsets.UTF_8);
-                try {
-                    JSONObject json = new JSONObject(content);
-                    Iterator<String> keys = json.keys();
-                    while (keys.hasNext()) {
-                        String key = keys.next();
-                        Object val = json.get(key);
-                        propertyGridContainer.addView(createParameterRowCard(key, String.valueOf(val)));
-                    }
-                } catch (Exception e) {
-                    // Если это XML или обычный текст, выводим порциями
-                    TextView textCard = new TextView(this);
-                    // Ограничиваем вывод до 15000 символов для предотвращения ANR при огромных файлах
-                    if (content.length() > 15000) {
-                        content = content.substring(0, 15000) + "\n\n... [Файл слишком велик, показана первая часть]";
-                    }
-                    textCard.setText(content);
-                    textCard.setTextColor(Color.parseColor("#E2E8F0"));
-                    textCard.setTextSize(11f);
-                    textCard.setTypeface(Typeface.MONOSPACE);
-                    textCard.setPadding(16, 16, 16, 16);
-
-                    GradientDrawable cardBg = new GradientDrawable();
-                    cardBg.setColor(Color.parseColor("#0F172A"));
-                    cardBg.setCornerRadius(8f);
-                    cardBg.setStroke(1, Color.parseColor("#1E293B"));
-                    textCard.setBackground(cardBg);
-                    propertyGridContainer.addView(textCard);
+            try {
+                JSONObject json = new JSONObject(content);
+                Iterator<String> keys = json.keys();
+                while (keys.hasNext()) {
+                    String key = keys.next();
+                    Object val = json.get(key);
+                    propertyGridContainer.addView(createParameterRowCard(key, String.valueOf(val)));
                 }
+            } catch (Exception e) {
+                // Если не JSON, выводим отформатированный текст без зависаний
+                TextView textCard = new TextView(this);
+                textCard.setText(content);
+                textCard.setTextColor(Color.parseColor("#E2E8F0"));
+                textCard.setTextSize(11f);
+                textCard.setTypeface(Typeface.MONOSPACE);
+                textCard.setPadding(16, 16, 16, 16);
+
+                GradientDrawable cardBg = new GradientDrawable();
+                cardBg.setColor(Color.parseColor("#0F172A"));
+                cardBg.setCornerRadius(8f);
+                cardBg.setStroke(1, Color.parseColor("#1E293B"));
+                textCard.setBackground(cardBg);
+                propertyGridContainer.addView(textCard);
             }
         }
-    }
-
-    // Проверка файла на наличие бинарных нулевых байтов (защита от вылетов)
-    private boolean isBinary(byte[] bytes) {
-        int checkLen = Math.min(bytes.length, 1024);
-        for (int i = 0; i < checkLen; i++) {
-            if (bytes[i] == 0) return true;
-        }
-        return false;
     }
 
     private View createParameterRowCard(String paramName, String paramValue) {
@@ -312,7 +447,7 @@ public class MainActivity extends Activity {
         TextView valView = new TextView(this);
         valView.setText(paramValue);
         valView.setTextColor(Color.parseColor("#F8FAFC"));
-        valView.setTextSize(11f);
+        valView.setTextSize(12f);
         valView.setTypeface(Typeface.MONOSPACE);
         row.addView(valView);
 
@@ -335,113 +470,63 @@ public class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode == RESULT_OK && data != null && data.getData() != null) {
             Uri uri = data.getData();
-            
-            // Прогресс-диалог для предотвращения ANR во время распаковки
-            ProgressDialog progress = new ProgressDialog(this);
-            progress.setTitle("⏳ Открытие проекта PCM600");
-            progress.setMessage("Распаковка и анализ архива .apcmi...");
-            progress.setCancelable(false);
-            progress.show();
+            try {
+                InputStream in = getContentResolver().openInputStream(uri);
+                File tempZip = new File(getCacheDir(), "import_ied.zip");
+                FileOutputStream out = new FileOutputStream(tempZip);
+                byte[] buf = new byte[8192];
+                int len;
+                while ((len = in.read(buf)) != -1) out.write(buf, 0, len);
+                out.close();
+                in.close();
 
-            new Thread(() -> {
-                try {
-                    File tempZip = new File(getCacheDir(), "import_ied.zip");
-                    InputStream in = getContentResolver().openInputStream(uri);
-                    FileOutputStream out = new FileOutputStream(tempZip);
-                    byte[] buf = new byte[8192];
-                    int len;
-                    while ((len = in.read(buf)) != -1) out.write(buf, 0, len);
-                    out.close();
-                    in.close();
-
-                    Map<String, byte[]> loadedFiles = new LinkedHashMap<>();
-                    List<String> loadedPaths = new ArrayList<>();
-
-                    ZipFile zipFile = new ZipFile(tempZip);
-                    Enumeration<? extends ZipEntry> entries = zipFile.entries();
-
-                    while (entries.hasMoreElements()) {
-                        ZipEntry entry = entries.nextElement();
-                        if (!entry.isDirectory()) {
-                            InputStream zis = zipFile.getInputStream(entry);
-                            byte[] fileBytes = readAllBytesCustom(zis);
-                            zis.close();
-                            
-                            loadedFiles.put(entry.getName(), fileBytes);
-                            loadedPaths.add(entry.getName());
-                        }
-                    }
-                    zipFile.close();
-                    tempZip.delete();
-
-                    String projName = uri.getLastPathSegment();
-                    if (projName == null) projName = "ied_config.apcmi";
-                    final String finalProjName = projName;
-
-                    handler.post(() -> {
-                        progress.dismiss();
-                        projectFilesBytes = loadedFiles;
-                        filePathsList = loadedPaths;
-                        currentProjectName = finalProjName;
-
-                        if (!filePathsList.isEmpty()) {
-                            activeNodeFile = filePathsList.get(0);
-                        } else {
-                            projectFilesBytes.put("config.json", "{}".getBytes());
-                            filePathsList.add("config.json");
-                            activeNodeFile = "config.json";
-                        }
-
-                        statusTextView.setText(" Проект: " + currentProjectName + " успешно загружен!");
-                        renderWorkspace();
-                        Toast.makeText(MainActivity.this, "Архив .apcmi открыт без зависаний!", Toast.LENGTH_SHORT).show();
-                    });
-
-                } catch (Exception e) {
-                    handler.post(() -> {
-                        progress.dismiss();
-                        Toast.makeText(MainActivity.this, "Ошибка чтения: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                    });
-                }
-            }).start();
+                loadArchiveFileSafely(tempZip);
+            } catch (Exception e) {
+                Toast.makeText(this, "Ошибка открытия: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            }
         }
-    }
-
-    private byte[] readAllBytesCustom(InputStream inputStream) throws java.io.IOException {
-        java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
-        byte[] data = new byte[8192];
-        int nRead;
-        while ((nRead = inputStream.read(data, 0, data.length)) != -1) {
-            buffer.write(data, 0, nRead);
-        }
-        return buffer.toByteArray();
     }
 
     private void saveApcmiArchive() {
         if (isParamEditMode && rawEditorInput != null && !activeNodeFile.isEmpty()) {
-            projectFilesBytes.put(activeNodeFile, rawEditorInput.getText().toString().getBytes(StandardCharsets.UTF_8));
+            projectFiles.put(activeNodeFile, rawEditorInput.getText().toString());
         }
 
-        try {
-            File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-            if (!downloadsDir.exists()) downloadsDir.mkdirs();
+        ProgressDialog progress = new ProgressDialog(this);
+        progress.setTitle("💾 Сохранение");
+        progress.setMessage("Упаковка проекта в .apcmi архив...");
+        progress.setCancelable(false);
+        progress.show();
 
-            File outFile = new File(downloadsDir, currentProjectName);
-            ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(outFile));
-            
-            for (Map.Entry<String, byte[]> entry : projectFilesBytes.entrySet()) {
-                ZipEntry ze = new ZipEntry(entry.getKey());
-                zos.putNextEntry(ze);
-                zos.write(entry.getValue(), 0, entry.getValue().length);
-                zos.closeEntry();
+        new Thread(() -> {
+            try {
+                File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                if (!downloadsDir.exists()) downloadsDir.mkdirs();
+
+                File outFile = new File(downloadsDir, currentProjectName);
+                ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(outFile));
+                
+                for (Map.Entry<String, String> entry : projectFiles.entrySet()) {
+                    ZipEntry ze = new ZipEntry(entry.getKey());
+                    zos.putNextEntry(ze);
+                    byte[] data = entry.getValue().getBytes(StandardCharsets.UTF_8);
+                    zos.write(data, 0, data.length);
+                    zos.closeEntry();
+                }
+                zos.close();
+
+                handler.post(() -> {
+                    progress.dismiss();
+                    Toast.makeText(this, "💾 Проект успешно сохранен в Загрузки!", Toast.LENGTH_LONG).show();
+                    statusTextView.setText(" Сохранено: " + outFile.getAbsolutePath());
+                });
+            } catch (Exception e) {
+                handler.post(() -> {
+                    progress.dismiss();
+                    Toast.makeText(this, "Ошибка сохранения: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
             }
-            zos.close();
-
-            Toast.makeText(this, "💾 Проект PCM600 успешно сохранен в Загрузки!", Toast.LENGTH_LONG).show();
-            statusTextView.setText(" Сохранено: " + outFile.getAbsolutePath());
-        } catch (Exception e) {
-            Toast.makeText(this, "Ошибка сохранения: " + e.getMessage(), Toast.LENGTH_LONG).show();
-        }
+        }).start();
     }
 
     private Button createStyledButton(String text, String colorHex, int widthDp) {
@@ -451,7 +536,7 @@ public class MainActivity extends Activity {
         btn.setTextSize(11f);
         btn.setTypeface(Typeface.DEFAULT_BOLD);
         btn.setBackgroundColor(Color.parseColor(colorHex));
-        btn.setPadding(10, 10, 10, 10);
+        btn.setPadding(8, 8, 8, 8);
         
         if (widthDp > 0) {
             float scale = getResources().getDisplayMetrics().density;
