@@ -9,7 +9,7 @@ android {
         applicationId "com.apcmi.version1"
         minSdk 26
         targetSdk 34
-        versionCode 203
+        versionCode 204
         versionName "1"
         multiDexEnabled true
     }
